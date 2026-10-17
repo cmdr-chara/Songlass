@@ -55,6 +55,13 @@ class MusicLibrary(tracks: List<Track>) {
         }
         .sortedWith(compareBy(nullsLast()) { it.name?.sortKey() })
 
+    /** The album [track] belongs to (same grouping as [albums]). */
+    fun albumOf(track: Track): Album? =
+        albums.firstOrNull { it.title == track.album && it.artist == track.groupingArtist }
+
+    /** The artist [track] is listed under (album artist when tagged, as in [artists]). */
+    fun artistOf(track: Track): Artist? = artists.firstOrNull { it.name == track.groupingArtist }
+
     /** Case-insensitive substring search over titles, artists and albums. A blank query matches nothing. */
     fun search(query: String): SearchResults {
         val needle = query.trim().sortKey()

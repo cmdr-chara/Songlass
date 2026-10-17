@@ -31,6 +31,14 @@ data class MiniPlayerState(
     val progress: Float,
 )
 
+/** One entry of an [UiStyle.ActionSheet]. */
+@Immutable
+data class SheetAction(
+    val label: String,
+    val icon: ImageVector?,
+    val onClick: () -> Unit,
+)
+
 /** Accessibility labels for playback controls, supplied by the screen layer (localized). */
 @Immutable
 data class PlaybackLabels(
@@ -93,9 +101,12 @@ interface UiStyle {
     @Composable
     fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier)
 
-    /** Icon-only button with a hit area of at least 44×44 dp. */
+    /**
+     * Icon-only button with a hit area of at least 44×44 dp. [filled] adds a translucent circle
+     * behind the icon (for secondary actions on media backgrounds).
+     */
     @Composable
-    fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, modifier: Modifier)
+    fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier)
 
     @Composable
     fun AlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: Modifier)
@@ -127,6 +138,21 @@ interface UiStyle {
         dismissLabel: String,
         onDismiss: () -> Unit,
         content: @Composable () -> Unit,
+    )
+
+    /**
+     * Modal list of actions about one item (e.g. a track), shown from the bottom with a header.
+     * Choosing an action runs it and dismisses the sheet.
+     */
+    @Composable
+    fun ActionSheet(
+        visible: Boolean,
+        title: String,
+        subtitle: String?,
+        artwork: Artwork?,
+        actions: List<SheetAction>,
+        cancelLabel: String,
+        onDismiss: () -> Unit,
     )
 }
 

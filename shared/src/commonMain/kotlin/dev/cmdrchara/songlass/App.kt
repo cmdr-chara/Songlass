@@ -30,6 +30,7 @@ import dev.cmdrchara.songlass.ui.PlatformBackHandler
 import dev.cmdrchara.songlass.ui.Route
 import dev.cmdrchara.songlass.ui.SearchScreen
 import dev.cmdrchara.songlass.ui.Tab
+import dev.cmdrchara.songlass.ui.TrackMenu
 import dev.cmdrchara.songlass.ui.artistName
 import dev.cmdrchara.songlass.ui.artwork
 import dev.cmdrchara.songlass.ui.playbackLabels
@@ -46,6 +47,7 @@ fun App() {
 
         val queue by state.controller.queue.collectAsState()
         val player by state.controller.playerState.collectAsState()
+        val favoriteIds by state.favorites.ids.collectAsState()
         val labels = playbackLabels()
         val current = queue.current?.track
         val currentId = current?.id
@@ -84,7 +86,7 @@ fun App() {
                     is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                     is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                     null -> when (state.tab) {
-                        Tab.Library -> LibraryScreen(state, currentId, padding)
+                        Tab.Library -> LibraryScreen(state, currentId, favoriteIds, padding)
                         Tab.Search -> SearchScreen(state, currentId, padding)
                     }
                 }
@@ -97,8 +99,9 @@ fun App() {
                 dismissLabel = stringResource(Res.string.playback_close),
                 onDismiss = state::closeNowPlaying,
             ) {
-                NowPlayingContent(state, queue, player, labels)
+                NowPlayingContent(state, queue, player, favoriteIds, labels)
             }
+            TrackMenu(state, favoriteIds)
         }
     }
 }

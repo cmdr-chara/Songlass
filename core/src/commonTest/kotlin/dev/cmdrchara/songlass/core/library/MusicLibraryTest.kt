@@ -76,4 +76,13 @@ class MusicLibraryTest {
     fun blankSearchMatchesNothing() {
         assertTrue(library.search("   ").isEmpty)
     }
+
+    @Test
+    fun albumAndArtistOfTrackFollowGrouping() {
+        val guest = library.tracks.single { it.id == "c1" }
+        assertEquals("Hits", library.albumOf(guest)?.title)
+        assertEquals("Various Artists", library.artistOf(guest)?.name)
+        val sameName = library.tracks.single { it.id == "d1" }
+        assertEquals("Beta", library.albumOf(sameName)?.artist)
+    }
 }

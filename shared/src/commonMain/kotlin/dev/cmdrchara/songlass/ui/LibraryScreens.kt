@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -33,8 +34,10 @@ import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.action_play
 import dev.cmdrchara.songlass.shared.resources.action_shuffle
 import dev.cmdrchara.songlass.shared.resources.album_minutes
+import dev.cmdrchara.songlass.shared.resources.favorites_empty
 import dev.cmdrchara.songlass.shared.resources.library_albums
 import dev.cmdrchara.songlass.shared.resources.library_artists
+import dev.cmdrchara.songlass.shared.resources.library_favorites
 import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_library
@@ -42,8 +45,9 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun LibraryScreen(state: AppState, currentTrackId: String?, contentPadding: PaddingValues) {
+fun LibraryScreen(state: AppState, currentTrackId: String?, favoriteIds: List<String>, contentPadding: PaddingValues) {
     val library = state.library
+    val favoriteTracks = remember(favoriteIds) { state.favorites.tracksIn(library) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item { ScreenTitle(stringResource(Res.string.tab_library)) }
         item {
@@ -52,6 +56,7 @@ fun LibraryScreen(state: AppState, currentTrackId: String?, contentPadding: Padd
                     stringResource(Res.string.library_songs),
                     stringResource(Res.string.library_albums),
                     stringResource(Res.string.library_artists),
+                    stringResource(Res.string.library_favorites),
                 ),
                 selectedIndex = state.librarySection.ordinal,
                 onSelect = { state.librarySection = LibrarySection.entries[it] },
@@ -60,7 +65,7 @@ fun LibraryScreen(state: AppState, currentTrackId: String?, contentPadding: Padd
         }
         when (state.librarySection) {
             LibrarySection.Songs -> itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
-                TrackRow(track, highlighted = track.id == currentTrackId) {
+                TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                     state.controller.playTracks(library.tracks, index)
                 }
             }
@@ -69,6 +74,22 @@ fun LibraryScreen(state: AppState, currentTrackId: String?, contentPadding: Padd
             }
             LibrarySection.Artists -> items(library.artists) { artist ->
                 ArtistRow(artist) { state.open(Route.ArtistDetail(artist)) }
+            }
+            LibrarySection.Favorites -> if (favoriteTracks.isEmpty()) {
+                item {
+                    AppText(
+                        stringResource(Res.string.favorites_empty),
+                        AppTheme.typography.subheadline,
+                        color = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    )
+                }
+            } else {
+                itemsIndexed(favoriteTracks, key = { _, t -> t.id }) { index, track ->
+                    TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+                        state.controller.playTracks(favoriteTracks, index)
+                    }
+                }
             }
         }
     }
@@ -126,7 +147,10 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
                         textAlign = TextAlign.End,
                     )
                 },
-                trailing = { AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel) },
+                trailing = {
+                    AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+                    MoreButton { state.openMenu(track) }
+                },
                 highlighted = track.id == currentTrackId,
                 onClick = { state.controller.playTracks(album.tracks, index) },
             )
@@ -152,7 +176,9 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
         }
         item { SectionTitle(stringResource(Res.string.library_songs)) }
         itemsIndexed(artist.tracks, key = { _, t -> t.id }) { index, track ->
-            TrackRow(track, highlighted = track.id == currentTrackId) { state.controller.playTracks(artist.tracks, index) }
+            TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+                state.controller.playTracks(artist.tracks, index)
+            }
         }
     }
 }

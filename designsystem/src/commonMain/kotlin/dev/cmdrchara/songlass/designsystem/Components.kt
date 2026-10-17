@@ -62,7 +62,8 @@ fun IconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     selected: Boolean = false,
-) = LocalUiStyle.current.IconButton(icon, contentDescription, onClick, selected, modifier)
+    filled: Boolean = false,
+) = LocalUiStyle.current.IconButton(icon, contentDescription, onClick, selected, filled, modifier)
 
 @Composable
 fun AlbumArt(
@@ -105,3 +106,14 @@ fun NowPlayingSheet(
     onDismiss: () -> Unit,
     content: @Composable () -> Unit,
 ) = LocalUiStyle.current.NowPlayingSheet(visible, artwork, dismissLabel, onDismiss, content)
+
+@Composable
+fun ActionSheet(
+    visible: Boolean,
+    title: String,
+    actions: List<SheetAction>,
+    cancelLabel: String,
+    onDismiss: () -> Unit,
+    subtitle: String? = null,
+    artwork: Artwork? = null,
+) = LocalUiStyle.current.ActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)

@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
@@ -31,6 +32,7 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.action_more
 import dev.cmdrchara.songlass.shared.resources.playback_next
 import dev.cmdrchara.songlass.shared.resources.playback_pause
 import dev.cmdrchara.songlass.shared.resources.playback_play
@@ -92,14 +94,21 @@ fun BackLink(label: String, onBack: () -> Unit) {
 }
 
 @Composable
-fun TrackRow(track: Track, highlighted: Boolean, onClick: () -> Unit) {
+fun TrackRow(track: Track, highlighted: Boolean, onMore: () -> Unit, onClick: () -> Unit) {
     ListRow(
         title = track.title,
         subtitle = artistName(track.artist),
         leading = { AlbumArt(track.artwork(), Modifier.size(48.dp), cornerRadius = 6.dp) },
+        trailing = { MoreButton(onMore) },
         highlighted = highlighted,
         onClick = onClick,
     )
+}
+
+/** "…" button that opens the actions for a row. */
+@Composable
+fun MoreButton(onClick: () -> Unit) {
+    IconButton(AppIcons.More, stringResource(Res.string.action_more), onClick)
 }
 
 @Composable

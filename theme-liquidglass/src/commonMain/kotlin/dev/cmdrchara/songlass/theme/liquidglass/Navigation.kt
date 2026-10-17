@@ -319,9 +319,16 @@ internal fun LiquidGlassIconButton(
     modifier: Modifier,
     iconSize: Dp = 24.dp,
     hitSize: Dp = 44.dp,
+    filled: Boolean = false,
 ) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val content = LocalContentColor.current
+    val background = when {
+        filled -> content.copy(alpha = if (pressed) 0.24f else 0.14f)
+        pressed -> content.copy(alpha = 0.1f)
+        else -> Color.Transparent
+    }
     Box(
         modifier = modifier
             .size(hitSize)
@@ -329,16 +336,17 @@ internal fun LiquidGlassIconButton(
                 val s = if (pressed) 0.88f else 1f
                 scaleX = s; scaleY = s
             }
+            .then(if (filled) Modifier.padding(6.dp) else Modifier)
             .clip(CircleShape)
-            .background(if (pressed) LocalContentColor.current.copy(alpha = 0.1f) else Color.Transparent)
+            .background(background)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         AppIcon(
             icon = icon,
             contentDescription = contentDescription,
-            size = iconSize,
-            tint = if (selected) AppTheme.colors.accent else LocalContentColor.current,
+            size = if (filled) iconSize * 0.75f else iconSize,
+            tint = if (selected) AppTheme.colors.accent else content,
         )
     }
 }

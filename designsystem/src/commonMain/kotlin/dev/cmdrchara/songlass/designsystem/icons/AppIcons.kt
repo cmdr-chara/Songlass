@@ -110,6 +110,31 @@ object AppIcons {
         }
     }
 
+    val Star: ImageVector by lazy { icon("Star") { stroke { star() } } }
+
+    val StarFilled: ImageVector by lazy { icon("StarFilled") { fill { star() } } }
+
+    /** Drag handle for reordering rows. */
+    val DragHandle: ImageVector by lazy {
+        icon("DragHandle") { stroke { for (y in listOf(8f, 12f, 16f)) { moveTo(5f, y); lineTo(19f, y) } } }
+    }
+
+    val PlayNext: ImageVector by lazy {
+        icon("PlayNext") {
+            stroke { moveTo(3f, 6f); lineTo(13f, 6f); moveTo(3f, 12f); lineTo(10f, 12f); moveTo(3f, 18f); lineTo(10f, 18f) }
+            fill { moveTo(14f, 10f); lineTo(21f, 15f); lineTo(14f, 20f); close() }
+        }
+    }
+
+    val AddToQueue: ImageVector by lazy {
+        icon("AddToQueue") {
+            stroke {
+                moveTo(3f, 6f); lineTo(14f, 6f); moveTo(3f, 12f); lineTo(14f, 12f); moveTo(3f, 18f); lineTo(10f, 18f)
+                moveTo(17f, 14f); lineTo(17f, 22f); moveTo(13f, 18f); lineTo(21f, 18f)
+            }
+        }
+    }
+
     val Close: ImageVector by lazy {
         icon("Close") { stroke { moveTo(6f, 6f); lineTo(18f, 18f); moveTo(18f, 6f); lineTo(6f, 18f) } }
     }
@@ -154,6 +179,18 @@ private fun PathBuilder.circle(cx: Float, cy: Float, r: Float) {
     moveTo(cx - r, cy)
     arcToRelative(r, r, 0f, true, true, 2 * r, 0f)
     arcToRelative(r, r, 0f, true, true, -2 * r, 0f)
+    close()
+}
+
+private fun PathBuilder.star() {
+    // Five-pointed star, outer radius 9.5, inner 4, centred at (12, 12.5).
+    val points = (0 until 10).map { i ->
+        val r = if (i % 2 == 0) 9.5f else 4f
+        val a = kotlin.math.PI / 5 * i - kotlin.math.PI / 2
+        (12f + r * kotlin.math.cos(a).toFloat()) to (12.5f + r * kotlin.math.sin(a).toFloat())
+    }
+    moveTo(points[0].first, points[0].second)
+    points.drop(1).forEach { (x, y) -> lineTo(x, y) }
     close()
 }
 

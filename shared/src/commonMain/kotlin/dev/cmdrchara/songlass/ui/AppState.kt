@@ -9,7 +9,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
+import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
 import dev.cmdrchara.songlass.demo.SampleLibrary
@@ -18,7 +20,7 @@ import kotlinx.coroutines.delay
 
 enum class Tab { Library, Search }
 
-enum class LibrarySection { Songs, Albums, Artists }
+enum class LibrarySection { Songs, Albums, Artists, Favorites }
 
 sealed interface Route {
     data class AlbumDetail(val album: Album) : Route
@@ -33,6 +35,7 @@ sealed interface Route {
 class AppState(
     val library: MusicLibrary,
     val controller: PlaybackController,
+    val favorites: Favorites,
     private val demoPlayer: FakeAudioPlayer?,
 ) {
     var tab by mutableStateOf(Tab.Library)
@@ -44,13 +47,17 @@ class AppState(
     var isQueueVisible by mutableStateOf(false)
         private set
 
+    /** Track whose "…" menu is open, if any. */
+    var menuTrack by mutableStateOf<Track?>(null)
+        private set
+
     private val backStacks = mapOf(Tab.Library to mutableStateListOf<Route>(), Tab.Search to mutableStateListOf())
 
     val currentRoute: Route? get() = backStacks.getValue(tab).lastOrNull()
 
     val searchResults by derivedStateOf { library.search(searchQuery) }
 
-    val canGoBack: Boolean get() = isNowPlayingOpen || currentRoute != null
+    val canGoBack: Boolean get() = menuTrack != null || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
         // Tapping the current tab again returns to its root, as in iOS.
@@ -64,6 +71,7 @@ class AppState(
 
     fun goBack() {
         when {
+            menuTrack != null -> closeMenu()
             isNowPlayingOpen -> closeNowPlaying()
             else -> backStacks.getValue(tab).removeLastOrNull()
         }
@@ -76,6 +84,27 @@ class AppState(
     fun closeNowPlaying() {
         isNowPlayingOpen = false
         isQueueVisible = false
+    }
+
+    fun openMenu(track: Track) {
+        menuTrack = track
+    }
+
+    fun closeMenu() {
+        menuTrack = null
+    }
+
+    /** Leaves Now Playing if needed and opens the album of [track] in the current tab. */
+    fun showAlbumOf(track: Track) {
+        val album = library.albumOf(track) ?: return
+        closeNowPlaying()
+        open(Route.AlbumDetail(album))
+    }
+
+    fun showArtistOf(track: Track) {
+        val artist = library.artistOf(track) ?: return
+        closeNowPlaying()
+        open(Route.ArtistDetail(artist))
     }
 
     fun toggleQueue() {
@@ -96,7 +125,7 @@ class AppState(
 
         fun demo(scope: CoroutineScope): AppState {
             val player = FakeAudioPlayer()
-            return AppState(MusicLibrary(SampleLibrary.tracks), PlaybackController(player, scope), player)
+            return AppState(MusicLibrary(SampleLibrary.tracks), PlaybackController(player, scope), Favorites(), player)
         }
     }
 }

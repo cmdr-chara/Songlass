@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.Dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.UiStyle
 
@@ -53,8 +54,8 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassActionButton(text, icon, onClick, modifier)
 
     @Composable
-    override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, modifier: Modifier) =
-        LiquidGlassIconButton(icon, contentDescription, onClick, selected, modifier)
+    override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) =
+        LiquidGlassIconButton(icon, contentDescription, onClick, selected, modifier, filled = filled)
 
     @Composable
     override fun AlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: Modifier) =
@@ -86,4 +87,15 @@ object LiquidGlassStyle : UiStyle {
         onDismiss: () -> Unit,
         content: @Composable () -> Unit,
     ) = LiquidGlassNowPlayingSheet(visible, artwork, dismissLabel, onDismiss, content)
+
+    @Composable
+    override fun ActionSheet(
+        visible: Boolean,
+        title: String,
+        subtitle: String?,
+        artwork: Artwork?,
+        actions: List<SheetAction>,
+        cancelLabel: String,
+        onDismiss: () -> Unit,
+    ) = LiquidGlassActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)
 }

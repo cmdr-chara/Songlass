@@ -60,7 +60,9 @@ fun SearchScreen(state: AppState, currentTrackId: String?, contentPadding: Paddi
                 if (results.tracks.isNotEmpty()) {
                     item { SectionTitle(stringResource(Res.string.library_songs)) }
                     itemsIndexed(results.tracks, key = { _, t -> t.id }) { index, track ->
-                        TrackRow(track, highlighted = track.id == currentTrackId) { state.controller.playTracks(results.tracks, index) }
+                        TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+                            state.controller.playTracks(results.tracks, index)
+                        }
                     }
                 }
             }
