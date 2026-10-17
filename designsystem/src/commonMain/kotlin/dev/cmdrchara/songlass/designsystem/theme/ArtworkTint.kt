@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.designsystem.theme
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import kotlin.math.abs
@@ -140,6 +141,13 @@ data class ArtworkTint(
         private const val HUE_BUCKETS = 24
     }
 }
+
+/**
+ * Tint of the page under the floating navigation layer (tab bar, mini player), or null for
+ * untinted pages. Lets the glass adapt to what it floats over, as on iOS: dark glass with light
+ * content over dark pages and vice versa.
+ */
+val LocalNavigationTint = staticCompositionLocalOf<ArtworkTint?> { null }
 
 private fun Color.compositeOver(background: Color): Color {
     val a = alpha

@@ -4,6 +4,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
@@ -119,6 +120,12 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             }
         }
         val tintIsDark = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork).isDark
+        val routeArtwork = when (val route = state.currentRoute) {
+            is Route.AlbumDetail -> route.album.artwork()
+            is Route.PlaylistDetail -> route.playlist.artwork()
+            else -> null
+        }
+        val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
         SystemBarAppearance(lightIcons = if (tintedArtwork != null) tintIsDark else darkTheme)
         val tabTitles = mapOf(Tab.Library to stringResource(Res.string.tab_library), Tab.Search to stringResource(Res.string.tab_search))
 
@@ -140,6 +147,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             }
         }
 
+        CompositionLocalProvider(LocalNavigationTint provides routeArtwork?.let { routeTint }) {
         Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.menuTrack != null || state.isSongInfoVisible) Modifier.clearAndSetSemantics {} else Modifier)) {
                 AppScaffold(
@@ -202,6 +210,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             }
             if (current != null) SongInformation(state, current, player)
             TrackMenu(state, favoriteIds)
+        }
         }
     }
 }

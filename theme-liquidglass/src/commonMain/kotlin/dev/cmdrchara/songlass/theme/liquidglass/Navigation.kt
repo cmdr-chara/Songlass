@@ -71,6 +71,8 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
+import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
 
 private val Capsule = RoundedCornerShape(percent = 50)
@@ -123,7 +125,9 @@ internal fun LiquidGlassScaffold(
             // Measuring the animated container would make the list jump during expansion.
             content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
         }
+        val navigationTint = LocalNavigationTint.current
         CompositionLocalProvider(LocalGlassSource provides hazeState) {
+            NavigationTintScope(navigationTint) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
@@ -145,8 +149,15 @@ internal fun LiquidGlassScaffold(
                     onExpandedHeightChanged = { expandedBarsHeightPx = it },
                 )
             }
+            }
         }
     }
+}
+
+/** Draws the navigation layer in the page's tint when there is one, so its glass matches. */
+@Composable
+private fun NavigationTintScope(tint: ArtworkTint?, content: @Composable () -> Unit) {
+    if (tint == null) content() else ProvideArtworkTint(animateArtworkTint(tint), content)
 }
 
 /** Minimizes on downward scrolling; expands when an upward scroll or fling hits the top. */
