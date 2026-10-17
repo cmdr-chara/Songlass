@@ -36,14 +36,19 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
         artwork = track.artwork(),
         cancelLabel = stringResource(Res.string.action_cancel),
         onDismiss = state::closeMenu,
-        actions = listOf(
+        actions = listOfNotNull(
             SheetAction(stringResource(Res.string.action_play_next), AppIcons.PlayNext) { state.controller.playNext(listOf(track)) },
             SheetAction(stringResource(Res.string.action_add_to_queue), AppIcons.AddToQueue) { state.controller.addToQueue(listOf(track)) },
             SheetAction(
                 stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                 if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
             ) { state.favorites.toggle(track.id) },
-            SheetAction(stringResource(Res.string.action_go_to_album), AppIcons.Library) { state.showAlbumOf(track) },
+            // Lone songs are not albums, so there is nothing to go to.
+            if (state.library.albumOf(track) != null) {
+                SheetAction(stringResource(Res.string.action_go_to_album), AppIcons.Library) { state.showAlbumOf(track) }
+            } else {
+                null
+            },
             SheetAction(stringResource(Res.string.action_go_to_artist), AppIcons.MusicNote) { state.showArtistOf(track) },
         ),
     )

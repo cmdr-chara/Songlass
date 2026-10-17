@@ -15,14 +15,17 @@ class MusicLibraryTest {
             track("c1", title = "Guest Song", artist = "Guest", album = "Hits", albumArtist = "Various Artists"),
             track("c2", title = "Another", artist = "Beta", album = "Hits", albumArtist = "Various Artists"),
             track("d1", title = "Same Name", artist = "Beta", album = "First Album"),
+            track("d2", title = "Other Name", artist = "Beta", album = "First Album"),
             track("u1", title = "Untagged", artist = null, album = null),
+            track("u2", title = "Untagged Too", artist = null, album = null),
+            track("s1", title = "Lone Single", artist = "Gamma", album = "Big Album"),
         ),
     )
 
     @Test
     fun tracksAreSortedByTitleIgnoringCase() {
         assertEquals(
-            listOf("Another", "Bonus", "first", "Guest Song", "Same Name", "Second", "Untagged"),
+            listOf("Another", "Bonus", "first", "Guest Song", "Lone Single", "Other Name", "Same Name", "Second", "Untagged", "Untagged Too"),
             library.tracks.map { it.title },
         )
     }
@@ -49,9 +52,10 @@ class MusicLibraryTest {
     }
 
     @Test
-    fun untaggedValuesSortLast() {
-        assertEquals(null, library.albums.last().title)
+    fun untaggedTracksAreNotAnAlbumAndUnknownArtistSortsLast() {
+        assertTrue(library.albums.none { it.title == null })
         assertEquals(null, library.artists.last().name)
+        assertEquals(listOf("u1", "u2"), library.artists.last().tracks.map { it.id })
     }
 
     @Test
@@ -84,5 +88,17 @@ class MusicLibraryTest {
         assertEquals("Various Artists", library.artistOf(guest)?.name)
         val sameName = library.tracks.single { it.id == "d1" }
         assertEquals("Beta", library.albumOf(sameName)?.artist)
+    }
+
+    @Test
+    fun loneSongsAreNotAlbums() {
+        val single = library.tracks.single { it.id == "s1" }
+        assertTrue(library.albums.none { it.title == "Big Album" })
+        assertEquals(null, library.albumOf(single))
+        val gamma = library.artists.single { it.name == "Gamma" }
+        assertEquals(emptyList(), gamma.albums)
+        assertEquals(listOf("s1"), gamma.tracks.map { it.id })
+        assertTrue(library.search("big album").albums.isEmpty())
+        assertEquals(listOf("s1"), library.search("big album").tracks.map { it.id })
     }
 }

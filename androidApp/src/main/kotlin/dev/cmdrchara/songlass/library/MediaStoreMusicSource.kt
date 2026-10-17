@@ -39,6 +39,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             MediaStore.Audio.Media.TRACK,
             MediaStore.Audio.Media.CD_TRACK_NUMBER,
             MediaStore.Audio.Media.DISC_NUMBER,
+            MediaStore.Audio.Media.RELATIVE_PATH,
         )
         val tracks = mutableListOf<Track>()
         context.contentResolver.query(
@@ -57,17 +58,24 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             val legacyTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
             val cdTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.CD_TRACK_NUMBER)
             val disc = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISC_NUMBER)
+            val relativePath = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)
             while (cursor.moveToNext()) {
                 val mediaId = cursor.getLong(id)
                 val (legacyDisc, legacyNumber) = TagNumbers.splitLegacyTrack(
                     if (cursor.isNull(legacyTrack)) null else cursor.getInt(legacyTrack),
                 )
+                val artistTag = cursor.getString(artist).cleanTag()
+                val folder = cursor.getString(relativePath)?.trimEnd('/')?.substringAfterLast('/')
+                // Without an album tag MediaStore uses the folder name; without an artist either,
+                // that is almost certainly such a fallback rather than a real album.
+                val albumTag = cursor.getString(album).cleanTag()
+                    ?.takeUnless { artistTag == null && it == folder }
                 tracks += Track(
                     id = mediaId.toString(),
                     title = cursor.getString(title)?.takeIf { it.isNotBlank() } ?: continue,
                     uri = ContentUris.withAppendedId(collection, mediaId).toString(),
-                    artist = cursor.getString(artist).cleanTag(),
-                    album = cursor.getString(album).cleanTag(),
+                    artist = artistTag,
+                    album = albumTag,
                     albumArtist = cursor.getString(albumArtist).cleanTag(),
                     durationMs = cursor.getLong(duration),
                     trackNumber = TagNumbers.parse(cursor.getString(cdTrack)) ?: legacyNumber,
