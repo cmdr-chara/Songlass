@@ -114,8 +114,6 @@
     <string name="settings_artwork_hint">How covers appear in Now Playing and on album and playlist pages. Edge to edge follows the cover’s light or dark tone.</string>
     <string name="tab_home">Home</string>
     <string name="home_shuffle_all">Shuffle All</string>
-    <string name="home_rediscover">Rediscover</string>
-    <string name="home_recently_played">Recently Played</string>
     <string name="home_recently_added">Recently Added</string>
     <string name="home_most_played">Most Played</string>
     <string name="home_change_of_pace">Change of Pace</string>
@@ -128,4 +126,17 @@
         <item quantity="one">There’s %1$d song you’ve never played. Start here.</item>
         <item quantity="other">There are %1$d songs you’ve never played. Start with these.</item>
     </plurals>
+    <string name="home_for_you">For You</string>
+    <string name="home_label_collection">Your collection</string>
+    <string name="home_label_library">All your music</string>
+    <string name="home_rediscover_never">Never played</string>
+    <plurals name="home_rediscover_weeks">
+        <item quantity="one">Not played for %1$d week</item>
+        <item quantity="other">Not played for %1$d weeks</item>
+    </plurals>
+    <plurals name="home_rediscover_months">
+        <item quantity="one">Not played for %1$d month</item>
+        <item quantity="other">Not played for %1$d months</item>
+    </plurals>
+    <string name="home_play_all">Play all</string>
 </resources>

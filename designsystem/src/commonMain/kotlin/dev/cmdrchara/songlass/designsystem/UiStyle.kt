@@ -224,11 +224,19 @@ interface UiStyle {
     fun Tag(text: String, modifier: Modifier)
 
     /**
-     * Large featured card in [artwork]'s tint, with the cover on the side, a title and a short
-     * subtitle. Used for the Home highlights (favorites, shuffle all, rediscover).
+     * Tall featured card, as in Apple Music's Top Picks: a short [label] saying why it is there
+     * above the card, the cover filling its top and a band in the cover's tint with [title] and
+     * [subtitle]. Used for the Home highlights (favorites, shuffle all, rediscover).
      */
     @Composable
-    fun HighlightCard(title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier)
+    fun PosterCard(label: String, title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier)
+
+    /**
+     * Compact shortcut for the Home's "jump back in" grid: small cover at the start and a title,
+     * on a filled rounded surface. [circular] shows the cover as a circle (artists).
+     */
+    @Composable
+    fun ShortcutTile(title: String, artwork: Artwork, circular: Boolean, onClick: () -> Unit, modifier: Modifier)
 
     /** Back control that floats over artwork and scrolling content, always legible. */
     @Composable

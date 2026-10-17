@@ -167,37 +167,3 @@ internal fun FloatingCircleButton(icon: ImageVector, contentDescription: String,
         }
     }
 }
-
-/** Featured card: the artwork's tint as background, title and subtitle, cover on the right. */
-@Composable
-internal fun LiquidGlassHighlightCard(title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier) {
-    val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark))
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val reduceMotion = AppTheme.accessibility.reduceMotion
-    val scale by animateFloatAsState(
-        if (pressed && !reduceMotion) 0.97f else 1f,
-        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f),
-        label = "highlightPress",
-    )
-    ProvideArtworkTint(tint) {
-        androidx.compose.foundation.layout.Row(
-            modifier
-                .graphicsLayer { scaleX = scale; scaleY = scale }
-                .clip(androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
-                .background(tint.background)
-                .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
-                AppText(title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold), maxLines = 2)
-                if (subtitle != null) {
-                    AppText(subtitle, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2)
-                }
-            }
-            androidx.compose.foundation.layout.Spacer(Modifier.size(12.dp))
-            LiquidGlassAlbumArt(artwork, cornerRadius = 12.dp, modifier = Modifier.size(84.dp))
-        }
-    }
-}

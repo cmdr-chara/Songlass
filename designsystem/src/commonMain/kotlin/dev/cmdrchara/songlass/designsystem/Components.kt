@@ -196,5 +196,9 @@ fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier
     LocalUiStyle.current.FloatingBackButton(contentDescription, onClick, modifier)
 
 @Composable
-fun HighlightCard(title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, subtitle: String? = null) =
-    LocalUiStyle.current.HighlightCard(title, subtitle, artwork, onClick, modifier)
+fun PosterCard(label: String, title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, subtitle: String? = null) =
+    LocalUiStyle.current.PosterCard(label, title, subtitle, artwork, onClick, modifier)
+
+@Composable
+fun ShortcutTile(title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, circular: Boolean = false) =
+    LocalUiStyle.current.ShortcutTile(title, artwork, circular, onClick, modifier)

@@ -77,12 +77,18 @@ fun ScreenTitle(text: String, trailing: (@Composable () -> Unit)? = null) {
 }
 
 @Composable
-fun SectionTitle(text: String) {
-    AppText(
-        text = text,
-        style = AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold),
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp).semantics { heading() },
-    )
+fun SectionTitle(text: String, action: (@Composable () -> Unit)? = null) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 20.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppText(
+            text = text,
+            style = AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        action?.invoke()
+    }
 }
 
 /** iOS-style back link: chevron plus the previous screen's title, 44 dp tall. */

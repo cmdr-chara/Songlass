@@ -32,11 +32,19 @@ sealed interface ChangeOfPaceReason {
 
 data class ChangeOfPace(val tracks: List<Track>, val reason: ChangeOfPaceReason)
 
+/** An album to rediscover; [idleDays] since it was last played, null if it never was. */
+data class Rediscover(val album: Album, val idleDays: Int?)
+
 /** Everything the Home shows. Empty sections are empty lists / nulls and are not displayed. */
 data class HomeFeed(
     val favorites: List<Track> = emptyList(),
+    /**
+     * Quick way back in at the top of the Home: the latest places playback started from, then
+     * favorites and playlists to fill the grid. Empty when there are fewer than two.
+     */
+    val shortcuts: List<HomeItem> = emptyList(),
     /** An album not heard for a while, picked once per day. */
-    val rediscover: Album? = null,
+    val rediscover: Rediscover? = null,
     val recentlyPlayed: List<HomeItem> = emptyList(),
     val recentlyAdded: List<HomeItem> = emptyList(),
     val mostPlayed: List<Track> = emptyList(),
@@ -46,6 +54,9 @@ data class HomeFeed(
     companion object {
         const val ROW_SIZE = 12
         const val SHORT_LIST = 5
+        /** Songs in a paged shelf: two columns of four. */
+        const val SHELF_SIZE = 8
+        const val SHORTCUTS = 6
         private const val DAY_MS = 86_400_000L
         private const val REDISCOVER_AFTER_MS = 30 * DAY_MS
         private const val MIN_PLAYS_FOR_SUGGESTIONS = 3
@@ -68,7 +79,9 @@ data class HomeFeed(
                 val last = lastPlayedOf(album.tracks)
                 last == null || nowMs - last > REDISCOVER_AFTER_MS
             }
-            val rediscover = stale.takeIf { it.isNotEmpty() }?.let { it[Random(day).nextInt(it.size)] }
+            val rediscover = stale.takeIf { it.isNotEmpty() }?.let { it[Random(day).nextInt(it.size)] }?.let { album ->
+                Rediscover(album, lastPlayedOf(album.tracks)?.let { ((nowMs - it) / DAY_MS).toInt() })
+            }
 
             val recentlyPlayed = history.recentContexts.mapNotNull { recent ->
                 when (val c = recent.context) {
@@ -88,10 +101,19 @@ data class HomeFeed(
 
             val mostPlayed = library.tracks.filter { (history.playCounts[it.id] ?: 0) > 0 }
                 .sortedWith(compareByDescending<Track> { history.playCounts[it.id] ?: 0 }.thenByDescending { history.lastPlayedMs[it.id] ?: 0 })
-                .take(SHORT_LIST)
+                .take(SHELF_SIZE)
+
+            val shortcuts = buildList {
+                addAll(recentlyPlayed.take(SHORTCUTS))
+                if (favorites.isNotEmpty() && none { it is HomeItem.FavoritesItem }) add(HomeItem.FavoritesItem(favorites))
+                library.playlists.forEach { playlist ->
+                    if (none { it is HomeItem.PlaylistItem && it.playlist.id == playlist.id }) add(HomeItem.PlaylistItem(playlist))
+                }
+            }.take(SHORTCUTS).takeIf { it.size >= 2 }.orEmpty()
 
             return HomeFeed(
                 favorites = favorites,
+                shortcuts = shortcuts,
                 rediscover = rediscover,
                 recentlyPlayed = recentlyPlayed,
                 recentlyAdded = recentlyAdded,
@@ -114,7 +136,7 @@ data class HomeFeed(
                 .sortedWith(compareBy<Track> { history.playCounts[it.id] ?: 0 }.thenBy { history.lastPlayedMs[it.id] ?: 0 })
             if (candidates.isEmpty()) return null
             // Least-played pool, shuffled with a daily seed so the pick varies from day to day.
-            val pool = candidates.take(SHORT_LIST * 6).shuffled(Random(day + 1)).take(SHORT_LIST)
+            val pool = candidates.take(SHELF_SIZE * 4).shuffled(Random(day + 1)).take(SHELF_SIZE)
             val neverPlayed = library.tracks.count { (history.playCounts[it.id] ?: 0) == 0 }
             val reason = when {
                 dominant != null -> ChangeOfPaceReason.MostlyOneArtist(dominant)

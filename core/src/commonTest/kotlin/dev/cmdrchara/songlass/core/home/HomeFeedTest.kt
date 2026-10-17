@@ -78,7 +78,7 @@ class HomeFeedTest {
         val pace = HomeFeed.build(library, history(plays), emptyList(), now).changeOfPace!!
         assertEquals(ChangeOfPaceReason.MostlyOneArtist("A"), pace.reason)
         assertTrue(pace.tracks.none { it.groupingArtist == "A" })
-        assertEquals(HomeFeed.SHORT_LIST, pace.tracks.size)
+        assertEquals(HomeFeed.SHELF_SIZE, pace.tracks.size)
     }
 
     @Test
@@ -103,8 +103,34 @@ class HomeFeedTest {
         val played = history(listOf("a1"))
         repeat(10) { offset ->
             val pick = HomeFeed.build(library, played, emptyList(), now + offset * day).rediscover
-            assertEquals("Album B", pick?.title)
+            assertEquals("Album B", pick?.album?.title)
+            assertNull(pick?.idleDays)
         }
+    }
+
+    @Test
+    fun rediscoverTellsHowLongTheAlbumWasIdle() {
+        val old = HistorySnapshot(lastPlayedMs = mapOf("a1" to now - 45 * day, "b1" to now - 90 * day, "b2" to now - 40 * day))
+        val pick = HomeFeed.build(library, old, emptyList(), now).rediscover!!
+        val expected = if (pick.album.title == "Album A") 45 else 40
+        assertEquals(expected, pick.idleDays)
+    }
+
+    @Test
+    fun shortcutsStartWithRecentContextsThenFavoritesAndPlaylists() {
+        val contexts = listOf(PlayContext.Playlist("Music/Gym"), PlayContext.Album("Album A", "A"))
+        val feed = HomeFeed.build(library, history(listOf("a1"), contexts), favoriteIds = listOf("b1"), nowMs = now)
+        assertIs<HomeItem.PlaylistItem>(feed.shortcuts[0])
+        assertIs<HomeItem.AlbumItem>(feed.shortcuts[1])
+        assertIs<HomeItem.FavoritesItem>(feed.shortcuts[2])
+        // The Gym playlist is already there; only Chill is added.
+        assertEquals(listOf("Music/Chill"), feed.shortcuts.drop(3).map { (it as HomeItem.PlaylistItem).playlist.id })
+    }
+
+    @Test
+    fun shortcutsNeedAtLeastTwoItems() {
+        val single = MusicLibrary(listOf(track("z", album = null).copy(folder = "Music")))
+        assertTrue(HomeFeed.build(single, HistorySnapshot(), emptyList(), now).shortcuts.isEmpty())
     }
 
     @Test

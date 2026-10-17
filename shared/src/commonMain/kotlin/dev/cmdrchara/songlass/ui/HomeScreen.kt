@@ -1,10 +1,13 @@
 package dev.cmdrchara.songlass.ui
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -15,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.home.ChangeOfPaceReason
@@ -30,18 +35,26 @@ import dev.cmdrchara.songlass.core.home.HomeItem
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.Artwork
-import dev.cmdrchara.songlass.designsystem.HighlightCard
+import dev.cmdrchara.songlass.designsystem.IconButton
+import dev.cmdrchara.songlass.designsystem.PosterCard
+import dev.cmdrchara.songlass.designsystem.ShortcutTile
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.home_change_of_pace
+import dev.cmdrchara.songlass.shared.resources.home_for_you
+import dev.cmdrchara.songlass.shared.resources.home_label_collection
+import dev.cmdrchara.songlass.shared.resources.home_label_library
 import dev.cmdrchara.songlass.shared.resources.home_most_played
 import dev.cmdrchara.songlass.shared.resources.home_pace_artist
 import dev.cmdrchara.songlass.shared.resources.home_pace_lately
 import dev.cmdrchara.songlass.shared.resources.home_pace_never
+import dev.cmdrchara.songlass.shared.resources.home_play_all
 import dev.cmdrchara.songlass.shared.resources.home_recently_added
-import dev.cmdrchara.songlass.shared.resources.home_recently_played
-import dev.cmdrchara.songlass.shared.resources.home_rediscover
+import dev.cmdrchara.songlass.shared.resources.home_rediscover_months
+import dev.cmdrchara.songlass.shared.resources.home_rediscover_never
+import dev.cmdrchara.songlass.shared.resources.home_rediscover_weeks
 import dev.cmdrchara.songlass.shared.resources.home_shuffle_all
 import dev.cmdrchara.songlass.shared.resources.home_your_playlists
 import dev.cmdrchara.songlass.shared.resources.library_favorites
@@ -56,9 +69,10 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.time.Clock
 
 /**
- * Home: featured cards, then what was played and added lately, the most played songs, a
- * "change of pace" suggestion and the playlists. Content comes from core's [HomeFeed];
- * sections without content are not shown.
+ * Home, shaped after what the best players share (Spotify's shortcuts, Apple Music's Top Picks,
+ * Plexamp's hubs): a grid to jump back in, featured cards that say why they are there, recent
+ * additions, paged song shelves with a "play all" and the playlists. Content comes from core's
+ * [HomeFeed]; sections without content are not shown.
  */
 @Composable
 fun HomeScreen(
@@ -76,119 +90,188 @@ fun HomeScreen(
     val feed = remember(library, history, favoriteIds, now) { HomeFeed.build(library, history, favoriteIds, now) }
     val controller = state.controller
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        item { ScreenTitle(stringResource(Res.string.tab_home)) }
-        if (!hasAccess || library.tracks.isEmpty()) {
-            item { LibraryEmptyState(hasAccess, onRequestAccess) }
-            return@LazyColumn
-        }
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val screenWidth = maxWidth
+        // Carousels show a peek of the next item, as on iOS.
+        val posterWidth = screenWidth * 0.62f
+        val tileWidth = (screenWidth - 16.dp * 2 - 14.dp) / 2.3f
+        val shelfWidth = screenWidth - 16.dp * 2 - 28.dp
 
-        item {
-            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                if (feed.favorites.isNotEmpty()) item {
-                    HighlightCard(
-                        title = stringResource(Res.string.library_favorites),
-                        subtitle = pluralStringResource(Res.plurals.songs_count, feed.favorites.size, feed.favorites.size),
-                        artwork = feed.favorites.first().artwork(),
-                        onClick = { controller.playTracks(feed.favorites, context = PlayContext.Favorites) },
-                        modifier = Modifier.width(HighlightWidth),
-                    )
-                }
-                item {
-                    HighlightCard(
-                        title = stringResource(Res.string.home_shuffle_all),
-                        subtitle = pluralStringResource(Res.plurals.songs_count, library.tracks.size, library.tracks.size),
-                        artwork = remember(library) { library.tracks.random().artwork() },
-                        onClick = { controller.shuffleTracks(library.tracks) },
-                        modifier = Modifier.width(HighlightWidth),
-                    )
-                }
-                feed.rediscover?.let { album ->
-                    item {
-                        HighlightCard(
-                            title = stringResource(Res.string.home_rediscover),
-                            subtitle = albumTitle(album.title) + " · " + artistName(album.artist),
-                            artwork = album.artwork(),
-                            onClick = { state.open(Route.AlbumDetail(album)) },
-                            modifier = Modifier.width(HighlightWidth),
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+            item { ScreenTitle(stringResource(Res.string.tab_home)) }
+            if (!hasAccess || library.tracks.isEmpty()) {
+                item { LibraryEmptyState(hasAccess, onRequestAccess) }
+                return@LazyColumn
+            }
+
+            if (feed.shortcuts.isNotEmpty()) {
+                item { ShortcutGrid(feed.shortcuts, state) }
+            }
+
+            item { SectionTitle(stringResource(Res.string.home_for_you)) }
+            item {
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (feed.favorites.isNotEmpty()) item {
+                        PosterCard(
+                            label = stringResource(Res.string.home_label_collection),
+                            title = stringResource(Res.string.library_favorites),
+                            subtitle = pluralStringResource(Res.plurals.songs_count, feed.favorites.size, feed.favorites.size),
+                            artwork = feed.favorites.first().artwork(),
+                            onClick = { controller.playTracks(feed.favorites, context = PlayContext.Favorites) },
+                            modifier = Modifier.width(posterWidth),
                         )
+                    }
+                    item {
+                        PosterCard(
+                            label = stringResource(Res.string.home_label_library),
+                            title = stringResource(Res.string.home_shuffle_all),
+                            subtitle = pluralStringResource(Res.plurals.songs_count, library.tracks.size, library.tracks.size),
+                            artwork = remember(library) { library.tracks.random().artwork() },
+                            onClick = { controller.shuffleTracks(library.tracks) },
+                            modifier = Modifier.width(posterWidth),
+                        )
+                    }
+                    feed.rediscover?.let { pick ->
+                        item {
+                            PosterCard(
+                                label = idleLabel(pick.idleDays),
+                                title = albumTitle(pick.album.title),
+                                subtitle = artistName(pick.album.artist),
+                                artwork = pick.album.artwork(),
+                                onClick = { state.open(Route.AlbumDetail(pick.album)) },
+                                modifier = Modifier.width(posterWidth),
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (feed.recentlyAdded.isNotEmpty()) {
+                item { SectionTitle(stringResource(Res.string.home_recently_added)) }
+                item { HomeItemRow(feed.recentlyAdded, state, tileWidth) }
+            }
+            feed.changeOfPace?.let { pace ->
+                item { SectionTitle(stringResource(Res.string.home_change_of_pace), action = { PlayAllButton { controller.playTracks(pace.tracks) } }) }
+                item {
+                    AppText(
+                        text = when (val reason = pace.reason) {
+                            is ChangeOfPaceReason.MostlyOneArtist -> stringResource(Res.string.home_pace_artist, reason.artist)
+                            is ChangeOfPaceReason.NeverPlayed -> pluralStringResource(Res.plurals.home_pace_never, reason.count, reason.count)
+                            ChangeOfPaceReason.NotLately -> stringResource(Res.string.home_pace_lately)
+                        },
+                        style = AppTheme.typography.subheadline,
+                        color = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
+                    )
+                }
+                item { TrackShelf(pace.tracks, currentTrackId, state, shelfWidth, screenWidth - 32.dp) }
+            }
+            if (feed.mostPlayed.isNotEmpty()) {
+                item { SectionTitle(stringResource(Res.string.home_most_played), action = { PlayAllButton { controller.playTracks(feed.mostPlayed) } }) }
+                item { TrackShelf(feed.mostPlayed, currentTrackId, state, shelfWidth, screenWidth - 32.dp) }
+            }
+            if (feed.playlists.isNotEmpty()) {
+                item { SectionTitle(stringResource(Res.string.home_your_playlists)) }
+                item { HomeItemRow(feed.playlists.map(HomeItem::PlaylistItem), state, tileWidth) }
+            }
+            item { Spacer(Modifier.height(8.dp)) }
+        }
+    }
+}
+
+/** Why the rediscover pick is there: never played, or for how long it has not been. */
+@Composable
+private fun idleLabel(idleDays: Int?): String = when {
+    idleDays == null -> stringResource(Res.string.home_rediscover_never)
+    idleDays < 60 -> (idleDays / 7).let { pluralStringResource(Res.plurals.home_rediscover_weeks, it, it) }
+    else -> (idleDays / 30).let { pluralStringResource(Res.plurals.home_rediscover_months, it, it) }
+}
+
+@Composable
+private fun PlayAllButton(onClick: () -> Unit) {
+    IconButton(AppIcons.Play, stringResource(Res.string.home_play_all), onClick, filled = true)
+}
+
+/** Two columns of compact shortcuts to jump back into recent albums, playlists and artists. */
+@Composable
+private fun ShortcutGrid(items: List<HomeItem>, state: AppState) {
+    Column(
+        Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        items.chunked(2).forEach { pair ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                pair.forEach { item ->
+                    val tile = tileContent(item)
+                    ShortcutTile(
+                        title = tile.title,
+                        artwork = tile.artwork,
+                        circular = item is HomeItem.ArtistItem,
+                        onClick = { openItem(item, state) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (pair.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
+ * Songs in columns of four that page sideways, like Apple Music's song shelves. A single
+ * column takes the full width.
+ */
+@Composable
+private fun TrackShelf(tracks: List<Track>, currentTrackId: String?, state: AppState, columnWidth: Dp, fullWidth: Dp) {
+    val columns = tracks.chunked(ShelfRows)
+    val listState = rememberLazyListState()
+    LazyRow(
+        state = listState,
+        flingBehavior = rememberSnapFlingBehavior(listState),
+        contentPadding = PaddingValues(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        itemsIndexed(columns) { columnIndex, column ->
+            Column(Modifier.width(if (columns.size == 1) fullWidth else columnWidth)) {
+                column.forEachIndexed { row, track ->
+                    TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+                        state.controller.playTracks(tracks, columnIndex * ShelfRows + row)
                     }
                 }
             }
         }
-
-        if (feed.recentlyPlayed.isNotEmpty()) {
-            item { SectionTitle(stringResource(Res.string.home_recently_played)) }
-            item { HomeItemRow(feed.recentlyPlayed, state) }
-        }
-        if (feed.recentlyAdded.isNotEmpty()) {
-            item { SectionTitle(stringResource(Res.string.home_recently_added)) }
-            item { HomeItemRow(feed.recentlyAdded, state) }
-        }
-        if (feed.mostPlayed.isNotEmpty()) {
-            item { SectionTitle(stringResource(Res.string.home_most_played)) }
-            trackRows(feed.mostPlayed, currentTrackId, state)
-        }
-        feed.changeOfPace?.let { pace ->
-            item { SectionTitle(stringResource(Res.string.home_change_of_pace)) }
-            item {
-                AppText(
-                    text = when (val reason = pace.reason) {
-                        is ChangeOfPaceReason.MostlyOneArtist -> stringResource(Res.string.home_pace_artist, reason.artist)
-                        is ChangeOfPaceReason.NeverPlayed -> pluralStringResource(Res.plurals.home_pace_never, reason.count, reason.count)
-                        ChangeOfPaceReason.NotLately -> stringResource(Res.string.home_pace_lately)
-                    },
-                    style = AppTheme.typography.subheadline,
-                    color = AppTheme.colors.secondaryLabel,
-                    modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp),
-                )
-            }
-            trackRows(pace.tracks, currentTrackId, state)
-        }
-        if (feed.playlists.isNotEmpty()) {
-            item { SectionTitle(stringResource(Res.string.home_your_playlists)) }
-            item { HomeItemRow(feed.playlists.map(HomeItem::PlaylistItem), state) }
-        }
-        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
-private val HighlightWidth = 300.dp
-private val TileSize = 150.dp
+private const val ShelfRows = 4
 
-private fun androidx.compose.foundation.lazy.LazyListScope.trackRows(tracks: List<Track>, currentTrackId: String?, state: AppState) {
-    itemsIndexed(tracks, key = { _, t -> "row-${t.id}" }) { index, track ->
-        TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(tracks, index)
-        }
+private fun openItem(item: HomeItem, state: AppState) {
+    when (item) {
+        is HomeItem.AlbumItem -> state.open(Route.AlbumDetail(item.album))
+        is HomeItem.PlaylistItem -> state.open(Route.PlaylistDetail(item.playlist))
+        is HomeItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
+        is HomeItem.TrackItem -> state.controller.playTracks(listOf(item.track))
+        is HomeItem.FavoritesItem -> state.controller.playTracks(item.tracks, context = PlayContext.Favorites)
     }
 }
 
 /** Horizontal carousel of albums, playlists, artists and songs. */
 @Composable
-private fun HomeItemRow(items: List<HomeItem>, state: AppState) {
+private fun HomeItemRow(items: List<HomeItem>, state: AppState, tileWidth: Dp) {
     LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        items(items) { item -> HomeTile(item, state) }
+        items(items) { item -> HomeTile(item, state, tileWidth) }
     }
 }
 
 @Composable
-private fun HomeTile(item: HomeItem, state: AppState) {
+private fun HomeTile(item: HomeItem, state: AppState, size: Dp) {
     val tile = tileContent(item)
     Column(
         Modifier
-            .width(TileSize)
-            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button) {
-                when (item) {
-                    is HomeItem.AlbumItem -> state.open(Route.AlbumDetail(item.album))
-                    is HomeItem.PlaylistItem -> state.open(Route.PlaylistDetail(item.playlist))
-                    is HomeItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
-                    is HomeItem.TrackItem -> state.controller.playTracks(listOf(item.track))
-                    is HomeItem.FavoritesItem -> state.controller.playTracks(item.tracks, context = PlayContext.Favorites)
-                }
-            },
+            .width(size)
+            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button) { openItem(item, state) },
     ) {
-        AlbumArt(tile.artwork, Modifier.size(TileSize), cornerRadius = if (item is HomeItem.ArtistItem) TileSize / 2 else 10.dp)
+        AlbumArt(tile.artwork, Modifier.size(size), cornerRadius = if (item is HomeItem.ArtistItem) size / 2 else 10.dp)
         Spacer(Modifier.height(6.dp))
         AppText(tile.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
         AppText(tile.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
