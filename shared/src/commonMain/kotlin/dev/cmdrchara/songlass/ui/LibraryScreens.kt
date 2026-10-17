@@ -318,25 +318,28 @@ private fun ArtworkCollectionPage(
                     Tag(kind)
                     Spacer(Modifier.height(8.dp))
                     AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
-                    if (subtitle != null) {
-                        AppText(
-                            subtitle,
-                            AppTheme.typography.headline,
-                            color = AppTheme.colors.secondaryLabel,
-                            maxLines = 1,
-                            modifier = if (onSubtitleClick != null) {
-                                Modifier.clickable(role = Role.Button, onClick = onSubtitleClick).padding(vertical = 4.dp)
-                            } else Modifier.padding(vertical = 4.dp),
-                        )
-                    }
-                    AppText(
-                        text = pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size) +
-                            " · " + stringResource(Res.string.album_minutes, minutes),
-                        style = AppTheme.typography.footnote,
-                        color = AppTheme.colors.secondaryLabel,
-                    )
-                    Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.weight(1f))
+                    // Play and shuffle sit beside the details instead of on a row of their own.
+                    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            if (subtitle != null) {
+                                AppText(
+                                    subtitle,
+                                    AppTheme.typography.headline,
+                                    color = AppTheme.colors.secondaryLabel,
+                                    maxLines = 1,
+                                    modifier = if (onSubtitleClick != null) {
+                                        Modifier.clickable(role = Role.Button, onClick = onSubtitleClick).padding(vertical = 4.dp)
+                                    } else Modifier.padding(vertical = 4.dp),
+                                )
+                            }
+                            AppText(
+                                text = pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size) +
+                                    " · " + stringResource(Res.string.album_minutes, minutes),
+                                style = AppTheme.typography.footnote,
+                                color = AppTheme.colors.secondaryLabel,
+                            )
+                        }
+                        Spacer(Modifier.width(12.dp))
                         IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, filled = true)
                         Spacer(Modifier.width(12.dp))
                         ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) })
