@@ -6,6 +6,8 @@ import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
+import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
+import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.demo.SampleLibrary
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -29,10 +31,11 @@ interface MusicSource {
 class AppGraph(
     val player: AudioPlayer,
     val source: MusicSource,
+    store: KeyValueStore,
     private val scope: CoroutineScope,
 ) {
     val controller = PlaybackController(player, scope)
-    val favorites = Favorites()
+    val favorites = Favorites(store)
 
     private val _library = MutableStateFlow(MusicLibrary(emptyList()))
     val library: StateFlow<MusicLibrary> = _library.asStateFlow()
@@ -59,7 +62,8 @@ class AppGraph(
         private const val DEMO_TICK_MS = 250L
 
         /** Fictional library and silent player, for platforms without real playback yet. */
-        fun demo(scope: CoroutineScope) = AppGraph(FakeAudioPlayer(), DemoMusicSource, scope)
+        fun demo(scope: CoroutineScope, store: KeyValueStore = InMemoryKeyValueStore()) =
+            AppGraph(FakeAudioPlayer(), DemoMusicSource, store, scope)
     }
 }
 

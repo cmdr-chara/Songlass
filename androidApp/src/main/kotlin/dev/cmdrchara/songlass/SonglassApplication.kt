@@ -34,6 +34,6 @@ class SonglassApplication : Application() {
             .build()
         musicSource = MediaStoreMusicSource(this)
         artworkLoader = MediaStoreArtworkLoader(this)
-        graph = AppGraph(Media3AudioPlayer(exoPlayer, scope), musicSource, scope)
+        graph = AppGraph(Media3AudioPlayer(exoPlayer, scope), musicSource, SharedPreferencesStore(this), scope)
     }
 }
