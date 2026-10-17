@@ -282,13 +282,15 @@ internal fun PlayerArtworkExpansion(
     }
 }
 
-/** (position, alpha) stops of the hero fade, following an ease-in-out curve. */
-private val HeroFadeStops = listOf(
-    0f to 0f, 0.3f to 0f, 0.4f to 0.06f, 0.5f to 0.2f, 0.6f to 0.45f,
-    0.7f to 0.72f, 0.78f to 0.9f, 0.85f to 1f, 1f to 1f,
-)
+/** (position, alpha) stops: a smoothstep from [from] to [to], sampled finely so no band shows. */
+private fun smoothFade(from: Float, to: Float, samples: Int = 14): List<Pair<Float, Float>> =
+    listOf(0f to 0f) + (0..samples).map { i ->
+        val t = i / samples.toFloat()
+        (from + (to - from) * t) to (t * t * (3f - 2f * t))
+    } + listOf(1f to 1f)
+
+/** The cover dissolves over most of its height and is solid just before its bottom edge. */
+private val HeroFadeStops = smoothFade(from = 0.28f, to = 0.94f)
 
 /** Reduce Transparency: the same curve, reaching the solid color sooner. */
-private val HeroFadeStopsOpaque = listOf(
-    0f to 0f, 0.25f to 0f, 0.35f to 0.15f, 0.5f to 0.55f, 0.65f to 0.9f, 0.72f to 1f, 1f to 1f,
-)
+private val HeroFadeStopsOpaque = smoothFade(from = 0.2f, to = 0.75f)

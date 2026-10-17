@@ -66,7 +66,10 @@ data class ArtworkTint(
             var content: Color
             if (useDark) {
                 val backgroundLightness = edgeLightness?.coerceIn(0.05f, 0.2f) ?: 0.15f
-                background = Hsl(hsl.h, min(saturation, 0.55f) * 0.75f, backgroundLightness).toColor()
+                // Near-black edges get a near-neutral background: a saturated dark red under a
+                // black cover reads as a seam where the fade ends.
+                val edgeSaturationScale = edgeLightness?.let { (it / 0.2f).coerceIn(0.35f, 1f) } ?: 1f
+                background = Hsl(hsl.h, min(saturation, 0.55f) * 0.75f * edgeSaturationScale, backgroundLightness).toColor()
                 var lightness = 0.8f
                 content = Hsl(hsl.h, min(saturation * 0.9f + 0.15f, 0.75f).takeIf { saturation > 0f } ?: 0f, lightness).toColor()
                 while (contrast(content, background) < MIN_CONTENT_CONTRAST && lightness < 0.97f) {

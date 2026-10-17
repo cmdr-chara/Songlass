@@ -108,15 +108,15 @@ internal fun LiquidGlassSeekBar(
 
     Column(modifier.fillMaxWidth()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            val timeStyle = AppTheme.typography.caption2
+            val timeStyle = AppTheme.typography.footnote.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
             val secondary = content.copy(alpha = 0.72f)
-            AppText(formatDuration(shownPosition), timeStyle, Modifier.widthIn(min = 40.dp), color = secondary)
+            AppText(formatDuration(shownPosition), timeStyle, Modifier.widthIn(min = 48.dp), color = secondary)
             AppText(
                 qualityLabel.orEmpty(), timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
                 color = secondary, textAlign = TextAlign.Center, maxLines = 1,
             )
             AppText(
-                "-" + formatDuration(duration - shownPosition), timeStyle, Modifier.widthIn(min = 40.dp),
+                "-" + formatDuration(duration - shownPosition), timeStyle, Modifier.widthIn(min = 48.dp),
                 color = secondary, textAlign = TextAlign.End,
             )
         }
@@ -147,13 +147,13 @@ internal fun LiquidGlassSeekBar(
                     }
                 },
         ) {
-            val railHeight = 3.dp.toPx()
+            val railHeight = (if (dragFraction != null) 8.dp else 6.dp).toPx()
             val y = size.height / 2f
             val radius = CornerRadius(railHeight / 2f)
             drawRoundRect(content.copy(alpha = 0.25f), Offset(0f, y - railHeight / 2f), Size(size.width, railHeight), radius)
             drawRoundRect(content.copy(alpha = 0.85f), Offset(0f, y - railHeight / 2f), Size(size.width * fraction, railHeight), radius)
-            val thumbWidth = if (dragFraction != null) 6.dp.toPx() else 4.dp.toPx()
-            val thumbHeight = if (dragFraction != null) 14.dp.toPx() else 11.dp.toPx()
+            val thumbWidth = if (dragFraction != null) 8.dp.toPx() else 6.dp.toPx()
+            val thumbHeight = if (dragFraction != null) 24.dp.toPx() else 18.dp.toPx()
             val x = (size.width * fraction).coerceIn(thumbWidth / 2f, maxOf(thumbWidth / 2f, size.width - thumbWidth / 2f))
             drawRoundRect(content, Offset(x - thumbWidth / 2f, y - thumbHeight / 2f), Size(thumbWidth, thumbHeight), CornerRadius(thumbWidth / 2f))
         }

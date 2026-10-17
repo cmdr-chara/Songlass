@@ -85,8 +85,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
         // On short windows scroll the composition instead of squeezing playback hit targets.
         val contentHeight = maxHeight.coerceAtLeast(540.dp)
         val needsScroll = maxHeight < contentHeight
-        val seekGap = if (contentHeight > 600.dp) 16.dp else 4.dp
-        val controlsHeight = (contentHeight * 0.45f).coerceAtLeast(270.dp)
+        val seekGap = if (contentHeight > 600.dp) 8.dp else 4.dp
         val scroll = rememberScrollState()
         Box(Modifier.fillMaxSize().then(if (needsScroll) Modifier.verticalScroll(scroll) else Modifier)) {
             Column(Modifier.fillMaxWidth().height(contentHeight)) {
@@ -153,9 +152,9 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                     }
                 }
                 val compact = state.playerPage == PlayerPage.Lyrics
+                // Controls take their natural height: the artwork and title get the rest.
                 Column(
                     Modifier.fillMaxWidth()
-                        .then(if (compact) Modifier else Modifier.height(controlsHeight))
                         .then(if (AppTheme.accessibility.reduceMotion) Modifier else Modifier.animateContentSize()),
                 ) {
                     val shuffle: @Composable () -> Unit = {
@@ -178,7 +177,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             repeat()
                         }
                     } else {
-                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
                             TransportControls(player.isPlaying, labels, controller::skipToPrevious, controller::togglePlayPause, controller::skipToNext)
                         }
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
