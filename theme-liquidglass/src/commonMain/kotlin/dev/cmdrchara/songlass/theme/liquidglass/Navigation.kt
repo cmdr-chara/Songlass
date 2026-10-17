@@ -1,6 +1,10 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -253,6 +257,7 @@ private fun NavigationLayer(
                 accessory?.invoke()
                 val link = remember { LiquidLink() }
                 Box(contentAlignment = Alignment.CenterEnd) {
+                    if (searchIndex >= 0) LiquidBridge(link)
                     Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
                         TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link)
                         if (searchIndex >= 0) {
@@ -310,7 +315,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     Box(
         modifier = modifier
             .height(TabBarHeight)
-            .liquidPress(grow = 0.02f, reach = 3.dp, link = link, side = LinkSide.Start)
+            .liquidPress(grow = 0.015f, reach = 2.dp, link = link, side = LinkSide.Start)
             .liquidGlass(Capsule)
             .pointerInput(slots) {
                 val insetPx = inset.toPx()
@@ -359,13 +364,13 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                 .graphicsLayer {
                     val l = lift.value
                     alpha = bubbleAlpha
-                    // Lifted, the bubble swells past the bar, a little more in height than width.
-                    scaleX = 1f + 0.1f * l
-                    scaleY = 1f + 0.24f * l
+                    // Lifted, the bubble swells slightly past the bar.
+                    scaleX = 1f + 0.05f * l
+                    scaleY = 1f + 0.12f * l
                 }
                 .clip(Capsule)
                 .background(lerp(colors.fill, colors.label.copy(alpha = 0.08f), lift.value))
-                .border(1.dp, Color.White.copy(alpha = 0.35f * lift.value), Capsule),
+                .border(1.dp, Color.White.copy(alpha = 0.25f * lift.value), Capsule),
         )
         Row(Modifier.fillMaxSize()) {
             slots.forEachIndexed { slot, index ->
@@ -394,6 +399,70 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     }
 }
 
+/**
+ * Glass bridge that joins the end of the tab pill and the search circle while they merge, like
+ * neighbouring shapes in a Liquid Glass container. It sits beneath them and fills only the space
+ * in between with the bare material (no rim light or lens), continuing their rims along the waist.
+ */
+@Composable
+private fun LiquidBridge(link: LiquidLink) {
+    val merging by remember(link) { derivedStateOf { link.merge() > 0.02f } }
+    if (!merging) return
+    val density = LocalDensity.current
+    val dark = AppTheme.colors.isDark
+    val width = TabBarHeight / 2 + BarSpacing + TabBarHeight + 8.dp
+    val neck by remember(link, density) {
+        derivedStateOf {
+            with(density) {
+                val start = link.bodies[LinkSide.Start] ?: return@derivedStateOf null
+                val end = link.bodies[LinkSide.End] ?: return@derivedStateOf null
+                val w = width.toPx()
+                val h = TabBarHeight.toPx()
+                val r = h / 2f
+                // The pill scales around its own centre, which moves its end cap outwards.
+                val s1 = start.scale()
+                val o1 = start.offset(link, LinkSide.Start)
+                val capX = w - h - BarSpacing.toPx() - r + (start.widthPx / 2f - r) * (s1 - 1f) + o1.x
+                val s2 = end.scale()
+                val o2 = end.offset(link, LinkSide.End)
+                metaballNeck(
+                    c1 = Offset(capX, r + o1.y),
+                    r1 = r * s1,
+                    c2 = Offset(w - r + o2.x, r + o2.y),
+                    r2 = r * s2,
+                    spread = 0.6f * link.merge(),
+                    inset = 3.dp.toPx(),
+                )
+            }
+        }
+    }
+    // Both edges of the waist need a rim as visible as the outlines of the two shapes, otherwise
+    // only the upper curve shows and reads as two spikes.
+    val rimTop = Color.White.copy(alpha = if (dark) 0.42f else 0.65f)
+    val rimBottom = Color.White.copy(alpha = if (dark) 0.3f else 0.45f)
+    // The bare material lacks the edge lighting that lifts the shapes' bodies a little.
+    val lift = Color.White.copy(alpha = if (dark) 0.05f else 0.08f)
+    Box(
+        Modifier
+            .width(width)
+            .height(TabBarHeight)
+            .graphicsLayer {
+                val fill = neck?.fill
+                clip = true
+                shape = GenericShape { _, _ -> if (fill != null) addPath(fill) }
+            }
+            .liquidGlass(RoundedCornerShape(0), edges = false)
+            .drawWithContent {
+                drawContent()
+                val n = neck ?: return@drawWithContent
+                drawPath(n.fill, lift)
+                // Continue the rim of the two shapes along the waist.
+                drawPath(n.top, rimTop, style = Stroke(1.dp.toPx()))
+                drawPath(n.bottom, rimBottom, style = Stroke(1.dp.toPx()))
+            },
+    )
+}
+
 /** Selected tabs use the accent; others are a muted monochrome, as in the HIG. */
 @Composable
 private fun tabTint(selected: Boolean): Color {
@@ -411,7 +480,7 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
     Box(
         modifier = Modifier
             .size(size)
-            .liquidPress(grow = 0.08f, reach = 5.dp, link = link, side = LinkSide.End)
+            .liquidPress(grow = 0.05f, reach = 3.dp, link = link, side = LinkSide.End)
             .liquidGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .semantics {
@@ -440,7 +509,7 @@ internal fun LiquidGlassMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .height(MinimizedHeight)
-            .liquidPress(grow = 0.02f, reach = 3.dp)
+            .liquidPress(grow = 0.015f, reach = 2.dp)
             .liquidGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(start = 10.dp, end = 4.dp),

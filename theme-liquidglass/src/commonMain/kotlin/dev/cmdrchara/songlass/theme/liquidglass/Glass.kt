@@ -39,6 +39,7 @@ internal val LocalGlassSource = staticCompositionLocalOf<HazeState?> { null }
 internal fun Modifier.liquidGlass(
     shape: RoundedCornerShape,
     interactionSource: InteractionSource? = null,
+    edges: Boolean = true,
 ): Modifier {
     val colors = AppTheme.colors
     val accessibility = AppTheme.accessibility
@@ -46,7 +47,7 @@ internal fun Modifier.liquidGlass(
     if (accessibility.reduceTransparency || source == null) {
         return clip(shape).background(colors.secondaryBackground)
     }
-    val style = remember(shape, colors, accessibility.reduceMotion) {
+    val style = remember(shape, colors, accessibility.reduceMotion, edges) {
         GlassStyle.regular.then {
             shape(shape)
             backgroundColor(colors.background)
@@ -76,10 +77,26 @@ internal fun Modifier.liquidGlass(
             ambientResponse(if (colors.isDark) 0.16f else 0.15f)
             fresnelExponent(2.2f)
             chromaticAberrationStrength(0.15f)
-            // Press motion comes from liquidPress (whole element); the material only brightens.
+            // Press motion comes from liquidPress (whole element); the material only brightens a little.
             pressed {
-                lightingIntensity(0.7f)
-                refractionMultiplier(1.4f)
+                lightingIntensity(0.4f)
+                refractionMultiplier(1.15f)
+            }
+            if (!edges) {
+                // Just the body of the material: no lens, rim light or edge shadow, so a piece
+                // laid over the edges of two shapes reads as part of them (the liquid bridge).
+                optics(
+                    GlassDefaults.optics.copy(
+                        depth = OpticalSizeValue.Fixed(1f),
+                        blurRadius = OpticalSizeValue.Fixed(16.dp),
+                        refractionStrength = 0f,
+                        refractionDisplacement = 0.dp,
+                    ),
+                )
+                specularIntensity(0f)
+                ambientResponse(0f)
+                edgeShadow(Color.Transparent)
+                chromaticAberrationStrength(0f)
             }
         }
     }
@@ -92,7 +109,7 @@ internal fun Modifier.liquidGlass(
         0f to Color.White.copy(alpha = if (colors.isDark) 0.09f else 0.22f),
         0.55f to Color.White.copy(alpha = 0f),
     )
-    return hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
+    val glass = hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
         .background(sheen, shape)
-        .border(0.75.dp, rimBrush, shape)
+    return if (edges) glass.border(0.75.dp, rimBrush, shape) else glass
 }
