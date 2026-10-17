@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.glass.GlassDefaults
 import dev.chrisbanes.haze.glass.GlassStyle
+import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
@@ -49,20 +51,31 @@ internal fun Modifier.liquidGlass(
             shape(shape)
             backgroundColor(colors.background)
             // Haze's regular style keeps compact controls partly sharp (depth ~0.65 at 64 dp);
-            // bars sit over text, so fully diffuse the backdrop for legibility.
-            optics(depth = 1f, blurRadius = 16.dp, refractionDisplacement = 32.dp)
-            // Apple's glass lets colors through vividly: less milky white, more chroma than
-            // Haze's defaults (whitePoint 0.55 light / -0.22 dark, chroma 1.5).
-            // Dark glass is smoked, not black, so the shape still reads over a black page.
+            // bars sit over text, so fully diffuse the backdrop for legibility. Start from the
+            // regular optics: the optics(...) builder defaults add a sharp, unblurred detail
+            // pass along the edges that shows text underneath as streaks.
+            optics(
+                GlassDefaults.optics.copy(
+                    depth = OpticalSizeValue.Fixed(1f),
+                    blurRadius = OpticalSizeValue.Fixed(16.dp),
+                    refractionDisplacement = 24.dp,
+                ),
+            )
+            // Apple's glass lets colors through: less milky white than Haze's defaults
+            // (whitePoint 0.55 light / -0.22 dark). Dark glass is smoked, not black, so the
+            // shape still reads over a black page. Chroma stays near neutral, otherwise glass
+            // over a tinted page turns into a darker, more saturated slab than the page itself.
             whitePoint(if (colors.isDark) -0.12f else 0.25f)
-            chromaMultiplier(1.8f)
-            // Make the material read as glass even with nothing behind it: a brighter, broader
-            // specular rim, a stronger Fresnel lift at the edges and a touch of dispersion.
-            specularIntensity(if (colors.isDark) 0.8f else 0.7f)
-            specularExponent(14f)
-            ambientResponse(if (colors.isDark) 0.34f else 0.26f)
+            chromaMultiplier(1.2f)
+            // Light the glass from its own shape only. Haze derives part of the normals from the
+            // content underneath by default, which scatters highlights over text and covers.
+            contentNormalBlend(0f)
+            // A crisp rim highlight and a gentle Fresnel lift at the edges, not a broad glare.
+            specularIntensity(if (colors.isDark) 0.55f else 0.5f)
+            specularExponent(24f)
+            ambientResponse(if (colors.isDark) 0.16f else 0.15f)
             fresnelExponent(2.2f)
-            chromaticAberrationStrength(0.25f)
+            chromaticAberrationStrength(0.15f)
             // Press motion comes from liquidPress (whole element); the material only brightens.
             pressed {
                 lightingIntensity(0.7f)
