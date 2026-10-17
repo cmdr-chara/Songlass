@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.settings.AppPreferences
 import dev.cmdrchara.songlass.core.settings.AppSettings
 import dev.cmdrchara.songlass.core.settings.AppearanceMode
+import dev.cmdrchara.songlass.core.settings.ArtworkStyle
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.SettingsChoiceRow
 import dev.cmdrchara.songlass.designsystem.SettingsGroup
@@ -26,6 +27,10 @@ import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.UiAccessibility
 import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.settings_artwork
+import dev.cmdrchara.songlass.shared.resources.settings_artwork_full
+import dev.cmdrchara.songlass.shared.resources.settings_artwork_hint
+import dev.cmdrchara.songlass.shared.resources.settings_artwork_square
 import dev.cmdrchara.songlass.shared.resources.settings_accessibility
 import dev.cmdrchara.songlass.shared.resources.settings_accessibility_hint
 import dev.cmdrchara.songlass.shared.resources.settings_appearance
@@ -80,6 +85,23 @@ fun SettingsScreen(
             }
         }
         item { SettingsHint(stringResource(Res.string.settings_appearance_hint)) }
+        item { SectionTitle(stringResource(Res.string.settings_artwork)) }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+                ArtworkStyle.entries.forEach { style ->
+                    val label = when (style) {
+                        ArtworkStyle.FullBleed -> Res.string.settings_artwork_full
+                        ArtworkStyle.Square -> Res.string.settings_artwork_square
+                    }
+                    SettingsChoiceRow(
+                        title = stringResource(label),
+                        selected = preferences.artworkStyle == style,
+                        onClick = { settings.setArtworkStyle(style) },
+                    )
+                }
+            }
+        }
+        item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
         item { SectionTitle(stringResource(Res.string.settings_accessibility)) }
         item {
             SettingsGroup(Modifier.padding(horizontal = 16.dp)) {

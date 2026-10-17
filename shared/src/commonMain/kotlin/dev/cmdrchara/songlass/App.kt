@@ -4,6 +4,11 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
+import dev.cmdrchara.songlass.core.settings.AppPreferences
+import dev.cmdrchara.songlass.core.settings.ArtworkStyle
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,8 +67,20 @@ fun App(
     graph: AppGraph,
     onRequestLibraryAccess: (() -> Unit)? = null,
     artworkLoader: ArtworkImageLoader? = null,
-) = CompositionLocalProvider(LocalArtworkImageLoader provides artworkLoader) {
+) {
     val preferences by graph.settings.state.collectAsState()
+    val presentation = when (preferences.artworkStyle) {
+        ArtworkStyle.FullBleed -> ArtworkPresentation.FullBleed
+        ArtworkStyle.Square -> ArtworkPresentation.Square
+    }
+    CompositionLocalProvider(
+        LocalArtworkImageLoader provides artworkLoader,
+        LocalArtworkPresentation provides presentation,
+    ) { AppContent(graph, onRequestLibraryAccess, preferences) }
+}
+
+@Composable
+private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, preferences: AppPreferences) {
     val systemAccessibility = rememberSystemAccessibility()
     val accessibility = UiAccessibility(
         reduceMotion = preferences.reduceMotion || systemAccessibility.reduceMotion,
@@ -91,7 +108,18 @@ fun App(
         val currentId = current?.id
         LaunchedEffect(currentId) { state.updateArtworkExpansion(false); state.closeSongInfo() }
         val nowPlayingVisible = state.isNowPlayingOpen && current != null
-        SystemBarAppearance(lightIcons = darkTheme)
+        // Tinted surfaces may be dark in light mode (or the opposite) when they follow the cover.
+        val followArtwork = preferences.artworkStyle == ArtworkStyle.FullBleed
+        val tintedArtwork = when {
+            nowPlayingVisible -> current?.artwork()
+            else -> when (val route = state.currentRoute) {
+                is Route.AlbumDetail -> route.album.artwork()
+                is Route.PlaylistDetail -> route.playlist.artwork()
+                else -> null
+            }
+        }
+        val tintIsDark = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork).isDark
+        SystemBarAppearance(lightIcons = if (tintedArtwork != null) tintIsDark else darkTheme)
         val tabTitles = mapOf(Tab.Library to stringResource(Res.string.tab_library), Tab.Search to stringResource(Res.string.tab_search))
 
         val accessory: (@Composable () -> Unit)? = if (current == null) null else {

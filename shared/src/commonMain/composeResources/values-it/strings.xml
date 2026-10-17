@@ -108,4 +108,8 @@
     <string name="output_headphones">Cuffie</string>
     <string name="tag_album">Album</string>
     <string name="tag_playlist">Playlist</string>
+    <string name="settings_artwork">Copertina</string>
+    <string name="settings_artwork_full">A tutta larghezza</string>
+    <string name="settings_artwork_square">Riquadro</string>
+    <string name="settings_artwork_hint">Come appaiono le copertine in In riproduzione e nelle pagine di album e playlist. A tutta larghezza segue i toni chiari o scuri della copertina.</string>
 </resources>

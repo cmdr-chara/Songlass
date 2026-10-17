@@ -157,4 +157,20 @@ class AppSettingsTest {
             observed,
         )
     }
+
+    @Test
+    fun artworkStyleDefaultsToFullBleedAndPersists() {
+        val store = InMemoryKeyValueStore()
+        assertEquals(ArtworkStyle.FullBleed, AppSettings(store).state.value.artworkStyle)
+        AppSettings(store).setArtworkStyle(ArtworkStyle.Square)
+        assertEquals(ArtworkStyle.Square, AppSettings(store).state.value.artworkStyle)
+        AppSettings(store).setArtworkStyle(ArtworkStyle.FullBleed)
+        assertEquals(ArtworkStyle.FullBleed, AppSettings(store).state.value.artworkStyle)
+    }
+
+    @Test
+    fun unknownArtworkStyleFallsBackToDefault() {
+        val store = InMemoryKeyValueStore().apply { putString("settings.artwork_style", "hologram") }
+        assertEquals(ArtworkStyle.FullBleed, AppSettings(store).state.value.artworkStyle)
+    }
 }

@@ -9,6 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,12 +41,15 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.foundation.LARGE_ARTWORK_PX
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 @Composable
 internal fun LiquidGlassArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) {
-    val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark))
+    val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
+    val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark, followArtwork = fullBleed))
     ProvideArtworkTint(tint) {
         Box(modifier.background(tint.background)) { content() }
     }
@@ -55,6 +61,21 @@ internal fun LiquidGlassArtworkTintedPage(artwork: Artwork, modifier: Modifier, 
  */
 @Composable
 internal fun LiquidGlassArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier) {
+    if (LocalArtworkPresentation.current == ArtworkPresentation.Square) {
+        // Rounded card, as on the classic album page.
+        Box(
+            modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(top = 52.dp, bottom = 16.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            LiquidGlassAlbumArt(
+                artwork,
+                cornerRadius = 12.dp,
+                modifier = Modifier.fillMaxWidth(0.72f).aspectRatio(1f)
+                    .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier),
+            )
+        }
+        return
+    }
     val background = AppTheme.colors.background
     BoxWithConstraints(
         modifier

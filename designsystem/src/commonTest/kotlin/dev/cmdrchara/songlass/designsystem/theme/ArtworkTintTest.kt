@@ -81,4 +81,34 @@ class ArtworkTintTest {
             assertEquals(seed.blue, back.blue, 0.01f)
         }
     }
+
+    @Test
+    fun darkCoverEdgeGivesDarkPageEvenInLightMode() {
+        val tint = ArtworkTint.from(Color(0xFFFF7A1A), dark = false, edge = Color(0xFF0A0604))
+        assertTrue(tint.isDark)
+        assertTrue(Hsl.of(tint.background).l <= 0.2f)
+        assertTrue(ArtworkTint.contrast(tint.content, tint.background) >= ArtworkTint.MIN_CONTENT_CONTRAST)
+    }
+
+    @Test
+    fun lightCoverEdgeGivesLightPageEvenInDarkMode() {
+        val tint = ArtworkTint.from(Color(0xFFE8B04A), dark = true, edge = Color(0xFFF2E8D8))
+        assertTrue(!tint.isDark)
+        assertTrue(Hsl.of(tint.background).l >= 0.82f)
+        assertTrue(ArtworkTint.contrast(tint.content, tint.background) >= ArtworkTint.MIN_CONTENT_CONTRAST)
+    }
+
+    @Test
+    fun midToneEdgeKeepsTheAppearancePreference() {
+        val edge = Color(0xFF8A7F86)
+        assertTrue(ArtworkTint.from(Color(0xFFFF6A88), dark = true, edge = edge).isDark)
+        assertTrue(!ArtworkTint.from(Color(0xFFFF6A88), dark = false, edge = edge).isDark)
+    }
+
+    @Test
+    fun backgroundFollowsEdgeLightnessWithinItsRange() {
+        val nearBlack = ArtworkTint.from(Color(0xFF3366FF), dark = true, edge = Color(0xFF050505))
+        val charcoal = ArtworkTint.from(Color(0xFF3366FF), dark = true, edge = Color(0xFF2A2A2A))
+        assertTrue(Hsl.of(nearBlack.background).l < Hsl.of(charcoal.background).l)
+    }
 }

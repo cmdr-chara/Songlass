@@ -42,14 +42,30 @@ data class ArtworkTint(
     companion object {
         const val MIN_CONTENT_CONTRAST = 7f
 
-        /** Builds the palette for [seed]; near-gray seeds give a neutral (unsaturated) tint. */
-        fun from(seed: Color, dark: Boolean): ArtworkTint {
+        /**
+         * Builds the palette for [seed]; near-gray seeds give a neutral (unsaturated) tint.
+         *
+         * With [edge] (the cover's bottom edge, where an edge-to-edge cover fades into the page)
+         * the page follows the artwork instead of the app appearance: a dark edge gives a dark
+         * tint even in light mode and vice versa, with a background close to the edge's
+         * lightness, so the fade is seamless. Mid-tone edges keep the [dark] preference.
+         */
+        fun from(seed: Color, dark: Boolean, edge: Color? = null): ArtworkTint {
             val hsl = Hsl.of(seed)
             val saturation = if (hsl.s < NEUTRAL_SATURATION) 0f else hsl.s
+            val edgeLuminance = edge?.luminance()
+            val useDark = when {
+                edgeLuminance == null -> dark
+                edgeLuminance < DARK_EDGE -> true
+                edgeLuminance > LIGHT_EDGE -> false
+                else -> dark
+            }
+            val edgeLightness = edge?.let { Hsl.of(it).l }
             val background: Color
             var content: Color
-            if (dark) {
-                background = Hsl(hsl.h, min(saturation, 0.55f) * 0.75f, 0.15f).toColor()
+            if (useDark) {
+                val backgroundLightness = edgeLightness?.coerceIn(0.05f, 0.2f) ?: 0.15f
+                background = Hsl(hsl.h, min(saturation, 0.55f) * 0.75f, backgroundLightness).toColor()
                 var lightness = 0.8f
                 content = Hsl(hsl.h, min(saturation * 0.9f + 0.15f, 0.75f).takeIf { saturation > 0f } ?: 0f, lightness).toColor()
                 while (contrast(content, background) < MIN_CONTENT_CONTRAST && lightness < 0.97f) {
@@ -57,7 +73,8 @@ data class ArtworkTint(
                     content = Hsl(hsl.h, Hsl.of(content).s, lightness).toColor()
                 }
             } else {
-                background = Hsl(hsl.h, min(saturation, 0.6f) * 0.65f, 0.9f).toColor()
+                val backgroundLightness = edgeLightness?.coerceIn(0.82f, 0.95f) ?: 0.9f
+                background = Hsl(hsl.h, min(saturation, 0.6f) * 0.65f, backgroundLightness).toColor()
                 var lightness = 0.24f
                 content = Hsl(hsl.h, min(saturation * 0.9f + 0.2f, 0.8f).takeIf { saturation > 0f } ?: 0f, lightness).toColor()
                 while (contrast(content, background) < MIN_CONTENT_CONTRAST && lightness > 0.04f) {
@@ -66,7 +83,7 @@ data class ArtworkTint(
                 }
             }
             return ArtworkTint(
-                isDark = dark,
+                isDark = useDark,
                 background = background,
                 content = content,
                 secondaryContent = content.copy(alpha = 0.68f),
@@ -102,6 +119,13 @@ data class ArtworkTint(
             )
         }
 
+        /** Average color of [samples] (e.g. a cover's bottom edge). */
+        fun averageOf(samples: List<Color>): Color = if (samples.isEmpty()) Color.Gray else Color(
+            red = samples.map { it.red }.average().toFloat(),
+            green = samples.map { it.green }.average().toFloat(),
+            blue = samples.map { it.blue }.average().toFloat(),
+        )
+
         /** WCAG contrast ratio between two opaque colors (1..21). */
         fun contrast(a: Color, b: Color): Float {
             val la = a.luminance() + 0.05f
@@ -109,6 +133,9 @@ data class ArtworkTint(
             return max(la, lb) / min(la, lb)
         }
 
+        /** Relative luminance below which a cover edge counts as dark, and above which as light. */
+        private const val DARK_EDGE = 0.12f
+        private const val LIGHT_EDGE = 0.45f
         private const val NEUTRAL_SATURATION = 0.12f
         private const val HUE_BUCKETS = 24
     }

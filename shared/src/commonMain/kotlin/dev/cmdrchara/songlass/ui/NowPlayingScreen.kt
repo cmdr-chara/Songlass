@@ -1,6 +1,11 @@
 package dev.cmdrchara.songlass.ui
 
 import androidx.compose.foundation.combinedClickable
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.heightIn
@@ -104,7 +109,26 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                 } else ReorderableQueue(queue, state, Modifier.weight(1f))
                             }
                             PlayerPage.Artwork -> {
-                                if (needsScroll) Box(Modifier.weight(1f).fillMaxWidth().combinedClickable(
+                                if (LocalArtworkPresentation.current == ArtworkPresentation.Square) {
+                                    // Classic layout: a rounded cover card that shrinks a little while paused.
+                                    val reduceMotion = AppTheme.accessibility.reduceMotion
+                                    val artScale by animateFloatAsState(if (player.isPlaying || reduceMotion) 1f else 0.86f, label = "squareArtScale")
+                                    Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                                        AlbumArt(
+                                            track.artwork(),
+                                            Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true)
+                                                .graphicsLayer { scaleX = artScale; scaleY = artScale }
+                                                .combinedClickable(
+                                                    role = Role.Button,
+                                                    onClick = {},
+                                                    onLongClickLabel = expandArtworkLabel,
+                                                    onLongClick = { state.updateArtworkExpansion(true) },
+                                                )
+                                                .semantics { contentDescription = artworkLabel },
+                                            cornerRadius = 12.dp,
+                                        )
+                                    }
+                                } else if (needsScroll) Box(Modifier.weight(1f).fillMaxWidth().combinedClickable(
                                     role = Role.Button,
                                     interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                                     indication = null,

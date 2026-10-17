@@ -69,14 +69,31 @@ fun ImageBitmap.samplePixels(grid: Int = 16): List<Color> {
 /**
  * Tonal palette for [artwork] in the given appearance: from the real cover when it has loaded,
  * otherwise from the placeholder gradient (so the screen is tinted immediately).
+ * With [followArtwork] (edge-to-edge covers) light/dark follows the cover's bottom edge.
  */
 @Composable
-fun rememberArtworkTint(artwork: Artwork?, dark: Boolean): ArtworkTint {
+fun rememberArtworkTint(artwork: Artwork?, dark: Boolean, followArtwork: Boolean = false): ArtworkTint {
     val image = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
-    val seed = remember(image, artwork) {
-        image?.let { ArtworkTint.seedOf(it.samplePixels()) }
-            ?: artwork?.colors?.let { ArtworkTint.seedOf(it) }
-            ?: Color.Gray
+    val (seed, edge) = remember(image, artwork) {
+        val samples = image?.samplePixels(SAMPLE_GRID) ?: artwork?.colors
+        val seed = samples?.let { ArtworkTint.seedOf(it) } ?: Color.Gray
+        // samplePixels is column-major: the last rows of each column are the bottom edge.
+        val edge = when {
+            image != null && samples != null -> ArtworkTint.averageOf(
+                samples.filterIndexed { index, _ -> index % SAMPLE_GRID >= SAMPLE_GRID * 3 / 4 },
+            )
+            else -> artwork?.colors?.lastOrNull()
+        }
+        seed to edge
     }
-    return remember(seed, dark) { ArtworkTint.from(seed, dark) }
+    return remember(seed, edge, dark, followArtwork) {
+        ArtworkTint.from(seed, dark, edge.takeIf { followArtwork })
+    }
 }
+
+private const val SAMPLE_GRID = 16
+
+/** How covers are presented; a user preference, provided by the app. */
+enum class ArtworkPresentation { FullBleed, Square }
+
+val LocalArtworkPresentation = staticCompositionLocalOf { ArtworkPresentation.FullBleed }

@@ -71,6 +71,8 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
@@ -268,8 +270,11 @@ internal fun LiquidGlassNowPlayingSheet(
                 .fillMaxSize()
                 .offset { IntOffset(0, if (reduceMotion) 0 else dragOffset.roundToInt()) },
         ) {
-            // The whole sheet is drawn in one hue from the cover (no blur is animated).
-            val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark))
+            // The whole sheet is drawn in one hue from the cover (no blur is animated). With an
+            // edge-to-edge cover, light or dark follows the cover so the fade is seamless.
+            val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
+            val hero = artworkVisible && fullBleed
+            val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark, followArtwork = fullBleed))
             ArtworkBackdrop(
                 tint,
                 Modifier.fillMaxSize().pointerInput(Unit) {
@@ -281,9 +286,9 @@ internal fun LiquidGlassNowPlayingSheet(
                         }
                     }
                 },
-                flat = artworkVisible,
+                flat = hero,
             )
-            if (artworkVisible && artwork != null) {
+            if (hero && artwork != null) ProvideArtworkTint(tint) {
                 PlayerArtworkHero(
                     artwork = artwork,
                     surface = tint.background,
@@ -326,9 +331,9 @@ internal fun LiquidGlassNowPlayingSheet(
                                     }
                                 },
                             ),
-                        contentAlignment = if (artworkVisible) Alignment.CenterStart else Alignment.Center,
+                        contentAlignment = if (hero) Alignment.CenterStart else Alignment.Center,
                     ) {
-                        if (artworkVisible) {
+                        if (hero) {
                             FloatingCircleButton(AppIcons.ChevronDown, dismissLabel, currentOnDismiss, Modifier.padding(start = 12.dp))
                         } else Box(
                             Modifier

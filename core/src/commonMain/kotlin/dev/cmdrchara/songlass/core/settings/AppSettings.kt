@@ -17,6 +17,10 @@ class AppSettings(private val store: KeyValueStore) {
             },
             reduceMotion = store.getString(REDUCE_MOTION_KEY)?.toBooleanStrictOrNull() ?: false,
             reduceTransparency = store.getString(REDUCE_TRANSPARENCY_KEY)?.toBooleanStrictOrNull() ?: false,
+            artworkStyle = when (store.getString(ARTWORK_STYLE_KEY)) {
+                "square" -> ArtworkStyle.Square
+                else -> ArtworkStyle.FullBleed
+            },
         ),
     )
 
@@ -42,9 +46,21 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(reduceTransparency = reduceTransparency) }
     }
 
+    fun setArtworkStyle(style: ArtworkStyle) {
+        store.putString(
+            ARTWORK_STYLE_KEY,
+            when (style) {
+                ArtworkStyle.FullBleed -> "full_bleed"
+                ArtworkStyle.Square -> "square"
+            },
+        )
+        _state.update { it.copy(artworkStyle = style) }
+    }
+
     private companion object {
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"
+        const val ARTWORK_STYLE_KEY = "settings.artwork_style"
     }
 }

@@ -108,4 +108,8 @@
     <string name="output_headphones">Headphones</string>
     <string name="tag_album">Album</string>
     <string name="tag_playlist">Playlist</string>
+    <string name="settings_artwork">Artwork</string>
+    <string name="settings_artwork_full">Edge to Edge</string>
+    <string name="settings_artwork_square">Square</string>
+    <string name="settings_artwork_hint">How covers appear in Now Playing and on album and playlist pages. Edge to edge follows the cover’s light or dark tone.</string>
 </resources>
