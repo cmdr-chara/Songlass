@@ -1,0 +1,158 @@
+package dev.cmdrchara.songlass.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.library.Album
+import dev.cmdrchara.songlass.core.library.Artist
+import dev.cmdrchara.songlass.designsystem.ActionButton
+import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.ListRow
+import dev.cmdrchara.songlass.designsystem.SegmentedControl
+import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.action_play
+import dev.cmdrchara.songlass.shared.resources.action_shuffle
+import dev.cmdrchara.songlass.shared.resources.album_minutes
+import dev.cmdrchara.songlass.shared.resources.library_albums
+import dev.cmdrchara.songlass.shared.resources.library_artists
+import dev.cmdrchara.songlass.shared.resources.library_songs
+import dev.cmdrchara.songlass.shared.resources.songs_count
+import dev.cmdrchara.songlass.shared.resources.tab_library
+import org.jetbrains.compose.resources.pluralStringResource
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+fun LibraryScreen(state: AppState, currentTrackId: String?, contentPadding: PaddingValues) {
+    val library = state.library
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        item { ScreenTitle(stringResource(Res.string.tab_library)) }
+        item {
+            SegmentedControl(
+                options = listOf(
+                    stringResource(Res.string.library_songs),
+                    stringResource(Res.string.library_albums),
+                    stringResource(Res.string.library_artists),
+                ),
+                selectedIndex = state.librarySection.ordinal,
+                onSelect = { state.librarySection = LibrarySection.entries[it] },
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
+        }
+        when (state.librarySection) {
+            LibrarySection.Songs -> itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
+                TrackRow(track, highlighted = track.id == currentTrackId) {
+                    state.controller.playTracks(library.tracks, index)
+                }
+            }
+            LibrarySection.Albums -> items(library.albums.chunked(2)) { pair ->
+                AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) }
+            }
+            LibrarySection.Artists -> items(library.artists) { artist ->
+                ArtistRow(artist) { state.open(Route.ArtistDetail(artist)) }
+            }
+        }
+    }
+}
+
+@Composable
+fun ArtistRow(artist: Artist, onClick: () -> Unit) {
+    ListRow(
+        title = artistName(artist.name),
+        leading = {
+            val art = artist.albums.firstOrNull()?.artwork()
+            if (art != null) AlbumArt(art, Modifier.size(48.dp), cornerRadius = 24.dp)
+        },
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
+    val minutes = (album.durationMs / 60_000).toInt()
+    val isCompilation = album.tracks.any { it.artist != album.artist }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        item { BackLink(backLabel) { state.goBack() } }
+        item {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                AlbumArt(album.artwork(), Modifier.size(260.dp).padding(top = 8.dp), cornerRadius = 12.dp)
+                Spacer(Modifier.height(16.dp))
+                AppText(albumTitle(album.title), AppTheme.typography.title2, textAlign = TextAlign.Center, maxLines = 2)
+                AppText(artistName(album.artist), AppTheme.typography.title3, color = AppTheme.colors.accent, maxLines = 1)
+                Spacer(Modifier.height(4.dp))
+                AppText(
+                    text = pluralStringResource(Res.plurals.songs_count, album.tracks.size, album.tracks.size) +
+                        " · " + stringResource(Res.string.album_minutes, minutes),
+                    style = AppTheme.typography.footnote,
+                    color = AppTheme.colors.secondaryLabel,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(album.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
+                    ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(album.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+        itemsIndexed(album.tracks, key = { _, t -> t.id }) { index, track ->
+            ListRow(
+                title = track.title,
+                subtitle = if (isCompilation) artistName(track.artist) else null,
+                leading = {
+                    AppText(
+                        text = (track.trackNumber ?: (index + 1)).toString(),
+                        style = AppTheme.typography.body,
+                        color = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.width(24.dp),
+                        textAlign = TextAlign.End,
+                    )
+                },
+                trailing = { AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel) },
+                highlighted = track.id == currentTrackId,
+                onClick = { state.controller.playTracks(album.tracks, index) },
+            )
+        }
+    }
+}
+
+@Composable
+fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        item { BackLink(backLabel) { state.goBack() } }
+        item {
+            AppText(
+                artistName(artist.name),
+                AppTheme.typography.largeTitle,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                maxLines = 2,
+            )
+        }
+        if (artist.albums.isNotEmpty()) {
+            item { SectionTitle(stringResource(Res.string.library_albums)) }
+            items(artist.albums.chunked(2)) { pair -> AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) } }
+        }
+        item { SectionTitle(stringResource(Res.string.library_songs)) }
+        itemsIndexed(artist.tracks, key = { _, t -> t.id }) { index, track ->
+            TrackRow(track, highlighted = track.id == currentTrackId) { state.controller.playTracks(artist.tracks, index) }
+        }
+    }
+}

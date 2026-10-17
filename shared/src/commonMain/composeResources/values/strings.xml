@@ -1,3 +1,39 @@
 <resources>
     <string name="app_name">Songlass</string>
+
+    <string name="tab_library">Library</string>
+    <string name="tab_search">Search</string>
+
+    <string name="library_songs">Songs</string>
+    <string name="library_albums">Albums</string>
+    <string name="library_artists">Artists</string>
+    <string name="library_empty">Your library is empty</string>
+
+    <string name="unknown_artist">Unknown Artist</string>
+    <string name="unknown_album">Unknown Album</string>
+    <string name="back">Back</string>
+
+    <string name="action_play">Play</string>
+    <string name="action_shuffle">Shuffle</string>
+    <plurals name="songs_count">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
+    <string name="album_minutes">%1$d min</string>
+
+    <string name="search_placeholder">Artists, albums, songs</string>
+    <string name="search_hint">Search your library</string>
+    <string name="search_no_results">No results for “%1$s”</string>
+
+    <string name="playback_play">Play</string>
+    <string name="playback_pause">Pause</string>
+    <string name="playback_next">Next</string>
+    <string name="playback_previous">Previous</string>
+    <string name="playback_shuffle">Shuffle</string>
+    <string name="playback_repeat">Repeat</string>
+    <string name="playback_repeat_one">Repeat one</string>
+    <string name="playback_queue">Playing next</string>
+    <string name="playback_close">Close Now Playing</string>
+    <string name="up_next">Playing Next</string>
+    <string name="up_next_empty">Nothing else in the queue</string>
 </resources>

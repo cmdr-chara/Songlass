@@ -32,7 +32,13 @@ kotlin {
     }
 
     sourceSets {
+        androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
+        }
         commonMain.dependencies {
+            implementation(projects.core)
+            implementation(projects.designsystem)
+            implementation(projects.themeLiquidglass)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

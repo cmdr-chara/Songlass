@@ -29,5 +29,7 @@ dependencyResolutionManagement {
 }
 
 include(":core")
+include(":designsystem")
+include(":theme-liquidglass")
 include(":shared")
 include(":androidApp")

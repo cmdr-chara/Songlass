@@ -1,3 +1,39 @@
 <resources>
     <string name="app_name">Songlass</string>
+
+    <string name="tab_library">Libreria</string>
+    <string name="tab_search">Cerca</string>
+
+    <string name="library_songs">Brani</string>
+    <string name="library_albums">Album</string>
+    <string name="library_artists">Artisti</string>
+    <string name="library_empty">La tua libreria è vuota</string>
+
+    <string name="unknown_artist">Artista sconosciuto</string>
+    <string name="unknown_album">Album sconosciuto</string>
+    <string name="back">Indietro</string>
+
+    <string name="action_play">Riproduci</string>
+    <string name="action_shuffle">Casuale</string>
+    <plurals name="songs_count">
+        <item quantity="one">%1$d brano</item>
+        <item quantity="other">%1$d brani</item>
+    </plurals>
+    <string name="album_minutes">%1$d min</string>
+
+    <string name="search_placeholder">Artisti, album, brani</string>
+    <string name="search_hint">Cerca nella tua libreria</string>
+    <string name="search_no_results">Nessun risultato per “%1$s”</string>
+
+    <string name="playback_play">Riproduci</string>
+    <string name="playback_pause">Pausa</string>
+    <string name="playback_next">Successivo</string>
+    <string name="playback_previous">Precedente</string>
+    <string name="playback_shuffle">Riproduzione casuale</string>
+    <string name="playback_repeat">Ripeti</string>
+    <string name="playback_repeat_one">Ripeti brano</string>
+    <string name="playback_queue">In coda</string>
+    <string name="playback_close">Chiudi In riproduzione</string>
+    <string name="up_next">In coda</string>
+    <string name="up_next_empty">Nient'altro in coda</string>
 </resources>
