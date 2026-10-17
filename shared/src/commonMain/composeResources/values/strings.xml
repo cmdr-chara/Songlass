@@ -104,4 +104,8 @@
     <string name="playback_info_storage">Location</string>
     <string name="playback_local_file">Stored on this device</string>
     <string name="action_close">Close</string>
+    <string name="output_this_phone">This Phone</string>
+    <string name="output_headphones">Headphones</string>
+    <string name="tag_album">Album</string>
+    <string name="tag_playlist">Playlist</string>
 </resources>

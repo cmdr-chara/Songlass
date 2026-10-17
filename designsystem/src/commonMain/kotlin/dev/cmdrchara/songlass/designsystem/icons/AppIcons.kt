@@ -109,11 +109,13 @@ object AppIcons {
         icon("ChevronDown") { stroke { moveTo(5f, 9f); lineTo(12f, 15f); lineTo(19f, 9f) } }
     }
 
+    /** Audio output: a speaker with sound waves (our own glyph). */
     val AudioOutput: ImageVector by lazy {
         icon("AudioOutput") {
+            fill { moveTo(3f, 9.5f); lineTo(7f, 9.5f); lineTo(12f, 5f); lineTo(12f, 19f); lineTo(7f, 14.5f); lineTo(3f, 14.5f); close() }
             stroke {
-                moveTo(7f, 17f); lineTo(4f, 17f); lineTo(4f, 4f); lineTo(20f, 4f); lineTo(20f, 17f); lineTo(17f, 17f)
-                moveTo(8f, 21f); lineTo(12f, 15f); lineTo(16f, 21f); close()
+                moveTo(15.5f, 9f); quadTo(17.2f, 12f, 15.5f, 15f)
+                moveTo(18.5f, 6.5f); quadTo(21.8f, 12f, 18.5f, 17.5f)
             }
         }
     }

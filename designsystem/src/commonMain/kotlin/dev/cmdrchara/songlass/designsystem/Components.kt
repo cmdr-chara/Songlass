@@ -175,3 +175,22 @@ fun ActionSheet(
 @Composable
 fun InfoSheet(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, onDismiss: () -> Unit) =
     LocalUiStyle.current.InfoSheet(visible, title, rows, closeLabel, onDismiss)
+
+@Composable
+fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier = Modifier, content: @Composable () -> Unit) =
+    LocalUiStyle.current.ArtworkTintedPage(artwork, modifier, content)
+
+@Composable
+fun ArtworkHeader(artwork: Artwork, modifier: Modifier = Modifier, contentDescription: String? = null) =
+    LocalUiStyle.current.ArtworkHeader(artwork, contentDescription, modifier)
+
+@Composable
+fun Tag(text: String, modifier: Modifier = Modifier) = LocalUiStyle.current.Tag(text, modifier)
+
+@Composable
+fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.ProminentButton(icon, contentDescription, onClick, modifier)
+
+@Composable
+fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.FloatingBackButton(contentDescription, onClick, modifier)

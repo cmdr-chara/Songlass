@@ -2,11 +2,13 @@ package dev.cmdrchara.songlass.designsystem.foundation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 
 /** Loads cover images; provided by the platform. Implementations should cache. */
 fun interface ArtworkImageLoader {
@@ -52,4 +54,29 @@ fun ImageBitmap.dominantColors(): List<Color> {
         return Color(r / n, g / n, b / n)
     }
     return listOf(average(0f, 0.6f, 0f, 0.6f), average(0.4f, 1f, 0.4f, 1f))
+}
+
+/** A [grid]×[grid] sample of the image's pixels, enough to judge its colors cheaply. */
+fun ImageBitmap.samplePixels(grid: Int = 16): List<Color> {
+    val pixels = toPixelMap()
+    return buildList(grid * grid) {
+        for (i in 0 until grid) for (j in 0 until grid) {
+            add(pixels[((i + 0.5f) / grid * (width - 1)).toInt(), ((j + 0.5f) / grid * (height - 1)).toInt()])
+        }
+    }
+}
+
+/**
+ * Tonal palette for [artwork] in the given appearance: from the real cover when it has loaded,
+ * otherwise from the placeholder gradient (so the screen is tinted immediately).
+ */
+@Composable
+fun rememberArtworkTint(artwork: Artwork?, dark: Boolean): ArtworkTint {
+    val image = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
+    val seed = remember(image, artwork) {
+        image?.let { ArtworkTint.seedOf(it.samplePixels()) }
+            ?: artwork?.colors?.let { ArtworkTint.seedOf(it) }
+            ?: Color.Gray
+    }
+    return remember(seed, dark) { ArtworkTint.from(seed, dark) }
 }

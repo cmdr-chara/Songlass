@@ -1,6 +1,11 @@
 package dev.cmdrchara.songlass.ui
 
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -67,6 +72,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val secondary = LocalContentColor.current.copy(alpha = 0.72f)
     val isFavorite = track.id in favoriteIds
     val outputPicker = rememberAudioOutputPicker()
+    val outputName = rememberAudioOutputName()
     val quality = audioQualityLabel(player.audioFormat)
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
@@ -116,35 +122,80 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                         contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                                         onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
                                     )
-                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.Checkmark, stringResource(Res.string.playback_on_device), onClick = state::showSongInfo, filled = true)
+                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.Checkmark, stringResource(Res.string.playback_on_device), onClick = state::showSongInfo, selected = true, filled = true)
                                 }
                             }
                         }
                     }
                 }
-                Column(Modifier.fillMaxWidth().height(controlsHeight)) {
-                    Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        TransportControls(player.isPlaying, labels, controller::skipToPrevious, controller::togglePlayPause, controller::skipToNext)
+                val compact = state.playerPage == PlayerPage.Lyrics
+                Column(
+                    Modifier.fillMaxWidth()
+                        .then(if (compact) Modifier else Modifier.height(controlsHeight))
+                        .then(if (AppTheme.accessibility.reduceMotion) Modifier else Modifier.animateContentSize()),
+                ) {
+                    val shuffle: @Composable () -> Unit = {
+                        IconButton(AppIcons.Shuffle, stringResource(Res.string.playback_shuffle), onClick = { controller.setShuffle(!queue.isShuffled) }, selected = queue.isShuffled, filled = queue.isShuffled)
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        IconButton(AppIcons.Shuffle, stringResource(Res.string.playback_shuffle), onClick = { controller.setShuffle(!queue.isShuffled) }, selected = queue.isShuffled)
+                    val repeat: @Composable () -> Unit = {
                         IconButton(
                             if (queue.repeatMode == RepeatMode.One) AppIcons.RepeatOne else AppIcons.Repeat,
                             stringResource(if (queue.repeatMode == RepeatMode.One) Res.string.playback_repeat_one else Res.string.playback_repeat),
-                            onClick = controller::cycleRepeatMode, selected = queue.repeatMode != RepeatMode.Off,
+                            onClick = controller::cycleRepeatMode, selected = queue.repeatMode != RepeatMode.Off, filled = queue.repeatMode != RepeatMode.Off,
                         )
                     }
-                    Spacer(Modifier.height(seekGap))
+                    if (compact) {
+                        // Lyrics need the room: all playback controls on one line.
+                        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            shuffle()
+                            IconButton(AppIcons.Previous, labels.previous, controller::skipToPrevious)
+                            IconButton(if (player.isPlaying) AppIcons.Pause else AppIcons.Play, if (player.isPlaying) labels.pause else labels.play, controller::togglePlayPause)
+                            IconButton(AppIcons.Next, labels.next, controller::skipToNext)
+                            repeat()
+                        }
+                    } else {
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            TransportControls(player.isPlaying, labels, controller::skipToPrevious, controller::togglePlayPause, controller::skipToNext)
+                        }
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            shuffle()
+                            repeat()
+                        }
+                        Spacer(Modifier.height(seekGap))
+                    }
                     SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality)
                     Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (outputPicker != null) IconButton(AppIcons.AudioOutput, stringResource(Res.string.playback_audio_output), outputPicker)
+                        if (outputPicker != null) AudioOutputButton(outputName, onClick = outputPicker)
                         Spacer(Modifier.weight(1f))
-                        IconButton(AppIcons.Lyrics, stringResource(Res.string.playback_lyrics), state::toggleLyrics, selected = state.playerPage == PlayerPage.Lyrics)
-                        IconButton(AppIcons.Queue, stringResource(Res.string.playback_queue), state::toggleQueue, selected = state.isQueueVisible)
+                        val lyricsOn = state.playerPage == PlayerPage.Lyrics
+                        IconButton(AppIcons.Lyrics, stringResource(Res.string.playback_lyrics), state::toggleLyrics, selected = lyricsOn, filled = lyricsOn)
+                        IconButton(AppIcons.Queue, stringResource(Res.string.playback_queue), state::toggleQueue, selected = state.isQueueVisible, filled = state.isQueueVisible)
                         IconButton(AppIcons.More, stringResource(Res.string.action_more), onClick = { state.openMenu(track) })
                     }
                 }
             }
+        }
+    }
+}
+
+/** Output icon plus the current device name ("This phone", headphones, Bluetooth speaker…). */
+@Composable
+private fun AudioOutputButton(name: String?, onClick: () -> Unit) {
+    val label = stringResource(Res.string.playback_audio_output)
+    Row(
+        Modifier
+            .heightIn(min = 44.dp)
+            .clip(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+            .semantics(mergeDescendants = true) { contentDescription = listOfNotNull(label, name).joinToString(", ") }
+            .padding(end = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
+            AppIcon(AppIcons.AudioOutput, contentDescription = null)
+        }
+        if (name != null) {
+            AppText(name, AppTheme.typography.footnote, color = LocalContentColor.current.copy(alpha = 0.72f), maxLines = 1)
         }
     }
 }

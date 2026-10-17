@@ -145,4 +145,23 @@ object LiquidGlassStyle : UiStyle {
         cancelLabel: String,
         onDismiss: () -> Unit,
     ) = LiquidGlassActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)
+
+    @Composable
+    override fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) =
+        LiquidGlassArtworkTintedPage(artwork, modifier, content)
+
+    @Composable
+    override fun ArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier) =
+        LiquidGlassArtworkHeader(artwork, contentDescription, modifier)
+
+    @Composable
+    override fun Tag(text: String, modifier: Modifier) = LiquidGlassTag(text, modifier)
+
+    @Composable
+    override fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassProminentButton(icon, contentDescription, onClick, modifier)
+
+    @Composable
+    override fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassFloatingBackButton(contentDescription, onClick, modifier)
 }

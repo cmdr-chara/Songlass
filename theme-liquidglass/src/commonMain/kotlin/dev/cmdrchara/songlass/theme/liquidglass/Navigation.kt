@@ -368,8 +368,11 @@ internal fun LiquidGlassIconButton(
         animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 700f),
         label = "iconButtonPress",
     )
+    // A selected filled button is a solid circle in the accent (the artwork tint in the player).
+    val solid = filled && selected
     val background by animateColorAsState(
         targetValue = when {
+            solid -> AppTheme.colors.accent.copy(alpha = if (pressed) 0.8f else 1f)
             filled -> content.copy(alpha = if (pressed) 0.24f else 0.14f)
             pressed -> content.copy(alpha = 0.1f)
             else -> Color.Transparent
@@ -378,7 +381,11 @@ internal fun LiquidGlassIconButton(
         label = "iconButtonBackground",
     )
     val tint by animateColorAsState(
-        targetValue = if (selected) AppTheme.colors.accent else content,
+        targetValue = when {
+            solid -> AppTheme.colors.background
+            selected -> AppTheme.colors.accent
+            else -> content
+        },
         animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "iconButtonTint",
     )

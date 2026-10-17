@@ -207,6 +207,29 @@ interface UiStyle {
         cancelLabel: String,
         onDismiss: () -> Unit,
     )
+
+    /**
+     * A page drawn in [artwork]'s tint (see ArtworkTint): background, text, list rows and buttons
+     * below become shades of the cover's color. Used by album and playlist pages.
+     */
+    @Composable
+    fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit)
+
+    /** Edge-to-edge square cover that dissolves into the page background at its bottom. */
+    @Composable
+    fun ArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier)
+
+    /** Small capsule label such as "Album" or "Playlist". */
+    @Composable
+    fun Tag(text: String, modifier: Modifier)
+
+    /** Back control that floats over artwork and scrolling content, always legible. */
+    @Composable
+    fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier)
+
+    /** The page's primary action as a large solid circle (e.g. Play on an album). */
+    @Composable
+    fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier)
 }
 
 val LocalUiStyle = staticCompositionLocalOf<UiStyle> { error("No UiStyle provided: wrap the UI in a theme") }

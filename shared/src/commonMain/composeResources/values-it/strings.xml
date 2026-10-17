@@ -104,4 +104,8 @@
     <string name="playback_info_storage">Posizione</string>
     <string name="playback_local_file">Salvato su questo dispositivo</string>
     <string name="action_close">Chiudi</string>
+    <string name="output_this_phone">Questo telefono</string>
+    <string name="output_headphones">Cuffie</string>
+    <string name="tag_album">Album</string>
+    <string name="tag_playlist">Playlist</string>
 </resources>

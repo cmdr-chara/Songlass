@@ -15,6 +15,21 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import dev.cmdrchara.songlass.designsystem.FloatingBackButton
+import dev.cmdrchara.songlass.shared.resources.tag_playlist
+import dev.cmdrchara.songlass.shared.resources.tag_album
+import dev.cmdrchara.songlass.designsystem.Tag
+import dev.cmdrchara.songlass.designsystem.ProminentButton
+import dev.cmdrchara.songlass.designsystem.ArtworkTintedPage
+import dev.cmdrchara.songlass.designsystem.ArtworkHeader
+import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.core.model.Track
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -134,56 +149,6 @@ fun ArtistRow(artist: Artist, onClick: () -> Unit) {
     )
 }
 
-@Composable
-fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
-    val minutes = (album.durationMs / 60_000).toInt()
-    val isCompilation = album.tracks.any { it.artist != album.artist }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        item { BackLink(backLabel) { state.goBack() } }
-        item {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                AlbumArt(album.artwork(), Modifier.size(260.dp).padding(top = 8.dp), cornerRadius = 12.dp)
-                Spacer(Modifier.height(16.dp))
-                AppText(albumTitle(album.title), AppTheme.typography.title2, textAlign = TextAlign.Center, maxLines = 2)
-                AppText(artistName(album.artist), AppTheme.typography.title3, color = AppTheme.colors.accent, maxLines = 1)
-                Spacer(Modifier.height(4.dp))
-                AppText(
-                    text = pluralStringResource(Res.plurals.songs_count, album.tracks.size, album.tracks.size) +
-                        " · " + stringResource(Res.string.album_minutes, minutes),
-                    style = AppTheme.typography.footnote,
-                    color = AppTheme.colors.secondaryLabel,
-                )
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(album.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
-                    ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(album.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
-                }
-                Spacer(Modifier.height(12.dp))
-            }
-        }
-        itemsIndexed(album.tracks, key = { _, t -> t.id }) { index, track ->
-            ListRow(
-                title = track.title,
-                subtitle = if (isCompilation) artistName(track.artist) else null,
-                leading = {
-                    AppText(
-                        text = (track.trackNumber ?: (index + 1)).toString(),
-                        style = AppTheme.typography.body,
-                        color = AppTheme.colors.secondaryLabel,
-                        modifier = Modifier.width(24.dp),
-                        textAlign = TextAlign.End,
-                    )
-                },
-                trailing = {
-                    AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-                    MoreButton { state.openMenu(track) }
-                },
-                highlighted = track.id == currentTrackId,
-                onClick = { state.controller.playTracks(album.tracks, index) },
-            )
-        }
-    }
-}
 
 @Composable
 fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
@@ -262,38 +227,121 @@ fun PlaylistRow(playlist: Playlist, onClick: () -> Unit) {
     )
 }
 
+
+/**
+ * Album page in the album's own colors: edge-to-edge cover fading into the page, title,
+ * artist and details, shuffle plus a large play button, then the tracks.
+ */
+@Composable
+fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
+    val isCompilation = album.tracks.any { it.artist != album.artist }
+    val artist = state.library.artists.firstOrNull { it.name == album.artist }
+    ArtworkCollectionPage(
+        artwork = album.artwork(),
+        kind = stringResource(Res.string.tag_album),
+        title = albumTitle(album.title),
+        subtitle = artistName(album.artist),
+        onSubtitleClick = artist?.let { { state.open(Route.ArtistDetail(it)) } },
+        tracks = album.tracks,
+        durationMs = album.durationMs,
+        state = state,
+        backLabel = backLabel,
+        contentPadding = contentPadding,
+    ) { index, track ->
+        ListRow(
+            title = track.title,
+            subtitle = if (isCompilation) artistName(track.artist) else null,
+            leading = {
+                AppText(
+                    text = (track.trackNumber ?: (index + 1)).toString(),
+                    style = AppTheme.typography.body,
+                    color = AppTheme.colors.secondaryLabel,
+                    modifier = Modifier.width(24.dp),
+                    textAlign = TextAlign.End,
+                )
+            },
+            trailing = {
+                AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+                MoreButton { state.openMenu(track) }
+            },
+            highlighted = track.id == currentTrackId,
+            onClick = { state.controller.playTracks(album.tracks, index) },
+        )
+    }
+}
+
 @Composable
 fun PlaylistScreen(playlist: Playlist, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
-    val minutes = (playlist.durationMs / 60_000).toInt()
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        item { BackLink(backLabel) { state.goBack() } }
-        item {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                AlbumArt(playlist.artwork(), Modifier.size(260.dp).padding(top = 8.dp), cornerRadius = 12.dp)
-                Spacer(Modifier.height(16.dp))
-                AppText(playlist.name, AppTheme.typography.title2, textAlign = TextAlign.Center, maxLines = 2)
-                if (playlist.location.isNotEmpty()) {
-                    AppText(playlist.location.joinToString(" › "), AppTheme.typography.subheadline, color = AppTheme.colors.accent, maxLines = 1)
-                }
-                Spacer(Modifier.height(4.dp))
-                AppText(
-                    text = pluralStringResource(Res.plurals.songs_count, playlist.tracks.size, playlist.tracks.size) +
-                        " · " + stringResource(Res.string.album_minutes, minutes),
-                    style = AppTheme.typography.footnote,
-                    color = AppTheme.colors.secondaryLabel,
-                )
-                Spacer(Modifier.height(16.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(playlist.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
-                    ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(playlist.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
-                }
-                Spacer(Modifier.height(12.dp))
-            }
+    ArtworkCollectionPage(
+        artwork = playlist.artwork(),
+        kind = stringResource(Res.string.tag_playlist),
+        title = playlist.name,
+        subtitle = playlist.location.takeIf { it.isNotEmpty() }?.joinToString(" › "),
+        onSubtitleClick = null,
+        tracks = playlist.tracks,
+        durationMs = playlist.durationMs,
+        state = state,
+        backLabel = backLabel,
+        contentPadding = contentPadding,
+    ) { index, track ->
+        TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+            state.controller.playTracks(playlist.tracks, index)
         }
-        itemsIndexed(playlist.tracks, key = { _, t -> t.id }) { index, track ->
-            TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                state.controller.playTracks(playlist.tracks, index)
+    }
+}
+
+/** Shared layout of album and playlist pages; [row] draws each track. */
+@Composable
+private fun ArtworkCollectionPage(
+    artwork: Artwork,
+    kind: String,
+    title: String,
+    subtitle: String?,
+    onSubtitleClick: (() -> Unit)?,
+    tracks: List<Track>,
+    durationMs: Long,
+    state: AppState,
+    backLabel: String,
+    contentPadding: PaddingValues,
+    row: @Composable (index: Int, track: Track) -> Unit,
+) {
+    val minutes = (durationMs / 60_000).toInt()
+    ArtworkTintedPage(artwork, Modifier.fillMaxSize()) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+            item { ArtworkHeader(artwork) }
+            item {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                    Tag(kind)
+                    Spacer(Modifier.height(8.dp))
+                    AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
+                    if (subtitle != null) {
+                        AppText(
+                            subtitle,
+                            AppTheme.typography.headline,
+                            color = AppTheme.colors.secondaryLabel,
+                            maxLines = 1,
+                            modifier = if (onSubtitleClick != null) {
+                                Modifier.clickable(role = Role.Button, onClick = onSubtitleClick).padding(vertical = 4.dp)
+                            } else Modifier.padding(vertical = 4.dp),
+                        )
+                    }
+                    AppText(
+                        text = pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size) +
+                            " · " + stringResource(Res.string.album_minutes, minutes),
+                        style = AppTheme.typography.footnote,
+                        color = AppTheme.colors.secondaryLabel,
+                    )
+                    Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Spacer(Modifier.weight(1f))
+                        IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks) }, filled = true)
+                        Spacer(Modifier.width(12.dp))
+                        ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks) })
+                    }
+                }
             }
+            itemsIndexed(tracks, key = { _, t -> t.id }) { index, track -> row(index, track) }
         }
+        // Back stays reachable over the cover and while scrolling.
+        FloatingBackButton(backLabel, onClick = state::goBack, modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 8.dp, top = 4.dp))
     }
 }

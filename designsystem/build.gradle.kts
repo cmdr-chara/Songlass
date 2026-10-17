@@ -19,6 +19,9 @@ kotlin {
         compilerOptions {
             jvmTarget = JvmTarget.JVM_17
         }
+
+        // Runs commonTest (pure color math) on the local JVM.
+        withHostTest {}
     }
 
     sourceSets {
@@ -26,6 +29,9 @@ kotlin {
             api(libs.compose.runtime)
             api(libs.compose.foundation)
             api(libs.compose.ui)
+        }
+        commonTest.dependencies {
+            implementation(libs.kotlin.test)
         }
     }
 }

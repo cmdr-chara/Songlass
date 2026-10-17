@@ -71,9 +71,8 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
-import dev.cmdrchara.songlass.designsystem.foundation.SMALL_ARTWORK_PX
-import dev.cmdrchara.songlass.designsystem.foundation.dominantColors
-import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
+import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
@@ -269,12 +268,10 @@ internal fun LiquidGlassNowPlayingSheet(
                 .fillMaxSize()
                 .offset { IntOffset(0, if (reduceMotion) 0 else dragOffset.roundToInt()) },
         ) {
-            // Tint the backdrop with the real cover's colors without animating a blur filter.
-            val coverImage = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
-            val backdropColors = remember(coverImage, artwork) { coverImage?.dominantColors() ?: artwork?.colors.orEmpty() }
-            val playerSurface = rememberPlayerArtworkSurface(backdropColors)
+            // The whole sheet is drawn in one hue from the cover (no blur is animated).
+            val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark))
             ArtworkBackdrop(
-                backdropColors,
+                tint,
                 Modifier.fillMaxSize().pointerInput(Unit) {
                     // This sibling is behind the controls: it catches taps on artwork and
                     // empty space without competing with the header, queue or seek gestures.
@@ -284,12 +281,12 @@ internal fun LiquidGlassNowPlayingSheet(
                         }
                     }
                 },
-                playerSurface = if (artworkVisible) playerSurface else null,
+                flat = artworkVisible,
             )
             if (artworkVisible && artwork != null) {
                 PlayerArtworkHero(
                     artwork = artwork,
-                    surface = playerSurface,
+                    surface = tint.background,
                     label = artworkLabel,
                     expandLabel = expandArtworkLabel,
                     tapRequest = artworkTapRequest,
@@ -299,23 +296,7 @@ internal fun LiquidGlassNowPlayingSheet(
                         .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
                 )
             }
-            val artworkTint = backdropColors.firstOrNull() ?: AppTheme.colors.label
-            val lyricsTint by animateColorAsState(
-                targetValue = if (AppTheme.colors.isDark) lerp(artworkTint, Color.White, 0.78f)
-                    else lerp(artworkTint, Color.Black, 0.78f),
-                animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.SheetMillis),
-                label = "lyrics artwork tint",
-            )
-            val playerContentTint by animateColorAsState(
-                targetValue = if (AppTheme.colors.isDark) lerp(artworkTint, Color.White, 0.9f)
-                    else lerp(artworkTint, Color.Black, 0.9f),
-                animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.SheetMillis),
-                label = "player artwork foreground",
-            )
-            CompositionLocalProvider(
-                LocalContentColor provides if (artworkVisible) playerContentTint else AppTheme.colors.label,
-                LocalLyricsTint provides lyricsTint,
-            ) {
+            ProvideArtworkTint(tint) {
                 Column(
                     Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
                         .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
@@ -348,14 +329,7 @@ internal fun LiquidGlassNowPlayingSheet(
                         contentAlignment = if (artworkVisible) Alignment.CenterStart else Alignment.Center,
                     ) {
                         if (artworkVisible) {
-                            LiquidGlassIconButton(
-                                icon = AppIcons.ChevronDown,
-                                contentDescription = dismissLabel,
-                                onClick = currentOnDismiss,
-                                selected = false,
-                                modifier = Modifier.padding(start = 12.dp),
-                                filled = true,
-                            )
+                            FloatingCircleButton(AppIcons.ChevronDown, dismissLabel, currentOnDismiss, Modifier.padding(start = 12.dp))
                         } else Box(
                             Modifier
                                 .size(width = 64.dp, height = 44.dp)
@@ -388,39 +362,21 @@ internal fun LiquidGlassNowPlayingSheet(
 }
 
 /**
- * Soft color field derived from the artwork. Light mode lifts the same hues toward white;
- * dark mode shades them toward black. Even a black cover produces a light background in light
- * mode, with enough separation for the inherited black text and translucent secondary labels.
+ * Background in the artwork's tint. Lyrics and queue get a soft glow of the same hue for depth;
+ * the artwork page stays [flat] so the hero image can dissolve into it cleanly.
  * Radial gradients are soft by construction, so no full-screen blur is needed.
  */
 @Composable
-private fun ArtworkBackdrop(artworkColors: List<Color>, modifier: Modifier, playerSurface: Color? = null) {
-    val targetFirst = artworkColors.firstOrNull() ?: Color(0xFF3A3A3C)
-    val targetSecond = artworkColors.getOrElse(1) { targetFirst }
-    val duration = if (AppTheme.accessibility.reduceMotion) LiquidGlassMotion.ReducedMillis else LiquidGlassMotion.SheetMillis
-    val first by animateColorAsState(targetFirst, tween(duration), label = "backdropFirst")
-    val second by animateColorAsState(targetSecond, tween(duration), label = "backdropSecond")
-    val middle = lerp(first, second, 0.5f)
-    val dark = AppTheme.colors.isDark
-    val base = if (dark) lerp(middle, Color.Black, 0.62f) else lerp(middle, Color.White, 0.92f)
-    val firstGlow = if (dark) lerp(first, Color.Black, 0.3f) else lerp(first, Color.White, 0.82f)
-    val secondGlow = lerp(second, middle, 0.35f).let {
-        if (dark) lerp(it, Color.Black, 0.4f) else lerp(it, Color.White, 0.88f)
-    }
-    val thirdGlow = if (dark) lerp(middle, Color.Black, 0.5f) else lerp(middle, Color.White, 0.90f)
-    Canvas(modifier.background(playerSurface ?: base)) {
-        // Artwork pages use a quiet, opaque surface so the hero can dissolve into it cleanly.
-        if (playerSurface != null) return@Canvas
-        fun glow(color: Color, cx: Float, cy: Float, radius: Float) = drawRect(
+private fun ArtworkBackdrop(tint: ArtworkTint, modifier: Modifier, flat: Boolean) {
+    val glow = lerp(tint.background, tint.content, if (tint.isDark) 0.1f else 0.06f)
+    Canvas(modifier.background(tint.background)) {
+        if (flat) return@Canvas
+        drawRect(
             Brush.radialGradient(
-                colors = listOf(color, color.copy(alpha = 0.5f), Color.Transparent),
-                center = Offset(size.width * cx, size.height * cy),
-                radius = size.maxDimension * radius,
+                colors = listOf(glow, Color.Transparent),
+                center = Offset(size.width * 0.15f, size.height * 0.1f),
+                radius = size.maxDimension * 0.7f,
             ),
         )
-        glow(firstGlow, 0.05f, 0.1f, 0.65f)
-        glow(secondGlow, 1f, 0.55f, 0.6f)
-        glow(thirdGlow, 0.2f, 1f, 0.55f)
-        if (dark) drawRect(Color.Black.copy(alpha = 0.18f))
     }
 }
