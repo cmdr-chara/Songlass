@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.playback
 
+import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -125,6 +126,8 @@ private fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
             .setAlbumArtist(albumArtist)
             .setTrackNumber(trackNumber)
             .setDiscNumber(discNumber)
+            // The cover is embedded in the file itself; EmbeddedArtworkBitmapLoader reads it.
+            .setArtworkUri(Uri.parse(uri))
             .build(),
     )
     .build()

@@ -15,7 +15,9 @@ class PlaybackService : MediaSessionService() {
         super.onCreate()
         val graph = (application as SonglassApplication).graph
         val player = (graph.player as Media3AudioPlayer).exoPlayer
-        session = MediaSession.Builder(this, QueueForwardingPlayer(player, graph.controller)).build()
+        session = MediaSession.Builder(this, QueueForwardingPlayer(player, graph.controller))
+            .setBitmapLoader(EmbeddedArtworkBitmapLoader(this))
+            .build()
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = session
