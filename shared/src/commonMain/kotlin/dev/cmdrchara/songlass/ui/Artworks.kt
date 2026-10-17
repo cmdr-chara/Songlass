@@ -6,7 +6,7 @@ import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.Artwork
 import kotlin.math.absoluteValue
 
-// Placeholder artwork until cover art is read from files: a stable gradient per album.
+// Placeholder gradient per album (stable across runs), shown until or instead of the real cover.
 
 private val palettes = listOf(
     0xFFFF9A8B to 0xFFFF6A88,
@@ -21,11 +21,14 @@ private val palettes = listOf(
     0xFFFF758C to 0xFFFF7EB3,
 )
 
-private fun artworkFor(key: String): Artwork {
+private fun artworkFor(key: String, imageKey: String?): Artwork {
     val (a, b) = palettes[key.hashCode().absoluteValue % palettes.size]
-    return Artwork(listOf(Color(a), Color(b)))
+    return Artwork(listOf(Color(a), Color(b)), imageKey)
 }
 
-fun Album.artwork(): Artwork = artworkFor("$title|$artist")
+// The image key is a track's URI: the platform loader reads the cover embedded in that file.
+// An album uses its first track's cover.
 
-fun Track.artwork(): Artwork = artworkFor("$album|$groupingArtist")
+fun Album.artwork(): Artwork = artworkFor("$title|$artist", tracks.firstOrNull()?.uri)
+
+fun Track.artwork(): Artwork = artworkFor("$album|$groupingArtist", uri)

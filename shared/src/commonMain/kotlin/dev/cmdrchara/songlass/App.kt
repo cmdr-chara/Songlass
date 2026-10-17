@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -13,6 +14,8 @@ import dev.cmdrchara.songlass.designsystem.MiniPlayer
 import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.NowPlayingSheet
 import dev.cmdrchara.songlass.designsystem.TabItem
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkImageLoader
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkImageLoader
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.playback_close
@@ -37,10 +40,15 @@ import org.jetbrains.compose.resources.stringResource
 
 /**
  * Root composable shared by Android and iOS. [graph] outlives the UI; [onRequestLibraryAccess]
- * asks the platform for permission to read music (null where no permission is needed).
+ * asks the platform for permission to read music (null where no permission is needed);
+ * [artworkLoader] reads real cover art (null: placeholders only).
  */
 @Composable
-fun App(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)? = null) {
+fun App(
+    graph: AppGraph,
+    onRequestLibraryAccess: (() -> Unit)? = null,
+    artworkLoader: ArtworkImageLoader? = null,
+) = CompositionLocalProvider(LocalArtworkImageLoader provides artworkLoader) {
     LiquidGlassTheme {
         val state = remember(graph) { AppState(graph) }
         val library by graph.library.collectAsState()

@@ -57,6 +57,9 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.foundation.SMALL_ARTWORK_PX
+import dev.cmdrchara.songlass.designsystem.foundation.dominantColors
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
 import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
@@ -192,7 +195,10 @@ internal fun LiquidGlassNowPlayingSheet(
                     },
                 ),
         ) {
-            ArtworkBackdrop(artwork?.colors.orEmpty(), Modifier.fillMaxSize())
+            // Tint the backdrop with the real cover's colors when there is one (as Apple Music does).
+            val coverImage = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
+            val backdropColors = remember(coverImage, artwork) { coverImage?.dominantColors() ?: artwork?.colors.orEmpty() }
+            ArtworkBackdrop(backdropColors, Modifier.fillMaxSize())
             CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                     // Grabber: tap or swipe down to dismiss (HIG: include a grabber, support swipe to dismiss).

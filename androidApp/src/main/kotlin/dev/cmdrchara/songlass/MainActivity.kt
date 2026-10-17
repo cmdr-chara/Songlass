@@ -23,7 +23,11 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            App(app.graph, onRequestLibraryAccess = { requestAudioPermission.launch(Manifest.permission.READ_MEDIA_AUDIO) })
+            App(
+                graph = app.graph,
+                onRequestLibraryAccess = { requestAudioPermission.launch(Manifest.permission.READ_MEDIA_AUDIO) },
+                artworkLoader = app.artworkLoader,
+            )
         }
     }
 

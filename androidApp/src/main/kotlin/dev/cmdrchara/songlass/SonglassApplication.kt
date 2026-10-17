@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
+import dev.cmdrchara.songlass.library.MediaStoreArtworkLoader
 import dev.cmdrchara.songlass.library.MediaStoreMusicSource
 import dev.cmdrchara.songlass.playback.Media3AudioPlayer
 import kotlinx.coroutines.MainScope
@@ -13,6 +14,8 @@ class SonglassApplication : Application() {
     lateinit var graph: AppGraph
         private set
     lateinit var musicSource: MediaStoreMusicSource
+        private set
+    lateinit var artworkLoader: MediaStoreArtworkLoader
         private set
 
     override fun onCreate() {
@@ -30,6 +33,7 @@ class SonglassApplication : Application() {
             .setHandleAudioBecomingNoisy(true)
             .build()
         musicSource = MediaStoreMusicSource(this)
+        artworkLoader = MediaStoreArtworkLoader(this)
         graph = AppGraph(Media3AudioPlayer(exoPlayer, scope), musicSource, scope)
     }
 }

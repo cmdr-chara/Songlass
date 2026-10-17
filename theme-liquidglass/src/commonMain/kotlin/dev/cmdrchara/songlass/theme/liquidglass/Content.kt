@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -35,6 +36,8 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -45,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
@@ -162,22 +166,28 @@ internal fun LiquidGlassActionButton(text: String, icon: ImageVector?, onClick: 
     }
 }
 
-/** Placeholder cover art: a diagonal gradient with a faint note. */
+/** Cover art: the real image when available, otherwise a gradient with a faint note. */
 @Composable
 internal fun LiquidGlassAlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: Modifier) {
     val colors = artwork.colors.ifEmpty { listOf(Color.Gray, Color.DarkGray) }
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .clip(RoundedCornerShape(cornerRadius))
             .background(if (colors.size == 1) Brush.linearGradient(colors + colors) else Brush.linearGradient(colors)),
         contentAlignment = Alignment.Center,
     ) {
-        Image(
-            imageVector = AppIcons.MusicNote,
-            contentDescription = null,
-            colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.35f)),
-            modifier = Modifier.fillMaxSize(0.38f),
-        )
+        val sizePx = with(LocalDensity.current) { maxWidth.roundToPx() }
+        val image = rememberArtworkImage(artwork, sizePx)
+        if (image != null) {
+            Image(bitmap = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        } else {
+            Image(
+                imageVector = AppIcons.MusicNote,
+                contentDescription = null,
+                colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.35f)),
+                modifier = Modifier.fillMaxSize(0.38f),
+            )
+        }
     }
 }
 

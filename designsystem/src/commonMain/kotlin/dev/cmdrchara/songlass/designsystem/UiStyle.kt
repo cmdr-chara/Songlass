@@ -10,9 +10,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 
-/** Placeholder artwork: a gradient until real cover art is loaded from files. */
+/**
+ * Cover art. [imageKey] identifies the real image for the platform [ArtworkImageLoader]
+ * (a content URI on Android); [colors] are the placeholder gradient shown while it loads
+ * or when the file has no cover.
+ */
 @Immutable
-data class Artwork(val colors: List<Color>)
+data class Artwork(val colors: List<Color>, val imageKey: String? = null)
 
 /**
  * A top-level destination. [isSearch] marks the search tab, which some styles place apart
