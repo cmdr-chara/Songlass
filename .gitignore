@@ -1,0 +1,20 @@
+# Reference material (copyrighted, personal use only)
+
+# Gradle / IDE
+.gradle/
+.kotlin/
+build/
+local.properties
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Xcode
+xcuserdata/
+DerivedData/
+*.xcuserstate
+iosApp/Pods/
+
+.DS_Store
