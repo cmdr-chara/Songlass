@@ -255,6 +255,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     Row(
         modifier = modifier
             .height(TabBarHeight)
+            .liquidPress(grow = 0.02f, reach = 3.dp)
             .liquidGlass(Capsule)
             .padding(4.dp),
     ) {
@@ -308,6 +309,7 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
     Box(
         modifier = Modifier
             .size(size)
+            .liquidPress(grow = 0.08f, reach = 5.dp)
             .liquidGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .semantics {
@@ -336,6 +338,7 @@ internal fun LiquidGlassMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .height(MinimizedHeight)
+            .liquidPress(grow = 0.02f, reach = 3.dp)
             .liquidGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .padding(start = 10.dp, end = 4.dp),

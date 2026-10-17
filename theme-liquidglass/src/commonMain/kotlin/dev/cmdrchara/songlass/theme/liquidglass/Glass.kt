@@ -63,9 +63,10 @@ internal fun Modifier.liquidGlass(
             ambientResponse(if (colors.isDark) 0.34f else 0.26f)
             fresnelExponent(2.2f)
             chromaticAberrationStrength(0.25f)
+            // Press motion comes from liquidPress (whole element); the material only brightens.
             pressed {
-                val pressedScale = if (accessibility.reduceMotion) 1f else 0.97f
-                scale(pressedScale, pressedScale)
+                lightingIntensity(0.7f)
+                refractionMultiplier(1.4f)
             }
         }
     }
