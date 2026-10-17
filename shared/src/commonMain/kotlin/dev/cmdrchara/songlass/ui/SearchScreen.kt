@@ -18,6 +18,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.library_albums
 import dev.cmdrchara.songlass.shared.resources.library_artists
+import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.search_hint
 import dev.cmdrchara.songlass.shared.resources.search_no_results
@@ -42,6 +43,10 @@ fun SearchScreen(state: AppState, currentTrackId: String?, contentPadding: Paddi
             state.searchQuery.isBlank() -> item { Message(stringResource(Res.string.search_hint)) }
             results.isEmpty -> item { Message(stringResource(Res.string.search_no_results, state.searchQuery.trim())) }
             else -> {
+                if (results.playlists.isNotEmpty()) {
+                    item { SectionTitle(stringResource(Res.string.library_playlists)) }
+                    items(results.playlists, key = { it.id }) { playlist -> PlaylistRow(playlist) { state.open(Route.PlaylistDetail(playlist)) } }
+                }
                 if (results.artists.isNotEmpty()) {
                     item { SectionTitle(stringResource(Res.string.library_artists)) }
                     items(results.artists) { artist -> ArtistRow(artist) { state.open(Route.ArtistDetail(artist)) } }

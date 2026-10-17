@@ -65,7 +65,8 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                     if (cursor.isNull(legacyTrack)) null else cursor.getInt(legacyTrack),
                 )
                 val artistTag = cursor.getString(artist).cleanTag()
-                val folder = cursor.getString(relativePath)?.trimEnd('/')?.substringAfterLast('/')
+                val folderPath = cursor.getString(relativePath)?.trim('/')
+                val folder = folderPath?.substringAfterLast('/')
                 // Without an album tag MediaStore uses the folder name; without an artist either,
                 // that is almost certainly such a fallback rather than a real album.
                 val albumTag = cursor.getString(album).cleanTag()
@@ -80,6 +81,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                     durationMs = cursor.getLong(duration),
                     trackNumber = TagNumbers.parse(cursor.getString(cdTrack)) ?: legacyNumber,
                     discNumber = TagNumbers.parse(cursor.getString(disc)) ?: legacyDisc,
+                    folder = folderPath,
                 )
             }
         }

@@ -29,6 +29,7 @@ import dev.cmdrchara.songlass.ui.LibraryScreen
 import dev.cmdrchara.songlass.ui.LightStatusBarIcons
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
+import dev.cmdrchara.songlass.ui.PlaylistScreen
 import dev.cmdrchara.songlass.ui.Route
 import dev.cmdrchara.songlass.ui.SearchScreen
 import dev.cmdrchara.songlass.ui.Tab
@@ -97,6 +98,7 @@ fun App(
                 when (val route = state.currentRoute) {
                     is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                     is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
+                    is Route.PlaylistDetail -> PlaylistScreen(route.playlist, state, currentId, backLabel, padding)
                     null -> when (state.tab) {
                         Tab.Library -> LibraryScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                         Tab.Search -> SearchScreen(state, currentId, padding)

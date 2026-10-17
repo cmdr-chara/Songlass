@@ -18,6 +18,8 @@ data class Track(
     val durationMs: Long = 0,
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
+    /** Folder containing the file, as `/`-separated segments (e.g. `Music/Chill`); null if unknown. */
+    val folder: String? = null,
 ) {
     /** Artist used to group albums: the album artist when tagged, otherwise the track artist. */
     val groupingArtist: String? get() = albumArtist ?: artist

@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.ui
 
 import androidx.compose.ui.graphics.Color
 import dev.cmdrchara.songlass.core.library.Album
+import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.Artwork
 import kotlin.math.absoluteValue
@@ -30,5 +31,7 @@ private fun artworkFor(key: String, imageKey: String?): Artwork {
 // An album uses its first track's cover.
 
 fun Album.artwork(): Artwork = artworkFor("$title|$artist", tracks.firstOrNull()?.uri)
+
+fun Playlist.artwork(): Artwork = artworkFor("playlist|$id", tracks.firstOrNull()?.uri)
 
 fun Track.artwork(): Artwork = artworkFor("$album|$groupingArtist", uri)

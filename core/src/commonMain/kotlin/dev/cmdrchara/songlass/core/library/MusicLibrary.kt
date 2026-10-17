@@ -17,12 +17,29 @@ data class Artist(
     val tracks: List<Track>,
 )
 
+/**
+ * A folder of music files, shown as a playlist: many people organise music in folders
+ * ("Chill", "Gym") rather than by album.
+ */
+data class Playlist(
+    /** Full folder path, unique. */
+    val id: String,
+    /** The folder's own name. */
+    val name: String,
+    /** Parent folders below the common music root, outermost first (empty for top-level ones). */
+    val location: List<String>,
+    val tracks: List<Track>,
+) {
+    val durationMs: Long get() = tracks.sumOf { it.durationMs }
+}
+
 data class SearchResults(
     val tracks: List<Track> = emptyList(),
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
+    val playlists: List<Playlist> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = tracks.isEmpty() && albums.isEmpty() && artists.isEmpty()
+    val isEmpty: Boolean get() = tracks.isEmpty() && albums.isEmpty() && artists.isEmpty() && playlists.isEmpty()
 }
 
 /**
@@ -61,6 +78,24 @@ class MusicLibrary(tracks: List<Track>) {
         }
         .sortedWith(compareBy(nullsLast()) { it.name?.sortKey() })
 
+    /**
+     * One playlist per folder that directly contains music. Names drop the root shared by all
+     * folders (e.g. `Music/`), so `Music/Chill` and `Music/Gym` become "Chill" and "Gym".
+     */
+    val playlists: List<Playlist> = run {
+        val byFolder = tracks.filter { !it.folder.isNullOrBlank() }.groupBy { it.folder!!.trim('/') }
+        val root = commonParent(byFolder.keys.map { it.split('/') })
+        byFolder.map { (path, folderTracks) ->
+            val segments = path.split('/').drop(root.size)
+            Playlist(
+                id = path,
+                name = segments.lastOrNull() ?: path.substringAfterLast('/'),
+                location = segments.dropLast(1),
+                tracks = folderTracks.sortedWith(playlistTrackOrder(folderTracks)),
+            )
+        }.sortedWith(compareBy({ (it.location + it.name).joinToString("/").sortKey() }))
+    }
+
     /** The album [track] belongs to, or `null` if it is a lone song (see [albums]). */
     fun albumOf(track: Track): Album? =
         albums.firstOrNull { it.title == track.album && it.artist == track.groupingArtist }
@@ -77,6 +112,7 @@ class MusicLibrary(tracks: List<Track>) {
             tracks = tracks.filter { it.title.matches() || it.artist.matches() || it.album.matches() },
             albums = albums.filter { it.title.matches() || it.artist.matches() },
             artists = artists.filter { it.name.matches() },
+            playlists = playlists.filter { it.name.matches() },
         )
     }
 
@@ -86,6 +122,23 @@ class MusicLibrary(tracks: List<Track>) {
         // TODO: also ignore diacritics and leading articles ("The") once a multiplatform
         //  normalization approach is chosen; common Kotlin has no Unicode normalizer.
         private fun String.sortKey(): String = lowercase()
+
+        /**
+         * The folders' common parent, kept out of playlist names. A single folder keeps its own
+         * name: the root is at most its parent.
+         */
+        private fun commonParent(paths: List<List<String>>): List<String> {
+            if (paths.isEmpty()) return emptyList()
+            val shortestParent = paths.minOf { it.size - 1 }
+            var length = 0
+            while (length < shortestParent && paths.all { it[length] == paths[0][length] }) length++
+            return paths[0].take(length)
+        }
+
+        /** A folder that is one album keeps album order; a mixed folder is sorted by title. */
+        private fun playlistTrackOrder(folderTracks: List<Track>): Comparator<Track> =
+            if (folderTracks.map { it.album to it.groupingArtist }.distinct().size == 1) albumTrackOrder
+            else compareBy { it.title.sortKey() }
 
         private val albumTrackOrder: Comparator<Track> =
             compareBy<Track> { it.discNumber ?: 0 }

@@ -11,6 +11,7 @@ fun track(
     durationMs: Long = 180_000,
     trackNumber: Int? = null,
     discNumber: Int? = null,
+    folder: String? = null,
 ) = Track(
     id = id,
     title = title,
@@ -21,6 +22,7 @@ fun track(
     durationMs = durationMs,
     trackNumber = trackNumber,
     discNumber = discNumber,
+    folder = folder,
 )
 
 fun tracks(count: Int) = (1..count).map { track(it.toString()) }

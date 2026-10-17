@@ -37,6 +37,8 @@ object SampleLibrary {
                 albumArtist = if (guest != null) album.artist else null,
                 durationMs = 150_000L + ((albumIndex * 37 + i * 53) % 120) * 1_000L,
                 trackNumber = i + 1,
+                // Two demo "folders", to exercise folder playlists.
+                folder = if (albumIndex % 2 == 0) "Music/Morning" else "Music/Evening",
             )
         }
     }

@@ -52,4 +52,5 @@
     <string name="library_access_title">La tua musica</string>
     <string name="library_access_message">Consenti a Songlass di leggere la musica su questo dispositivo per creare la tua libreria.</string>
     <string name="library_access_button">Consenti accesso</string>
+    <string name="library_playlists">Playlist</string>
 </resources>

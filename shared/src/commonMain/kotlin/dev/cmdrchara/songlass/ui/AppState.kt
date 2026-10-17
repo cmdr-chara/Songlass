@@ -9,17 +9,20 @@ import androidx.compose.runtime.setValue
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Favorites
+import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.AppGraph
 
 enum class Tab { Library, Search }
 
-enum class LibrarySection { Songs, Albums, Artists, Favorites }
+/** Library sections, in display order. Folders first: that is how many people organise music. */
+enum class LibrarySection { Playlists, Albums, Artists, Songs, Favorites }
 
 sealed interface Route {
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
+    data class PlaylistDetail(val playlist: Playlist) : Route
 }
 
 /**
@@ -36,7 +39,7 @@ class AppState(graph: AppGraph) {
 
     var tab by mutableStateOf(Tab.Library)
         private set
-    var librarySection by mutableStateOf(LibrarySection.Albums)
+    var librarySection by mutableStateOf(LibrarySection.Playlists)
     var searchQuery by mutableStateOf("")
     var isNowPlayingOpen by mutableStateOf(false)
         private set

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
+import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.ListRow
@@ -43,6 +44,7 @@ import dev.cmdrchara.songlass.shared.resources.favorites_empty
 import dev.cmdrchara.songlass.shared.resources.library_albums
 import dev.cmdrchara.songlass.shared.resources.library_artists
 import dev.cmdrchara.songlass.shared.resources.library_favorites
+import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_library
@@ -68,18 +70,16 @@ fun LibraryScreen(
         }
         item {
             SegmentedControl(
-                options = listOf(
-                    stringResource(Res.string.library_songs),
-                    stringResource(Res.string.library_albums),
-                    stringResource(Res.string.library_artists),
-                    stringResource(Res.string.library_favorites),
-                ),
+                options = LibrarySection.entries.map { stringResource(it.label) },
                 selectedIndex = state.librarySection.ordinal,
                 onSelect = { state.librarySection = LibrarySection.entries[it] },
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
         when (state.librarySection) {
+            LibrarySection.Playlists -> items(library.playlists, key = { it.id }) { playlist ->
+                PlaylistRow(playlist) { state.open(Route.PlaylistDetail(playlist)) }
+            }
             LibrarySection.Songs -> itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
                 TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                     state.controller.playTracks(library.tracks, index)
@@ -221,6 +221,68 @@ private fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?
         if (!hasAccess && onRequestAccess != null) {
             Spacer(Modifier.height(20.dp))
             ActionButton(stringResource(Res.string.library_access_button), onClick = onRequestAccess)
+        }
+    }
+}
+
+private val LibrarySection.label
+    get() = when (this) {
+        LibrarySection.Playlists -> Res.string.library_playlists
+        LibrarySection.Albums -> Res.string.library_albums
+        LibrarySection.Artists -> Res.string.library_artists
+        LibrarySection.Songs -> Res.string.library_songs
+        LibrarySection.Favorites -> Res.string.library_favorites
+    }
+
+/** "Soundtracks › Show · 12 songs" (the location only for nested folders). */
+@Composable
+fun playlistSubtitle(playlist: Playlist): String {
+    val count = pluralStringResource(Res.plurals.songs_count, playlist.tracks.size, playlist.tracks.size)
+    return if (playlist.location.isEmpty()) count else playlist.location.joinToString(" › ") + " · " + count
+}
+
+@Composable
+fun PlaylistRow(playlist: Playlist, onClick: () -> Unit) {
+    ListRow(
+        title = playlist.name,
+        subtitle = playlistSubtitle(playlist),
+        leading = { AlbumArt(playlist.artwork(), Modifier.size(56.dp), cornerRadius = 8.dp) },
+        onClick = onClick,
+    )
+}
+
+@Composable
+fun PlaylistScreen(playlist: Playlist, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
+    val minutes = (playlist.durationMs / 60_000).toInt()
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        item { BackLink(backLabel) { state.goBack() } }
+        item {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                AlbumArt(playlist.artwork(), Modifier.size(260.dp).padding(top = 8.dp), cornerRadius = 12.dp)
+                Spacer(Modifier.height(16.dp))
+                AppText(playlist.name, AppTheme.typography.title2, textAlign = TextAlign.Center, maxLines = 2)
+                if (playlist.location.isNotEmpty()) {
+                    AppText(playlist.location.joinToString(" › "), AppTheme.typography.subheadline, color = AppTheme.colors.accent, maxLines = 1)
+                }
+                Spacer(Modifier.height(4.dp))
+                AppText(
+                    text = pluralStringResource(Res.plurals.songs_count, playlist.tracks.size, playlist.tracks.size) +
+                        " · " + stringResource(Res.string.album_minutes, minutes),
+                    style = AppTheme.typography.footnote,
+                    color = AppTheme.colors.secondaryLabel,
+                )
+                Spacer(Modifier.height(16.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(playlist.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
+                    ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(playlist.tracks) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
+                }
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+        itemsIndexed(playlist.tracks, key = { _, t -> t.id }) { index, track ->
+            TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+                state.controller.playTracks(playlist.tracks, index)
+            }
         }
     }
 }
