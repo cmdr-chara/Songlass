@@ -389,7 +389,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                     AppIcon(tab.icon, contentDescription = null, size = 26.dp, tint = tint)
                     AppText(
                         text = tab.label,
-                        style = AppTheme.typography.caption2.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
+                        style = AppTheme.typography.caption2.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
                         color = tint,
                         maxLines = 1,
                     )
@@ -463,11 +463,11 @@ private fun LiquidBridge(link: LiquidLink) {
     )
 }
 
-/** Selected tabs use the accent; others are a muted monochrome, as in the HIG. */
+/** Selected tabs use the accent; others the label colour, full strength for legibility on glass. */
 @Composable
 private fun tabTint(selected: Boolean): Color {
     val tint by animateColorAsState(
-        targetValue = if (selected) AppTheme.colors.accent else AppTheme.colors.label.copy(alpha = 0.72f),
+        targetValue = if (selected) AppTheme.colors.accent else AppTheme.colors.label,
         animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "tabSelectionTint",
     )

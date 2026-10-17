@@ -68,6 +68,10 @@ internal fun Modifier.liquidGlass(
             // over a tinted page turns into a darker, more saturated slab than the page itself.
             whitePoint(if (colors.isDark) -0.12f else 0.25f)
             chromaMultiplier(1.2f)
+            // Legibility over busy, colourful content (covers scrolling under the bars): pull the
+            // material toward the page colour, enough that labels stay readable even over a dark
+            // cover in light mode; colour still shows through.
+            tint(colors.background.copy(alpha = if (colors.isDark) 0.4f else 0.72f))
             // Light the glass from its own shape only. Haze derives part of the normals from the
             // content underneath by default, which scatters highlights over text and covers.
             contentNormalBlend(0f)
