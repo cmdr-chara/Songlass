@@ -69,6 +69,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -99,6 +101,7 @@ private val BarHorizontalMargin = 16.dp
 private val BarSpacing = 8.dp
 private val TabBarHeight = 62.dp
 private val MinimizedHeight = 56.dp
+private val MiniArtInset = 4.dp
 private val MinimizeScrollThreshold = 24.dp
 
 /**
@@ -131,7 +134,28 @@ internal fun LiquidGlassScaffold(
     val minimized = !accessibility.reduceMotion && minimizeRequested && accessory != null
     val colors = AppTheme.colors
 
-    Box(Modifier.fillMaxSize().background(colors.background)) {
+    // Behind the page there is black, visible around it while it recedes under the player.
+    Box(Modifier.fillMaxSize().background(Color.Black)) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                // Like a card stacked under a sheet: smaller, rounded and darker as the player opens.
+                val r = PlayerMorph.recede
+                if (r <= 0f) return@graphicsLayer
+                if (!accessibility.reduceMotion) {
+                    scaleX = 1f - 0.08f * r
+                    scaleY = 1f - 0.08f * r
+                    shape = RoundedCornerShape(28.dp * r)
+                    clip = true
+                }
+            }
+            .drawWithContent {
+                drawContent()
+                drawRect(Color.Black.copy(alpha = 0.35f * PlayerMorph.recede))
+            }
+            .background(colors.background),
+    ) {
         // The background must be inside hazeSource, otherwise the glass samples transparent pixels.
         Box(
             Modifier
@@ -170,6 +194,7 @@ internal fun LiquidGlassScaffold(
             }
             }
         }
+    }
     }
 }
 
@@ -509,13 +534,23 @@ internal fun LiquidGlassMiniPlayer(
         modifier = modifier
             .fillMaxWidth()
             .height(MinimizedHeight)
+            // Where the Now Playing transition starts from and returns to.
+            .onGloballyPositioned { PlayerMorph.source = it.boundsInWindow() }
             .liquidPress(grow = 0.015f, reach = 2.dp)
             .liquidGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .padding(start = 10.dp, end = 4.dp),
+            .padding(start = MiniArtInset, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LiquidGlassAlbumArt(state.artwork, cornerRadius = 6.dp, modifier = Modifier.size(36.dp))
+        // The cover fills the leading end of the capsule, its rounded side concentric with it.
+        Box(
+            Modifier
+                .size(MinimizedHeight - MiniArtInset * 2)
+                .clip(RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50, topEndPercent = 20, bottomEndPercent = 20))
+                .onGloballyPositioned { PlayerMorph.thumb = it.boundsInWindow() },
+        ) {
+            LiquidGlassAlbumArt(state.artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
+        }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)

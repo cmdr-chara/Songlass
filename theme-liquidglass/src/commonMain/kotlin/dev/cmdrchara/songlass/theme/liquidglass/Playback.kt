@@ -1,16 +1,11 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,7 +34,9 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +49,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.util.lerp
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -211,8 +217,8 @@ internal fun LiquidGlassNowPlayingSheet(
     val onArtworkTap: () -> Unit = {
         if (visible && artworkVisible && !artworkExpanded && !reduceMotion) artworkTapRequest += 1
     }
-    val visibility = remember { MutableTransitionState(false) }
-    visibility.targetState = visible
+    // 0 = closed (the mini player), 1 = full screen. Springs keep a reopen during closing smooth.
+    val progress = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     var dragOffset by remember { mutableFloatStateOf(0f) }
@@ -248,36 +254,63 @@ internal fun LiquidGlassNowPlayingSheet(
     LaunchedEffect(visible, reduceMotion) {
         if (visible) settleToOrigin() else settleJob?.cancel()
     }
-    LaunchedEffect(visibility.isIdle, visibility.currentState) {
-        if (visibility.isIdle && !visibility.currentState) dragOffset = 0f
+    LaunchedEffect(visible, reduceMotion) {
+        val target = if (visible) 1f else 0f
+        when {
+            reduceMotion -> progress.animateTo(target, tween(LiquidGlassMotion.ReducedMillis))
+            visible -> progress.animateTo(target, spring(dampingRatio = 0.88f, stiffness = 300f, visibilityThreshold = 0.002f))
+            else -> progress.animateTo(target, spring(dampingRatio = 1f, stiffness = 520f, visibilityThreshold = 0.002f))
+        }
+        if (!visible) dragOffset = 0f
     }
+    val screenHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toFloat() }
+    // The page below recedes as the player opens and comes back while it is dragged down.
+    LaunchedEffect(Unit) {
+        snapshotFlow { progress.value.coerceIn(0f, 1f) * (1f - dragOffset / screenHeight.coerceAtLeast(1f)).coerceIn(0f, 1f) }
+            .collect { PlayerMorph.recede = it }
+    }
+    DisposableEffect(Unit) { onDispose { PlayerMorph.recede = 0f } }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    val density = LocalDensity.current
 
-    AnimatedVisibility(
-        visibleState = visibility,
-        enter = if (reduceMotion) {
-            fadeIn(tween(LiquidGlassMotion.ReducedMillis))
-        } else {
-            slideInVertically(tween(LiquidGlassMotion.SheetMillis, easing = LiquidGlassMotion.Emphasized)) { it }
-        },
-        exit = if (reduceMotion) {
-            fadeOut(tween(LiquidGlassMotion.ReducedMillis))
-        } else {
-            slideOutVertically(tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)) { it }
-        },
-    ) {
+    // The whole sheet is drawn in one hue from the cover (no blur is animated). With an
+    // edge-to-edge cover, light or dark follows the cover so the fade is seamless. Computed even
+    // while closed, so the cover is loaded and the colour settled before the player grows out of
+    // the mini player.
+    val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
+    val hero = artworkVisible && fullBleed
+    val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark, followArtwork = fullBleed))
+    if (visible || progress.value > 0f) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(0, if (reduceMotion) 0 else dragOffset.roundToInt()) },
+                .onGloballyPositioned { origin = it.positionInWindow() }
+                .offset { IntOffset(0, if (reduceMotion) 0 else dragOffset.roundToInt()) }
+                .graphicsLayer {
+                    val p = progress.value
+                    if (reduceMotion) {
+                        alpha = p.coerceIn(0f, 1f)
+                        return@graphicsLayer
+                    }
+                    // Grow out of the mini player: the visible shape goes from its capsule to the
+                    // full screen. While closing after a drag, it shrinks back into the mini player.
+                    val full = Rect(Offset.Zero, size)
+                    val fallback = with(density) { Rect(16.dp.toPx(), size.height - 120.dp.toPx(), size.width - 16.dp.toPx(), size.height - 64.dp.toPx()) }
+                    val source = PlayerMorph.source?.translate(-origin.x, -origin.y - dragOffset) ?: fallback
+                    val t = p.coerceIn(0f, 1f)
+                    val bounds = lerpRect(source, full, t)
+                    val radius = lerp(source.height / 2f, with(density) { 28.dp.toPx() }, t) * (1f - smoothstep(0.85f, 1f, t))
+                    clip = true
+                    shape = GenericShape { _, _ -> addRoundRect(RoundRect(bounds, CornerRadius(radius))) }
+                },
         ) {
-            // The whole sheet is drawn in one hue from the cover (no blur is animated). With an
-            // edge-to-edge cover, light or dark follows the cover so the fade is seamless.
-            val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
-            val hero = artworkVisible && fullBleed
-            val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark, followArtwork = fullBleed))
             ArtworkBackdrop(
                 tint,
-                Modifier.fillMaxSize().pointerInput(Unit) {
+                Modifier.fillMaxSize()
+                    // At the very start and end the real mini player shows through, so the hand-off
+                    // between it and the growing player is seamless.
+                    .graphicsLayer { if (!reduceMotion) alpha = smoothstep(0.02f, 0.25f, progress.value) }
+                    .pointerInput(Unit) {
                     // This sibling is behind the controls: it catches taps on artwork and
                     // empty space without competing with the header, queue or seek gestures.
                     awaitPointerEventScope {
@@ -298,12 +331,34 @@ internal fun LiquidGlassNowPlayingSheet(
                     onTap = onArtworkTap,
                     onExpand = { onArtworkExpandedChange(true) },
                     modifier = Modifier.fillMaxWidth().fillMaxHeight(0.64f)
+                        .graphicsLayer {
+                            // The cover flies out of the mini player's thumbnail: scaled down to it
+                            // and cropped square at first, full width and height when open.
+                            // Eased ahead of the sheet, so the edge-to-edge cover reaches the sides first.
+                            val t = progress.value.coerceIn(0f, 1f).let { 1f - (1f - it) * (1f - it) }
+                            val thumb = PlayerMorph.thumb?.translate(-origin.x, -origin.y - dragOffset)
+                            if (reduceMotion || thumb == null || t >= 1f) return@graphicsLayer
+                            val scale = lerp(thumb.width / size.width, 1f, t)
+                            transformOrigin = TransformOrigin(0f, 0f)
+                            scaleX = scale
+                            scaleY = scale
+                            translationX = lerp(thumb.left, 0f, t)
+                            translationY = lerp(thumb.top, 0f, t)
+                            val visible = Rect(0f, 0f, size.width, lerp(size.width, size.height, t))
+                            // Starts as round as the mini player's thumbnail on its leading side.
+                            val corner = lerp(size.width / 2f, 0f, smoothstep(0f, 0.6f, t))
+                            clip = true
+                            shape = GenericShape { _, _ -> addRoundRect(RoundRect(visible, CornerRadius(corner))) }
+                        }
                         .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
                 )
             }
             ProvideArtworkTint(tint) {
                 Column(
-                    Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
+                    Modifier.fillMaxSize()
+                        // Controls come in once the player has mostly grown, and leave first.
+                        .graphicsLayer { if (!reduceMotion) alpha = smoothstep(0.35f, 0.9f, progress.value) }
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
                         .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
                     // Only the header drags the sheet, leaving queue scrolling, reordering
@@ -384,4 +439,16 @@ private fun ArtworkBackdrop(tint: ArtworkTint, modifier: Modifier, flat: Boolean
             ),
         )
     }
+}
+
+private fun lerpRect(a: Rect, b: Rect, t: Float) = Rect(
+    lerp(a.left, b.left, t),
+    lerp(a.top, b.top, t),
+    lerp(a.right, b.right, t),
+    lerp(a.bottom, b.bottom, t),
+)
+
+private fun smoothstep(edge0: Float, edge1: Float, x: Float): Float {
+    val t = ((x - edge0) / (edge1 - edge0)).coerceIn(0f, 1f)
+    return t * t * (3f - 2f * t)
 }
