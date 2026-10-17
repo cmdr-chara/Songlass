@@ -145,7 +145,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                         contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                                         onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
                                     )
-                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.Checkmark, stringResource(Res.string.playback_on_device), onClick = state::showSongInfo, selected = true, filled = true)
+                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.Checkmark, stringResource(Res.string.playback_on_device), onClick = state::showSongInfo, filled = true)
                                 }
                             }
                         }

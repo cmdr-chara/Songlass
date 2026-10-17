@@ -98,7 +98,7 @@ object AppIcons {
     }
 
     val Checkmark: ImageVector by lazy {
-        icon("Checkmark") { stroke { moveTo(5f, 12.5f); lineTo(9.5f, 17f); lineTo(19f, 7f) } }
+        icon("Checkmark") { stroke(width = 2.4f) { moveTo(5.5f, 12.6f); lineTo(9.8f, 16.8f); lineTo(18.5f, 7.6f) } }
     }
 
     val ChevronLeft: ImageVector by lazy {
@@ -164,7 +164,7 @@ object AppIcons {
         }
     }
 
-    val Star: ImageVector by lazy { icon("Star") { stroke { star() } } }
+    val Star: ImageVector by lazy { icon("Star") { stroke(width = 2.2f) { star() } } }
 
     val StarFilled: ImageVector by lazy { icon("StarFilled") { fill { star() } } }
 
@@ -199,10 +199,10 @@ private class IconScope(val builder: ImageVector.Builder) {
         builder.path(fill = SolidColor(Color.Black), pathBuilder = block)
     }
 
-    fun stroke(block: PathBuilder.() -> Unit) {
+    fun stroke(width: Float = 2f, block: PathBuilder.() -> Unit) {
         builder.path(
             stroke = SolidColor(Color.Black),
-            strokeLineWidth = 2f,
+            strokeLineWidth = width,
             strokeLineCap = StrokeCap.Round,
             strokeLineJoin = StrokeJoin.Round,
             pathBuilder = block,
@@ -237,14 +237,34 @@ private fun PathBuilder.circle(cx: Float, cy: Float, r: Float) {
 }
 
 private fun PathBuilder.star() {
-    // Five-pointed star, outer radius 9.5, inner 4, centred at (12, 12.5).
+    // Five-pointed star with classic proportions (inner/outer ≈ 0.48) and softly rounded
+    // corners, centred at (12, 12.6) so it sits optically in the middle of the grid.
     val points = (0 until 10).map { i ->
-        val r = if (i % 2 == 0) 9.5f else 4f
+        val r = if (i % 2 == 0) 9.6f else 4.6f
         val a = kotlin.math.PI / 5 * i - kotlin.math.PI / 2
-        (12f + r * kotlin.math.cos(a).toFloat()) to (12.5f + r * kotlin.math.sin(a).toFloat())
+        (12f + r * kotlin.math.cos(a).toFloat()) to (12.6f + r * kotlin.math.sin(a).toFloat())
     }
-    moveTo(points[0].first, points[0].second)
-    points.drop(1).forEach { (x, y) -> lineTo(x, y) }
+    roundedPolygon(points, cornerFraction = { i -> if (i % 2 == 0) 0.2f else 0.12f })
+}
+
+/**
+ * Closed polygon whose corners are replaced by quadratic curves; [cornerFraction] is how much
+ * of each adjacent edge the curve uses at vertex i.
+ */
+private fun PathBuilder.roundedPolygon(points: List<Pair<Float, Float>>, cornerFraction: (Int) -> Float) {
+    fun along(from: Pair<Float, Float>, to: Pair<Float, Float>, t: Float) =
+        (from.first + (to.first - from.first) * t) to (from.second + (to.second - from.second) * t)
+    val n = points.size
+    for (i in 0 until n) {
+        val prev = points[(i - 1 + n) % n]
+        val curr = points[i]
+        val next = points[(i + 1) % n]
+        val f = cornerFraction(i)
+        val start = along(curr, prev, f)
+        val end = along(curr, next, f)
+        if (i == 0) moveTo(start.first, start.second) else lineTo(start.first, start.second)
+        quadTo(curr.first, curr.second, end.first, end.second)
+    }
     close()
 }
 
