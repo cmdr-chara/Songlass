@@ -16,14 +16,20 @@ import dev.cmdrchara.songlass.AppGraph
 
 enum class Tab { Library, Search }
 
+enum class PlayerPage { Artwork, Queue, Lyrics }
+
 /** Library sections, in display order. Folders first: that is how many people organise music. */
 enum class LibrarySection { Playlists, Albums, Artists, Songs, Favorites }
 
 sealed interface Route {
+    data object Settings : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class PlaylistDetail(val playlist: Playlist) : Route
 }
+
+/** A stable snapshot so outgoing screens retain their route during navigation. */
+data class ScreenDestination(val tab: Tab, val route: Route?, val depth: Int)
 
 /**
  * UI state that survives recomposition: which tab and page are shown, and whether Now Playing
@@ -33,6 +39,7 @@ sealed interface Route {
 class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val favorites: Favorites = graph.favorites
+    val lyrics = graph.lyrics
 
     /** Latest library snapshot; updated by the UI from [AppGraph.library]. */
     var library by mutableStateOf(graph.library.value)
@@ -43,8 +50,16 @@ class AppState(graph: AppGraph) {
     var searchQuery by mutableStateOf("")
     var isNowPlayingOpen by mutableStateOf(false)
         private set
-    var isQueueVisible by mutableStateOf(false)
+    var playerPage by mutableStateOf(PlayerPage.Artwork)
         private set
+    var isArtworkExpanded by mutableStateOf(false)
+        private set
+    var isSongInfoVisible by mutableStateOf(false)
+        private set
+    fun updateArtworkExpansion(expanded: Boolean) { isArtworkExpanded = expanded }
+    fun showSongInfo() { isSongInfoVisible = true }
+    fun closeSongInfo() { isSongInfoVisible = false }
+    val isQueueVisible: Boolean get() = playerPage == PlayerPage.Queue
 
     /** Track whose "…" menu is open, if any. */
     var menuTrack by mutableStateOf<Track?>(null)
@@ -53,10 +68,11 @@ class AppState(graph: AppGraph) {
     private val backStacks = mapOf(Tab.Library to mutableStateListOf<Route>(), Tab.Search to mutableStateListOf())
 
     val currentRoute: Route? get() = backStacks.getValue(tab).lastOrNull()
+    val destination: ScreenDestination get() = ScreenDestination(tab, currentRoute, backStacks.getValue(tab).size)
 
     val searchResults by derivedStateOf { library.search(searchQuery) }
 
-    val canGoBack: Boolean get() = menuTrack != null || isNowPlayingOpen || currentRoute != null
+    val canGoBack: Boolean get() = menuTrack != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
         // Tapping the current tab again returns to its root, as in iOS.
@@ -71,18 +87,23 @@ class AppState(graph: AppGraph) {
     fun goBack() {
         when {
             menuTrack != null -> closeMenu()
+            isSongInfoVisible -> closeSongInfo()
+            isArtworkExpanded -> updateArtworkExpansion(false)
             isNowPlayingOpen -> closeNowPlaying()
             else -> backStacks.getValue(tab).removeLastOrNull()
         }
     }
 
     fun openNowPlaying() {
+        if (!isNowPlayingOpen) playerPage = PlayerPage.Artwork
         isNowPlayingOpen = true
     }
 
     fun closeNowPlaying() {
+        // Keep the outgoing queue intact until the sheet has left the screen.
+        isArtworkExpanded = false
+        isSongInfoVisible = false
         isNowPlayingOpen = false
-        isQueueVisible = false
     }
 
     fun openMenu(track: Track) {
@@ -106,7 +127,11 @@ class AppState(graph: AppGraph) {
         open(Route.ArtistDetail(artist))
     }
 
+    fun toggleLyrics() {
+        playerPage = if (playerPage == PlayerPage.Lyrics) PlayerPage.Artwork else PlayerPage.Lyrics
+    }
+
     fun toggleQueue() {
-        isQueueVisible = !isQueueVisible
+        playerPage = if (isQueueVisible) PlayerPage.Artwork else PlayerPage.Queue
     }
 }

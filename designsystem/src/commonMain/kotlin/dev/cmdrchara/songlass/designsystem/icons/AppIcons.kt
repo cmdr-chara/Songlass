@@ -80,6 +80,27 @@ object AppIcons {
         }
     }
 
+    val Settings: ImageVector by lazy {
+        icon("Settings") {
+            stroke {
+                // Eight original teeth with a rounded outline, on the shared 24 dp grid.
+                for (i in 0 until 32) {
+                    val radius = if (i % 4 == 1 || i % 4 == 2) 10f else 8f
+                    val angle = kotlin.math.PI / 16 * i - kotlin.math.PI / 2
+                    val x = 12f + radius * kotlin.math.cos(angle).toFloat()
+                    val y = 12f + radius * kotlin.math.sin(angle).toFloat()
+                    if (i == 0) moveTo(x, y) else lineTo(x, y)
+                }
+                close()
+                circle(12f, 12f, 3.25f)
+            }
+        }
+    }
+
+    val Checkmark: ImageVector by lazy {
+        icon("Checkmark") { stroke { moveTo(5f, 12.5f); lineTo(9.5f, 17f); lineTo(19f, 7f) } }
+    }
+
     val ChevronLeft: ImageVector by lazy {
         icon("ChevronLeft") { stroke { moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f) } }
     }
@@ -88,10 +109,41 @@ object AppIcons {
         icon("ChevronDown") { stroke { moveTo(5f, 9f); lineTo(12f, 15f); lineTo(19f, 9f) } }
     }
 
+    val AudioOutput: ImageVector by lazy {
+        icon("AudioOutput") {
+            stroke {
+                moveTo(7f, 17f); lineTo(4f, 17f); lineTo(4f, 4f); lineTo(20f, 4f); lineTo(20f, 17f); lineTo(17f, 17f)
+                moveTo(8f, 21f); lineTo(12f, 15f); lineTo(16f, 21f); close()
+            }
+        }
+    }
+
     val More: ImageVector by lazy {
         icon("More") {
             for (x in listOf(5f, 12f, 19f)) fill { circle(x, 12f, 1.75f) }
         }
+    }
+
+    val Lyrics: ImageVector by lazy {
+        icon("Lyrics") {
+            stroke {
+                moveTo(5f, 4f); lineTo(19f, 4f); quadTo(21f, 4f, 21f, 6f)
+                lineTo(21f, 16f); quadTo(21f, 18f, 19f, 18f)
+                lineTo(10f, 18f); lineTo(5f, 21f); lineTo(5f, 18f)
+                quadTo(3f, 18f, 3f, 16f); lineTo(3f, 6f); quadTo(3f, 4f, 5f, 4f)
+                moveTo(7f, 9f); lineTo(17f, 9f)
+                moveTo(7f, 13f); lineTo(14f, 13f)
+            }
+        }
+    }
+
+    val ImportFile: ImageVector by lazy {
+        icon("ImportFile") { stroke {
+            moveTo(14f, 3f); lineTo(5f, 3f); lineTo(5f, 21f); lineTo(19f, 21f)
+            lineTo(19f, 8f); lineTo(14f, 3f); lineTo(14f, 8f); lineTo(19f, 8f)
+            moveTo(12f, 11f); lineTo(12f, 18f)
+            moveTo(9f, 15f); lineTo(12f, 18f); lineTo(15f, 15f)
+        } }
     }
 
     val Queue: ImageVector by lazy {

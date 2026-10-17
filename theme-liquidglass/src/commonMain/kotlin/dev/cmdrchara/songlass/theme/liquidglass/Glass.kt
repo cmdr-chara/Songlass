@@ -35,10 +35,13 @@ internal fun Modifier.liquidGlass(
     shape: RoundedCornerShape,
     interactionSource: InteractionSource? = null,
 ): Modifier {
-    val source = LocalGlassSource.current
-        ?: return clip(shape).background(AppTheme.colors.secondaryBackground)
     val colors = AppTheme.colors
-    val style = remember(shape, colors) {
+    val accessibility = AppTheme.accessibility
+    val source = LocalGlassSource.current
+    if (accessibility.reduceTransparency || source == null) {
+        return clip(shape).background(colors.secondaryBackground)
+    }
+    val style = remember(shape, colors, accessibility.reduceMotion) {
         GlassStyle.regular.then {
             shape(shape)
             backgroundColor(colors.background)
@@ -49,7 +52,10 @@ internal fun Modifier.liquidGlass(
             // Haze's defaults (whitePoint 0.55 light / -0.22 dark, chroma 1.5).
             whitePoint(if (colors.isDark) -0.3f else 0.3f)
             chromaMultiplier(1.8f)
-            pressed { scale(0.97f, 0.97f) }
+            pressed {
+                val pressedScale = if (accessibility.reduceMotion) 1f else 0.97f
+                scale(pressedScale, pressedScale)
+            }
         }
     }
     return hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)

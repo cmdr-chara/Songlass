@@ -6,6 +6,8 @@ import androidx.media3.common.C
 import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.library.MediaStoreArtworkLoader
 import dev.cmdrchara.songlass.library.MediaStoreMusicSource
+import dev.cmdrchara.songlass.lyrics.EmbeddedLyricsSource
+import dev.cmdrchara.songlass.lyrics.LrcLibLyricsSource
 import dev.cmdrchara.songlass.playback.Media3AudioPlayer
 import kotlinx.coroutines.MainScope
 
@@ -34,6 +36,10 @@ class SonglassApplication : Application() {
             .build()
         musicSource = MediaStoreMusicSource(this)
         artworkLoader = MediaStoreArtworkLoader(this)
-        graph = AppGraph(Media3AudioPlayer(exoPlayer, scope), musicSource, SharedPreferencesStore(this), scope)
+        graph = AppGraph(
+            Media3AudioPlayer(exoPlayer, scope), musicSource, SharedPreferencesStore(this), scope,
+            localLyrics = EmbeddedLyricsSource(exoPlayer),
+            remoteLyrics = LrcLibLyricsSource(this),
+        )
     }
 }

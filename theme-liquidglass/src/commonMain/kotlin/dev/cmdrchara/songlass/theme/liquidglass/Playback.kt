@@ -1,8 +1,14 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
@@ -24,6 +30,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -33,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -41,17 +50,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -64,69 +78,83 @@ import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Playback progress: thin track that thickens while dragging, elapsed and remaining time below. */
+/** Compact source-quality row over a thin progress rail, with a full 44 dp seek target. */
 @Composable
-internal fun LiquidGlassSeekBar(positionMs: Long, durationMs: Long, onSeek: (Long) -> Unit, modifier: Modifier) {
+internal fun LiquidGlassSeekBar(
+    positionMs: Long,
+    durationMs: Long,
+    qualityLabel: String?,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier,
+) {
     val content = LocalContentColor.current
     val currentOnSeek by rememberUpdatedState(onSeek)
+    val duration = durationMs.coerceAtLeast(0L)
     var dragFraction by remember { mutableStateOf<Float?>(null) }
-    val playedFraction = if (durationMs > 0) (positionMs.toFloat() / durationMs).coerceIn(0f, 1f) else 0f
+    LaunchedEffect(duration) { dragFraction = null }
+    val playedFraction = if (duration > 0) (positionMs.toDouble() / duration).toFloat().coerceIn(0f, 1f) else 0f
     val fraction = dragFraction ?: playedFraction
-    val active = dragFraction != null
-    val trackHeight by animateDpAsState(if (active) 12.dp else 7.dp)
-    val shownPosition = (fraction * durationMs).toLong()
+    val shownPosition = (fraction.toDouble() * duration).toLong().coerceIn(0L, duration)
+    fun seek(value: Float): Boolean {
+        if (duration == 0L || !value.isFinite()) return false
+        currentOnSeek((value.coerceIn(0f, 1f).toDouble() * duration).toLong().coerceIn(0L, duration))
+        return true
+    }
 
     Column(modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(32.dp)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            val timeStyle = AppTheme.typography.caption2
+            val secondary = content.copy(alpha = 0.72f)
+            AppText(formatDuration(shownPosition), timeStyle, Modifier.widthIn(min = 40.dp), color = secondary)
+            AppText(
+                qualityLabel.orEmpty(), timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
+                color = secondary, textAlign = TextAlign.Center, maxLines = 1,
+            )
+            AppText(
+                "-" + formatDuration(duration - shownPosition), timeStyle, Modifier.widthIn(min = 40.dp),
+                color = secondary, textAlign = TextAlign.End,
+            )
+        }
+        Canvas(
+            modifier = Modifier.fillMaxWidth().height(44.dp)
                 .semantics {
                     progressBarRangeInfo = ProgressBarRangeInfo(fraction, 0f..1f)
-                    setProgress { value -> currentOnSeek((value * durationMs).toLong()); true }
+                    if (duration == 0L) disabled()
+                    else setProgress { value -> seek(value) }
                 }
-                .pointerInput(durationMs) {
+                .pointerInput(duration) {
                     detectTapGestures { offset ->
-                        currentOnSeek(((offset.x / size.width).coerceIn(0f, 1f) * durationMs).toLong())
+                        if (size.width > 0) seek(offset.x / size.width)
                     }
                 }
-                .pointerInput(durationMs) {
+                .pointerInput(duration) {
                     detectHorizontalDragGestures(
-                        onDragStart = { offset -> dragFraction = (offset.x / size.width).coerceIn(0f, 1f) },
-                        onDragEnd = {
-                            dragFraction?.let { currentOnSeek((it * durationMs).toLong()) }
-                            dragFraction = null
+                        onDragStart = { offset ->
+                            if (duration > 0L && size.width > 0) dragFraction = (offset.x / size.width).coerceIn(0f, 1f)
                         },
+                        onDragEnd = { dragFraction?.let { seek(it) }; dragFraction = null },
                         onDragCancel = { dragFraction = null },
                     ) { change, _ ->
-                        dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                        if (duration > 0L && size.width > 0) {
+                            dragFraction = (change.position.x / size.width).coerceIn(0f, 1f)
+                            change.consume()
+                        }
                     }
                 },
-            contentAlignment = Alignment.CenterStart,
         ) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(trackHeight)
-                    .clip(CircleShape)
-                    .background(content.copy(alpha = 0.25f)),
-            ) {
-                Box(
-                    Modifier
-                        .fillMaxWidth(fraction)
-                        .fillMaxHeight()
-                        .background(content.copy(alpha = if (active) 1f else 0.8f)),
-                )
-            }
-        }
-        Row(Modifier.fillMaxWidth()) {
-            val timeStyle = AppTheme.typography.caption1
-            AppText(formatDuration(shownPosition), timeStyle, color = content.copy(alpha = 0.6f))
-            Spacer(Modifier.weight(1f))
-            AppText("-" + formatDuration(durationMs - shownPosition), timeStyle, color = content.copy(alpha = 0.6f))
+            val railHeight = 3.dp.toPx()
+            val y = size.height / 2f
+            val radius = CornerRadius(railHeight / 2f)
+            drawRoundRect(content.copy(alpha = 0.25f), Offset(0f, y - railHeight / 2f), Size(size.width, railHeight), radius)
+            drawRoundRect(content.copy(alpha = 0.85f), Offset(0f, y - railHeight / 2f), Size(size.width * fraction, railHeight), radius)
+            val thumbWidth = if (dragFraction != null) 6.dp.toPx() else 4.dp.toPx()
+            val thumbHeight = if (dragFraction != null) 14.dp.toPx() else 11.dp.toPx()
+            val x = (size.width * fraction).coerceIn(thumbWidth / 2f, maxOf(thumbWidth / 2f, size.width - thumbWidth / 2f))
+            drawRoundRect(content, Offset(x - thumbWidth / 2f, y - thumbHeight / 2f), Size(thumbWidth, thumbHeight), CornerRadius(thumbWidth / 2f))
         }
     }
 }
@@ -145,74 +173,214 @@ internal fun LiquidGlassTransportControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LiquidGlassIconButton(AppIcons.Previous, labels.previous, onPrevious, false, Modifier, iconSize = 34.dp, hitSize = 64.dp)
+        LiquidGlassIconButton(AppIcons.Previous, labels.previous, onPrevious, false, Modifier, iconSize = 42.dp, hitSize = 72.dp)
         LiquidGlassIconButton(
             icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
             contentDescription = if (isPlaying) labels.pause else labels.play,
             onClick = onPlayPause,
             selected = false,
             modifier = Modifier,
-            iconSize = 46.dp,
-            hitSize = 80.dp,
+            iconSize = 52.dp,
+            hitSize = 88.dp,
         )
-        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, false, Modifier, iconSize = 34.dp, hitSize = 64.dp)
+        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, false, Modifier, iconSize = 42.dp, hitSize = 72.dp)
     }
 }
 
 /**
- * Full-screen Now Playing sheet on a backdrop derived from the artwork colors. Content is
- * white; the backdrop is darkened so white text keeps enough contrast.
+ * Full-screen Now Playing sheet tinted by the artwork. The current appearance determines
+ * light or dark tonal values and the matching foreground, without changing the cover image.
  */
 @Composable
 internal fun LiquidGlassNowPlayingSheet(
     visible: Boolean,
     artwork: Artwork?,
+    artworkVisible: Boolean,
+    artworkExpanded: Boolean,
+    artworkLabel: String,
+    expandArtworkLabel: String,
+    closeArtworkLabel: String,
+    onArtworkExpandedChange: (Boolean) -> Unit,
     dismissLabel: String,
     onDismiss: () -> Unit,
-    content: @Composable () -> Unit,
+    content: @Composable (onArtworkTap: () -> Unit) -> Unit,
 ) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = slideInVertically { it },
-        exit = slideOutVertically { it },
-    ) {
-        val scope = rememberCoroutineScope()
-        val offset = remember { Animatable(0f) }
-        val dismissThreshold = with(LocalDensity.current) { 140.dp.toPx() }
-        LaunchedEffect(Unit) { offset.snapTo(0f) }
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    var artworkTapRequest by remember(artwork, visible, artworkVisible, artworkExpanded, reduceMotion) { mutableStateOf(0) }
+    val onArtworkTap: () -> Unit = {
+        if (visible && artworkVisible && !artworkExpanded && !reduceMotion) artworkTapRequest += 1
+    }
+    val visibility = remember { MutableTransitionState(false) }
+    visibility.targetState = visible
+    val scope = rememberCoroutineScope()
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var settling by remember { mutableStateOf(false) }
+    var settleJob by remember { mutableStateOf<Job?>(null) }
+    val dismissThreshold = with(LocalDensity.current) { 140.dp.toPx() }
+    val dismissVelocity = with(LocalDensity.current) { 1000.dp.toPx() }
 
+    fun settleToOrigin(initialVelocity: Float = 0f) {
+        settleJob?.cancel()
+        if (reduceMotion || dragOffset == 0f) {
+            dragOffset = 0f
+            settling = false
+        } else {
+            settling = true
+            settleJob = scope.launch {
+                try {
+                    animate(
+                        initialValue = dragOffset,
+                        targetValue = 0f,
+                        initialVelocity = initialVelocity,
+                        animationSpec = spring(dampingRatio = 1f, stiffness = 500f),
+                    ) { value, _ -> dragOffset = value.coerceAtLeast(0f) }
+                } finally {
+                    if (settleJob == coroutineContext[Job]) settling = false
+                }
+            }
+        }
+    }
+
+    // Keep the release position throughout dismissal. A rapid reopen reverses the sheet
+    // transition and settles any remaining drag; only a fully hidden sheet resets outright.
+    LaunchedEffect(visible, reduceMotion) {
+        if (visible) settleToOrigin() else settleJob?.cancel()
+    }
+    LaunchedEffect(visibility.isIdle, visibility.currentState) {
+        if (visibility.isIdle && !visibility.currentState) dragOffset = 0f
+    }
+
+    AnimatedVisibility(
+        visibleState = visibility,
+        enter = if (reduceMotion) {
+            fadeIn(tween(LiquidGlassMotion.ReducedMillis))
+        } else {
+            slideInVertically(tween(LiquidGlassMotion.SheetMillis, easing = LiquidGlassMotion.Emphasized)) { it }
+        },
+        exit = if (reduceMotion) {
+            fadeOut(tween(LiquidGlassMotion.ReducedMillis))
+        } else {
+            slideOutVertically(tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)) { it }
+        },
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .offset { IntOffset(0, offset.value.roundToInt()) }
-                .draggable(
-                    orientation = Orientation.Vertical,
-                    state = rememberDraggableState { delta ->
-                        scope.launch { offset.snapTo((offset.value + delta).coerceAtLeast(0f)) }
-                    },
-                    onDragStopped = { velocity ->
-                        if (offset.value > dismissThreshold || velocity > 2000f) onDismiss() else offset.animateTo(0f)
-                    },
-                ),
+                .offset { IntOffset(0, if (reduceMotion) 0 else dragOffset.roundToInt()) },
         ) {
-            // Tint the backdrop with the real cover's colors when there is one (as Apple Music does).
+            // Tint the backdrop with the real cover's colors without animating a blur filter.
             val coverImage = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
             val backdropColors = remember(coverImage, artwork) { coverImage?.dominantColors() ?: artwork?.colors.orEmpty() }
-            ArtworkBackdrop(backdropColors, Modifier.fillMaxSize())
-            CompositionLocalProvider(LocalContentColor provides Color.White) {
-                Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-                    // Grabber: tap or swipe down to dismiss (HIG: include a grabber, support swipe to dismiss).
+            val playerSurface = rememberPlayerArtworkSurface(backdropColors)
+            ArtworkBackdrop(
+                backdropColors,
+                Modifier.fillMaxSize().pointerInput(Unit) {
+                    // This sibling is behind the controls: it catches taps on artwork and
+                    // empty space without competing with the header, queue or seek gestures.
+                    awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent().changes.forEach { it.consume() }
+                        }
+                    }
+                },
+                playerSurface = if (artworkVisible) playerSurface else null,
+            )
+            if (artworkVisible && artwork != null) {
+                PlayerArtworkHero(
+                    artwork = artwork,
+                    surface = playerSurface,
+                    label = artworkLabel,
+                    expandLabel = expandArtworkLabel,
+                    tapRequest = artworkTapRequest,
+                    onTap = onArtworkTap,
+                    onExpand = { onArtworkExpandedChange(true) },
+                    modifier = Modifier.fillMaxWidth().fillMaxHeight(0.64f)
+                        .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
+                )
+            }
+            val artworkTint = backdropColors.firstOrNull() ?: AppTheme.colors.label
+            val lyricsTint by animateColorAsState(
+                targetValue = if (AppTheme.colors.isDark) lerp(artworkTint, Color.White, 0.78f)
+                    else lerp(artworkTint, Color.Black, 0.78f),
+                animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.SheetMillis),
+                label = "lyrics artwork tint",
+            )
+            val playerContentTint by animateColorAsState(
+                targetValue = if (AppTheme.colors.isDark) lerp(artworkTint, Color.White, 0.9f)
+                    else lerp(artworkTint, Color.Black, 0.9f),
+                animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.SheetMillis),
+                label = "player artwork foreground",
+            )
+            CompositionLocalProvider(
+                LocalContentColor provides if (artworkVisible) playerContentTint else AppTheme.colors.label,
+                LocalLyricsTint provides lyricsTint,
+            ) {
+                Column(
+                    Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
+                        .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
+                ) {
+                    // Only the header drags the sheet, leaving queue scrolling, reordering
+                    // and seeking free to handle their own gestures.
                     Box(
                         modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .size(width = 64.dp, height = 28.dp)
-                            .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-                            .semantics { onClick(label = dismissLabel) { onDismiss(); true } },
-                        contentAlignment = Alignment.Center,
+                            .fillMaxWidth()
+                            .height(44.dp)
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                enabled = visible && !artworkExpanded,
+                                startDragImmediately = settling,
+                                state = rememberDraggableState { delta ->
+                                    dragOffset = (dragOffset + delta).coerceAtLeast(0f)
+                                },
+                                onDragStarted = {
+                                    settleJob?.cancel()
+                                    settling = false
+                                },
+                                onDragStopped = { velocity ->
+                                    if (dragOffset > dismissThreshold || velocity > dismissVelocity) {
+                                        currentOnDismiss()
+                                    } else {
+                                        settleToOrigin(velocity)
+                                    }
+                                },
+                            ),
+                        contentAlignment = if (artworkVisible) Alignment.CenterStart else Alignment.Center,
                     ) {
-                        Box(Modifier.size(width = 36.dp, height = 5.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.5f)))
+                        if (artworkVisible) {
+                            LiquidGlassIconButton(
+                                icon = AppIcons.ChevronDown,
+                                contentDescription = dismissLabel,
+                                onClick = currentOnDismiss,
+                                selected = false,
+                                modifier = Modifier.padding(start = 12.dp),
+                                filled = true,
+                            )
+                        } else Box(
+                            Modifier
+                                .size(width = 64.dp, height = 44.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    enabled = visible,
+                                    onClick = currentOnDismiss,
+                                )
+                                .semantics { onClick(label = dismissLabel) { currentOnDismiss(); true } },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Box(Modifier.size(width = 36.dp, height = 5.dp).clip(CircleShape).background(LocalContentColor.current.copy(alpha = 0.5f)))
+                        }
                     }
-                    content()
+                    content(onArtworkTap)
+                }
+                if (artwork != null) {
+                    PlayerArtworkExpansion(
+                        artwork = artwork,
+                        expanded = visible && artworkVisible && artworkExpanded,
+                        artworkLabel = artworkLabel,
+                        closeLabel = closeArtworkLabel,
+                        onClose = { onArtworkExpandedChange(false) },
+                    )
                 }
             }
         }
@@ -220,16 +388,29 @@ internal fun LiquidGlassNowPlayingSheet(
 }
 
 /**
- * Soft color field derived from the artwork, like Apple Music's Now Playing background:
- * overlapping radial glows of the artwork colors on a dark base, so white content stays legible.
- * Radial gradients are soft by construction, so no (costly) full-screen blur is needed.
+ * Soft color field derived from the artwork. Light mode lifts the same hues toward white;
+ * dark mode shades them toward black. Even a black cover produces a light background in light
+ * mode, with enough separation for the inherited black text and translucent secondary labels.
+ * Radial gradients are soft by construction, so no full-screen blur is needed.
  */
 @Composable
-private fun ArtworkBackdrop(artworkColors: List<Color>, modifier: Modifier) {
-    val first = artworkColors.firstOrNull() ?: Color(0xFF3A3A3C)
-    val second = artworkColors.getOrElse(1) { first }
+private fun ArtworkBackdrop(artworkColors: List<Color>, modifier: Modifier, playerSurface: Color? = null) {
+    val targetFirst = artworkColors.firstOrNull() ?: Color(0xFF3A3A3C)
+    val targetSecond = artworkColors.getOrElse(1) { targetFirst }
+    val duration = if (AppTheme.accessibility.reduceMotion) LiquidGlassMotion.ReducedMillis else LiquidGlassMotion.SheetMillis
+    val first by animateColorAsState(targetFirst, tween(duration), label = "backdropFirst")
+    val second by animateColorAsState(targetSecond, tween(duration), label = "backdropSecond")
     val middle = lerp(first, second, 0.5f)
-    Canvas(modifier.background(lerp(middle, Color.Black, 0.62f))) {
+    val dark = AppTheme.colors.isDark
+    val base = if (dark) lerp(middle, Color.Black, 0.62f) else lerp(middle, Color.White, 0.92f)
+    val firstGlow = if (dark) lerp(first, Color.Black, 0.3f) else lerp(first, Color.White, 0.82f)
+    val secondGlow = lerp(second, middle, 0.35f).let {
+        if (dark) lerp(it, Color.Black, 0.4f) else lerp(it, Color.White, 0.88f)
+    }
+    val thirdGlow = if (dark) lerp(middle, Color.Black, 0.5f) else lerp(middle, Color.White, 0.90f)
+    Canvas(modifier.background(playerSurface ?: base)) {
+        // Artwork pages use a quiet, opaque surface so the hero can dissolve into it cleanly.
+        if (playerSurface != null) return@Canvas
         fun glow(color: Color, cx: Float, cy: Float, radius: Float) = drawRect(
             Brush.radialGradient(
                 colors = listOf(color, color.copy(alpha = 0.5f), Color.Transparent),
@@ -237,9 +418,9 @@ private fun ArtworkBackdrop(artworkColors: List<Color>, modifier: Modifier) {
                 radius = size.maxDimension * radius,
             ),
         )
-        glow(lerp(first, Color.Black, 0.3f), 0.05f, 0.1f, 0.65f)
-        glow(lerp(second, middle, 0.35f).let { lerp(it, Color.Black, 0.4f) }, 1f, 0.55f, 0.6f)
-        glow(lerp(middle, Color.Black, 0.5f), 0.2f, 1f, 0.55f)
-        drawRect(Color.Black.copy(alpha = 0.18f))
+        glow(firstGlow, 0.05f, 0.1f, 0.65f)
+        glow(secondGlow, 1f, 0.55f, 0.6f)
+        glow(thirdGlow, 0.2f, 1f, 0.55f)
+        if (dark) drawRect(Color.Black.copy(alpha = 0.18f))
     }
 }

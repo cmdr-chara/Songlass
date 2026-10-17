@@ -1,5 +1,11 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -16,8 +22,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -69,10 +77,15 @@ internal fun LiquidGlassListRow(
     val colors = AppTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val pressedColor by animateColorAsState(
+        targetValue = if (pressed) colors.fill else Color.Transparent,
+        animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "listRowPress",
+    )
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(if (pressed) colors.fill else Color.Transparent)
+            .background(pressedColor)
             .then(if (onClick != null) Modifier.clickable(interaction, indication = null, onClick = onClick) else Modifier)
             .padding(start = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -111,7 +124,8 @@ internal fun LiquidGlassListRow(
 internal fun LiquidGlassSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
     val colors = AppTheme.colors
     val selectedBackground = if (colors.isDark) Color(0xFF636366) else Color.White
-    Row(
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(36.dp)
@@ -119,24 +133,42 @@ internal fun LiquidGlassSegmentedControl(options: List<String>, selectedIndex: I
             .background(colors.fill)
             .padding(2.dp),
     ) {
-        options.forEachIndexed { index, option ->
-            val selected = index == selectedIndex
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .then(if (selected) Modifier.shadow(2.dp, CircleShape).background(selectedBackground, CircleShape) else Modifier)
-                    .clip(CircleShape)
-                    .clickable(remember { MutableInteractionSource() }, indication = null) { onSelect(index) }
-                    .semantics { role = Role.Tab; this.selected = selected },
-                contentAlignment = Alignment.Center,
-            ) {
-                AppText(
-                    text = option,
-                    style = AppTheme.typography.footnote.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
-                    color = colors.label,
-                    maxLines = 1,
+        if (options.isNotEmpty()) {
+            val segmentWidth = maxWidth / options.size
+            val indicatorOffset by animateDpAsState(
+                targetValue = segmentWidth * selectedIndex.coerceIn(options.indices),
+                animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 500f),
+                label = "segmentSelection",
+            )
+            if (selectedIndex in options.indices) {
+                Box(
+                    Modifier.offset(x = indicatorOffset)
+                        .width(segmentWidth)
+                        .fillMaxHeight()
+                        .shadow(2.dp, CircleShape)
+                        .background(selectedBackground, CircleShape),
                 )
+            }
+            Row(Modifier.fillMaxSize().selectableGroup()) {
+                options.forEachIndexed { index, option ->
+                    val selected = index == selectedIndex
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .clickable(remember { MutableInteractionSource() }, indication = null) { onSelect(index) }
+                            .semantics { role = Role.Tab; this.selected = selected },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AppText(
+                            text = option,
+                            style = AppTheme.typography.footnote.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
+                            color = colors.label,
+                            maxLines = 1,
+                        )
+                    }
+                }
             }
         }
     }
@@ -147,10 +179,15 @@ internal fun LiquidGlassActionButton(text: String, icon: ImageVector?, onClick: 
     val colors = AppTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val pressedAlpha by animateFloatAsState(
+        targetValue = if (pressed) 0.6f else 1f,
+        animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "actionButtonPress",
+    )
     Row(
         modifier = modifier
             .height(48.dp)
-            .graphicsLayer { alpha = if (pressed) 0.6f else 1f }
+            .graphicsLayer { alpha = pressedAlpha }
             .clip(RoundedCornerShape(percent = 50))
             .background(colors.fill)
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)

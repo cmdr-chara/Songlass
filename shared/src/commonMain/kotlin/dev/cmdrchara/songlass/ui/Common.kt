@@ -19,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.library.Album
@@ -57,15 +59,21 @@ fun albumTitle(title: String?): String = title ?: stringResource(Res.string.unkn
 
 /** Large navigation title at the top of a root screen. */
 @Composable
-fun ScreenTitle(text: String) {
-    AppText(
-        text = text,
-        style = AppTheme.typography.largeTitle,
+fun ScreenTitle(text: String, trailing: (@Composable () -> Unit)? = null) {
+    Row(
         modifier = Modifier
+            .fillMaxWidth()
             .windowInsetsPadding(WindowInsets.statusBars)
             .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
-        maxLines = 1,
-    )
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppText(
+            text = text,
+            style = AppTheme.typography.largeTitle,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
+        trailing?.invoke()
+    }
 }
 
 @Composable
@@ -73,7 +81,7 @@ fun SectionTitle(text: String) {
     AppText(
         text = text,
         style = AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold),
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp),
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 6.dp).semantics { heading() },
     )
 }
 

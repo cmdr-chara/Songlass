@@ -1,12 +1,15 @@
 package dev.cmdrchara.songlass.playback
 
 import android.net.Uri
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.player.AudioFormatInfo
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.PlayerEvent
 import dev.cmdrchara.songlass.core.player.PlayerState
@@ -27,6 +30,7 @@ import kotlinx.coroutines.launch
  * [AudioPlayer] backed by Media3's ExoPlayer. It plays one track at a time: the queue lives in
  * core's PlaybackController. Must be used from the main thread, like ExoPlayer itself.
  */
+@androidx.annotation.OptIn(UnstableApi::class)
 class Media3AudioPlayer(
     val exoPlayer: ExoPlayer,
     private val scope: CoroutineScope,
@@ -38,6 +42,7 @@ class Media3AudioPlayer(
     override val events: Flow<PlayerEvent> = _events.asSharedFlow()
 
     private var positionJob: Job? = null
+    private var loadedTrack: Track? = null
 
     init {
         exoPlayer.addListener(object : Player.Listener {
@@ -63,6 +68,8 @@ class Media3AudioPlayer(
     }
 
     override fun load(track: Track, playWhenReady: Boolean) {
+        loadedTrack = track
+        _state.value = _state.value.copy(audioFormat = null)
         exoPlayer.setMediaItem(track.toMediaItem())
         exoPlayer.prepare()
         exoPlayer.playWhenReady = playWhenReady
@@ -83,14 +90,17 @@ class Media3AudioPlayer(
     }
 
     override fun stop() {
+        loadedTrack = null
         exoPlayer.stop()
         exoPlayer.clearMediaItems()
         publishState()
     }
 
     override fun release() {
+        loadedTrack = null
         positionJob?.cancel()
         exoPlayer.release()
+        _state.value = PlayerState()
     }
 
     private fun publishState() {
@@ -107,7 +117,23 @@ class Media3AudioPlayer(
             positionMs = exoPlayer.currentPosition.coerceAtLeast(0),
             durationMs = exoPlayer.duration.takeIf { it > 0 } ?: 0,
             errorMessage = error?.message,
+            audioFormat = currentSourceFormat(),
         )
+    }
+
+    private fun currentSourceFormat(): AudioFormatInfo? {
+        val track = loadedTrack ?: return null
+        val item = exoPlayer.currentMediaItem ?: return null
+        if (item.mediaId != track.id || item.localConfiguration?.uri?.toString() != track.uri) return null
+        // A newly loaded item may briefly retain old track groups until preparation completes.
+        if (exoPlayer.playbackState != Player.STATE_READY && exoPlayer.playbackState != Player.STATE_ENDED) return null
+        for (group in exoPlayer.currentTracks.groups) {
+            if (group.type != C.TRACK_TYPE_AUDIO) continue
+            for (index in 0 until group.length) {
+                if (group.isTrackSelected(index)) return group.getTrackFormat(index).sourceAudioFormat()
+            }
+        }
+        return null
     }
 
     private companion object {

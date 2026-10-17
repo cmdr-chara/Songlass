@@ -15,6 +15,7 @@ data class PlayerState(
     /** 0 when unknown. */
     val durationMs: Long = 0,
     val errorMessage: String? = null,
+    val audioFormat: AudioFormatInfo? = null,
 ) {
     val isPlaying: Boolean
         get() = playWhenReady && (status == PlayerStatus.Ready || status == PlayerStatus.Buffering)

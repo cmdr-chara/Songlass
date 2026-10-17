@@ -14,6 +14,8 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTypography
 import dev.cmdrchara.songlass.designsystem.theme.LocalAppColors
 import dev.cmdrchara.songlass.designsystem.theme.LocalAppTypography
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
+import dev.cmdrchara.songlass.designsystem.theme.LocalUiAccessibility
+import dev.cmdrchara.songlass.designsystem.theme.UiAccessibility
 
 // Neutral colors follow the iOS system palette. The accent is a placeholder brand color:
 // deliberately not Apple Music red, to be replaced when the app identity is defined.
@@ -67,12 +69,17 @@ internal val Typography = AppTypography(
 
 /** Provides the Liquid Glass tokens and components to [content]. */
 @Composable
-fun LiquidGlassTheme(darkTheme: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit) {
+fun LiquidGlassTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    accessibility: UiAccessibility = UiAccessibility(),
+    content: @Composable () -> Unit,
+) {
     val colors = if (darkTheme) DarkColors else LightColors
     CompositionLocalProvider(
         LocalAppColors provides colors,
         LocalAppTypography provides Typography,
         LocalContentColor provides colors.label,
+        LocalUiAccessibility provides accessibility,
         LocalUiStyle provides LiquidGlassStyle,
         content = content,
     )

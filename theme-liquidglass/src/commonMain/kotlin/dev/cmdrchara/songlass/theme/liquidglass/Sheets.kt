@@ -1,6 +1,11 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -10,6 +15,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +47,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
@@ -61,12 +70,25 @@ internal fun LiquidGlassActionSheet(
     actions: List<SheetAction>,
     cancelLabel: String,
     onDismiss: () -> Unit,
+    details: List<InfoRow> = emptyList(),
 ) {
     val colors = AppTheme.colors
+    val reduceMotion = AppTheme.accessibility.reduceMotion
     val surface = if (colors.isDark) Color(0xFF2C2C2E) else Color.White
+    // The host may first enter composition with visible=true (the first track menu).
+    // Start hidden explicitly so that opening always has the same entrance animation.
+    val visibility = remember { MutableTransitionState(false) }
+    visibility.targetState = visible
+    val transition = rememberTransition(visibility, label = "actionSheet")
+    val fadeDuration = if (reduceMotion) LiquidGlassMotion.ReducedMillis else LiquidGlassMotion.FadeMillis
 
-    Box(Modifier.fillMaxSize()) {
-        AnimatedVisibility(visible, enter = fadeIn(), exit = fadeOut()) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val cardMaxHeight = maxHeight * 0.78f
+        transition.AnimatedVisibility(
+            visible = { it },
+            enter = fadeIn(tween(fadeDuration)),
+            exit = fadeOut(tween(if (reduceMotion) fadeDuration else LiquidGlassMotion.NavigationMillis)),
+        ) {
             Box(
                 Modifier
                     .fillMaxSize()
@@ -75,10 +97,20 @@ internal fun LiquidGlassActionSheet(
                     .semantics { onClick(label = cancelLabel) { onDismiss(); true } },
             )
         }
-        AnimatedVisibility(
-            visible = visible,
-            enter = slideInVertically { it } + fadeIn(),
-            exit = slideOutVertically { it } + fadeOut(),
+        transition.AnimatedVisibility(
+            visible = { it },
+            enter = if (reduceMotion) {
+                fadeIn(tween(fadeDuration))
+            } else {
+                slideInVertically(tween(LiquidGlassMotion.SheetMillis, easing = LiquidGlassMotion.Emphasized)) { it } +
+                    fadeIn(tween(fadeDuration))
+            },
+            exit = if (reduceMotion) {
+                fadeOut(tween(fadeDuration))
+            } else {
+                slideOutVertically(tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)) { it } +
+                    fadeOut(tween(LiquidGlassMotion.NavigationMillis))
+            },
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             CompositionLocalProvider(LocalContentColor provides colors.label) {
@@ -88,7 +120,7 @@ internal fun LiquidGlassActionSheet(
                         .windowInsetsPadding(WindowInsets.navigationBars)
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 ) {
-                    Column(Modifier.fillMaxWidth().shadow(16.dp, SheetShape).clip(SheetShape).background(surface)) {
+                    Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(rememberScrollState())) {
                         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (artwork != null) {
                                 LiquidGlassAlbumArt(artwork, cornerRadius = 8.dp, modifier = Modifier.size(48.dp))
@@ -101,12 +133,21 @@ internal fun LiquidGlassActionSheet(
                                 }
                             }
                         }
-                        Separator()
+                        details.forEach { detail ->
+                            Separator()
+                            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+                                AppText(detail.label, AppTheme.typography.caption1, color = colors.secondaryLabel)
+                                AppText(detail.value, AppTheme.typography.body)
+                            }
+                        }
+                        if (actions.isNotEmpty()) Separator()
                         actions.forEachIndexed { index, action ->
                             if (index > 0) Separator()
                             SheetRow(action.label, action.icon) {
-                                onDismiss()
-                                action.onClick()
+                                if (visible) {
+                                    onDismiss()
+                                    action.onClick()
+                                }
                             }
                         }
                     }
@@ -129,11 +170,16 @@ private fun Separator() {
 private fun SheetRow(label: String, icon: ImageVector?, bold: Boolean = false, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val background by animateColorAsState(
+        targetValue = if (pressed) AppTheme.colors.fill else Color.Transparent,
+        animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "sheetRowBackground",
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .heightIn(min = 54.dp)
-            .background(if (pressed) AppTheme.colors.fill else Color.Transparent)
+            .background(background)
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 18.dp),
         verticalAlignment = Alignment.CenterVertically,

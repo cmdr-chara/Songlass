@@ -10,6 +10,15 @@ import androidx.compose.ui.unit.dp
 // Entry points used by screens. Each one delegates to the active UiStyle.
 
 @Composable
+fun <T> ScreenTransition(
+    targetState: T,
+    modifier: Modifier = Modifier,
+    direction: (T, T) -> NavigationDirection = { _, _ -> NavigationDirection.Crossfade },
+    content: @Composable (T) -> Unit,
+) = LocalUiStyle.current.ScreenTransition(targetState, direction, modifier, content)
+
+
+@Composable
 fun AppScaffold(
     tabs: List<TabItem>,
     selectedTab: Int,
@@ -38,6 +47,28 @@ fun ListRow(
     highlighted: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) = LocalUiStyle.current.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+
+@Composable
+fun SettingsGroup(modifier: Modifier = Modifier, content: @Composable () -> Unit) =
+    LocalUiStyle.current.SettingsGroup(content, modifier)
+
+@Composable
+fun SettingsChoiceRow(
+    title: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) = LocalUiStyle.current.SettingsChoiceRow(title, selected, onClick, modifier)
+
+@Composable
+fun SettingsToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    enabled: Boolean = true,
+) = LocalUiStyle.current.SettingsToggleRow(title, subtitle, checked, onCheckedChange, enabled, modifier)
 
 @Composable
 fun SegmentedControl(
@@ -78,7 +109,8 @@ fun SeekBar(
     durationMs: Long,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
-) = LocalUiStyle.current.SeekBar(positionMs, durationMs, onSeek, modifier)
+    qualityLabel: String? = null,
+) = LocalUiStyle.current.SeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
 
 @Composable
 fun TransportControls(
@@ -89,6 +121,22 @@ fun TransportControls(
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) = LocalUiStyle.current.TransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
+
+@Composable
+fun LyricLine(
+    text: String,
+    active: Boolean,
+    subdued: Boolean,
+    progress: Float?,
+    isPlaying: Boolean,
+    seekLabel: String,
+    onSeek: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+) = LocalUiStyle.current.LyricLine(text, active, subdued, progress, isPlaying, seekLabel, onSeek, modifier)
+
+@Composable
+fun LyricsViewport(modifier: Modifier = Modifier, content: @Composable () -> Unit) =
+    LocalUiStyle.current.LyricsViewport(modifier, content)
 
 @Composable
 fun SearchField(
@@ -102,10 +150,16 @@ fun SearchField(
 fun NowPlayingSheet(
     visible: Boolean,
     artwork: Artwork?,
+    artworkVisible: Boolean,
+    artworkExpanded: Boolean,
+    artworkLabel: String,
+    expandArtworkLabel: String,
+    closeArtworkLabel: String,
+    onArtworkExpandedChange: (Boolean) -> Unit,
     dismissLabel: String,
     onDismiss: () -> Unit,
-    content: @Composable () -> Unit,
-) = LocalUiStyle.current.NowPlayingSheet(visible, artwork, dismissLabel, onDismiss, content)
+    content: @Composable (onArtworkTap: () -> Unit) -> Unit,
+) = LocalUiStyle.current.NowPlayingSheet(visible, artwork, artworkVisible, artworkExpanded, artworkLabel, expandArtworkLabel, closeArtworkLabel, onArtworkExpandedChange, dismissLabel, onDismiss, content)
 
 @Composable
 fun ActionSheet(
@@ -117,3 +171,7 @@ fun ActionSheet(
     subtitle: String? = null,
     artwork: Artwork? = null,
 ) = LocalUiStyle.current.ActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)
+
+@Composable
+fun InfoSheet(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, onDismiss: () -> Unit) =
+    LocalUiStyle.current.InfoSheet(visible, title, rows, closeLabel, onDismiss)

@@ -25,6 +25,7 @@ import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.SegmentedControl
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -48,6 +49,7 @@ import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_library
+import dev.cmdrchara.songlass.shared.resources.settings_title
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -63,7 +65,16 @@ fun LibraryScreen(
     val library = state.library
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        item { ScreenTitle(stringResource(Res.string.tab_library)) }
+        item {
+            ScreenTitle(stringResource(Res.string.tab_library)) {
+                IconButton(
+                    icon = AppIcons.Settings,
+                    contentDescription = stringResource(Res.string.settings_title),
+                    onClick = { state.open(Route.Settings) },
+                    modifier = Modifier.size(48.dp),
+                )
+            }
+        }
         if (!hasAccess || library.tracks.isEmpty()) {
             item { LibraryEmptyState(hasAccess, onRequestAccess) }
             return@LazyColumn

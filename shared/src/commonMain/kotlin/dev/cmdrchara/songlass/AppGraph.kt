@@ -1,11 +1,14 @@
 package dev.cmdrchara.songlass
 
+import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
+import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
+import dev.cmdrchara.songlass.core.settings.AppSettings
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.demo.SampleLibrary
@@ -33,9 +36,13 @@ class AppGraph(
     val source: MusicSource,
     store: KeyValueStore,
     private val scope: CoroutineScope,
+    localLyrics: LyricsSource = LyricsSource.Empty,
+    remoteLyrics: LyricsSource = LyricsSource.Empty,
 ) {
     val controller = PlaybackController(player, scope)
     val favorites = Favorites(store)
+    val settings = AppSettings(store)
+    val lyrics = LyricsRepository(localLyrics, remoteLyrics, store)
 
     private val _library = MutableStateFlow(MusicLibrary(emptyList()))
     val library: StateFlow<MusicLibrary> = _library.asStateFlow()

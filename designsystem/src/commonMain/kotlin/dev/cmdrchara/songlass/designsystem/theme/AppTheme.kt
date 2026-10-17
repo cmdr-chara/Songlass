@@ -12,6 +12,9 @@ object AppTheme {
 
     val typography: AppTypography
         @Composable @ReadOnlyComposable get() = LocalAppTypography.current
+
+    val accessibility: UiAccessibility
+        @Composable @ReadOnlyComposable get() = LocalUiAccessibility.current
 }
 
 /** Color for text and icons inside the current container (e.g. white on Now Playing). */

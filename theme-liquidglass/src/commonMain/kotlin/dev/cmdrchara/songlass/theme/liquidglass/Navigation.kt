@@ -2,6 +2,10 @@ package dev.cmdrchara.songlass.theme.liquidglass
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -30,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -89,15 +94,20 @@ internal fun LiquidGlassScaffold(
     accessory: (@Composable () -> Unit)?,
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val hazeState = rememberHazeState()
+    val accessibility = AppTheme.accessibility
+    val hazeState = if (accessibility.reduceTransparency) null else rememberHazeState()
     val density = LocalDensity.current
+    val navigationBarInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     var expandedBarsHeightPx by remember { mutableIntStateOf(0) }
     var minimizeRequested by remember { mutableStateOf(false) }
-    val scrollConnection = remember(density) {
+    LaunchedEffect(accessibility.reduceMotion) {
+        if (accessibility.reduceMotion) minimizeRequested = false
+    }
+    val scrollConnection = remember(density, accessibility.reduceMotion) {
         MinimizeOnScroll(thresholdPx = with(density) { MinimizeScrollThreshold.toPx() }) { minimizeRequested = it }
     }
     // Without an accessory there is nothing to show inline, so the bar stays expanded.
-    val minimized = minimizeRequested && accessory != null
+    val minimized = !accessibility.reduceMotion && minimizeRequested && accessory != null
     val colors = AppTheme.colors
 
     Box(Modifier.fillMaxSize().background(colors.background)) {
@@ -105,18 +115,19 @@ internal fun LiquidGlassScaffold(
         Box(
             Modifier
                 .fillMaxSize()
-                .nestedScroll(scrollConnection)
-                .hazeSource(hazeState)
+                .then(if (accessibility.reduceMotion) Modifier else Modifier.nestedScroll(scrollConnection))
+                .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier)
                 .background(colors.background),
         ) {
-            content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + BarSpacing))
+            // Keep the content inset at the expanded height while the floating bars animate.
+            // Measuring the animated container would make the list jump during expansion.
+            content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
         }
         CompositionLocalProvider(LocalGlassSource provides hazeState) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .onSizeChanged { if (!minimized) expandedBarsHeightPx = it.height }
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = BarHorizontalMargin)
                     .padding(bottom = BarSpacing),
@@ -131,6 +142,7 @@ internal fun LiquidGlassScaffold(
                     onExpand = { minimizeRequested = false },
                     accessory = accessory,
                     minimized = minimized,
+                    onExpandedHeightChanged = { expandedBarsHeightPx = it },
                 )
             }
         }
@@ -173,11 +185,23 @@ private fun NavigationLayer(
     onExpand: () -> Unit,
     accessory: (@Composable () -> Unit)?,
     minimized: Boolean,
+    onExpandedHeightChanged: (Int) -> Unit,
 ) {
     val searchIndex = tabs.indexOfFirst { it.isSearch }
+    val reduceMotion = AppTheme.accessibility.reduceMotion
     AnimatedContent(
         targetState = minimized,
-        transitionSpec = { fadeIn(tween(220)) togetherWith fadeOut(tween(150)) using SizeTransform(clip = false) },
+        transitionSpec = {
+            if (reduceMotion) {
+                fadeIn(tween(0)) togetherWith fadeOut(tween(0)) using null
+            } else {
+                fadeIn(tween(LiquidGlassMotion.FadeMillis, delayMillis = 60)) togetherWith
+                    fadeOut(tween(LiquidGlassMotion.FeedbackMillis)) using SizeTransform(clip = false) { _, _ ->
+                        tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)
+                    }
+            }
+        },
+        contentAlignment = Alignment.BottomCenter,
         label = "tabBarMinimize",
     ) { isMinimized ->
         if (isMinimized) {
@@ -196,7 +220,10 @@ private fun NavigationLayer(
                 }
             }
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(BarSpacing)) {
+            Column(
+                modifier = Modifier.onSizeChanged { onExpandedHeightChanged(it.height) },
+                verticalArrangement = Arrangement.spacedBy(BarSpacing),
+            ) {
                 accessory?.invoke()
                 Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
                     TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f))
@@ -224,12 +251,17 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
             if (tab.isSearch) return@forEachIndexed
             val selected = index == selectedTab
             val colors = AppTheme.colors
+            val background by animateColorAsState(
+                targetValue = if (selected) colors.fill else Color.Transparent,
+                animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+                label = "tabSelectionBackground",
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .clip(Capsule)
-                    .background(if (selected) colors.fill else Color.Transparent)
+                    .background(background)
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTabSelected(index) }
                     .semantics { role = Role.Tab; this.selected = selected },
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -250,8 +282,14 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
 
 /** Selected tabs use the accent; others are a muted monochrome, as in the HIG. */
 @Composable
-private fun tabTint(selected: Boolean): Color =
-    if (selected) AppTheme.colors.accent else AppTheme.colors.label.copy(alpha = 0.72f)
+private fun tabTint(selected: Boolean): Color {
+    val tint by animateColorAsState(
+        targetValue = if (selected) AppTheme.colors.accent else AppTheme.colors.label.copy(alpha = 0.72f),
+        animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "tabSelectionTint",
+    )
+    return tint
+}
 
 @Composable
 private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, onClick: () -> Unit) {
@@ -324,29 +362,48 @@ internal fun LiquidGlassIconButton(
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val content = LocalContentColor.current
-    val background = when {
-        filled -> content.copy(alpha = if (pressed) 0.24f else 0.14f)
-        pressed -> content.copy(alpha = 0.1f)
-        else -> Color.Transparent
-    }
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reduceMotion) 0.92f else 1f,
+        animationSpec = if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 700f),
+        label = "iconButtonPress",
+    )
+    val background by animateColorAsState(
+        targetValue = when {
+            filled -> content.copy(alpha = if (pressed) 0.24f else 0.14f)
+            pressed -> content.copy(alpha = 0.1f)
+            else -> Color.Transparent
+        },
+        animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "iconButtonBackground",
+    )
+    val tint by animateColorAsState(
+        targetValue = if (selected) AppTheme.colors.accent else content,
+        animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "iconButtonTint",
+    )
+    // Only the visual layer scales: the touch and accessibility target stays at hitSize.
     Box(
         modifier = modifier
             .size(hitSize)
-            .graphicsLayer {
-                val s = if (pressed) 0.88f else 1f
-                scaleX = s; scaleY = s
-            }
-            .then(if (filled) Modifier.padding(6.dp) else Modifier)
-            .clip(CircleShape)
-            .background(background)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        AppIcon(
-            icon = icon,
-            contentDescription = contentDescription,
-            size = if (filled) iconSize * 0.75f else iconSize,
-            tint = if (selected) AppTheme.colors.accent else content,
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(if (filled) Modifier.padding(6.dp) else Modifier)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .clip(CircleShape)
+                .background(background),
+            contentAlignment = Alignment.Center,
+        ) {
+            AppIcon(
+                icon = icon,
+                contentDescription = contentDescription,
+                size = if (filled) iconSize * 0.75f else iconSize,
+                tint = tint,
+            )
+        }
     }
 }

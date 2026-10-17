@@ -1,0 +1,215 @@
+package dev.cmdrchara.songlass.ui
+
+import androidx.compose.foundation.interaction.DragInteraction
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.lyrics.Lyrics
+import dev.cmdrchara.songlass.core.lyrics.LyricsOrigin
+import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
+import dev.cmdrchara.songlass.core.lyrics.LyricsResult
+import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.designsystem.ActionButton
+import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.IconButton
+import dev.cmdrchara.songlass.designsystem.LyricsViewport
+import dev.cmdrchara.songlass.designsystem.LyricLine
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
+import dev.cmdrchara.songlass.shared.resources.*
+import org.jetbrains.compose.resources.stringResource
+
+@Composable
+internal fun LyricsPane(
+    track: Track,
+    positionMs: Long,
+    durationMs: Long,
+    isPlaying: Boolean,
+    repository: LyricsRepository,
+    onSeek: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var result by remember(track) { mutableStateOf<LyricsResult?>(null) }
+    var revision by remember(track) { mutableIntStateOf(0) }
+    var importFailed by remember(track) { mutableStateOf(false) }
+    val importFile = rememberLyricsFilePicker { requestedTrack, text ->
+        val imported = text != null && repository.import(requestedTrack, text)
+        if (requestedTrack.uri == track.uri) {
+            importFailed = !imported
+            if (imported) revision++
+        }
+    }
+    LaunchedEffect(track, revision) {
+        result = null
+        result = repository.load(track, refresh = revision > 0)
+    }
+    val lyrics = (result as? LyricsResult.Found)?.lyrics
+    val secondary = LocalContentColor.current.copy(alpha = 0.65f)
+    Column(modifier.padding(top = 16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            AlbumArt(track.artwork(), Modifier.size(44.dp), cornerRadius = 6.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                AppText(track.title, AppTheme.typography.headline, maxLines = 1)
+                AppText(artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
+            }
+        }
+        if (lyrics != null && !lyrics.instrumental) {
+            androidx.compose.runtime.key(track, lyrics) {
+                LyricsLines(lyrics, positionMs, durationMs, isPlaying, onSeek, Modifier.weight(1f).fillMaxWidth())
+            }
+        } else {
+            Column(
+                Modifier.weight(1f).fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                AppIcon(if (lyrics?.instrumental == true) AppIcons.MusicNote else AppIcons.Lyrics, null, size = 36.dp, tint = secondary)
+                Spacer(Modifier.height(16.dp))
+                AppText(
+                    stringResource(when {
+                        lyrics?.instrumental == true -> Res.string.lyrics_instrumental
+                        result == null -> Res.string.lyrics_loading
+                        result == LyricsResult.Failed -> Res.string.lyrics_error
+                        else -> Res.string.lyrics_not_found
+                    }),
+                    AppTheme.typography.title3,
+                    textAlign = TextAlign.Center,
+                )
+                if (result != null) {
+                    Spacer(Modifier.height(8.dp))
+                    AppText(
+                        stringResource(when {
+                            lyrics?.instrumental == true -> Res.string.lyrics_instrumental_hint
+                            result == LyricsResult.Failed -> Res.string.lyrics_error_hint
+                            else -> Res.string.lyrics_not_found_hint
+                        }),
+                        AppTheme.typography.subheadline,
+                        color = secondary,
+                        textAlign = TextAlign.Center,
+                    )
+                }
+                if (result == LyricsResult.Failed || result == LyricsResult.NotFound) {
+                    Spacer(Modifier.height(20.dp))
+                    ActionButton(stringResource(Res.string.lyrics_retry), onClick = { revision++ })
+                }
+            }
+        }
+        if (importFailed) {
+            AppText(
+                stringResource(Res.string.lyrics_import_error), AppTheme.typography.footnote,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                if (lyrics != null) {
+                    AppText(
+                        stringResource(when (lyrics.source) {
+                            LyricsOrigin.Embedded -> Res.string.lyrics_source_embedded
+                            LyricsOrigin.File -> Res.string.lyrics_source_file
+                            LyricsOrigin.LrcLib -> Res.string.lyrics_source_online
+                        }), AppTheme.typography.caption1, color = secondary,
+                    )
+                    if (!lyrics.instrumental) {
+                        AppText(stringResource(if (lyrics.isSynced) Res.string.lyrics_estimated else Res.string.lyrics_plain), AppTheme.typography.caption2, color = secondary)
+                    }
+                }
+            }
+            if (importFile != null) {
+                IconButton(AppIcons.ImportFile, stringResource(Res.string.lyrics_import), onClick = { importFile(track) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) {
+    val listState = rememberLazyListState()
+    val active = lyrics.activeLineAt(positionMs)
+    var following by remember { mutableStateOf(true) }
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    // Prepare the next phrase before its timestamp; emphasis still follows the actual lyrics clock.
+    val scrollTarget = if (isPlaying && !reduceMotion) lyrics.scrollLineAt(positionMs, durationMs) else active
+    // A user's drag pauses following; it never fights them while they read another verse.
+    LaunchedEffect(listState) {
+        listState.interactionSource.interactions.collect { interaction ->
+            if (interaction is DragInteraction.Start) following = false
+        }
+    }
+    LaunchedEffect(scrollTarget, following, reduceMotion) {
+        if (following && lyrics.isSynced) {
+            if (scrollTarget < 0) {
+                listState.scrollToItem(0)
+                return@LaunchedEffect
+            }
+            val height = snapshotFlow { listState.layoutInfo.viewportSize.height }.first { it > 0 }
+            val offset = -(height / 3)
+            if (reduceMotion) listState.scrollToItem(scrollTarget, offset)
+            else listState.animateScrollToItem(scrollTarget, offset)
+        }
+    }
+    Box(modifier) {
+        val breakLabel = stringResource(Res.string.lyrics_break)
+        val seekLabel = stringResource(Res.string.lyrics_seek)
+        LyricsViewport(Modifier.fillMaxSize()) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(top = 32.dp, bottom = 120.dp),
+            ) {
+                itemsIndexed(lyrics.lines) { index, line ->
+                    LyricLine(
+                        text = if (lyrics.isSynced && line.text.isBlank()) "···" else line.text,
+                        active = lyrics.isSynced && index == active,
+                        subdued = lyrics.isSynced,
+                        progress = if (index == active) lyrics.lineProgressAt(index, positionMs, durationMs) else null,
+                        isPlaying = isPlaying,
+                        seekLabel = seekLabel,
+                        onSeek = line.timeMs?.let { timestamp -> { following = true; onSeek(timestamp) } },
+                        modifier = if (lyrics.isSynced && line.text.isBlank()) Modifier.semantics { contentDescription = breakLabel } else Modifier,
+                    )
+                }
+            }
+        }
+        if (!following && lyrics.isSynced) {
+            ActionButton(
+                stringResource(Res.string.lyrics_follow),
+                onClick = { following = true },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 8.dp),
+            )
+        }
+    }
+}

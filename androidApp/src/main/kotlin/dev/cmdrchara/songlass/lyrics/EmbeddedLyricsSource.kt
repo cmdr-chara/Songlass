@@ -1,0 +1,104 @@
+package dev.cmdrchara.songlass.lyrics
+
+import android.os.Handler
+import androidx.media3.common.Metadata
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.extractor.metadata.id3.BinaryFrame
+import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import androidx.media3.extractor.metadata.vorbis.VorbisComment
+import dev.cmdrchara.songlass.core.lyrics.Lyrics
+import dev.cmdrchara.songlass.core.lyrics.LyricsOrigin
+import dev.cmdrchara.songlass.core.lyrics.LyricsParser
+import dev.cmdrchara.songlass.core.lyrics.LyricsSource
+import dev.cmdrchara.songlass.core.model.Track
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.android.asCoroutineDispatcher
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
+
+/** Reads the already prepared track. It never opens another decoder or changes playback. */
+@androidx.annotation.OptIn(UnstableApi::class)
+class EmbeddedLyricsSource(private val player: ExoPlayer) : LyricsSource {
+    private val dispatcher = Handler(player.applicationLooper).asCoroutineDispatcher("Lyrics metadata")
+
+    override suspend fun load(track: Track): Lyrics? = withContext(dispatcher) {
+        requireCurrentTrack(track)
+        readMetadata()?.let { return@withContext it }
+        if (player.playbackState == Player.STATE_BUFFERING) awaitPreparation(track)
+        requireCurrentTrack(track)
+        readMetadata()
+    }
+
+    private suspend fun awaitPreparation(track: Track) {
+        withTimeoutOrNull(5_000L) {
+            var listener: Player.Listener? = null
+            try {
+                suspendCancellableCoroutine { continuation ->
+                    listener = object : Player.Listener {
+                        override fun onEvents(player: Player, events: Player.Events) {
+                            if (continuation.isActive &&
+                                (player.currentMediaItem?.mediaId != track.id ||
+                                    player.playbackState != Player.STATE_BUFFERING)
+                            ) continuation.resume(Unit)
+                        }
+                    }
+                    player.addListener(listener!!)
+                }
+            } finally {
+                // This coroutine runs on the player's looper, including cancellation cleanup.
+                listener?.let(player::removeListener)
+            }
+        }
+    }
+
+    private fun requireCurrentTrack(track: Track) {
+        if (player.currentMediaItem?.mediaId != track.id ||
+            player.currentMediaItem?.localConfiguration?.uri?.toString() != track.uri
+        ) {
+            throw CancellationException("The playing track changed while reading lyrics")
+        }
+    }
+
+    private fun readMetadata(): Lyrics? {
+        var plain: Lyrics? = null
+        for (group in player.currentTracks.groups) {
+            for (index in 0 until group.length) {
+                val metadata = group.getTrackFormat(index).metadata ?: continue
+                for (entryIndex in 0 until metadata.length()) {
+                    val lyrics = decode(metadata[entryIndex]) ?: continue
+                    if (lyrics.isSynced) return lyrics
+                    if (plain == null) plain = lyrics
+                }
+            }
+        }
+        return plain
+    }
+
+    private fun decode(entry: Metadata.Entry): Lyrics? = when (entry) {
+        is BinaryFrame -> Id3LyricsDecoder.decode(entry.id, entry.data)
+        is VorbisComment -> if (isLyricsKey(entry.key)) parse(entry.value) else null
+        // Media3 maps the M4A copyright-lyr atom to a USLT TextInformationFrame.
+        is TextInformationFrame -> if (entry.id == "USLT" || entry.id == "ULT" ||
+            (entry.id == "TXXX" && isLyricsKey(entry.description.orEmpty()))
+        ) {
+            val length = entry.values.sumOf { it.length.toLong() }
+            if (length > MAX_TEXT_LENGTH) null else parse(entry.values.joinToString("\n"))
+        } else null
+        else -> null
+    }
+
+    private fun parse(text: String): Lyrics? =
+        if (text.length > MAX_TEXT_LENGTH) null else LyricsParser.parse(text, LyricsOrigin.Embedded)
+
+    private fun isLyricsKey(key: String): Boolean =
+        key.equals("LYRICS", ignoreCase = true) || key.equals("UNSYNCEDLYRICS", ignoreCase = true) ||
+            key.equals("SYNCEDLYRICS", ignoreCase = true)
+
+    private companion object {
+        const val MAX_TEXT_LENGTH = 512 * 1024
+    }
+}

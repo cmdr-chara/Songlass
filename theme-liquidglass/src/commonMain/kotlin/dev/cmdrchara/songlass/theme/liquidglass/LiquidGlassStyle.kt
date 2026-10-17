@@ -5,7 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
+import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.NavigationDirection
 import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.SheetAction
@@ -14,6 +16,15 @@ import dev.cmdrchara.songlass.designsystem.UiStyle
 
 /** Apple-inspired style: iOS 26 Liquid Glass navigation layer over standard content. */
 object LiquidGlassStyle : UiStyle {
+
+    @Composable
+    override fun <T> ScreenTransition(
+        targetState: T,
+        direction: (T, T) -> NavigationDirection,
+        modifier: Modifier,
+        content: @Composable (T) -> Unit,
+    ) = LiquidGlassScreenTransition(targetState, direction, modifier, content)
+
 
     @Composable
     override fun Scaffold(
@@ -46,6 +57,24 @@ object LiquidGlassStyle : UiStyle {
     ) = LiquidGlassListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
 
     @Composable
+    override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
+        LiquidGlassSettingsGroup(content, modifier)
+
+    @Composable
+    override fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassSettingsChoiceRow(title, selected, onClick, modifier)
+
+    @Composable
+    override fun SettingsToggleRow(
+        title: String,
+        subtitle: String?,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        enabled: Boolean,
+        modifier: Modifier,
+    ) = LiquidGlassSettingsToggleRow(title, subtitle, checked, onCheckedChange, enabled, modifier)
+
+    @Composable
     override fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
         LiquidGlassSegmentedControl(options, selectedIndex, onSelect, modifier)
 
@@ -62,8 +91,8 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassAlbumArt(artwork, cornerRadius, modifier)
 
     @Composable
-    override fun SeekBar(positionMs: Long, durationMs: Long, onSeek: (Long) -> Unit, modifier: Modifier) =
-        LiquidGlassSeekBar(positionMs, durationMs, onSeek, modifier)
+    override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, onSeek: (Long) -> Unit, modifier: Modifier) =
+        LiquidGlassSeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
 
     @Composable
     override fun TransportControls(
@@ -76,6 +105,14 @@ object LiquidGlassStyle : UiStyle {
     ) = LiquidGlassTransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
 
     @Composable
+    override fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier) =
+        LiquidGlassLyricLine(text, active, subdued, progress, isPlaying, seekLabel, onSeek, modifier)
+
+    @Composable
+    override fun LyricsViewport(modifier: Modifier, content: @Composable () -> Unit) =
+        LiquidGlassLyricsViewport(modifier, content)
+
+    @Composable
     override fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier) =
         LiquidGlassSearchField(query, onQueryChange, placeholder, modifier)
 
@@ -83,10 +120,20 @@ object LiquidGlassStyle : UiStyle {
     override fun NowPlayingSheet(
         visible: Boolean,
         artwork: Artwork?,
+        artworkVisible: Boolean,
+        artworkExpanded: Boolean,
+        artworkLabel: String,
+        expandArtworkLabel: String,
+        closeArtworkLabel: String,
+        onArtworkExpandedChange: (Boolean) -> Unit,
         dismissLabel: String,
         onDismiss: () -> Unit,
-        content: @Composable () -> Unit,
-    ) = LiquidGlassNowPlayingSheet(visible, artwork, dismissLabel, onDismiss, content)
+        content: @Composable (onArtworkTap: () -> Unit) -> Unit,
+    ) = LiquidGlassNowPlayingSheet(visible, artwork, artworkVisible, artworkExpanded, artworkLabel, expandArtworkLabel, closeArtworkLabel, onArtworkExpandedChange, dismissLabel, onDismiss, content)
+
+    @Composable
+    override fun InfoSheet(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, onDismiss: () -> Unit) =
+        LiquidGlassActionSheet(visible, title, null, null, emptyList(), closeLabel, onDismiss, rows)
 
     @Composable
     override fun ActionSheet(

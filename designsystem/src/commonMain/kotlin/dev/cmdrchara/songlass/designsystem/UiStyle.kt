@@ -43,6 +43,9 @@ data class SheetAction(
     val onClick: () -> Unit,
 )
 
+@Immutable
+data class InfoRow(val label: String, val value: String)
+
 /** Accessibility labels for playback controls, supplied by the screen layer (localized). */
 @Immutable
 data class PlaybackLabels(
@@ -51,6 +54,9 @@ data class PlaybackLabels(
     val next: String,
     val previous: String,
 )
+
+/** Spatial relationship between navigation destinations. */
+enum class NavigationDirection { Forward, Backward, Crossfade }
 
 /**
  * The building blocks every screen is written against. Each UI style (Liquid Glass, Miuix,
@@ -61,6 +67,16 @@ data class PlaybackLabels(
  */
 @Stable
 interface UiStyle {
+
+    /** Keeps outgoing content alive until its transition completes. Render the supplied snapshot. */
+    @Composable
+    fun <T> ScreenTransition(
+        targetState: T,
+        direction: (T, T) -> NavigationDirection,
+        modifier: Modifier,
+        content: @Composable (T) -> Unit,
+    )
+
 
     /**
      * Root layout of a tabbed screen: [content] fills the screen and scrolls under the
@@ -98,6 +114,23 @@ interface UiStyle {
         modifier: Modifier,
     )
 
+    /** Opaque grouped settings surface. Screens supply section headings separately. */
+    @Composable
+    fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier)
+
+    @Composable
+    fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier)
+
+    @Composable
+    fun SettingsToggleRow(
+        title: String,
+        subtitle: String?,
+        checked: Boolean,
+        onCheckedChange: (Boolean) -> Unit,
+        enabled: Boolean,
+        modifier: Modifier,
+    )
+
     @Composable
     fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier)
 
@@ -116,7 +149,7 @@ interface UiStyle {
     fun AlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: Modifier)
 
     @Composable
-    fun SeekBar(positionMs: Long, durationMs: Long, onSeek: (Long) -> Unit, modifier: Modifier)
+    fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, onSeek: (Long) -> Unit, modifier: Modifier)
 
     @Composable
     fun TransportControls(
@@ -127,6 +160,13 @@ interface UiStyle {
         onNext: () -> Unit,
         modifier: Modifier,
     )
+
+    /** Readable lyric line, optionally tappable when a timestamp is available. */
+    @Composable
+    fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier)
+
+    @Composable
+    fun LyricsViewport(modifier: Modifier, content: @Composable () -> Unit)
 
     @Composable
     fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier)
@@ -139,10 +179,19 @@ interface UiStyle {
     fun NowPlayingSheet(
         visible: Boolean,
         artwork: Artwork?,
+        artworkVisible: Boolean,
+        artworkExpanded: Boolean,
+        artworkLabel: String,
+        expandArtworkLabel: String,
+        closeArtworkLabel: String,
+        onArtworkExpandedChange: (Boolean) -> Unit,
         dismissLabel: String,
         onDismiss: () -> Unit,
-        content: @Composable () -> Unit,
+        content: @Composable (onArtworkTap: () -> Unit) -> Unit,
     )
+
+    @Composable
+    fun InfoSheet(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, onDismiss: () -> Unit)
 
     /**
      * Modal list of actions about one item (e.g. a track), shown from the bottom with a header.
