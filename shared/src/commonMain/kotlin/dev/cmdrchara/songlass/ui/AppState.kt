@@ -3,20 +3,15 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Favorites
-import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
-import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
-import dev.cmdrchara.songlass.demo.SampleLibrary
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.delay
+import dev.cmdrchara.songlass.AppGraph
 
 enum class Tab { Library, Search }
 
@@ -32,12 +27,13 @@ sealed interface Route {
  * is open. Playback and library logic stay in core; this class only holds navigation state.
  */
 @Stable
-class AppState(
-    val library: MusicLibrary,
-    val controller: PlaybackController,
-    val favorites: Favorites,
-    private val demoPlayer: FakeAudioPlayer?,
-) {
+class AppState(graph: AppGraph) {
+    val controller: PlaybackController = graph.controller
+    val favorites: Favorites = graph.favorites
+
+    /** Latest library snapshot; updated by the UI from [AppGraph.library]. */
+    var library by mutableStateOf(graph.library.value)
+
     var tab by mutableStateOf(Tab.Library)
         private set
     var librarySection by mutableStateOf(LibrarySection.Albums)
@@ -109,23 +105,5 @@ class AppState(
 
     fun toggleQueue() {
         isQueueVisible = !isQueueVisible
-    }
-
-    /** Makes the silent demo player's clock run while "playing". No-op with a real player. */
-    suspend fun runDemoClock() {
-        val player = demoPlayer ?: return
-        while (true) {
-            delay(TICK_MS)
-            if (player.state.value.isPlaying) player.advanceBy(TICK_MS)
-        }
-    }
-
-    companion object {
-        private const val TICK_MS = 250L
-
-        fun demo(scope: CoroutineScope): AppState {
-            val player = FakeAudioPlayer()
-            return AppState(MusicLibrary(SampleLibrary.tracks), PlaybackController(player, scope), Favorites(), player)
-        }
     }
 }

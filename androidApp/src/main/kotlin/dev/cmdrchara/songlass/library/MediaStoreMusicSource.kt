@@ -1,0 +1,83 @@
+package dev.cmdrchara.songlass.library
+
+import android.Manifest
+import android.content.ContentUris
+import android.content.Context
+import android.content.pm.PackageManager
+import android.provider.MediaStore
+import dev.cmdrchara.songlass.MusicSource
+import dev.cmdrchara.songlass.core.model.TagNumbers
+import dev.cmdrchara.songlass.core.model.Track
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.withContext
+
+/** Reads the device's music from MediaStore. Needs READ_MEDIA_AUDIO (Android 13+). */
+class MediaStoreMusicSource(private val context: Context) : MusicSource {
+    private val _hasAccess = MutableStateFlow(checkAccess())
+    override val hasAccess: StateFlow<Boolean> = _hasAccess.asStateFlow()
+
+    /** Call after the permission dialog returns. */
+    fun refreshAccess() {
+        _hasAccess.value = checkAccess()
+    }
+
+    private fun checkAccess(): Boolean =
+        context.checkSelfPermission(Manifest.permission.READ_MEDIA_AUDIO) == PackageManager.PERMISSION_GRANTED
+
+    override suspend fun loadTracks(): List<Track> = withContext(Dispatchers.IO) {
+        val collection = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.ALBUM_ARTIST,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.TRACK,
+            MediaStore.Audio.Media.CD_TRACK_NUMBER,
+            MediaStore.Audio.Media.DISC_NUMBER,
+        )
+        val tracks = mutableListOf<Track>()
+        context.contentResolver.query(
+            collection,
+            projection,
+            "${MediaStore.Audio.Media.IS_MUSIC} != 0",
+            null,
+            null,
+        )?.use { cursor ->
+            val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+            val title = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val artist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val album = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
+            val albumArtist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ARTIST)
+            val duration = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val legacyTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
+            val cdTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.CD_TRACK_NUMBER)
+            val disc = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISC_NUMBER)
+            while (cursor.moveToNext()) {
+                val mediaId = cursor.getLong(id)
+                val (legacyDisc, legacyNumber) = TagNumbers.splitLegacyTrack(
+                    if (cursor.isNull(legacyTrack)) null else cursor.getInt(legacyTrack),
+                )
+                tracks += Track(
+                    id = mediaId.toString(),
+                    title = cursor.getString(title)?.takeIf { it.isNotBlank() } ?: continue,
+                    uri = ContentUris.withAppendedId(collection, mediaId).toString(),
+                    artist = cursor.getString(artist).cleanTag(),
+                    album = cursor.getString(album).cleanTag(),
+                    albumArtist = cursor.getString(albumArtist).cleanTag(),
+                    durationMs = cursor.getLong(duration),
+                    trackNumber = TagNumbers.parse(cursor.getString(cdTrack)) ?: legacyNumber,
+                    discNumber = TagNumbers.parse(cursor.getString(disc)) ?: legacyDisc,
+                )
+            }
+        }
+        tracks
+    }
+}
+
+/** MediaStore reports missing tags as blank or "<unknown>". */
+private fun String?.cleanTag(): String? = this?.trim()?.takeIf { it.isNotEmpty() && it != MediaStore.UNKNOWN_STRING }

@@ -7,7 +7,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import dev.cmdrchara.songlass.designsystem.AppScaffold
 import dev.cmdrchara.songlass.designsystem.MiniPlayer
@@ -36,13 +35,18 @@ import dev.cmdrchara.songlass.ui.artwork
 import dev.cmdrchara.songlass.ui.playbackLabels
 import org.jetbrains.compose.resources.stringResource
 
-/** Root composable shared by Android and iOS. */
+/**
+ * Root composable shared by Android and iOS. [graph] outlives the UI; [onRequestLibraryAccess]
+ * asks the platform for permission to read music (null where no permission is needed).
+ */
 @Composable
-fun App() {
+fun App(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)? = null) {
     LiquidGlassTheme {
-        val scope = rememberCoroutineScope()
-        val state = remember { AppState.demo(scope) }
-        LaunchedEffect(state) { state.runDemoClock() }
+        val state = remember(graph) { AppState(graph) }
+        val library by graph.library.collectAsState()
+        val hasLibraryAccess by graph.source.hasAccess.collectAsState()
+        LaunchedEffect(library) { state.library = library }
+        LaunchedEffect(hasLibraryAccess) { graph.refreshLibrary() }
         PlatformBackHandler(enabled = state.canGoBack) { state.goBack() }
 
         val queue by state.controller.queue.collectAsState()
@@ -86,7 +90,7 @@ fun App() {
                     is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                     is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                     null -> when (state.tab) {
-                        Tab.Library -> LibraryScreen(state, currentId, favoriteIds, padding)
+                        Tab.Library -> LibraryScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                         Tab.Search -> SearchScreen(state, currentId, padding)
                     }
                 }

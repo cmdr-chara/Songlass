@@ -8,6 +8,7 @@ compose-multiplatform = "1.12.2"
 haze = "2.0.1"
 kotlin = "2.4.21"
 kotlinx-coroutines = "1.11.0"
+media3 = "1.11.1"
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
@@ -20,8 +21,11 @@ compose-uiToolingPreview = { module = "org.jetbrains.compose.ui:ui-tooling-previ
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-glass = { module = "dev.chrisbanes.haze:haze-glass", version.ref = "haze" }
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
+media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
+media3-session = { module = "androidx.media3:media3-session", version.ref = "media3" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

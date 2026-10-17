@@ -31,6 +31,11 @@ import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.library_access_button
+import dev.cmdrchara.songlass.shared.resources.library_access_message
+import dev.cmdrchara.songlass.shared.resources.library_access_title
+import dev.cmdrchara.songlass.shared.resources.library_empty_hint
+import dev.cmdrchara.songlass.shared.resources.library_empty
 import dev.cmdrchara.songlass.shared.resources.action_play
 import dev.cmdrchara.songlass.shared.resources.action_shuffle
 import dev.cmdrchara.songlass.shared.resources.album_minutes
@@ -45,11 +50,22 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun LibraryScreen(state: AppState, currentTrackId: String?, favoriteIds: List<String>, contentPadding: PaddingValues) {
+fun LibraryScreen(
+    state: AppState,
+    currentTrackId: String?,
+    favoriteIds: List<String>,
+    hasAccess: Boolean,
+    onRequestAccess: (() -> Unit)?,
+    contentPadding: PaddingValues,
+) {
     val library = state.library
-    val favoriteTracks = remember(favoriteIds) { state.favorites.tracksIn(library) }
+    val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item { ScreenTitle(stringResource(Res.string.tab_library)) }
+        if (!hasAccess || library.tracks.isEmpty()) {
+            item { LibraryEmptyState(hasAccess, onRequestAccess) }
+            return@LazyColumn
+        }
         item {
             SegmentedControl(
                 options = listOf(
@@ -179,6 +195,32 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
             TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                 state.controller.playTracks(artist.tracks, index)
             }
+        }
+    }
+}
+
+/** Shown before the user grants access to their music, or when no music was found. */
+@Composable
+private fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        AppText(
+            text = stringResource(if (hasAccess) Res.string.library_empty else Res.string.library_access_title),
+            style = AppTheme.typography.title3,
+            textAlign = TextAlign.Center,
+        )
+        Spacer(Modifier.height(8.dp))
+        AppText(
+            text = stringResource(if (hasAccess) Res.string.library_empty_hint else Res.string.library_access_message),
+            style = AppTheme.typography.subheadline,
+            color = AppTheme.colors.secondaryLabel,
+            textAlign = TextAlign.Center,
+        )
+        if (!hasAccess && onRequestAccess != null) {
+            Spacer(Modifier.height(20.dp))
+            ActionButton(stringResource(Res.string.library_access_button), onClick = onRequestAccess)
         }
     }
 }

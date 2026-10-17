@@ -1,0 +1,69 @@
+package dev.cmdrchara.songlass
+
+import dev.cmdrchara.songlass.core.library.Favorites
+import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.playback.PlaybackController
+import dev.cmdrchara.songlass.core.player.AudioPlayer
+import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
+import dev.cmdrchara.songlass.demo.SampleLibrary
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+
+/** Where the music comes from (MediaStore on Android, the demo list elsewhere). */
+interface MusicSource {
+    /** Whether the app is allowed to read the user's music. */
+    val hasAccess: StateFlow<Boolean>
+
+    suspend fun loadTracks(): List<Track>
+}
+
+/**
+ * Objects that live as long as the process, not the UI: playback must keep going (and the
+ * system controls must keep working) after the activity is gone.
+ */
+class AppGraph(
+    val player: AudioPlayer,
+    val source: MusicSource,
+    private val scope: CoroutineScope,
+) {
+    val controller = PlaybackController(player, scope)
+    val favorites = Favorites()
+
+    private val _library = MutableStateFlow(MusicLibrary(emptyList()))
+    val library: StateFlow<MusicLibrary> = _library.asStateFlow()
+
+    init {
+        // The silent demo player has no clock of its own.
+        if (player is FakeAudioPlayer) {
+            scope.launch {
+                while (true) {
+                    delay(DEMO_TICK_MS)
+                    if (player.state.value.isPlaying) player.advanceBy(DEMO_TICK_MS)
+                }
+            }
+        }
+    }
+
+    /** Re-reads the music from [source]; does nothing without access. */
+    suspend fun refreshLibrary() {
+        if (!source.hasAccess.value) return
+        _library.value = MusicLibrary(source.loadTracks())
+    }
+
+    companion object {
+        private const val DEMO_TICK_MS = 250L
+
+        /** Fictional library and silent player, for platforms without real playback yet. */
+        fun demo(scope: CoroutineScope) = AppGraph(FakeAudioPlayer(), DemoMusicSource, scope)
+    }
+}
+
+private object DemoMusicSource : MusicSource {
+    override val hasAccess: StateFlow<Boolean> = MutableStateFlow(true)
+    override suspend fun loadTracks(): List<Track> = SampleLibrary.tracks
+}

@@ -48,4 +48,8 @@
     <string name="action_go_to_artist">Vai all'artista</string>
     <string name="action_cancel">Annulla</string>
     <string name="action_reorder">Riordina</string>
+    <string name="library_empty_hint">Aggiungi file musicali al telefono, ad esempio nella cartella Music.</string>
+    <string name="library_access_title">La tua musica</string>
+    <string name="library_access_message">Consenti a Songlass di leggere la musica su questo dispositivo per creare la tua libreria.</string>
+    <string name="library_access_button">Consenti accesso</string>
 </resources>

@@ -7,6 +7,10 @@ plugins {
 
 dependencies {
     implementation(projects.shared)
+    implementation(projects.core)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.media3.exoplayer)
+    implementation(libs.media3.session)
     implementation(libs.androidx.activity.compose)
     implementation(libs.compose.uiToolingPreview)
 }

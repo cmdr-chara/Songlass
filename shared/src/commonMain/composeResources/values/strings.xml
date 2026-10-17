@@ -48,4 +48,8 @@
     <string name="action_go_to_artist">Go to Artist</string>
     <string name="action_cancel">Cancel</string>
     <string name="action_reorder">Reorder</string>
+    <string name="library_empty_hint">Add music files to your phone, for example in the Music folder.</string>
+    <string name="library_access_title">Your music</string>
+    <string name="library_access_message">Allow Songlass to read the music on this device to build your library.</string>
+    <string name="library_access_button">Allow Access</string>
 </resources>
