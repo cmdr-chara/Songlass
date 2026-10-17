@@ -71,7 +71,7 @@ internal fun Modifier.liquidGlass(
         }
     }
     // Hairline inner rim, lit from above, that defines the edge like on iOS.
-    val rim = Brush.verticalGradient(
+    val rimBrush = Brush.verticalGradient(
         listOf(Color.White.copy(alpha = if (colors.isDark) 0.28f else 0.6f), Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.15f)),
     )
     // Soft light from above inside the body gives the curved, raised look of iOS glass.
@@ -81,5 +81,5 @@ internal fun Modifier.liquidGlass(
     )
     return hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
         .background(sheen, shape)
-        .border(0.75.dp, rim, shape)
+        .border(0.75.dp, rimBrush, shape)
 }

@@ -236,12 +236,15 @@ private fun NavigationLayer(
                 verticalArrangement = Arrangement.spacedBy(BarSpacing),
             ) {
                 accessory?.invoke()
-                Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
-                    TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f))
-                    if (searchIndex >= 0) {
-                        val search = tabs[searchIndex]
-                        GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = TabBarHeight) {
-                            onTabSelected(searchIndex)
+                val link = remember { LiquidLink() }
+                Box(contentAlignment = Alignment.CenterEnd) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
+                        TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link)
+                        if (searchIndex >= 0) {
+                            val search = tabs[searchIndex]
+                            GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = TabBarHeight, link = link) {
+                                onTabSelected(searchIndex)
+                            }
                         }
                     }
                 }
@@ -251,11 +254,11 @@ private fun NavigationLayer(
 }
 
 @Composable
-private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) {
+private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null) {
     Row(
         modifier = modifier
             .height(TabBarHeight)
-            .liquidPress(grow = 0.02f, reach = 3.dp)
+            .liquidPress(grow = 0.02f, reach = 3.dp, link = link, side = LinkSide.Start)
             .liquidGlass(Capsule)
             .padding(4.dp),
     ) {
@@ -304,12 +307,12 @@ private fun tabTint(selected: Boolean): Color {
 }
 
 @Composable
-private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, onClick: () -> Unit) {
+private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, link: LiquidLink? = null, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     Box(
         modifier = Modifier
             .size(size)
-            .liquidPress(grow = 0.08f, reach = 5.dp)
+            .liquidPress(grow = 0.08f, reach = 5.dp, link = link, side = LinkSide.End)
             .liquidGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .semantics {
