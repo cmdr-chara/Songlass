@@ -152,6 +152,12 @@ data class ArtworkTint(
  */
 val LocalNavigationTint = staticCompositionLocalOf<ArtworkTint?> { null }
 
+/**
+ * Tint of the screen a modal sheet (track menu, song information) was opened from, or null:
+ * the sheet then reads as part of that screen instead of a neutral system panel.
+ */
+val LocalSheetTint = staticCompositionLocalOf<ArtworkTint?> { null }
+
 private fun Color.compositeOver(background: Color): Color {
     val a = alpha
     return Color(

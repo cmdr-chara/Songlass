@@ -41,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
@@ -53,6 +54,7 @@ import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalSheetTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
 
 private val SheetShape = RoundedCornerShape(28.dp)
@@ -72,9 +74,37 @@ internal fun LiquidGlassActionSheet(
     onDismiss: () -> Unit,
     details: List<InfoRow> = emptyList(),
 ) {
+    val sheetTint = LocalSheetTint.current
+    if (sheetTint == null) {
+        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false)
+    } else {
+        ProvideArtworkTint(sheetTint) {
+            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true)
+        }
+    }
+}
+
+@Composable
+private fun ActionSheetContent(
+    visible: Boolean,
+    title: String,
+    subtitle: String?,
+    artwork: Artwork?,
+    actions: List<SheetAction>,
+    cancelLabel: String,
+    onDismiss: () -> Unit,
+    details: List<InfoRow>,
+    tinted: Boolean,
+) {
     val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    val surface = if (colors.isDark) Color(0xFF2C2C2E) else Color.White
+    // In a tinted context the card is a slightly raised shade of the same hue; otherwise the
+    // neutral system surface.
+    val surface = when {
+        tinted -> lerp(colors.background, colors.label, if (colors.isDark) 0.1f else 0.05f)
+        colors.isDark -> Color(0xFF2C2C2E)
+        else -> Color.White
+    }
     // The host may first enter composition with visible=true (the first track menu).
     // Start hidden explicitly so that opening always has the same entrance animation.
     val visibility = remember { MutableTransitionState(false) }

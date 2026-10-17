@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
+import dev.cmdrchara.songlass.designsystem.theme.LocalSheetTint
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
@@ -119,7 +120,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                 else -> null
             }
         }
-        val tintIsDark = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork).isDark
+        val contextTint = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork)
+        val tintIsDark = contextTint.isDark
         val routeArtwork = when (val route = state.currentRoute) {
             is Route.AlbumDetail -> route.album.artwork()
             is Route.PlaylistDetail -> route.playlist.artwork()
@@ -208,8 +210,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                     NowPlayingContent(state, queue, player, favoriteIds, labels, onArtworkTap)
                 }
             }
-            if (current != null) SongInformation(state, current, player)
-            TrackMenu(state, favoriteIds)
+            // Sheets take the tint of the screen they open from (player, album or playlist page).
+            CompositionLocalProvider(LocalSheetTint provides tintedArtwork?.let { contextTint }) {
+                if (current != null) SongInformation(state, current, player)
+                TrackMenu(state, favoriteIds)
+            }
         }
         }
     }
