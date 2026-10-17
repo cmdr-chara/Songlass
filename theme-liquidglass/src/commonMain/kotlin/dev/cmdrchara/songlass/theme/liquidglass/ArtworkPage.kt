@@ -93,8 +93,11 @@ internal fun LiquidGlassArtworkHeader(artwork: Artwork, contentDescription: Stri
             Modifier.fillMaxSize().background(
                 Brush.verticalGradient(
                     0f to Color.Transparent,
-                    0.55f to Color.Transparent,
-                    0.85f to background.copy(alpha = 0.7f),
+                    0.4f to Color.Transparent,
+                    0.55f to background.copy(alpha = 0.18f),
+                    0.7f to background.copy(alpha = 0.5f),
+                    0.82f to background.copy(alpha = 0.8f),
+                    0.93f to background.copy(alpha = 0.97f),
                     1f to background,
                 ),
             ),

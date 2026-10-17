@@ -81,7 +81,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val quality = audioQualityLabel(player.audioFormat)
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 20.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
         // On short windows scroll the composition instead of squeezing playback hit targets.
         val contentHeight = maxHeight.coerceAtLeast(540.dp)
         val needsScroll = maxHeight < contentHeight

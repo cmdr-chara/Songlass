@@ -310,7 +310,7 @@ private fun ArtworkCollectionPage(
         LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
             item { ArtworkHeader(artwork) }
             item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
                     Tag(kind)
                     Spacer(Modifier.height(8.dp))
                     AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)

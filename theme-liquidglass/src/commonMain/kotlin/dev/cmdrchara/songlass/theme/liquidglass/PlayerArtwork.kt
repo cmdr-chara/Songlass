@@ -189,12 +189,10 @@ internal fun PlayerArtworkHero(
                     (protectedTop + 0.1f).coerceAtMost(1f) to topScrim.copy(alpha = 0f),
                     1f to topScrim.copy(alpha = 0f),
                 ))
-                drawRect(Brush.verticalGradient(
-                    0f to surface.copy(alpha = 0f),
-                    (if (reduceTransparency) 0.4f else 0.54f) to surface.copy(alpha = 0f),
-                    (if (reduceTransparency) 0.72f else 0.84f) to surface.copy(alpha = if (reduceTransparency) 1f else 0.88f),
-                    1f to surface,
-                ))
+                // Long eased fade: the cover dissolves over its lower half and the page color is
+                // solid well before the title, so text never sits on the artwork's details.
+                val fade = if (reduceTransparency) HeroFadeStopsOpaque else HeroFadeStops
+                drawRect(Brush.verticalGradient(*Array(fade.size) { i -> fade[i].first to surface.copy(alpha = fade[i].second) }))
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -283,3 +281,14 @@ internal fun PlayerArtworkExpansion(
         }
     }
 }
+
+/** (position, alpha) stops of the hero fade, following an ease-in-out curve. */
+private val HeroFadeStops = listOf(
+    0f to 0f, 0.3f to 0f, 0.4f to 0.06f, 0.5f to 0.2f, 0.6f to 0.45f,
+    0.7f to 0.72f, 0.78f to 0.9f, 0.85f to 1f, 1f to 1f,
+)
+
+/** Reduce Transparency: the same curve, reaching the solid color sooner. */
+private val HeroFadeStopsOpaque = listOf(
+    0f to 0f, 0.25f to 0f, 0.35f to 0.15f, 0.5f to 0.55f, 0.65f to 0.9f, 0.72f to 1f, 1f to 1f,
+)
