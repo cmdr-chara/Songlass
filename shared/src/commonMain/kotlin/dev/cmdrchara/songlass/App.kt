@@ -24,6 +24,7 @@ import dev.cmdrchara.songlass.ui.AlbumScreen
 import dev.cmdrchara.songlass.ui.AppState
 import dev.cmdrchara.songlass.ui.ArtistScreen
 import dev.cmdrchara.songlass.ui.LibraryScreen
+import dev.cmdrchara.songlass.ui.LightStatusBarIcons
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
 import dev.cmdrchara.songlass.ui.Route
@@ -72,7 +73,7 @@ fun App() {
             AppScaffold(
                 tabs = listOf(
                     TabItem(tabTitles.getValue(Tab.Library), AppIcons.Library),
-                    TabItem(tabTitles.getValue(Tab.Search), AppIcons.Search),
+                    TabItem(tabTitles.getValue(Tab.Search), AppIcons.Search, isSearch = true),
                 ),
                 selectedTab = state.tab.ordinal,
                 onTabSelected = { state.selectTab(Tab.entries[it]) },
@@ -88,8 +89,10 @@ fun App() {
                     }
                 }
             }
+            val nowPlayingVisible = state.isNowPlayingOpen && current != null
+            if (nowPlayingVisible) LightStatusBarIcons()
             NowPlayingSheet(
-                visible = state.isNowPlayingOpen && current != null,
+                visible = nowPlayingVisible,
                 artwork = current?.artwork(),
                 dismissLabel = stringResource(Res.string.playback_close),
                 onDismiss = state::closeNowPlaying,

@@ -14,8 +14,12 @@ import androidx.compose.ui.unit.Dp
 @Immutable
 data class Artwork(val colors: List<Color>)
 
+/**
+ * A top-level destination. [isSearch] marks the search tab, which some styles place apart
+ * (iOS 26 shows it as a separate button at the trailing end of the tab bar).
+ */
 @Immutable
-data class TabItem(val label: String, val icon: ImageVector)
+data class TabItem(val label: String, val icon: ImageVector, val isSearch: Boolean = false)
 
 @Immutable
 data class MiniPlayerState(
@@ -50,6 +54,7 @@ interface UiStyle {
      * Root layout of a tabbed screen: [content] fills the screen and scrolls under the
      * navigation layer (tab bar plus optional [accessory], e.g. the mini player).
      * [content] receives the padding needed to keep its last items visible.
+     * Styles may react to [content] scrolling (e.g. minimizing the tab bar).
      */
     @Composable
     fun Scaffold(

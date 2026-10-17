@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -40,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -176,14 +178,10 @@ internal fun LiquidGlassNowPlayingSheet(
         val dismissThreshold = with(LocalDensity.current) { 140.dp.toPx() }
         LaunchedEffect(Unit) { offset.snapTo(0f) }
 
-        val base = artwork?.colors?.ifEmpty { null } ?: listOf(Color(0xFF3A3A3C), Color(0xFF1C1C1E))
-        val backdrop = Brush.verticalGradient(base.map { lerp(it, Color.Black, 0.45f) } + lerp(base.last(), Color.Black, 0.7f))
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, offset.value.roundToInt()) }
-                .background(backdrop)
                 .draggable(
                     orientation = Orientation.Vertical,
                     state = rememberDraggableState { delta ->
@@ -194,6 +192,7 @@ internal fun LiquidGlassNowPlayingSheet(
                     },
                 ),
         ) {
+            ArtworkBackdrop(artwork?.colors.orEmpty(), Modifier.fillMaxSize())
             CompositionLocalProvider(LocalContentColor provides Color.White) {
                 Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                     // Grabber: tap or swipe down to dismiss (HIG: include a grabber, support swipe to dismiss).
@@ -211,5 +210,30 @@ internal fun LiquidGlassNowPlayingSheet(
                 }
             }
         }
+    }
+}
+
+/**
+ * Soft color field derived from the artwork, like Apple Music's Now Playing background:
+ * overlapping radial glows of the artwork colors on a dark base, so white content stays legible.
+ * Radial gradients are soft by construction, so no (costly) full-screen blur is needed.
+ */
+@Composable
+private fun ArtworkBackdrop(artworkColors: List<Color>, modifier: Modifier) {
+    val first = artworkColors.firstOrNull() ?: Color(0xFF3A3A3C)
+    val second = artworkColors.getOrElse(1) { first }
+    val middle = lerp(first, second, 0.5f)
+    Canvas(modifier.background(lerp(middle, Color.Black, 0.62f))) {
+        fun glow(color: Color, cx: Float, cy: Float, radius: Float) = drawRect(
+            Brush.radialGradient(
+                colors = listOf(color, color.copy(alpha = 0.5f), Color.Transparent),
+                center = Offset(size.width * cx, size.height * cy),
+                radius = size.maxDimension * radius,
+            ),
+        )
+        glow(lerp(first, Color.Black, 0.3f), 0.05f, 0.1f, 0.65f)
+        glow(lerp(second, middle, 0.35f).let { lerp(it, Color.Black, 0.4f) }, 1f, 0.55f, 0.6f)
+        glow(lerp(middle, Color.Black, 0.5f), 0.2f, 1f, 0.55f)
+        drawRect(Color.Black.copy(alpha = 0.18f))
     }
 }

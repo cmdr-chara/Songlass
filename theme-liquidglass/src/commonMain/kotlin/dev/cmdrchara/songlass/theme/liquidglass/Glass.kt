@@ -37,14 +37,18 @@ internal fun Modifier.liquidGlass(
 ): Modifier {
     val source = LocalGlassSource.current
         ?: return clip(shape).background(AppTheme.colors.secondaryBackground)
-    val background = AppTheme.colors.background
-    val style = remember(shape, background) {
+    val colors = AppTheme.colors
+    val style = remember(shape, colors) {
         GlassStyle.regular.then {
             shape(shape)
-            backgroundColor(background)
+            backgroundColor(colors.background)
             // Haze's regular style keeps compact controls partly sharp (depth ~0.65 at 64 dp);
             // bars sit over text, so fully diffuse the backdrop for legibility.
-            optics(depth = 1f, blurRadius = 20.dp, refractionDisplacement = 32.dp)
+            optics(depth = 1f, blurRadius = 16.dp, refractionDisplacement = 32.dp)
+            // Apple's glass lets colors through vividly: less milky white, more chroma than
+            // Haze's defaults (whitePoint 0.55 light / -0.22 dark, chroma 1.5).
+            whitePoint(if (colors.isDark) -0.3f else 0.3f)
+            chromaMultiplier(1.8f)
             pressed { scale(0.97f, 0.97f) }
         }
     }
