@@ -1,6 +1,21 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -253,43 +268,127 @@ private fun NavigationLayer(
     }
 }
 
+/**
+ * The tab capsule. The selection is a single bubble that slides between tabs; as in iOS 26 it
+ * can be grabbed and dragged along the bar, lifting while it follows the finger, and selects the
+ * tab it is dropped on. Taps still select directly.
+ */
 @Composable
 private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null) {
-    Row(
+    val slots = remember(tabs) { tabs.indices.filterNot { tabs[it].isSearch } }
+    val selectedSlot = slots.indexOf(selectedTab)
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val colors = AppTheme.colors
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
+    var slotWidth by remember { mutableFloatStateOf(0f) }
+    var placed by remember { mutableStateOf(false) }
+    var dragging by remember { mutableStateOf(false) }
+    val bubbleX = remember { Animatable(0f) }
+    // 0 at rest, 1 while the bubble is held and lifted off the bar.
+    val lift = remember { Animatable(0f) }
+    val currentSelected by rememberUpdatedState(selectedTab)
+    val currentOnSelected by rememberUpdatedState(onTabSelected)
+
+    fun slotAt(x: Float): Int = if (slotWidth <= 0f) 0 else ((x + slotWidth / 2f) / slotWidth).toInt().coerceIn(slots.indices)
+
+    LaunchedEffect(selectedSlot, slotWidth) {
+        if (slotWidth <= 0f || selectedSlot < 0 || dragging) return@LaunchedEffect
+        val target = selectedSlot * slotWidth
+        if (!placed || reduceMotion) bubbleX.snapTo(target) else bubbleX.animateTo(target, spring(dampingRatio = 0.7f, stiffness = 500f))
+        placed = true
+    }
+    // Hidden while Search (outside the pill) is selected.
+    val bubbleAlpha by animateFloatAsState(
+        targetValue = if (selectedSlot >= 0 || dragging) 1f else 0f,
+        animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "tabBubbleAlpha",
+    )
+    val shownSlot = if (dragging) slotAt(bubbleX.value) else selectedSlot
+    val inset = 4.dp
+
+    Box(
         modifier = modifier
             .height(TabBarHeight)
             .liquidPress(grow = 0.02f, reach = 3.dp, link = link, side = LinkSide.Start)
             .liquidGlass(Capsule)
-            .padding(4.dp),
+            .pointerInput(slots) {
+                val insetPx = inset.toPx()
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    var dragged = false
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            // Consuming the release keeps the tab under the finger from also clicking.
+                            if (dragged) change.consume()
+                            break
+                        }
+                        if (!dragged && abs(change.position.x - down.position.x) > viewConfiguration.touchSlop) {
+                            dragged = true
+                            dragging = true
+                            if (!reduceMotion) scope.launch { lift.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 700f)) }
+                        }
+                        if (dragged) {
+                            change.consume()
+                            val x = (change.position.x - insetPx - slotWidth / 2f).coerceIn(0f, slotWidth * (slots.size - 1))
+                            scope.launch { bubbleX.animateTo(x, spring(dampingRatio = 0.85f, stiffness = 2200f)) }
+                        }
+                    }
+                    if (dragged) {
+                        val slot = slotAt(bubbleX.value)
+                        dragging = false
+                        scope.launch { lift.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 450f)) }
+                        scope.launch {
+                            val target = slot * slotWidth
+                            if (reduceMotion) bubbleX.snapTo(target) else bubbleX.animateTo(target, spring(dampingRatio = 0.6f, stiffness = 450f))
+                        }
+                        if (slots[slot] != currentSelected) currentOnSelected(slots[slot])
+                    }
+                }
+            }
+            .padding(inset)
+            .onSizeChanged { slotWidth = it.width / slots.size.coerceAtLeast(1).toFloat() },
     ) {
-        tabs.forEachIndexed { index, tab ->
-            if (tab.isSearch) return@forEachIndexed
-            val selected = index == selectedTab
-            val colors = AppTheme.colors
-            val background by animateColorAsState(
-                targetValue = if (selected) colors.fill else Color.Transparent,
-                animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
-                label = "tabSelectionBackground",
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(Capsule)
-                    .background(background)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTabSelected(index) }
-                    .semantics { role = Role.Tab; this.selected = selected },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                val tint = tabTint(selected)
-                AppIcon(tab.icon, contentDescription = null, size = 26.dp, tint = tint)
-                AppText(
-                    text = tab.label,
-                    style = AppTheme.typography.caption2.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
-                    color = tint,
-                    maxLines = 1,
-                )
+        Box(
+            Modifier
+                .offset { IntOffset(bubbleX.value.roundToInt(), 0) }
+                .width(with(density) { slotWidth.toDp() })
+                .fillMaxHeight()
+                .graphicsLayer {
+                    val l = lift.value
+                    alpha = bubbleAlpha
+                    // Lifted, the bubble swells past the bar, a little more in height than width.
+                    scaleX = 1f + 0.1f * l
+                    scaleY = 1f + 0.24f * l
+                }
+                .clip(Capsule)
+                .background(lerp(colors.fill, colors.label.copy(alpha = 0.08f), lift.value))
+                .border(1.dp, Color.White.copy(alpha = 0.35f * lift.value), Capsule),
+        )
+        Row(Modifier.fillMaxSize()) {
+            slots.forEachIndexed { slot, index ->
+                val tab = tabs[index]
+                val selected = index == selectedTab
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTabSelected(index) }
+                        .semantics { role = Role.Tab; this.selected = selected },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    val tint = tabTint(slot == shownSlot)
+                    AppIcon(tab.icon, contentDescription = null, size = 26.dp, tint = tint)
+                    AppText(
+                        text = tab.label,
+                        style = AppTheme.typography.caption2.copy(fontSize = 10.sp, fontWeight = FontWeight.Medium),
+                        color = tint,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
