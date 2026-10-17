@@ -39,6 +39,8 @@ object SampleLibrary {
                 trackNumber = i + 1,
                 // Two demo "folders", to exercise folder playlists.
                 folder = if (albumIndex % 2 == 0) "Music/Morning" else "Music/Evening",
+                // A fixed, fictional order of arrival for "Recently added".
+                dateAddedMs = 1_760_000_000_000L + (albumIndex * 100L + i) * 60_000L,
             )
         }
     }

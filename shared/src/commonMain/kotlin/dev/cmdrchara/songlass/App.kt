@@ -37,12 +37,14 @@ import dev.cmdrchara.songlass.shared.resources.playback_expand_artwork
 import dev.cmdrchara.songlass.shared.resources.playback_close_artwork
 import dev.cmdrchara.songlass.ui.PlayerPage
 import dev.cmdrchara.songlass.ui.SongInformation
+import dev.cmdrchara.songlass.shared.resources.tab_home
 import dev.cmdrchara.songlass.shared.resources.tab_library
 import dev.cmdrchara.songlass.shared.resources.tab_search
 import dev.cmdrchara.songlass.theme.liquidglass.LiquidGlassTheme
 import dev.cmdrchara.songlass.ui.AlbumScreen
 import dev.cmdrchara.songlass.ui.AppState
 import dev.cmdrchara.songlass.ui.ArtistScreen
+import dev.cmdrchara.songlass.ui.HomeScreen
 import dev.cmdrchara.songlass.ui.LibraryScreen
 import dev.cmdrchara.songlass.ui.SystemBarAppearance
 import dev.cmdrchara.songlass.ui.SettingsScreen
@@ -129,7 +131,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         }
         val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
         SystemBarAppearance(lightIcons = if (tintedArtwork != null) tintIsDark else darkTheme)
-        val tabTitles = mapOf(Tab.Library to stringResource(Res.string.tab_library), Tab.Search to stringResource(Res.string.tab_search))
+        val tabTitles = mapOf(
+            Tab.Home to stringResource(Res.string.tab_home),
+            Tab.Library to stringResource(Res.string.tab_library),
+            Tab.Search to stringResource(Res.string.tab_search),
+        )
 
         val accessory: (@Composable () -> Unit)? = if (current == null) null else {
             {
@@ -154,6 +160,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.menuTrack != null || state.isSongInfoVisible) Modifier.clearAndSetSemantics {} else Modifier)) {
                 AppScaffold(
                     tabs = listOf(
+                        TabItem(tabTitles.getValue(Tab.Home), AppIcons.Home),
                         TabItem(tabTitles.getValue(Tab.Library), AppIcons.Library),
                         TabItem(tabTitles.getValue(Tab.Search), AppIcons.Search, isSearch = true),
                     ),
@@ -187,6 +194,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                             is Route.PlaylistDetail -> PlaylistScreen(route.playlist, state, currentId, backLabel, padding)
                             null -> when (destination.tab) {
+                                Tab.Home -> HomeScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                                 Tab.Library -> LibraryScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                                 Tab.Search -> SearchScreen(state, currentId, padding)
                             }

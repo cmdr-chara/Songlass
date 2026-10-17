@@ -8,13 +8,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
+import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.AppGraph
 
-enum class Tab { Library, Search }
+enum class Tab { Home, Library, Search }
 
 enum class PlayerPage { Artwork, Queue, Lyrics }
 
@@ -39,12 +40,13 @@ data class ScreenDestination(val tab: Tab, val route: Route?, val depth: Int)
 class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val favorites: Favorites = graph.favorites
+    val history: ListeningHistory = graph.history
     val lyrics = graph.lyrics
 
     /** Latest library snapshot; updated by the UI from [AppGraph.library]. */
     var library by mutableStateOf(graph.library.value)
 
-    var tab by mutableStateOf(Tab.Library)
+    var tab by mutableStateOf(Tab.Home)
         private set
     var librarySection by mutableStateOf(LibrarySection.Playlists)
     var searchQuery by mutableStateOf("")
@@ -65,7 +67,7 @@ class AppState(graph: AppGraph) {
     var menuTrack by mutableStateOf<Track?>(null)
         private set
 
-    private val backStacks = mapOf(Tab.Library to mutableStateListOf<Route>(), Tab.Search to mutableStateListOf())
+    private val backStacks = Tab.entries.associateWith { mutableStateListOf<Route>() }
 
     val currentRoute: Route? get() = backStacks.getValue(tab).lastOrNull()
     val destination: ScreenDestination get() = ScreenDestination(tab, currentRoute, backStacks.getValue(tab).size)

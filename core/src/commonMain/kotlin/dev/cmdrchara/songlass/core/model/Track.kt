@@ -20,6 +20,8 @@ data class Track(
     val discNumber: Int? = null,
     /** Folder containing the file, as `/`-separated segments (e.g. `Music/Chill`); null if unknown. */
     val folder: String? = null,
+    /** When the file arrived on the device (epoch ms), if known. */
+    val dateAddedMs: Long? = null,
 ) {
     /** Artist used to group albums: the album artist when tagged, otherwise the track artist. */
     val groupingArtist: String? get() = albumArtist ?: artist

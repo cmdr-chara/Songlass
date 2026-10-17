@@ -62,6 +62,19 @@ object AppIcons {
         }
     }
 
+    val Home: ImageVector by lazy {
+        icon("Home") {
+            // House with a rounded body and a door cut-out, filled like the other tab icons.
+            fill {
+                moveTo(12f, 3.2f); lineTo(21f, 10.4f); lineTo(19.2f, 10.4f); lineTo(19.2f, 19f)
+                quadTo(19.2f, 20.8f, 17.4f, 20.8f); lineTo(14.4f, 20.8f); lineTo(14.4f, 15.2f)
+                quadTo(14.4f, 14f, 13.2f, 14f); lineTo(10.8f, 14f); quadTo(9.6f, 14f, 9.6f, 15.2f)
+                lineTo(9.6f, 20.8f); lineTo(6.6f, 20.8f); quadTo(4.8f, 20.8f, 4.8f, 19f)
+                lineTo(4.8f, 10.4f); lineTo(3f, 10.4f); close()
+            }
+        }
+    }
+
     val Library: ImageVector by lazy {
         icon("Library") {
             fill { roundRect(4f, 8f, 20f, 20f, 2.5f) }

@@ -164,4 +164,8 @@ object LiquidGlassStyle : UiStyle {
     @Composable
     override fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
         LiquidGlassFloatingBackButton(contentDescription, onClick, modifier)
+
+    @Composable
+    override fun HighlightCard(title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassHighlightCard(title, subtitle, artwork, onClick, modifier)
 }

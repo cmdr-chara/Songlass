@@ -112,4 +112,20 @@
     <string name="settings_artwork_full">A tutta larghezza</string>
     <string name="settings_artwork_square">Riquadro</string>
     <string name="settings_artwork_hint">Come appaiono le copertine in In riproduzione e nelle pagine di album e playlist. A tutta larghezza segue i toni chiari o scuri della copertina.</string>
+    <string name="tab_home">Home</string>
+    <string name="home_shuffle_all">Casuale su tutto</string>
+    <string name="home_rediscover">Riscopri</string>
+    <string name="home_recently_played">Ascoltati di recente</string>
+    <string name="home_recently_added">Aggiunti di recente</string>
+    <string name="home_most_played">Più ascoltati</string>
+    <string name="home_change_of_pace">Cambia ritmo</string>
+    <string name="home_pace_artist">Ultimamente ascolti tanto %1$s. Per cambiare ritmo, prova questi.</string>
+    <string name="home_pace_lately">Non li ascolti da un po’.</string>
+    <string name="home_your_playlists">Le tue playlist</string>
+    <string name="tag_artist">Artista</string>
+    <string name="tag_song">Brano</string>
+    <plurals name="home_pace_never">
+        <item quantity="one">C’è %1$d brano che non hai mai ascoltato. Inizia da qui.</item>
+        <item quantity="other">Hai %1$d brani che non hai mai ascoltato. Inizia da questi.</item>
+    </plurals>
 </resources>

@@ -208,4 +208,13 @@ class PlaybackControllerTest {
         assertNull(controller.queue.value.current)
         assertNull(player.loadedTrack)
     }
+
+    @Test
+    fun startingPlaybackRemembersItsContext() = test { controller ->
+        val album = dev.cmdrchara.songlass.core.history.PlayContext.Album("X", "Y")
+        controller.playTracks(tracks(2), context = album)
+        assertEquals(album, controller.context)
+        controller.shuffleTracks(tracks(3))
+        assertNull(controller.context)
+    }
 }

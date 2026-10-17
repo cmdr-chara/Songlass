@@ -223,6 +223,13 @@ interface UiStyle {
     @Composable
     fun Tag(text: String, modifier: Modifier)
 
+    /**
+     * Large featured card in [artwork]'s tint, with the cover on the side, a title and a short
+     * subtitle. Used for the Home highlights (favorites, shuffle all, rediscover).
+     */
+    @Composable
+    fun HighlightCard(title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier)
+
     /** Back control that floats over artwork and scrolling content, always legible. */
     @Composable
     fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier)

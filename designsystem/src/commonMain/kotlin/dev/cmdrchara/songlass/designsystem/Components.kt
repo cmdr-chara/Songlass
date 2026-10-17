@@ -194,3 +194,7 @@ fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -
 @Composable
 fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) =
     LocalUiStyle.current.FloatingBackButton(contentDescription, onClick, modifier)
+
+@Composable
+fun HighlightCard(title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, subtitle: String? = null) =
+    LocalUiStyle.current.HighlightCard(title, subtitle, artwork, onClick, modifier)

@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass
 
+import dev.cmdrchara.songlass.core.history.ListeningHistory
+import dev.cmdrchara.songlass.core.history.PlayCounter
 import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
 import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.library.Favorites
@@ -17,7 +19,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
 
 /** Where the music comes from (MediaStore on Android, the demo list elsewhere). */
 interface MusicSource {
@@ -43,11 +47,22 @@ class AppGraph(
     val favorites = Favorites(store)
     val settings = AppSettings(store)
     val lyrics = LyricsRepository(localLyrics, remoteLyrics, store)
+    val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })
+    private val playCounter = PlayCounter()
 
     private val _library = MutableStateFlow(MusicLibrary(emptyList()))
     val library: StateFlow<MusicLibrary> = _library.asStateFlow()
 
     init {
+        // Count a play once enough of a track has been heard, and record where it started from.
+        scope.launch {
+            combine(controller.queue, player.state) { queue, state -> queue.current to state }.collect { (entry, state) ->
+                val duration = state.durationMs.takeIf { it > 0 } ?: entry?.track?.durationMs ?: 0
+                if (entry != null && playCounter.update(entry.id, state.positionMs, duration)) {
+                    history.recordPlay(entry.track.id, controller.context)
+                }
+            }
+        }
         // The silent demo player has no clock of its own.
         if (player is FakeAudioPlayer) {
             scope.launch {

@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Playlist
@@ -129,7 +130,7 @@ fun LibraryScreen(
             } else {
                 itemsIndexed(favoriteTracks, key = { _, t -> t.id }) { index, track ->
                     TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                        state.controller.playTracks(favoriteTracks, index)
+                        state.controller.playTracks(favoriteTracks, index, PlayContext.Favorites)
                     }
                 }
             }
@@ -169,7 +170,7 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
         item { SectionTitle(stringResource(Res.string.library_songs)) }
         itemsIndexed(artist.tracks, key = { _, t -> t.id }) { index, track ->
             TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                state.controller.playTracks(artist.tracks, index)
+                state.controller.playTracks(artist.tracks, index, PlayContext.Artist(artist.name))
             }
         }
     }
@@ -177,7 +178,7 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
 
 /** Shown before the user grants access to their music, or when no music was found. */
 @Composable
-private fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?) {
+internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -244,6 +245,7 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
         onSubtitleClick = artist?.let { { state.open(Route.ArtistDetail(it)) } },
         tracks = album.tracks,
         durationMs = album.durationMs,
+        context = album.playContext(),
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
@@ -265,7 +267,7 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
                 MoreButton { state.openMenu(track) }
             },
             highlighted = track.id == currentTrackId,
-            onClick = { state.controller.playTracks(album.tracks, index) },
+            onClick = { state.controller.playTracks(album.tracks, index, album.playContext()) },
         )
     }
 }
@@ -280,12 +282,13 @@ fun PlaylistScreen(playlist: Playlist, state: AppState, currentTrackId: String?,
         onSubtitleClick = null,
         tracks = playlist.tracks,
         durationMs = playlist.durationMs,
+        context = PlayContext.Playlist(playlist.id),
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
     ) { index, track ->
         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(playlist.tracks, index)
+            state.controller.playTracks(playlist.tracks, index, PlayContext.Playlist(playlist.id))
         }
     }
 }
@@ -300,6 +303,7 @@ private fun ArtworkCollectionPage(
     onSubtitleClick: (() -> Unit)?,
     tracks: List<Track>,
     durationMs: Long,
+    context: PlayContext,
     state: AppState,
     backLabel: String,
     contentPadding: PaddingValues,
@@ -333,9 +337,9 @@ private fun ArtworkCollectionPage(
                     )
                     Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Spacer(Modifier.weight(1f))
-                        IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks) }, filled = true)
+                        IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, filled = true)
                         Spacer(Modifier.width(12.dp))
-                        ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks) })
+                        ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) })
                     }
                 }
             }
@@ -345,3 +349,6 @@ private fun ArtworkCollectionPage(
         FloatingBackButton(backLabel, onClick = state::goBack, modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 8.dp, top = 4.dp))
     }
 }
+
+/** Albums always have a title (see MusicLibrary.albums). */
+fun Album.playContext(): PlayContext = PlayContext.Album(title.orEmpty(), artist)

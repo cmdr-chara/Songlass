@@ -112,4 +112,20 @@
     <string name="settings_artwork_full">Edge to Edge</string>
     <string name="settings_artwork_square">Square</string>
     <string name="settings_artwork_hint">How covers appear in Now Playing and on album and playlist pages. Edge to edge follows the cover’s light or dark tone.</string>
+    <string name="tab_home">Home</string>
+    <string name="home_shuffle_all">Shuffle All</string>
+    <string name="home_rediscover">Rediscover</string>
+    <string name="home_recently_played">Recently Played</string>
+    <string name="home_recently_added">Recently Added</string>
+    <string name="home_most_played">Most Played</string>
+    <string name="home_change_of_pace">Change of Pace</string>
+    <string name="home_pace_artist">You’ve been listening to a lot of %1$s lately. For a change of pace, try these.</string>
+    <string name="home_pace_lately">You haven’t played these in a while.</string>
+    <string name="home_your_playlists">Your Playlists</string>
+    <string name="tag_artist">Artist</string>
+    <string name="tag_song">Song</string>
+    <plurals name="home_pace_never">
+        <item quantity="one">There’s %1$d song you’ve never played. Start here.</item>
+        <item quantity="other">There are %1$d songs you’ve never played. Start with these.</item>
+    </plurals>
 </resources>

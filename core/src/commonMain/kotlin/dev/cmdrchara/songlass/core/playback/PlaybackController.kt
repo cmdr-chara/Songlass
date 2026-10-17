@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.playback
 
+import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.PlayerEvent
@@ -37,14 +38,20 @@ class PlaybackController(
         }
     }
 
+    /** Where the current queue was started from (album, playlist…), for the listening history. */
+    var context: PlayContext? = null
+        private set
+
     /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
-    fun playTracks(tracks: List<Track>, startIndex: Int = 0) {
+    fun playTracks(tracks: List<Track>, startIndex: Int = 0, context: PlayContext? = null) {
+        this.context = context
         replaceQueue(PlaybackQueue.of(tracks, startIndex, shuffle = false, _queue.value.repeatMode, random))
     }
 
     /** Replaces the queue with [tracks] in random order (the "Shuffle" button on an album or playlist). */
-    fun shuffleTracks(tracks: List<Track>) {
+    fun shuffleTracks(tracks: List<Track>, context: PlayContext? = null) {
         if (tracks.isEmpty()) return clearQueue()
+        this.context = context
         val start = random.nextInt(tracks.size)
         replaceQueue(PlaybackQueue.of(tracks, start, shuffle = true, _queue.value.repeatMode, random))
     }
