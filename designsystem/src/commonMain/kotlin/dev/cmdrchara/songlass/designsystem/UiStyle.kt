@@ -52,6 +52,30 @@ data class SheetAction(
     val onClick: () -> Unit,
 )
 
+/**
+ * One item of an [UiStyle.ArtworkShelf]: a cover ([artwork]) or, for actions such as "New
+ * playlist", an [icon]. [circular] marks artists.
+ */
+@Immutable
+data class ShelfItem(
+    val key: Any,
+    val title: String,
+    val subtitle: String?,
+    val artwork: Artwork?,
+    val onClick: () -> Unit,
+    val icon: ImageVector? = null,
+    val circular: Boolean = false,
+)
+
+/** How a shelf presents its items. */
+enum class ShelfStyle {
+    /** Browsing: covers with title and subtitle (recently added, playlists). */
+    Carousel,
+
+    /** A few favourite places, small and quick to reach (pins). */
+    Pins,
+}
+
 /** One band of the graphic equalizer: where it sits, what it is called and its gain. */
 @Immutable
 data class EqBand(val frequencyHz: Float, val label: String, val gainDb: Float)
@@ -291,6 +315,10 @@ interface UiStyle {
         onBandChange: (Int, Float) -> Unit,
         modifier: Modifier,
     )
+
+    /** A horizontal row of covers; [itemSize] is the cover size the screen designed for. */
+    @Composable
+    fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier)
 
     /** Back control at the top of a pushed page; [label] names the previous page. */
     @Composable

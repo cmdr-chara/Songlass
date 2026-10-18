@@ -48,6 +48,9 @@ import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.ArtworkShelf
+import dev.cmdrchara.songlass.designsystem.ShelfItem
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.PromptSheet
@@ -195,45 +198,25 @@ private val EditRowHeight = 64.dp
 @Composable
 internal fun UserPlaylistRow(state: AppState, onImport: (() -> Unit)?) {
     val playlists by state.userPlaylists.playlists.collectAsState()
-    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        item {
-            ActionTile(AppIcons.AddToQueue, stringResource(Res.string.playlist_new)) {
-                state.askPlaylistName(PlaylistPrompt.Create(emptyList()))
-            }
-        }
-        if (onImport != null) item {
-            ActionTile(AppIcons.ImportFile, stringResource(Res.string.playlist_import), onImport)
-        }
-        items(playlists, key = { it.id }) { playlist ->
-            val tracks = remember(playlist, state.library) { playlist.tracksIn(state.library) }
-            Column(
-                Modifier.width(PlaylistTileSize)
-                    .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button) { state.open(Route.UserPlaylistDetail(playlist.id)) },
-            ) {
-                AlbumArt(playlist.artwork(tracks), Modifier.size(PlaylistTileSize), cornerRadius = 12.dp)
-                Spacer(Modifier.height(6.dp))
-                AppText(playlist.name, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium), maxLines = 1)
-                AppText(pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size), AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1)
-            }
+    val newLabel = stringResource(Res.string.playlist_new)
+    val importLabel = stringResource(Res.string.playlist_import)
+    val shelf = buildList {
+        add(ShelfItem("new", newLabel, null, null, { state.askPlaylistName(PlaylistPrompt.Create(emptyList())) }, icon = AppIcons.AddToQueue))
+        if (onImport != null) add(ShelfItem("import", importLabel, null, null, onImport, icon = AppIcons.ImportFile))
+        playlists.forEach { playlist ->
+            val tracks = playlist.tracksIn(state.library)
+            add(
+                ShelfItem(
+                    playlist.id,
+                    playlist.name,
+                    pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size),
+                    playlist.artwork(tracks),
+                    { state.open(Route.UserPlaylistDetail(playlist.id)) },
+                ),
+            )
         }
     }
-}
-
-@Composable
-private fun ActionTile(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
-    Column(
-        Modifier.width(PlaylistTileSize).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Box(
-            Modifier.size(PlaylistTileSize).clip(RoundedCornerShape(12.dp)).background(AppTheme.colors.secondaryBackground),
-            contentAlignment = Alignment.Center,
-        ) {
-            AppIcon(icon, contentDescription = null, size = 32.dp, tint = AppTheme.colors.accent)
-        }
-        Spacer(Modifier.height(6.dp))
-        AppText(label, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium), maxLines = 1, textAlign = TextAlign.Center)
-    }
+    ArtworkShelf(shelf, ShelfStyle.Carousel, PlaylistTileSize)
 }
 
 private val PlaylistTileSize: Dp = 112.dp

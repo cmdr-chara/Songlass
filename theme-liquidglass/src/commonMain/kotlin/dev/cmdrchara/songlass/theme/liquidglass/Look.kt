@@ -13,7 +13,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.MiniPlayerState
+import dev.cmdrchara.songlass.designsystem.ShelfItem
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -116,6 +119,22 @@ interface GlassLook {
     @Composable
     fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
         LiquidGlassVolumeSlider(value, onValueChange, label, modifier)
+
+    @Composable
+    fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) =
+        LiquidGlassArtworkShelf(items, style, itemSize, modifier)
+
+    @Composable
+    fun PosterCard(label: String, title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassPosterCard(label, title, subtitle, artwork, onClick, modifier)
+
+    @Composable
+    fun ShortcutTile(title: String, artwork: Artwork, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassShortcutTile(title, artwork, circular, onClick, modifier)
+
+    @Composable
+    fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
 
     /** The expanded tab bar (Search included, if any). */
     @Composable

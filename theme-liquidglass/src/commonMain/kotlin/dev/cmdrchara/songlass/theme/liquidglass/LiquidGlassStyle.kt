@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
+import dev.cmdrchara.songlass.designsystem.ShelfItem
 import dev.cmdrchara.songlass.designsystem.EqBand
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
@@ -173,7 +175,7 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun PosterCard(label: String, title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassPosterCard(label, title, subtitle, artwork, onClick, modifier)
+        LocalGlassLook.current.PosterCard(label, title, subtitle, artwork, onClick, modifier)
 
     @Composable
     override fun PromptSheet(
@@ -186,6 +188,10 @@ object LiquidGlassStyle : UiStyle {
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
     ) = LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+    @Composable
+    override fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) =
+        LocalGlassLook.current.ArtworkShelf(items, style, itemSize, modifier)
 
     @Composable
     override fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) =
@@ -204,9 +210,9 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
+        LocalGlassLook.current.CollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
 
     @Composable
     override fun ShortcutTile(title: String, artwork: Artwork, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassShortcutTile(title, artwork, circular, onClick, modifier)
+        LocalGlassLook.current.ShortcutTile(title, artwork, circular, onClick, modifier)
 }

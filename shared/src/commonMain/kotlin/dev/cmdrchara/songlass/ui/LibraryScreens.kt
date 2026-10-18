@@ -68,6 +68,9 @@ import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.ArtworkShelf
+import dev.cmdrchara.songlass.designsystem.ShelfItem
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -193,29 +196,21 @@ private fun CategoryGrid(library: MusicLibrary, favorites: List<Track>, state: A
 /** Pinned albums, folders and artists, one tap away (as Pins in iOS 26 Apple Music). */
 @Composable
 private fun PinnedRow(items: List<PinnedItem>, state: AppState) {
-    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        items(items, key = { it.context.key }) { item ->
-            val (title, artwork, circular) = when (item) {
-                is PinnedItem.AlbumPin -> Triple(albumTitle(item.album.title), item.album.artwork(), false)
-                is PinnedItem.FolderPin -> Triple(item.folder.name, item.folder.artwork(), false)
-                is PinnedItem.ArtistPin -> Triple(artistName(item.artist.name), item.artist.albums.firstOrNull()?.artwork() ?: item.artist.tracks.first().artwork(), true)
-            }
-            Column(
-                Modifier.width(PinSize).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button) {
-                    when (item) {
-                        is PinnedItem.AlbumPin -> state.open(Route.AlbumDetail(item.album))
-                        is PinnedItem.FolderPin -> state.open(Route.FolderDetail(item.folder))
-                        is PinnedItem.ArtistPin -> state.open(Route.ArtistDetail(item.artist))
-                    }
-                },
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                AlbumArt(artwork, Modifier.size(PinSize), cornerRadius = if (circular) PinSize / 2 else 14.dp)
-                Spacer(Modifier.height(6.dp))
-                AppText(title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium), maxLines = 1, textAlign = TextAlign.Center)
-            }
+    val shelf = items.map { item ->
+        when (item) {
+            is PinnedItem.AlbumPin -> ShelfItem(item.context.key, albumTitle(item.album.title), null, item.album.artwork(), { state.open(Route.AlbumDetail(item.album)) })
+            is PinnedItem.FolderPin -> ShelfItem(item.context.key, item.folder.name, null, item.folder.artwork(), { state.open(Route.FolderDetail(item.folder)) })
+            is PinnedItem.ArtistPin -> ShelfItem(
+                item.context.key,
+                artistName(item.artist.name),
+                null,
+                item.artist.albums.firstOrNull()?.artwork() ?: item.artist.tracks.first().artwork(),
+                { state.open(Route.ArtistDetail(item.artist)) },
+                circular = true,
+            )
         }
     }
+    ArtworkShelf(shelf, ShelfStyle.Pins, PinSize)
 }
 
 private val PinSize = 96.dp

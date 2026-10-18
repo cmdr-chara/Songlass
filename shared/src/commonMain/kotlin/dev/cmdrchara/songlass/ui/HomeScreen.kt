@@ -33,7 +33,9 @@ import dev.cmdrchara.songlass.core.home.ChangeOfPaceReason
 import dev.cmdrchara.songlass.core.home.HomeFeed
 import dev.cmdrchara.songlass.core.home.HomeItem
 import dev.cmdrchara.songlass.core.model.Track
-import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.ArtworkShelf
+import dev.cmdrchara.songlass.designsystem.ShelfItem
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.PosterCard
@@ -269,24 +271,18 @@ private fun openItem(item: HomeItem, state: AppState) {
 /** Horizontal carousel of albums, playlists, artists and songs. */
 @Composable
 private fun HomeItemRow(items: List<HomeItem>, state: AppState, tileWidth: Dp) {
-    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        items(items) { item -> HomeTile(item, state, tileWidth) }
+    val shelf = items.map { item ->
+        val tile = tileContent(item)
+        ShelfItem(
+            key = item.hashCode(),
+            title = tile.title,
+            subtitle = tile.subtitle,
+            artwork = tile.artwork,
+            onClick = { openItem(item, state) },
+            circular = item is HomeItem.ArtistItem,
+        )
     }
-}
-
-@Composable
-private fun HomeTile(item: HomeItem, state: AppState, size: Dp) {
-    val tile = tileContent(item)
-    Column(
-        Modifier
-            .width(size)
-            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button) { openItem(item, state) },
-    ) {
-        AlbumArt(tile.artwork, Modifier.size(size), cornerRadius = if (item is HomeItem.ArtistItem) size / 2 else 10.dp)
-        Spacer(Modifier.height(6.dp))
-        AppText(tile.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
-        AppText(tile.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
-    }
+    ArtworkShelf(shelf, ShelfStyle.Carousel, tileWidth)
 }
 
 private class Tile(val title: String, val subtitle: String, val artwork: Artwork)

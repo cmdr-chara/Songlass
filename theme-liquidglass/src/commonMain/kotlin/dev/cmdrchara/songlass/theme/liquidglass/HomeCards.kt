@@ -1,5 +1,13 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
+import dev.cmdrchara.songlass.designsystem.ShelfItem
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
@@ -180,3 +188,51 @@ internal fun LiquidGlassCollectionTile(
 }
 
 private val CollectionTileHeight = 132.dp
+
+/**
+ * Apple Music shelf: covers in a row with the next one peeking, title and subtitle below.
+ * Pins are smaller with a centred title; artists are round; actions show their icon on a tile.
+ */
+@Composable
+internal fun LiquidGlassArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) {
+    val pins = style == ShelfStyle.Pins
+    val small = itemSize < 130.dp
+    LazyRow(modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(if (small) 12.dp else 14.dp)) {
+        items(items, key = { it.key }) { item ->
+            val interaction = remember { MutableInteractionSource() }
+            val scale = pressScale(interaction)
+            val corner = when {
+                item.circular -> itemSize / 2
+                pins -> 14.dp
+                small -> 12.dp
+                else -> 10.dp
+            }
+            Column(
+                Modifier
+                    .width(itemSize)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick),
+                horizontalAlignment = if (pins || item.icon != null) Alignment.CenterHorizontally else Alignment.Start,
+            ) {
+                val artwork = item.artwork
+                val subtitle = item.subtitle
+                if (item.icon != null || artwork == null) {
+                    Box(
+                        Modifier.size(itemSize).clip(RoundedCornerShape(corner)).background(AppTheme.colors.secondaryBackground),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        item.icon?.let { AppIcon(it, contentDescription = null, size = 32.dp, tint = AppTheme.colors.accent) }
+                    }
+                } else {
+                    LiquidGlassAlbumArt(artwork, cornerRadius = corner, modifier = Modifier.size(itemSize))
+                }
+                Spacer(Modifier.height(6.dp))
+                val titleStyle = if (pins || small) AppTheme.typography.footnote else AppTheme.typography.subheadline
+                AppText(item.title, titleStyle.copy(fontWeight = FontWeight.Medium), maxLines = 1, textAlign = if (pins || item.icon != null) TextAlign.Center else TextAlign.Start)
+                if (!pins && subtitle != null) {
+                    AppText(subtitle, if (small) AppTheme.typography.caption1 else AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                }
+            }
+        }
+    }
+}

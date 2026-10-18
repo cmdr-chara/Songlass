@@ -222,6 +222,10 @@ fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, mo
     LocalUiStyle.current.VolumeSlider(value, onValueChange, label, modifier)
 
 @Composable
+fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.ArtworkShelf(items, style, itemSize, modifier)
+
+@Composable
 fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) =
     LocalUiStyle.current.BackButton(label, onClick, modifier)
 

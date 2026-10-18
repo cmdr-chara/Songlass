@@ -37,7 +37,10 @@ import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.MiniPlayerState
+import dev.cmdrchara.songlass.designsystem.ShelfItem
+import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -176,6 +179,22 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         onPrevious: () -> Unit,
         modifier: Modifier,
     ) = MaterialMiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
+
+    @Composable
+    override fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) =
+        MaterialArtworkShelf(items, style, itemSize, modifier)
+
+    @Composable
+    override fun PosterCard(label: String, title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier) =
+        MaterialPosterCard(label, title, subtitle, artwork, onClick, modifier)
+
+    @Composable
+    override fun ShortcutTile(title: String, artwork: Artwork, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        MaterialShortcutTile(title, artwork, circular, onClick, modifier)
+
+    @Composable
+    override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        MaterialCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
 
     @Composable
     override fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
