@@ -212,7 +212,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             null -> when (destination.tab) {
                                 Tab.Home -> HomeScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                                 Tab.Library -> LibraryScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
-                                Tab.Search -> SearchScreen(state, currentId, padding)
+                                Tab.Search -> SearchScreen(state, currentId, hasLibraryAccess, onRequestLibraryAccess, padding)
                             }
                         }
                     }

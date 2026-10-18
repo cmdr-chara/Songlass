@@ -255,4 +255,10 @@
     <string name="library_collapse_folder">Comprimi %1$s</string>
     <string name="library_exclude_folder">Escludi %1$s</string>
     <string name="library_duration_hint">Le durate sconosciute restano incluse.</string>
+    <string name="search_recent">Cercati di recente</string>
+    <string name="search_clear_recent">Cancella tutto</string>
+    <string name="search_remove_recent">Rimuovi %1$s dai cercati di recente</string>
+    <string name="search_library_artists">Artisti nella tua libreria</string>
+    <string name="search_library_albums">Album nella tua libreria</string>
+    <string name="search_library_songs">Brani nella tua libreria</string>
 </resources>

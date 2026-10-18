@@ -255,4 +255,10 @@
     <string name="library_collapse_folder">Collapse %1$s</string>
     <string name="library_exclude_folder">Exclude %1$s</string>
     <string name="library_duration_hint">Unknown durations stay visible.</string>
+    <string name="search_recent">Recently searched</string>
+    <string name="search_clear_recent">Clear all</string>
+    <string name="search_remove_recent">Remove %1$s from recent searches</string>
+    <string name="search_library_artists">Artists in your library</string>
+    <string name="search_library_albums">Albums in your library</string>
+    <string name="search_library_songs">Songs in your library</string>
 </resources>

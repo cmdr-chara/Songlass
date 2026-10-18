@@ -61,6 +61,7 @@ class AppGraph(
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store)
     val pins = Pins(store)
+    val searchHistory = dev.cmdrchara.songlass.core.search.SearchHistory(store)
     val userPlaylists = UserPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
     val settings = AppSettings(store)
     val equalizer = Equalizer(store) { Clock.System.now().toEpochMilliseconds() }

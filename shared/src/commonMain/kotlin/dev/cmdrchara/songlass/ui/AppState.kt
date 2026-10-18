@@ -53,6 +53,7 @@ class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val favorites: Favorites = graph.favorites
     val pins = graph.pins
+    val searchHistory = graph.searchHistory
     val settings = graph.settings
     val equalizer = graph.equalizer
     val userPlaylists = graph.userPlaylists
