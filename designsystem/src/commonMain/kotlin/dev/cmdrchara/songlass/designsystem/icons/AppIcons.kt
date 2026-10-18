@@ -118,6 +118,54 @@ object AppIcons {
         icon("ChevronLeft") { stroke { moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f) } }
     }
 
+    val ChevronRight: ImageVector by lazy {
+        icon("ChevronRight") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
+    }
+
+    /** Folder: a tab on the top left over a rounded body. */
+    val Folder: ImageVector by lazy {
+        icon("Folder") {
+            fill {
+                moveTo(3f, 7.5f)
+                quadTo(3f, 5f, 5.5f, 5f)
+                lineTo(9.2f, 5f)
+                quadTo(10.2f, 5f, 10.9f, 5.8f)
+                lineTo(12f, 7f)
+                lineTo(18.5f, 7f)
+                quadTo(21f, 7f, 21f, 9.5f)
+                lineTo(21f, 16.5f)
+                quadTo(21f, 19f, 18.5f, 19f)
+                lineTo(5.5f, 19f)
+                quadTo(3f, 19f, 3f, 16.5f)
+                close()
+            }
+        }
+    }
+
+    /** Artist: head and shoulders. */
+    val Person: ImageVector by lazy {
+        icon("Person") {
+            fill { circle(12f, 8.5f, 4f) }
+            fill {
+                moveTo(4.5f, 19.5f)
+                quadTo(5.5f, 14f, 12f, 14f)
+                quadTo(18.5f, 14f, 19.5f, 19.5f)
+                quadTo(19.6f, 20.5f, 18.5f, 20.5f)
+                lineTo(5.5f, 20.5f)
+                quadTo(4.4f, 20.5f, 4.5f, 19.5f)
+                close()
+            }
+        }
+    }
+
+    /** Album: a cover with a record label in the middle. */
+    val Album: ImageVector by lazy {
+        icon("Album") {
+            stroke { roundRect(4f, 4f, 20f, 20f, 3.5f) }
+            fill { circle(12f, 12f, 3.2f) }
+        }
+    }
+
     val ChevronDown: ImageVector by lazy {
         icon("ChevronDown") { stroke { moveTo(5f, 9f); lineTo(12f, 15f); lineTo(19f, 9f) } }
     }

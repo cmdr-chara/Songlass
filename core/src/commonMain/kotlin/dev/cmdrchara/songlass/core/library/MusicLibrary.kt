@@ -33,6 +33,32 @@ data class Playlist(
     val durationMs: Long get() = tracks.sumOf { it.durationMs }
 }
 
+/**
+ * A folder in the music tree. Unlike [Playlist], it also exists when it only holds other
+ * folders (e.g. `Soundtracks/JoJo Parts 1-5`), so the library can be browsed like folders.
+ */
+data class Folder(
+    /** Full folder path, unique; the same id as the [Playlist] of its own files. */
+    val id: String,
+    val name: String,
+    /** Files directly inside, in playlist order. */
+    val tracks: List<Track>,
+    /** Sub-folders that hold music somewhere below, sorted by name. */
+    val children: List<Folder>,
+) {
+    /** Everything below: its own files first, then each sub-folder in order. */
+    val allTracks: List<Track> = tracks + children.flatMap { it.allTracks }
+
+    val durationMs: Long get() = allTracks.sumOf { it.durationMs }
+
+    /**
+     * Up to [limit] tracks from different albums, to draw a mosaic cover; fewer when the
+     * folder has fewer distinct albums.
+     */
+    fun coverTracks(limit: Int = 4): List<Track> =
+        allTracks.distinctBy { (it.album ?: it.id) to it.groupingArtist }.take(limit)
+}
+
 data class SearchResults(
     val tracks: List<Track> = emptyList(),
     val albums: List<Album> = emptyList(),
@@ -95,6 +121,44 @@ class MusicLibrary(tracks: List<Track>) {
             )
         }.sortedWith(compareBy({ (it.location + it.name).joinToString("/").sortKey() }))
     }
+
+    /**
+     * The folder tree below the common music root (see [playlists]): top-level folders, each
+     * with its sub-folders. Folders without music anywhere below are left out.
+     */
+    val folders: List<Folder> = run {
+        val withMusic = playlists.associateBy { it.id }
+        val rootSize = playlists.firstOrNull()?.let { it.id.split('/').size - it.location.size - 1 } ?: 0
+        // Every folder on the way to a playlist, intermediate ones included.
+        val paths = playlists.flatMap { playlist ->
+            val segments = playlist.id.split('/')
+            (rootSize + 1..segments.size).map { segments.take(it).joinToString("/") }
+        }.toSet()
+        fun build(path: String): Folder {
+            val prefix = "$path/"
+            val children = paths.filter { it.startsWith(prefix) && '/' !in it.removePrefix(prefix) }
+                .map(::build)
+                .sortedBy { it.name.sortKey() }
+            return Folder(
+                id = path,
+                name = withMusic[path]?.name ?: path.substringAfterLast('/'),
+                tracks = withMusic[path]?.tracks.orEmpty(),
+                children = children,
+            )
+        }
+        paths.filter { it.split('/').size == rootSize + 1 }.map(::build).sortedBy { it.name.sortKey() }
+    }
+
+    private val foldersById: Map<String, Folder> = buildMap {
+        fun index(folder: Folder) {
+            put(folder.id, folder)
+            folder.children.forEach(::index)
+        }
+        folders.forEach(::index)
+    }
+
+    /** The folder with this path (the id of a [Playlist] or of an intermediate folder). */
+    fun folder(id: String): Folder? = foldersById[id]
 
     /** The album [track] belongs to, or `null` if it is a lone song (see [albums]). */
     fun albumOf(track: Track): Album? =

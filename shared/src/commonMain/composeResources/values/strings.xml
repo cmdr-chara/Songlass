@@ -139,4 +139,10 @@
         <item quantity="other">Not played for %1$d months</item>
     </plurals>
     <string name="home_play_all">Play all</string>
+    <string name="library_folders">Folders</string>
+    <string name="tag_folder">Folder</string>
+    <plurals name="folders_count">
+        <item quantity="one">%1$d folder</item>
+        <item quantity="other">%1$d folders</item>
+    </plurals>
 </resources>

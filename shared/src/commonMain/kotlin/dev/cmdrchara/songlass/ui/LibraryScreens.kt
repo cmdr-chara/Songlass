@@ -15,8 +15,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import dev.cmdrchara.songlass.core.library.Folder
+import dev.cmdrchara.songlass.designsystem.SettingsGroup
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.shared.resources.library_folders
+import dev.cmdrchara.songlass.shared.resources.tag_folder
+import dev.cmdrchara.songlass.shared.resources.folders_count
 import dev.cmdrchara.songlass.designsystem.FloatingBackButton
-import dev.cmdrchara.songlass.shared.resources.tag_playlist
 import dev.cmdrchara.songlass.shared.resources.tag_album
 import dev.cmdrchara.songlass.designsystem.Tag
 import dev.cmdrchara.songlass.designsystem.ProminentButton
@@ -43,7 +54,6 @@ import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
-import dev.cmdrchara.songlass.designsystem.SegmentedControl
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -61,7 +71,6 @@ import dev.cmdrchara.songlass.shared.resources.favorites_empty
 import dev.cmdrchara.songlass.shared.resources.library_albums
 import dev.cmdrchara.songlass.shared.resources.library_artists
 import dev.cmdrchara.songlass.shared.resources.library_favorites
-import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_library
@@ -69,6 +78,10 @@ import dev.cmdrchara.songlass.shared.resources.settings_title
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
+/**
+ * Library, after Apple Music's: the categories as a short grouped list with counts, then the
+ * user's folders as a grid of covers. Folders are browsed like folders (see [FolderScreen]).
+ */
 @Composable
 fun LibraryScreen(
     state: AppState,
@@ -79,7 +92,6 @@ fun LibraryScreen(
     contentPadding: PaddingValues,
 ) {
     val library = state.library
-    val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
             ScreenTitle(stringResource(Res.string.tab_library)) {
@@ -96,29 +108,75 @@ fun LibraryScreen(
             return@LazyColumn
         }
         item {
-            SegmentedControl(
-                options = LibrarySection.entries.map { stringResource(it.label) },
-                selectedIndex = state.librarySection.ordinal,
-                onSelect = { state.librarySection = LibrarySection.entries[it] },
+            SettingsGroup(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+                LibraryCategory.entries.forEach { category ->
+                    val count = when (category) {
+                        LibraryCategory.Artists -> library.artists.size
+                        LibraryCategory.Albums -> library.albums.size
+                        LibraryCategory.Songs -> library.tracks.size
+                        LibraryCategory.Favorites -> favoriteIds.size
+                    }
+                    CategoryRow(category, count) { state.open(Route.LibraryPage(category)) }
+                }
+            }
+        }
+        if (library.folders.isNotEmpty()) {
+            item { SectionTitle(stringResource(Res.string.library_folders)) }
+            items(library.folders.chunked(2)) { pair -> FolderGridRow(pair, state) }
+        }
+    }
+}
+
+@Composable
+private fun CategoryRow(category: LibraryCategory, count: Int, onClick: () -> Unit) {
+    ListRow(
+        title = stringResource(category.label),
+        leading = { AppIcon(category.icon, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
+        trailing = {
+            AppText(count.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel)
+            AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel)
+        },
+        onClick = onClick,
+    )
+}
+
+/** Artists, Albums, Songs or Favorites on their own page. */
+@Composable
+fun LibraryCategoryScreen(
+    category: LibraryCategory,
+    state: AppState,
+    currentTrackId: String?,
+    favoriteIds: List<String>,
+    backLabel: String,
+    contentPadding: PaddingValues,
+) {
+    val library = state.library
+    val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        item { BackLink(backLabel) { state.goBack() } }
+        item {
+            AppText(
+                stringResource(category.label),
+                AppTheme.typography.largeTitle,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
             )
         }
-        when (state.librarySection) {
-            LibrarySection.Playlists -> items(library.playlists, key = { it.id }) { playlist ->
-                PlaylistRow(playlist) { state.open(Route.PlaylistDetail(playlist)) }
-            }
-            LibrarySection.Songs -> itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
-                TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                    state.controller.playTracks(library.tracks, index)
-                }
-            }
-            LibrarySection.Albums -> items(library.albums.chunked(2)) { pair ->
-                AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) }
-            }
-            LibrarySection.Artists -> items(library.artists) { artist ->
+        when (category) {
+            LibraryCategory.Artists -> items(library.artists) { artist ->
                 ArtistRow(artist) { state.open(Route.ArtistDetail(artist)) }
             }
-            LibrarySection.Favorites -> if (favoriteTracks.isEmpty()) {
+            LibraryCategory.Albums -> items(library.albums.chunked(2)) { pair ->
+                AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) }
+            }
+            LibraryCategory.Songs -> {
+                item { PlayShuffleRow(library.tracks, null, state) }
+                itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
+                    TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+                        state.controller.playTracks(library.tracks, index)
+                    }
+                }
+            }
+            LibraryCategory.Favorites -> if (favoriteTracks.isEmpty()) {
                 item {
                     AppText(
                         stringResource(Res.string.favorites_empty),
@@ -128,11 +186,65 @@ fun LibraryScreen(
                     )
                 }
             } else {
+                item { PlayShuffleRow(favoriteTracks, PlayContext.Favorites, state) }
                 itemsIndexed(favoriteTracks, key = { _, t -> t.id }) { index, track ->
                     TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                         state.controller.playTracks(favoriteTracks, index, PlayContext.Favorites)
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Play and Shuffle side by side above a list of songs, as in Apple Music. */
+@Composable
+private fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: AppState) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
+        ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
+    }
+}
+
+/** Two folders per row, as cover tiles. */
+@Composable
+private fun FolderGridRow(folders: List<Folder>, state: AppState) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        folders.forEach { folder -> FolderTile(folder, Modifier.weight(1f)) { state.open(Route.FolderDetail(folder)) } }
+        if (folders.size == 1) Spacer(Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun FolderTile(folder: Folder, modifier: Modifier, onClick: () -> Unit) {
+    Column(modifier.clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
+        FolderCover(folder, Modifier.fillMaxWidth().aspectRatio(1f))
+        Spacer(Modifier.height(6.dp))
+        AppText(folder.name, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
+        AppText(folderSummary(folder), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+    }
+}
+
+/** "3 folders · 120 songs", or just the songs when there are no sub-folders. */
+@Composable
+private fun folderSummary(folder: Folder): String {
+    val songs = pluralStringResource(Res.plurals.songs_count, folder.allTracks.size, folder.allTracks.size)
+    if (folder.children.isEmpty()) return songs
+    return pluralStringResource(Res.plurals.folders_count, folder.children.size, folder.children.size) + " · " + songs
+}
+
+/** A 2×2 mosaic when the folder spans at least four albums, otherwise its first cover. */
+@Composable
+private fun FolderCover(folder: Folder, modifier: Modifier) {
+    val covers = remember(folder) { folder.coverTracks(4) }
+    if (covers.size < 4) {
+        AlbumArt(folder.artwork(), modifier, cornerRadius = 10.dp)
+        return
+    }
+    Column(modifier.clip(RoundedCornerShape(10.dp))) {
+        covers.chunked(2).forEach { pair ->
+            Row(Modifier.weight(1f)) {
+                pair.forEach { AlbumArt(it.artwork(), Modifier.weight(1f).fillMaxHeight(), cornerRadius = 0.dp) }
             }
         }
     }
@@ -202,13 +314,20 @@ internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)
     }
 }
 
-private val LibrarySection.label
+private val LibraryCategory.label
     get() = when (this) {
-        LibrarySection.Playlists -> Res.string.library_playlists
-        LibrarySection.Albums -> Res.string.library_albums
-        LibrarySection.Artists -> Res.string.library_artists
-        LibrarySection.Songs -> Res.string.library_songs
-        LibrarySection.Favorites -> Res.string.library_favorites
+        LibraryCategory.Albums -> Res.string.library_albums
+        LibraryCategory.Artists -> Res.string.library_artists
+        LibraryCategory.Songs -> Res.string.library_songs
+        LibraryCategory.Favorites -> Res.string.library_favorites
+    }
+
+private val LibraryCategory.icon
+    get() = when (this) {
+        LibraryCategory.Artists -> AppIcons.Person
+        LibraryCategory.Albums -> AppIcons.Album
+        LibraryCategory.Songs -> AppIcons.MusicNote
+        LibraryCategory.Favorites -> AppIcons.Star
     }
 
 /** "Soundtracks › Show · 12 songs" (the location only for nested folders). */
@@ -272,23 +391,37 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
     }
 }
 
+/**
+ * A folder in its cover's colors: header, play/shuffle for everything inside, then its
+ * sub-folders as cover tiles and its own songs.
+ */
 @Composable
-fun PlaylistScreen(playlist: Playlist, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
+fun FolderScreen(folder: Folder, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
+    val context = PlayContext.Playlist(folder.id)
     ArtworkCollectionPage(
-        artwork = playlist.artwork(),
-        kind = stringResource(Res.string.tag_playlist),
-        title = playlist.name,
-        subtitle = playlist.location.takeIf { it.isNotEmpty() }?.joinToString(" › "),
+        artwork = folder.artwork(),
+        kind = stringResource(Res.string.tag_folder),
+        title = folder.name,
+        subtitle = if (folder.children.isEmpty()) null else pluralStringResource(Res.plurals.folders_count, folder.children.size, folder.children.size),
         onSubtitleClick = null,
-        tracks = playlist.tracks,
-        durationMs = playlist.durationMs,
-        context = PlayContext.Playlist(playlist.id),
+        tracks = folder.allTracks,
+        rows = folder.tracks,
+        durationMs = folder.durationMs,
+        context = context,
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
+        extra = if (folder.children.isEmpty()) null else {
+            {
+                item { SectionTitle(stringResource(Res.string.library_folders)) }
+                items(folder.children.chunked(2)) { pair -> FolderGridRow(pair, state) }
+                if (folder.tracks.isNotEmpty()) item { SectionTitle(stringResource(Res.string.library_songs)) }
+            }
+        },
     ) { index, track ->
+        // The folder's own songs come first in allTracks, so the index carries over.
         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(playlist.tracks, index, PlayContext.Playlist(playlist.id))
+            state.controller.playTracks(folder.allTracks, index, context)
         }
     }
 }
@@ -307,6 +440,10 @@ private fun ArtworkCollectionPage(
     state: AppState,
     backLabel: String,
     contentPadding: PaddingValues,
+    /** Songs listed as rows; [tracks] (counted and played by the header) by default. */
+    rows: List<Track> = tracks,
+    /** Content between the header and the rows (e.g. a folder's sub-folders). */
+    extra: (LazyListScope.() -> Unit)? = null,
     row: @Composable (index: Int, track: Track) -> Unit,
 ) {
     val minutes = (durationMs / 60_000).toInt()
@@ -346,7 +483,8 @@ private fun ArtworkCollectionPage(
                     }
                 }
             }
-            itemsIndexed(tracks, key = { _, t -> t.id }) { index, track -> row(index, track) }
+            extra?.invoke(this)
+            itemsIndexed(rows, key = { _, t -> t.id }) { index, track -> row(index, track) }
         }
         // Back stays reachable over the cover and while scrolling.
         FloatingBackButton(backLabel, onClick = state::goBack, modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 8.dp, top = 4.dp))

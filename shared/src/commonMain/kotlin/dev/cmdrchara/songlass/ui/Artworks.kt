@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.ui
 
 import androidx.compose.ui.graphics.Color
 import dev.cmdrchara.songlass.core.library.Album
+import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -33,5 +34,8 @@ private fun artworkFor(key: String, imageKey: String?): Artwork {
 fun Album.artwork(): Artwork = artworkFor("$title|$artist", tracks.firstOrNull()?.uri)
 
 fun Playlist.artwork(): Artwork = artworkFor("playlist|$id", tracks.firstOrNull()?.uri)
+
+/** Same key as the folder's own playlist, so both share colors and cache. */
+fun Folder.artwork(): Artwork = artworkFor("playlist|$id", allTracks.firstOrNull()?.uri)
 
 fun Track.artwork(): Artwork = artworkFor("$album|$groupingArtist", uri)

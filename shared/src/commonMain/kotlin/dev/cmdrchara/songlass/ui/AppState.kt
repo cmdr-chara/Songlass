@@ -10,6 +10,7 @@ import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
+import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
@@ -20,13 +21,15 @@ enum class Tab { Home, Library, Search }
 enum class PlayerPage { Artwork, Queue, Lyrics }
 
 /** Library sections, in display order. Folders first: that is how many people organise music. */
-enum class LibrarySection { Playlists, Albums, Artists, Songs, Favorites }
+/** Library categories listed above the folders, each opening its own page. */
+enum class LibraryCategory { Artists, Albums, Songs, Favorites }
 
 sealed interface Route {
     data object Settings : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
-    data class PlaylistDetail(val playlist: Playlist) : Route
+    data class FolderDetail(val folder: Folder) : Route
+    data class LibraryPage(val category: LibraryCategory) : Route
 }
 
 /** A stable snapshot so outgoing screens retain their route during navigation. */
@@ -48,7 +51,6 @@ class AppState(graph: AppGraph) {
 
     var tab by mutableStateOf(Tab.Home)
         private set
-    var librarySection by mutableStateOf(LibrarySection.Playlists)
     var searchQuery by mutableStateOf("")
     var isNowPlayingOpen by mutableStateOf(false)
         private set
@@ -71,6 +73,11 @@ class AppState(graph: AppGraph) {
 
     val currentRoute: Route? get() = backStacks.getValue(tab).lastOrNull()
     val destination: ScreenDestination get() = ScreenDestination(tab, currentRoute, backStacks.getValue(tab).size)
+
+    /** Opens the folder a playlist stands for (playlists are folders with music in them). */
+    fun openPlaylist(playlist: Playlist) {
+        library.folder(playlist.id)?.let { open(Route.FolderDetail(it)) }
+    }
 
     val searchResults by derivedStateOf { library.search(searchQuery) }
 

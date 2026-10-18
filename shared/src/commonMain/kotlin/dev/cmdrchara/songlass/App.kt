@@ -51,7 +51,8 @@ import dev.cmdrchara.songlass.ui.SettingsScreen
 import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
-import dev.cmdrchara.songlass.ui.PlaylistScreen
+import dev.cmdrchara.songlass.ui.FolderScreen
+import dev.cmdrchara.songlass.ui.LibraryCategoryScreen
 import dev.cmdrchara.songlass.ui.Route
 import dev.cmdrchara.songlass.ui.SearchScreen
 import dev.cmdrchara.songlass.ui.Tab
@@ -118,7 +119,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             nowPlayingVisible -> current?.artwork()
             else -> when (val route = state.currentRoute) {
                 is Route.AlbumDetail -> route.album.artwork()
-                is Route.PlaylistDetail -> route.playlist.artwork()
+                is Route.FolderDetail -> route.folder.artwork()
                 else -> null
             }
         }
@@ -126,7 +127,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val tintIsDark = contextTint.isDark
         val routeArtwork = when (val route = state.currentRoute) {
             is Route.AlbumDetail -> route.album.artwork()
-            is Route.PlaylistDetail -> route.playlist.artwork()
+            is Route.FolderDetail -> route.folder.artwork()
             else -> null
         }
         val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
@@ -192,7 +193,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             )
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
-                            is Route.PlaylistDetail -> PlaylistScreen(route.playlist, state, currentId, backLabel, padding)
+                            is Route.FolderDetail -> FolderScreen(route.folder, state, currentId, backLabel, padding)
+                            is Route.LibraryPage -> LibraryCategoryScreen(route.category, state, currentId, favoriteIds, backLabel, padding)
                             null -> when (destination.tab) {
                                 Tab.Home -> HomeScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                                 Tab.Library -> LibraryScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)

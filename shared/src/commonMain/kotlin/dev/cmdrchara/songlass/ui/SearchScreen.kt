@@ -45,7 +45,7 @@ fun SearchScreen(state: AppState, currentTrackId: String?, contentPadding: Paddi
             else -> {
                 if (results.playlists.isNotEmpty()) {
                     item { SectionTitle(stringResource(Res.string.library_playlists)) }
-                    items(results.playlists, key = { it.id }) { playlist -> PlaylistRow(playlist) { state.open(Route.PlaylistDetail(playlist)) } }
+                    items(results.playlists, key = { it.id }) { playlist -> PlaylistRow(playlist) { state.openPlaylist(playlist) } }
                 }
                 if (results.artists.isNotEmpty()) {
                     item { SectionTitle(stringResource(Res.string.library_artists)) }

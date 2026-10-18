@@ -248,7 +248,7 @@ private const val ShelfRows = 4
 private fun openItem(item: HomeItem, state: AppState) {
     when (item) {
         is HomeItem.AlbumItem -> state.open(Route.AlbumDetail(item.album))
-        is HomeItem.PlaylistItem -> state.open(Route.PlaylistDetail(item.playlist))
+        is HomeItem.PlaylistItem -> state.openPlaylist(item.playlist)
         is HomeItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
         is HomeItem.TrackItem -> state.controller.playTracks(listOf(item.track))
         is HomeItem.FavoritesItem -> state.controller.playTracks(item.tracks, context = PlayContext.Favorites)

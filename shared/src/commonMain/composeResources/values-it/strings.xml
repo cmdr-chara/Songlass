@@ -139,4 +139,10 @@
         <item quantity="other">Non lo ascolti da %1$d mesi</item>
     </plurals>
     <string name="home_play_all">Riproduci tutto</string>
+    <string name="library_folders">Cartelle</string>
+    <string name="tag_folder">Cartella</string>
+    <plurals name="folders_count">
+        <item quantity="one">%1$d cartella</item>
+        <item quantity="other">%1$d cartelle</item>
+    </plurals>
 </resources>
