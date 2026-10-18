@@ -3,7 +3,14 @@ package dev.cmdrchara.songlass
 import android.Manifest
 import android.animation.ValueAnimator
 import android.content.ComponentName
+import android.app.SearchManager
+import android.content.Intent
 import android.os.Bundle
+import android.provider.MediaStore
+import androidx.lifecycle.lifecycleScope
+import dev.cmdrchara.songlass.core.browse.play
+import dev.cmdrchara.songlass.playback.browseTree
+import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -29,6 +36,7 @@ class MainActivity : ComponentActivity() {
             view.iconView?.animate()?.scaleX(1.18f)?.scaleY(1.18f)?.alpha(0f)?.setDuration(SPLASH_EXIT_MS)?.start()
             view.animate().alpha(0f).setDuration(SPLASH_EXIT_MS).withEndAction(view::remove).start()
         }
+        handleVoiceRequest(intent)
         enableEdgeToEdge()
         setContent {
             App(
@@ -36,6 +44,21 @@ class MainActivity : ComponentActivity() {
                 onRequestLibraryAccess = { requestAudioPermission.launch(Manifest.permission.READ_MEDIA_AUDIO) },
                 artworkLoader = app.artworkLoader,
             )
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleVoiceRequest(intent)
+    }
+
+    /** "Play … on Songlass" from an assistant: the query goes through the same rules as the car's. */
+    private fun handleVoiceRequest(intent: Intent?) {
+        if (intent?.action != MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH) return
+        val query = intent.getStringExtra(SearchManager.QUERY).orEmpty()
+        lifecycleScope.launch {
+            if (app.graph.library.value.tracks.isEmpty()) app.graph.refreshLibrary()
+            browseTree(this@MainActivity, app.graph).resolveQuery(query)?.let(app.graph.controller::play)
         }
     }
 

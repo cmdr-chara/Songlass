@@ -27,6 +27,7 @@ import dev.cmdrchara.songlass.core.browse.BrowseLayout
 import dev.cmdrchara.songlass.core.browse.BrowseNode
 import dev.cmdrchara.songlass.core.browse.BrowseTree
 import dev.cmdrchara.songlass.core.browse.PlayRequest
+import dev.cmdrchara.songlass.core.browse.play
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -134,7 +135,7 @@ class PlaybackService : MediaLibraryService() {
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = withTree { tree ->
             val item = mediaItems.getOrNull(startIndex) ?: mediaItems.firstOrNull()
             val request = item?.mediaId?.takeIf { it.isNotEmpty() }?.let(tree::resolvePlay)
-                ?: item?.requestMetadata?.searchQuery?.let { query -> tree.search(query).firstOrNull()?.let { tree.resolvePlay(it.id) } }
+                ?: item?.requestMetadata?.searchQuery?.let(tree::resolveQuery)
             request?.let(::play)
             MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex.coerceAtLeast(0), startPositionMs)
         }
@@ -143,10 +144,7 @@ class PlaybackService : MediaLibraryService() {
             buttons.handle(intent)
     }
 
-    private fun play(request: PlayRequest) {
-        if (request.shuffle) graph.controller.shuffleTracks(request.tracks, request.context)
-        else graph.controller.playTracks(request.tracks, request.startIndex, request.context)
-    }
+    private fun play(request: PlayRequest) = graph.controller.play(request)
 
     /** Runs [block] on the main thread with a tree of the current library, loading it first after a cold start. */
     private fun <T> withTree(block: (BrowseTree) -> T): ListenableFuture<T> {
@@ -162,26 +160,7 @@ class PlaybackService : MediaLibraryService() {
         return future
     }
 
-    private fun buildTree(): BrowseTree {
-        val library = graph.library.value
-        return BrowseTree(
-            library = library,
-            favorites = graph.favorites.tracksIn(library),
-            userPlaylists = graph.userPlaylists.playlists.value,
-            recent = graph.history.state.value.recentContexts.map { it.context },
-            labels = BrowseLabels(
-                home = getString(R.string.browse_home),
-                playlists = getString(R.string.browse_playlists),
-                albums = getString(R.string.browse_albums),
-                artists = getString(R.string.browse_artists),
-                favorites = getString(R.string.browse_favorites),
-                shuffleAll = getString(R.string.browse_shuffle_all),
-                unknownArtist = getString(R.string.browse_unknown_artist),
-                unknownAlbum = getString(R.string.browse_unknown_album),
-                songs = { resources.getQuantityString(R.plurals.browse_songs, it, it) },
-            ),
-        )
-    }
+    private fun buildTree(): BrowseTree = browseTree(this, graph)
 
     private fun toMediaItem(node: BrowseNode): MediaItem {
         val extras = Bundle().apply {
@@ -207,6 +186,31 @@ class PlaybackService : MediaLibraryService() {
         if (pageSize <= 0 || pageSize == Int.MAX_VALUE) return this
         val from = page.coerceAtLeast(0) * pageSize
         return if (from >= size) emptyList() else subList(from, minOf(size, from + pageSize))
+    }
+}
+
+
+/** The tree media browsers and voice requests see, with labels from [context]'s resources. */
+internal fun browseTree(context: android.content.Context, graph: AppGraph): BrowseTree {
+    val library = graph.library.value
+    with(context) {
+        return BrowseTree(
+            library = library,
+            favorites = graph.favorites.tracksIn(library),
+            userPlaylists = graph.userPlaylists.playlists.value,
+            recent = graph.history.state.value.recentContexts.map { it.context },
+            labels = BrowseLabels(
+                home = getString(R.string.browse_home),
+                playlists = getString(R.string.browse_playlists),
+                albums = getString(R.string.browse_albums),
+                artists = getString(R.string.browse_artists),
+                favorites = getString(R.string.browse_favorites),
+                shuffleAll = getString(R.string.browse_shuffle_all),
+                unknownArtist = getString(R.string.browse_unknown_artist),
+                unknownAlbum = getString(R.string.browse_unknown_album),
+                songs = { resources.getQuantityString(R.plurals.browse_songs, it, it) },
+            ),
+        )
     }
 }
 

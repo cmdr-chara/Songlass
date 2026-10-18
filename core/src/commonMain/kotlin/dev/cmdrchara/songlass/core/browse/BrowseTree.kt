@@ -4,6 +4,7 @@ import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 
 /** How a car screen or another media browser should lay a node's children out. */
@@ -26,6 +27,11 @@ data class BrowseNode(
 
 /** What to play for a chosen node. */
 data class PlayRequest(val tracks: List<Track>, val startIndex: Int, val context: PlayContext?, val shuffle: Boolean = false)
+
+/** Starts [request] on this controller. */
+fun PlaybackController.play(request: PlayRequest) {
+    if (request.shuffle) shuffleTracks(request.tracks, request.context) else playTracks(request.tracks, request.startIndex, request.context)
+}
 
 /** Localised titles the tree needs (resources live with the platform). */
 data class BrowseLabels(
@@ -91,6 +97,18 @@ class BrowseTree(
         }
         val context = id.removePrefixOrNull(CONTEXT)?.let(PlayContext::fromKey) ?: return null
         return tracksOf(context).takeIf { it.isNotEmpty() }?.let { PlayRequest(it, 0, context) }
+    }
+
+    /**
+     * "Play …" said to an assistant or the car: an artist plays all their songs, an album the
+     * album, a song its album from that song; nothing said shuffles everything.
+     */
+    fun resolveQuery(query: String): PlayRequest? {
+        if (query.isBlank()) return resolvePlay(SHUFFLE_ALL)
+        val results = library.search(query)
+        results.artists.firstOrNull()?.let { return resolvePlay(CONTEXT + PlayContext.Artist(it.name).key) }
+        results.albums.firstOrNull()?.let { return resolvePlay(CONTEXT + PlayContext.Album(it.title.orEmpty(), it.artist).key) }
+        return search(query).firstOrNull { !it.browsable }?.let { resolvePlay(it.id) }
     }
 
     /** Voice or typed search from the car: artists, albums, then songs (each within its album). */

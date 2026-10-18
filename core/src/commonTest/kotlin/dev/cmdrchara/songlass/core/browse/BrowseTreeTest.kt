@@ -68,6 +68,16 @@ class BrowseTreeTest {
     }
 
     @Test
+    fun spokenQueriesPlayArtistsAlbumsOrSongs() {
+        val tree = tree()
+        assertEquals(listOf("b1"), tree.resolveQuery("b")!!.tracks.map { it.id })
+        assertEquals(listOf("a1", "a2"), tree.resolveQuery("one")!!.tracks.map { it.id })
+        assertEquals(1, tree.resolveQuery("beta")!!.startIndex)
+        assertTrue(tree.resolveQuery("")!!.shuffle)
+        assertNull(tree.resolveQuery("zzz"))
+    }
+
+    @Test
     fun searchFindsSongsWithinTheirAlbumAndRejectsUnknownIds() {
         val tree = tree()
         val results = tree.search("beta")

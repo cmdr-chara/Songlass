@@ -9,6 +9,7 @@
     <string name="browse_unknown_album">Album sconosciuto</string>
     <plurals name="browse_songs">
         <item quantity="one">%1$d brano</item>
+        <item quantity="many">%1$d brani</item>
         <item quantity="other">%1$d brani</item>
     </plurals>
 </resources>
