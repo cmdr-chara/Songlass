@@ -42,8 +42,12 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             MediaStore.Audio.Media.RELATIVE_PATH,
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.DISPLAY_NAME,
+            MediaStore.Audio.Media.YEAR,
+            MediaStore.Audio.Media.DATE_MODIFIED,
+            MediaStore.Audio.Media.SIZE,
         )
         val tracks = mutableListOf<Track>()
+        val extraTags = ExtraAudioTags(context)
         context.contentResolver.query(
             collection,
             projection,
@@ -63,6 +67,9 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             val relativePath = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)
             val dateAdded = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val displayName = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            val year = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
+            val modified = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
+            val size = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
             while (cursor.moveToNext()) {
                 val mediaId = cursor.getLong(id)
                 val (legacyDisc, legacyNumber) = TagNumbers.splitLegacyTrack(
@@ -75,10 +82,14 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                 // that is almost certainly such a fallback rather than a real album.
                 val albumTag = cursor.getString(album).cleanTag()
                     ?.takeUnless { artistTag == null && it == folder }
+                val uri = ContentUris.withAppendedId(collection, mediaId)
+                val extra = extraTags.read(uri, "$mediaId:${cursor.getLong(modified)}:${cursor.getLong(size)}")
                 tracks += Track(
                     id = mediaId.toString(),
                     title = cursor.getString(title)?.takeIf { it.isNotBlank() } ?: continue,
-                    uri = ContentUris.withAppendedId(collection, mediaId).toString(),
+                    uri = uri.toString(),
+                    artists = extra.artists,
+                    releaseDate = extra.date ?: dev.cmdrchara.songlass.core.model.ReleaseDate.parse(cursor.getString(year)),
                     artist = artistTag,
                     album = albumTag,
                     albumArtist = cursor.getString(albumArtist).cleanTag(),
@@ -92,6 +103,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                 )
             }
         }
+        extraTags.save()
         tracks
     }
 }

@@ -48,7 +48,7 @@ class MusicLibraryTest {
         val hits = library.albums.single { it.title == "Hits" }
         assertEquals("Various Artists", hits.artist)
         assertEquals(2, hits.tracks.size)
-        assertTrue(library.artists.none { it.name == "Guest" })
+        assertEquals(listOf("c1"), library.artists.single { it.name == "Guest" }.tracks.map { it.id })
     }
 
     @Test

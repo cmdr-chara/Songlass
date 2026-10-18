@@ -73,7 +73,7 @@ data class SearchResults(
  *
  * Albums are keyed by (album title, album artist or artist), so two albums with the same
  * title by different artists stay separate. Artists are grouped the same way, which keeps
- * compilation guests out of the artist list, as in Apple Music.
+ * compilations intact. The artist index also includes individual track credits and guests.
  *
  * An album only counts as one when its tracks have an album tag and the library holds at
  * least [MIN_ALBUM_TRACKS] of them: a lone song (a single, or one track kept from a bigger
@@ -94,11 +94,17 @@ class MusicLibrary(tracks: List<Track>) {
             .thenBy(nullsLast()) { it.artist?.sortKey() })
 
     val artists: List<Artist> = tracks
-        .groupBy { it.groupingArtist }
-        .map { (name, artistTracks) ->
+        .flatMap { track ->
+            (track.artistNames + listOfNotNull(track.albumArtist)).distinctBy { it.lowercase() }
+                .ifEmpty { listOf(null) }.map { name -> name to track }
+        }
+        .groupBy({ it.first?.lowercase() }, { it })
+        .map { (_, credits) ->
+            val name = credits.first().first
+            val artistTracks = credits.map { it.second }.distinctBy { it.id }
             Artist(
                 name = name,
-                albums = albums.filter { it.artist == name },
+                albums = albums.filter { album -> album.tracks.any { t -> artistTracks.any { it.id == t.id } } },
                 tracks = artistTracks.sortedWith(compareBy { it.title.sortKey() }),
             )
         }
@@ -166,6 +172,12 @@ class MusicLibrary(tracks: List<Track>) {
 
     /** The artist [track] is listed under (album artist when tagged, as in [artists]). */
     fun artistOf(track: Track): Artist? = artists.firstOrNull { it.name == track.groupingArtist }
+        ?: artistsOf(track).firstOrNull()
+
+    /** Individual track credits, in tag order, for navigation from a collaboration. */
+    fun artistsOf(track: Track): List<Artist> = track.artistNames.mapNotNull { name ->
+        artists.firstOrNull { it.name.equals(name, ignoreCase = true) }
+    }.distinct()
 
     /** Case-insensitive substring search over titles, artists and albums. A blank query matches nothing. */
     fun search(query: String): SearchResults {
@@ -173,7 +185,7 @@ class MusicLibrary(tracks: List<Track>) {
         if (needle.isEmpty()) return SearchResults()
         fun String?.matches() = this != null && sortKey().contains(needle)
         return SearchResults(
-            tracks = tracks.filter { it.title.matches() || it.artist.matches() || it.album.matches() },
+            tracks = tracks.filter { it.title.matches() || it.artist.matches() || it.artistNames.any { name -> name.matches() } || it.album.matches() },
             albums = albums.filter { it.title.matches() || it.artist.matches() },
             artists = artists.filter { it.name.matches() },
             playlists = playlists.filter { it.name.matches() },
