@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.playback
 
 import androidx.media3.common.ForwardingSimpleBasePlayer
+import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import com.google.common.util.concurrent.Futures
@@ -30,6 +31,13 @@ class QueueForwardingPlayer(
             .build()
         return state.buildUpon().setAvailableCommands(commands).build()
     }
+
+    // Items handed over by media browsers (Android Auto) were already resolved and queued in
+    // PlaybackController by the library callback; the player keeps what core loaded.
+    override fun handleSetMediaItems(mediaItems: MutableList<MediaItem>, startIndex: Int, startPositionMs: Long): ListenableFuture<*> =
+        Futures.immediateVoidFuture()
+
+    override fun handleAddMediaItems(index: Int, mediaItems: MutableList<MediaItem>): ListenableFuture<*> = Futures.immediateVoidFuture()
 
     override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
         when (seekCommand) {

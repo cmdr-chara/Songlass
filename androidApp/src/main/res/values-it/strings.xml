@@ -1,0 +1,14 @@
+<resources>
+    <string name="browse_home">Home</string>
+    <string name="browse_playlists">Playlist</string>
+    <string name="browse_albums">Album</string>
+    <string name="browse_artists">Artisti</string>
+    <string name="browse_favorites">Preferiti</string>
+    <string name="browse_shuffle_all">Casuale su tutto</string>
+    <string name="browse_unknown_artist">Artista sconosciuto</string>
+    <string name="browse_unknown_album">Album sconosciuto</string>
+    <plurals name="browse_songs">
+        <item quantity="one">%1$d brano</item>
+        <item quantity="other">%1$d brani</item>
+    </plurals>
+</resources>

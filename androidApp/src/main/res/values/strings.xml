@@ -1,3 +1,15 @@
 <resources>
     <string name="app_name">Songlass</string>
+    <string name="browse_home">Home</string>
+    <string name="browse_playlists">Playlists</string>
+    <string name="browse_albums">Albums</string>
+    <string name="browse_artists">Artists</string>
+    <string name="browse_favorites">Favorites</string>
+    <string name="browse_shuffle_all">Shuffle All</string>
+    <string name="browse_unknown_artist">Unknown Artist</string>
+    <string name="browse_unknown_album">Unknown Album</string>
+    <plurals name="browse_songs">
+        <item quantity="one">%1$d song</item>
+        <item quantity="other">%1$d songs</item>
+    </plurals>
 </resources>

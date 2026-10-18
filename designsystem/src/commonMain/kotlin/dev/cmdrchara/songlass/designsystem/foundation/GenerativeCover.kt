@@ -50,6 +50,12 @@ fun GenerativeCover(artwork: Artwork, modifier: Modifier = Modifier, showMonogra
     }
 }
 
+/**
+ * Draws the composition for [seed] into this scope, without the monogram: for surfaces outside
+ * Compose layouts, such as images for the car screen and home-screen widgets.
+ */
+fun DrawScope.drawGenerativeCover(seed: Int) = drawComposition(seed, coverPalette(seed))
+
 /** The two colours used for tinting pages around a generated cover. */
 fun generativeCoverColors(seed: Int): List<Color> = coverPalette(seed).let { listOf(it.background, it.shapeA) }
 
