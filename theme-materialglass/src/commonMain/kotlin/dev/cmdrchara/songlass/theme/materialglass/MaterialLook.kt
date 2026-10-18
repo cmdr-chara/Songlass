@@ -63,6 +63,10 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override fun FolderChoiceRow(choice: dev.cmdrchara.songlass.designsystem.FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier) =
         dev.cmdrchara.songlass.theme.liquidglass.GlassFolderChoiceRow(choice, onExpand, onExcludedChange, material = true, modifier = modifier)
 
+    @Composable
+    override fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, modifier: Modifier) =
+        dev.cmdrchara.songlass.theme.liquidglass.ListeningHistoryPlot(points, summary, bars = true, modifier = modifier)
+
     /**
      * The palette where the surface is drawn: on pages tinted by a cover (album, folder, player)
      * the surrounding colours carry that cover's hue, so the glass matches the page; elsewhere it

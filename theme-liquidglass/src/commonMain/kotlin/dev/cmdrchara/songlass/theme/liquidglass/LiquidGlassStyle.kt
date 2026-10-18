@@ -224,6 +224,10 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.FolderChoiceRow(choice, onExpand, onExcludedChange, modifier)
 
     @Composable
+    override fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, modifier: Modifier) =
+        LocalGlassLook.current.ListeningChart(points, summary, modifier)
+
+    @Composable
     override fun EqualizerEditor(
         bands: List<EqBand>,
         curve: List<Float>,

@@ -222,10 +222,34 @@
     <string name="library_exclusions_hint">Scegli le cartelle da nascondere. Sono comprese le sottocartelle; i file restano sul dispositivo.</string>
     <string name="library_parent_excluded">Nascosta dalla cartella superiore esclusa</string>
     <string name="library_no_folders">Nessuna cartella musicale trovata.</string>
+    <string name="stats_title">Il tuo ascolto</string>
+    <string name="stats_home_hint">Ascolti, artisti e album preferiti</string>
+    <string name="stats_week">7 giorni</string>
+    <string name="stats_month">30 giorni</string>
+    <string name="stats_year">365 giorni</string>
+    <string name="stats_all_time">Sempre</string>
+    <string name="stats_plays">Ascolti</string>
+    <string name="stats_tracks">Brani diversi</string>
+    <string name="stats_artists">Artisti diversi</string>
+    <string name="stats_top_tracks">Brani più ascoltati</string>
+    <string name="stats_top_artists">Artisti più ascoltati</string>
+    <string name="stats_top_albums">Album più ascoltati</string>
+    <string name="stats_empty">Ascolta della musica per vedere qui le tue statistiche.</string>
+    <string name="stats_history_hint">Un ascolto conta dopo 30 secondi o metà di un brano breve. I periodi usano gli ascolti con data registrati da questo aggiornamento, conservati per due anni o 50.000 ascolti. Sempre comprende anche i totali precedenti. Le statistiche riguardano solo i brani visibili. I crediti degli artisti possono sovrapporsi. Tutto resta sul dispositivo.</string>
+    <string name="home_on_this_day">In questo giorno</string>
+    <string name="home_release_anniversaries">Anniversari di uscita · dalle date complete nei tag</string>
+    <string name="home_listening_memories">Li ascoltavi in questo giorno negli anni passati</string>
+    <plurals name="stats_play_count"><item quantity="one">1 ascolto</item><item quantity="other">%1$d ascolti</item></plurals>
     <string name="library_scanning">Lettura della musica…</string>
     <string name="library_scanning_hint">Lettura dei tag locali. Le prossime scansioni useranno una copia in cache.</string>
     <string name="library_filtered_empty">Nessun brano corrispondente</string>
     <string name="library_filtered_hint">Modifica le cartelle escluse o la durata minima in Impostazioni → Libreria.</string>
+    <string name="stats_chart_title">Ascolti nel tempo</string>
+    <string name="stats_chart_date">%1$d/%2$d</string>
+    <string name="stats_chart_summary">Cronologia degli ascolti con data. Asse orizzontale: date. Asse verticale: numero di ascolti, da zero. %1$d ascolti nel grafico. Seleziona una data per i dettagli.</string>
+    <string name="stats_dated_since">Cronologia con date dal %1$d/%2$d/%3$d. Gli ascolti precedenti sono inclusi nei totali di Sempre.</string>
+    <string name="action_go_to_named_artist">Vai a %1$s</string>
+    <string name="stats_chart_no_data">Cronologia con data non disponibile</string>
     <plurals name="library_subfolders"><item quantity="one">1 sottocartella</item><item quantity="other">%1$d sottocartelle</item></plurals>
     <string name="library_expand_folder">Espandi %1$s</string>
     <string name="library_collapse_folder">Comprimi %1$s</string>

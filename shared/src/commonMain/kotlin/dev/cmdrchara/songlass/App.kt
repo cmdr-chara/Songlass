@@ -201,6 +201,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 onBack = state::goBack,
                                 contentPadding = padding,
                             )
+                            Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
                             Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding)
                             Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)

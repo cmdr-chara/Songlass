@@ -17,6 +17,7 @@ import dev.cmdrchara.songlass.shared.resources.action_add_to_queue
 import dev.cmdrchara.songlass.shared.resources.action_cancel
 import dev.cmdrchara.songlass.shared.resources.action_favorite
 import dev.cmdrchara.songlass.shared.resources.action_go_to_album
+import dev.cmdrchara.songlass.shared.resources.action_go_to_named_artist
 import dev.cmdrchara.songlass.shared.resources.action_go_to_artist
 import dev.cmdrchara.songlass.shared.resources.action_play_next
 import dev.cmdrchara.songlass.shared.resources.action_unfavorite
@@ -56,6 +57,10 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
                 null
             },
             SheetAction(stringResource(Res.string.action_go_to_artist), AppIcons.MusicNote) { state.showArtistOf(track) },
-        ),
+        ) + state.library.artistsOf(track).filter { it != state.library.artistOf(track) }.map { artist ->
+            SheetAction(stringResource(Res.string.action_go_to_named_artist, artistName(artist.name)), AppIcons.Person) {
+                state.open(Route.ArtistDetail(artist))
+            }
+        },
     )
 }

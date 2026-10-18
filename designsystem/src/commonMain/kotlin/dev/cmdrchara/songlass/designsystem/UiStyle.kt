@@ -83,6 +83,10 @@ data class FolderChoice(
     val excluded: Boolean, val enabled: Boolean, val expandLabel: String, val excludeLabel: String,
 )
 
+/** A dated chart value; labels arrive localized from the screen. */
+@Immutable
+data class ListeningChartPoint(val label: String, val axisLabel: String, val value: Int, val description: String, val recorded: Boolean = true)
+
 /** One band of the graphic equalizer: where it sits, what it is called and its gain. */
 @Immutable
 data class EqBand(val frequencyHz: Float, val label: String, val gainDb: Float)
@@ -309,6 +313,9 @@ interface UiStyle {
 
     @Composable
     fun FolderChoiceRow(choice: FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier)
+
+    @Composable
+    fun ListeningChart(points: List<ListeningChartPoint>, summary: String, modifier: Modifier)
 
     /**
      * Graphic equalizer: the response [curve] (dB, log-spaced from 20 Hz to 20 kHz) with a point

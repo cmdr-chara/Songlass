@@ -33,6 +33,7 @@ sealed interface Route {
     data object Settings : Route
     data object Equalizer : Route
     data object LibrarySettings : Route
+    data object ListeningStatistics : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class FolderDetail(val folder: Folder) : Route

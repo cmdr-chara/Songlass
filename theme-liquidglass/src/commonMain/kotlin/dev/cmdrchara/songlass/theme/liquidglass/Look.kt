@@ -73,6 +73,10 @@ interface GlassLook {
         GlassFolderChoiceRow(choice, onExpand, onExcludedChange, material = false, modifier = modifier)
 
     @Composable
+    fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, modifier: Modifier) =
+        ListeningHistoryPlot(points, summary, bars = false, modifier = modifier)
+
+    @Composable
     fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
         LiquidGlassSeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
 

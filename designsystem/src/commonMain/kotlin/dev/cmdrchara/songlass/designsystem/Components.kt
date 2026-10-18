@@ -275,6 +275,9 @@ fun PromptSheet(
     initialText: String = "",
 ) = LocalUiStyle.current.PromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
 
+@Composable
+fun ListeningChart(points: List<ListeningChartPoint>, summary: String, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.ListeningChart(points, summary, modifier)
 
 @Composable
 fun FolderChoiceRow(choice: FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) =

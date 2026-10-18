@@ -69,6 +69,14 @@ import dev.cmdrchara.songlass.shared.resources.tag_playlist
 import dev.cmdrchara.songlass.shared.resources.tag_song
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import dev.cmdrchara.songlass.core.home.OnThisDay
+import dev.cmdrchara.songlass.designsystem.ListRow
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.shared.resources.stats_title
+import dev.cmdrchara.songlass.shared.resources.stats_home_hint
+import dev.cmdrchara.songlass.shared.resources.home_on_this_day
+import dev.cmdrchara.songlass.shared.resources.home_release_anniversaries
+import dev.cmdrchara.songlass.shared.resources.home_listening_memories
 import kotlin.time.Clock
 
 /**
@@ -91,6 +99,9 @@ fun HomeScreen(
     // Read the day once per visit: the feed is stable while the Home is shown.
     val now = remember { Clock.System.now().toEpochMilliseconds() }
     val feed = remember(library, history, favoriteIds, now) { HomeFeed.build(library, history, favoriteIds, now) }
+    val anniversaries = remember(library, history, now) {
+        OnThisDay.build(library, history, localCalendarDate(now), ::localCalendarDate)
+    }
     val controller = state.controller
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
@@ -122,6 +133,27 @@ fun HomeScreen(
                 return@LazyColumn
             }
 
+            item {
+                ListRow(
+                    title = stringResource(Res.string.stats_title),
+                    subtitle = stringResource(Res.string.stats_home_hint),
+                    trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp) },
+                    onClick = { state.open(Route.ListeningStatistics) },
+                )
+            }
+            if (anniversaries.releases.isNotEmpty() || anniversaries.memories.isNotEmpty()) {
+                item { SectionTitle(stringResource(Res.string.home_on_this_day)) }
+                if (anniversaries.releases.isNotEmpty()) {
+                    item { AppText(stringResource(Res.string.home_release_anniversaries), AppTheme.typography.subheadline,
+                        color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+                    item { HomeItemRow(anniversaries.releases.map(HomeItem::TrackItem), state, tileWidth) }
+                }
+                if (anniversaries.memories.isNotEmpty()) {
+                    item { AppText(stringResource(Res.string.home_listening_memories), AppTheme.typography.subheadline,
+                        color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) }
+                    item { HomeItemRow(anniversaries.memories.map(HomeItem::TrackItem), state, tileWidth) }
+                }
+            }
             if (feed.shortcuts.isNotEmpty()) {
                 item { ShortcutGrid(feed.shortcuts, state) }
             }
