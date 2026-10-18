@@ -54,11 +54,11 @@ object LiquidGlassStyle : UiStyle {
         highlighted: Boolean,
         onClick: (() -> Unit)?,
         modifier: Modifier,
-    ) = LiquidGlassListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+    ) = LocalGlassLook.current.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
 
     @Composable
     override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
-        LiquidGlassSettingsGroup(content, modifier)
+        LocalGlassLook.current.SettingsGroup(content, modifier)
 
     @Composable
     override fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) =
@@ -92,7 +92,7 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
-        LiquidGlassSeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
+        LocalGlassLook.current.SeekBar(positionMs, durationMs, qualityLabel, isPlaying, onSeek, modifier)
 
     @Composable
     override fun TransportControls(
@@ -102,7 +102,7 @@ object LiquidGlassStyle : UiStyle {
         onPlayPause: () -> Unit,
         onNext: () -> Unit,
         modifier: Modifier,
-    ) = LiquidGlassTransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
+    ) = LocalGlassLook.current.TransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
 
     @Composable
     override fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier) =

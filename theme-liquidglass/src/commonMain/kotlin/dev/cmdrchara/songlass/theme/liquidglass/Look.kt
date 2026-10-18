@@ -11,6 +11,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
+import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 /**
@@ -42,6 +43,31 @@ interface GlassLook {
 
     /** Corner radius of cards and grouped surfaces designed at [base] for Liquid Glass. */
     fun corner(base: Dp): Dp
+
+    // Components a look may redraw in its own shape. Kept here, not in a separate UiStyle, so a
+    // change of look keeps the same composition tree (no rebuilt screens when switching style).
+
+    @Composable
+    fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
+        LiquidGlassSeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
+
+    @Composable
+    fun TransportControls(isPlaying: Boolean, labels: PlaybackLabels, onPrevious: () -> Unit, onPlayPause: () -> Unit, onNext: () -> Unit, modifier: Modifier) =
+        LiquidGlassTransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
+
+    @Composable
+    fun ListRow(
+        title: String,
+        subtitle: String?,
+        leading: (@Composable () -> Unit)?,
+        trailing: (@Composable () -> Unit)?,
+        highlighted: Boolean,
+        onClick: (() -> Unit)?,
+        modifier: Modifier,
+    ) = LiquidGlassListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+
+    @Composable
+    fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = LiquidGlassSettingsGroup(content, modifier)
 }
 
 /** Apple's iOS 26 Liquid Glass. */

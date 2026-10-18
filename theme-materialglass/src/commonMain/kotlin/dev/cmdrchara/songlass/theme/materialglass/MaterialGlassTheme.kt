@@ -13,7 +13,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import dev.cmdrchara.songlass.designsystem.LocalUiStyle
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.AppColors
 import dev.cmdrchara.songlass.designsystem.theme.AppTypography
@@ -41,20 +40,30 @@ fun MaterialGlassTheme(
     accessibility: UiAccessibility = UiAccessibility(),
     content: @Composable () -> Unit,
 ) {
+    LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility) {
+        MaterialGlassLayer(enabled = true, darkTheme = darkTheme, content = content)
+    }
+}
+
+/**
+ * Applies Material Glass over a [LiquidGlassTheme] when [enabled], and passes the Liquid Glass
+ * values through otherwise. The composition tree is identical either way, so switching style only
+ * changes values: screens keep their state, images and scroll positions, with no blank frame.
+ */
+@Composable
+fun MaterialGlassLayer(enabled: Boolean, darkTheme: Boolean, content: @Composable () -> Unit) {
     val hue = animatedHue(LocalAmbientArtwork.current, darkTheme)
     val palette = SeaPalette(hue, darkTheme)
+    // Loaded even while Liquid Glass is shown, so the font is ready the moment the style changes.
     val typography = rememberTypography()
-    LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility) {
-        val colors = palette.appColors()
-        CompositionLocalProvider(
-            LocalAppColors provides colors,
-            LocalAppTypography provides typography,
-            LocalContentColor provides colors.label,
-            LocalGlassLook provides MaterialLook(palette),
-            LocalUiStyle provides MaterialGlassStyle,
-            content = content,
-        )
-    }
+    val colors = if (enabled) palette.appColors() else LocalAppColors.current
+    CompositionLocalProvider(
+        LocalAppColors provides colors,
+        LocalAppTypography provides if (enabled) typography else LocalAppTypography.current,
+        LocalContentColor provides if (enabled) colors.label else LocalContentColor.current,
+        LocalGlassLook provides if (enabled) MaterialLook(palette) else LocalGlassLook.current,
+        content = content,
+    )
 }
 
 /** The cover's hue, animated along the shorter way round the colour wheel. */

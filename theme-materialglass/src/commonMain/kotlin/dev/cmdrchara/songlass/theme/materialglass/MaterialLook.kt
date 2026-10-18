@@ -35,6 +35,7 @@ import dev.chrisbanes.haze.glass.GlassDefaults
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
+import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.theme.liquidglass.GlassLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassSource
@@ -118,6 +119,28 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override fun selection(): Color =
         // "Selection inside the tab bar: white pill at 50%."
         Color.White.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.5f)
+
+    @Composable
+    override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
+        WavySeekBar(positionMs, durationMs, qualityLabel, isPlaying, onSeek, modifier)
+
+    @Composable
+    override fun TransportControls(isPlaying: Boolean, labels: PlaybackLabels, onPrevious: () -> Unit, onPlayPause: () -> Unit, onNext: () -> Unit, modifier: Modifier) =
+        MaterialTransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
+
+    @Composable
+    override fun ListRow(
+        title: String,
+        subtitle: String?,
+        leading: (@Composable () -> Unit)?,
+        trailing: (@Composable () -> Unit)?,
+        highlighted: Boolean,
+        onClick: (() -> Unit)?,
+        modifier: Modifier,
+    ) = MaterialListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+
+    @Composable
+    override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = MaterialSettingsGroup(content, modifier)
 
     // Pills everywhere and generously rounded cards (the file's cards use 24–32 px at 0.6 dp/px).
     override fun corner(base: Dp): Dp = base * 1.6f

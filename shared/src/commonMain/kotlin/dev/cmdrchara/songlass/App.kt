@@ -54,7 +54,7 @@ import dev.cmdrchara.songlass.ui.PlatformBackHandler
 import dev.cmdrchara.songlass.ui.FolderScreen
 import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import dev.cmdrchara.songlass.designsystem.theme.LocalAmbientArtwork
-import dev.cmdrchara.songlass.theme.materialglass.MaterialGlassTheme
+import dev.cmdrchara.songlass.theme.materialglass.MaterialGlassLayer
 import dev.cmdrchara.songlass.ui.LibraryCategoryScreen
 import dev.cmdrchara.songlass.ui.Route
 import dev.cmdrchara.songlass.ui.SearchScreen
@@ -241,8 +241,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
 /** The chosen interface style's tokens and components around [content]. */
 @Composable
 private fun InterfaceTheme(style: InterfaceStyle, darkTheme: Boolean, accessibility: UiAccessibility, content: @Composable () -> Unit) {
-    when (style) {
-        InterfaceStyle.LiquidGlass -> LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility, content = content)
-        InterfaceStyle.MaterialGlass -> MaterialGlassTheme(darkTheme = darkTheme, accessibility = accessibility, content = content)
+    // One tree for every style: only the provided values change (see MaterialGlassLayer).
+    LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility) {
+        MaterialGlassLayer(enabled = style == InterfaceStyle.MaterialGlass, darkTheme = darkTheme, content = content)
     }
 }

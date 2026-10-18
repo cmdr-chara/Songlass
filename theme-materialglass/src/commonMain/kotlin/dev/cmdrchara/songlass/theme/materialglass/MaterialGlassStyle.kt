@@ -32,73 +32,61 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
-import dev.cmdrchara.songlass.designsystem.UiStyle
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
-import dev.cmdrchara.songlass.theme.liquidglass.LiquidGlassStyle
+import dev.cmdrchara.songlass.theme.liquidglass.LiquidLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 
-/**
- * Material Glass components: the Liquid Glass ones (structure, gestures, motion) except where the
- * file's expressive language asks for its own shape: a wavy seek bar, pill transport buttons
- * with a larger play button, and list rows as separate rounded cards.
- */
-object MaterialGlassStyle : UiStyle by LiquidGlassStyle {
-
-    @Composable
-    override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
-        WavySeekBar(positionMs, durationMs, qualityLabel, isPlaying, onSeek, modifier)
-
-    @Composable
-    override fun TransportControls(
-        isPlaying: Boolean,
-        labels: PlaybackLabels,
-        onPrevious: () -> Unit,
-        onPlayPause: () -> Unit,
-        onNext: () -> Unit,
-        modifier: Modifier,
+/** Material Glass components: a wavy seek bar, pill transport and rows as cards (see [MaterialLook]). */
+@Composable
+internal fun MaterialTransportControls(
+    isPlaying: Boolean,
+    labels: PlaybackLabels,
+    onPrevious: () -> Unit,
+    onPlayPause: () -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TransportPill(AppIcons.Previous, labels.previous, onPrevious, width = 84.dp, prominent = false, playing = false)
-            TransportPill(
-                icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
-                description = if (isPlaying) labels.pause else labels.play,
-                onClick = onPlayPause,
-                width = 124.dp,
-                prominent = true,
-                playing = isPlaying,
-            )
-            TransportPill(AppIcons.Next, labels.next, onNext, width = 84.dp, prominent = false, playing = false)
-        }
+        TransportPill(AppIcons.Previous, labels.previous, onPrevious, width = 84.dp, prominent = false, playing = false)
+        TransportPill(
+            icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
+            description = if (isPlaying) labels.pause else labels.play,
+            onClick = onPlayPause,
+            width = 124.dp,
+            prominent = true,
+            playing = isPlaying,
+        )
+        TransportPill(AppIcons.Next, labels.next, onNext, width = 84.dp, prominent = false, playing = false)
     }
+}
 
-    @Composable
-    override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
-        // Rows inside a group are part of its card, not cards of their own.
-        LiquidGlassStyle.SettingsGroup({ CompositionLocalProvider(LocalInsideGroup provides true, content = content) }, modifier)
+@Composable
+internal fun MaterialSettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
+    // Rows inside a group are part of its card, not cards of their own.
+    LiquidLook.SettingsGroup({ CompositionLocalProvider(LocalInsideGroup provides true, content = content) }, modifier)
 
-    @Composable
-    override fun ListRow(
-        title: String,
-        subtitle: String?,
-        leading: (@Composable () -> Unit)?,
-        trailing: (@Composable () -> Unit)?,
-        highlighted: Boolean,
-        onClick: (() -> Unit)?,
-        modifier: Modifier,
-    ) {
-        if (LocalInsideGroup.current) return LiquidGlassStyle.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
-        CardRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
-    }
+@Composable
+internal fun MaterialListRow(
+    title: String,
+    subtitle: String?,
+    leading: (@Composable () -> Unit)?,
+    trailing: (@Composable () -> Unit)?,
+    highlighted: Boolean,
+    onClick: (() -> Unit)?,
+    modifier: Modifier,
+) {
+    if (LocalInsideGroup.current) LiquidLook.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+    else CardRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
 }
 
 /** True inside a grouped surface, where rows must not become cards. */
