@@ -9,11 +9,12 @@
         android:height="240dp"
         android:viewportWidth="108"
         android:viewportHeight="108">
+            <group android:pivotX="54.0" android:pivotY="54.0" android:scaleX="1.18" android:scaleY="1.18">
             <group android:name="bubble" android:pivotX="54.0" android:pivotY="54.0" android:scaleX="0.6" android:scaleY="0.6">
                 <path
-                    android:pathData="M18.00,54.00a36.00,36.00 0 1,0 72.00,0a36.00,36.00 0 1,0 -72.00,0z">
+                    android:pathData="M24.00,54.00a30.00,30.00 0 1,0 60.00,0a30.00,30.00 0 1,0 -60.00,0z">
                 <aapt:attr name="android:fillColor">
-                <gradient android:type="linear" android:startX="18" android:startY="18" android:endX="90" android:endY="90">
+                <gradient android:type="linear" android:startX="24.0" android:startY="24.0" android:endX="84.0" android:endY="84.0">
                     <item android:offset="0" android:color="#FFB9A3FF" />
                     <item android:offset="0.5" android:color="#FF7E5AF5" />
                     <item android:offset="1" android:color="#FF4A26DF" />
@@ -291,6 +292,7 @@
                 </gradient>
                 </aapt:attr>
                 </path>
+            </group>
             </group>
     </vector>
     </aapt:attr>
