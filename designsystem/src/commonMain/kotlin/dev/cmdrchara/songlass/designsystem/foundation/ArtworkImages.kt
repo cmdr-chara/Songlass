@@ -97,3 +97,18 @@ private const val SAMPLE_GRID = 16
 enum class ArtworkPresentation { FullBleed, Square }
 
 val LocalArtworkPresentation = staticCompositionLocalOf { ArtworkPresentation.FullBleed }
+
+/** Header chrome follows the visible cover; playback controls keep the selected appearance. */
+@Composable
+fun rememberArtworkHeaderIsDark(artwork: Artwork?, fallbackDark: Boolean): Boolean {
+    val image = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
+    return remember(image, artwork, fallbackDark) {
+        val header = if (image != null) {
+            // samplePixels is column-major; use the upper quarter, behind status icons.
+            ArtworkTint.averageOf(image.samplePixels(SAMPLE_GRID).filterIndexed { index, _ ->
+                index % SAMPLE_GRID < SAMPLE_GRID / 4
+            })
+        } else artwork?.colors?.firstOrNull()
+        header?.let(ArtworkTint::prefersLightContent) ?: fallbackDark
+    }
+}

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalSheetTint
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkHeaderIsDark
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
@@ -127,17 +128,23 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val currentId = current?.id
         LaunchedEffect(currentId) { state.updateArtworkExpansion(false); state.closeSongInfo() }
         val nowPlayingVisible = state.isNowPlayingOpen && current != null
-        // Tinted surfaces may be dark in light mode (or the opposite) when they follow the cover.
+        // Page tints may follow artwork; playback controls always keep the selected appearance.
         val followArtwork = preferences.artworkStyle == ArtworkStyle.FullBleed
         val tintedArtwork = when {
             nowPlayingVisible -> current?.artwork()
             else -> state.currentRoute.pageArtwork(state)
         }
-        val contextTint = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork)
+        val contextTint = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork && !nowPlayingVisible)
         val tintIsDark = contextTint.isDark
         val routeArtwork = state.currentRoute.pageArtwork(state)
         val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
-        SystemBarAppearance(lightIcons = if (tintedArtwork != null) tintIsDark else darkTheme)
+        val artworkBehindStatusBar = nowPlayingVisible && followArtwork &&
+            state.playerPage == PlayerPage.Artwork && !state.isArtworkExpanded
+        val headerDark = rememberArtworkHeaderIsDark(current?.artwork(), darkTheme)
+        SystemBarAppearance(
+            lightIcons = if (artworkBehindStatusBar) headerDark else if (tintedArtwork != null) tintIsDark else darkTheme,
+            navigationLightIcons = if (tintedArtwork != null) tintIsDark else darkTheme,
+        )
         val tabTitles = mapOf(
             Tab.Home to stringResource(Res.string.tab_home),
             Tab.Library to stringResource(Res.string.tab_library),

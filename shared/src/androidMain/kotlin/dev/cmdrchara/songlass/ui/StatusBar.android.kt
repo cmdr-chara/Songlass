@@ -10,7 +10,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.view.WindowCompat
 
 @Composable
-actual fun SystemBarAppearance(lightIcons: Boolean) {
+actual fun SystemBarAppearance(lightIcons: Boolean, navigationLightIcons: Boolean) {
     val view = LocalView.current
     val controller = remember(view) {
         (view.context as? Activity)?.window?.let { WindowCompat.getInsetsController(it, view) }
@@ -25,8 +25,8 @@ actual fun SystemBarAppearance(lightIcons: Boolean) {
     }
     // Android may reset decor appearance during a handled configuration change.
     val configuration = LocalConfiguration.current
-    LaunchedEffect(controller, lightIcons, configuration) {
+    LaunchedEffect(controller, lightIcons, navigationLightIcons, configuration) {
         controller.isAppearanceLightStatusBars = !lightIcons
-        controller.isAppearanceLightNavigationBars = !lightIcons
+        controller.isAppearanceLightNavigationBars = !navigationLightIcons
     }
 }

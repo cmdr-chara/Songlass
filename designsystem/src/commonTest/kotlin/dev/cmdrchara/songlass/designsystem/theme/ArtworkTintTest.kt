@@ -111,4 +111,22 @@ class ArtworkTintTest {
         val charcoal = ArtworkTint.from(Color(0xFF3366FF), dark = true, edge = Color(0xFF2A2A2A))
         assertTrue(Hsl.of(nearBlack.background).l < Hsl.of(charcoal.background).l)
     }
+
+    @Test
+    fun artworkHeaderChoosesContrastingChromeForBlackAndWhiteCovers() {
+        assertTrue(ArtworkTint.prefersLightContent(Color.Black))
+        assertTrue(!ArtworkTint.prefersLightContent(Color.White))
+        assertTrue(ArtworkTint.prefersLightContent(Color(0xFF10001F)))
+    }
+
+    @Test
+    fun artworkHeaderChromeMeetsContrastForEveryGrayTone() {
+        for (channel in 0..255) {
+            val gray = channel / 255f
+            val background = Color(gray, gray, gray)
+            val content = if (ArtworkTint.prefersLightContent(background)) Color.White else Color.Black
+            assertTrue(ArtworkTint.contrast(content, background) >= 4.5f, "gray=$channel")
+        }
+    }
+
 }

@@ -6,7 +6,7 @@ import androidx.compose.ui.uikit.LocalUIViewController
 import dev.cmdrchara.songlass.SonglassViewController
 
 @Composable
-actual fun SystemBarAppearance(lightIcons: Boolean) {
+actual fun SystemBarAppearance(lightIcons: Boolean, navigationLightIcons: Boolean) {
     val controller = LocalUIViewController.current.parentViewController as? SonglassViewController
     SideEffect { controller?.updateStatusBarAppearance(lightIcons) }
 }

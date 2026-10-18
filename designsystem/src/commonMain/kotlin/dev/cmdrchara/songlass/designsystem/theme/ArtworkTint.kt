@@ -130,6 +130,10 @@ data class ArtworkTint(
             blue = samples.map { it.blue }.average().toFloat(),
         )
 
+        /** Which system-bar foreground has greater contrast over a cover's header. */
+        fun prefersLightContent(background: Color): Boolean =
+            contrast(Color.White, background) >= contrast(Color.Black, background)
+
         /** WCAG contrast ratio between two opaque colors (1..21). */
         fun contrast(a: Color, b: Color): Float {
             val la = a.luminance() + 0.05f

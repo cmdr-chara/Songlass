@@ -111,7 +111,7 @@
     <string name="settings_artwork">Copertina</string>
     <string name="settings_artwork_full">A tutta larghezza</string>
     <string name="settings_artwork_square">Riquadro</string>
-    <string name="settings_artwork_hint">Come appaiono le copertine in In riproduzione e nelle pagine di album e playlist. A tutta larghezza segue i toni chiari o scuri della copertina.</string>
+    <string name="settings_artwork_hint">Come appaiono le copertine in In riproduzione e nelle pagine di album e playlist. A tutta larghezza sfuma la copertina nello sfondo. I controlli del player seguono l’aspetto scelto.</string>
     <string name="tab_home">Home</string>
     <string name="home_shuffle_all">Casuale su tutto</string>
     <string name="home_recently_added">Aggiunti di recente</string>

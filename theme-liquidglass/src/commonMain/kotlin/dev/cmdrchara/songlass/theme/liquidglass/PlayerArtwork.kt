@@ -99,7 +99,6 @@ internal fun PlayerArtworkHero(
     val image = rememberArtworkImage(artwork, LARGE_ARTWORK_PX)
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val reduceTransparency = AppTheme.accessibility.reduceTransparency
-    val dark = AppTheme.colors.isDark
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     var dragging by remember { mutableStateOf(false) }
@@ -180,16 +179,6 @@ internal fun PlayerArtworkHero(
                         radius = size.width * 0.85f,
                     ))
                 }
-                // Status icons and the dismiss affordance must remain readable over
-                // both an all-white cover in dark mode and a black cover in light mode.
-                val topScrim = if (dark) Color.Black else Color.White
-                val protectedTop = (80.dp.toPx() / size.height).coerceIn(0.12f, 0.6f)
-                drawRect(Brush.verticalGradient(
-                    0f to topScrim.copy(alpha = 0.62f),
-                    protectedTop to topScrim.copy(alpha = 0.62f),
-                    (protectedTop + 0.1f).coerceAtMost(1f) to topScrim.copy(alpha = 0f),
-                    1f to topScrim.copy(alpha = 0f),
-                ))
                 // Long eased fade: the cover dissolves over its lower half and the page color is
                 // solid well before the title, so text never sits on the artwork's details.
                 val fade = if (reduceTransparency) HeroFadeStopsOpaque else HeroFadeStops
