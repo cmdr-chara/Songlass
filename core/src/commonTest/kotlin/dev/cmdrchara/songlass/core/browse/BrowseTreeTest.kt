@@ -68,6 +68,14 @@ class BrowseTreeTest {
     }
 
     @Test
+    fun resumesTheLastCollectionFromTheLastSong() {
+        val request = tree(recent = listOf(PlayContext.Album("One", "A"))).resume(lastTrackId = "a2")!!
+        assertEquals(listOf("a1", "a2"), request.tracks.map { it.id })
+        assertEquals(1, request.startIndex)
+        assertTrue(tree().resume(null)!!.shuffle)
+    }
+
+    @Test
     fun spokenQueriesPlayArtistsAlbumsOrSongs() {
         val tree = tree()
         assertEquals(listOf("b1"), tree.resolveQuery("b")!!.tracks.map { it.id })

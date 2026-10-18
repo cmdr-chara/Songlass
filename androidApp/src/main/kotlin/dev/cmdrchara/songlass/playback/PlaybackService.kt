@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.view.KeyEvent
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.util.UnstableApi
@@ -138,6 +139,24 @@ class PlaybackService : MediaLibraryService() {
                 ?: item?.requestMetadata?.searchQuery?.let(tree::resolveQuery)
             request?.let(::play)
             MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex.coerceAtLeast(0), startPositionMs)
+        }
+
+        /**
+         * Play pressed with nothing loaded, e.g. after Android closed the app (car, Bluetooth,
+         * widget): continue the last collection. Only for playback; no resumption card.
+         */
+        override fun onPlaybackResumption(
+            mediaSession: MediaSession,
+            controller: MediaSession.ControllerInfo,
+            isForPlayback: Boolean,
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            if (!isForPlayback) return Futures.immediateFailedFuture(UnsupportedOperationException("No resumption card"))
+            return withTree { tree ->
+                val request = tree.resume(graph.history.state.value.recentPlays.firstOrNull()) ?: throw IllegalStateException("No music")
+                play(request)
+                val current = mediaSession.player.currentMediaItem
+                MediaSession.MediaItemsWithStartPosition(listOfNotNull(current), 0, C.TIME_UNSET)
+            }
         }
 
         override fun onMediaButtonEvent(session: MediaSession, controllerInfo: MediaSession.ControllerInfo, intent: Intent): Boolean =

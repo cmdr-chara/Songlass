@@ -1,6 +1,8 @@
 package dev.cmdrchara.songlass
 
 import android.app.Application
+import android.content.res.Configuration
+import dev.cmdrchara.songlass.widget.NowPlayingWidgets
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -66,6 +68,13 @@ class SonglassApplication : Application() {
             remoteLyrics = LrcLibLyricsSource(this),
         )
         watchAudioOutputs()
+        NowPlayingWidgets.observe(this, scope)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Liquid widgets compute their colours for light or dark mode.
+        NowPlayingWidgets.refresh(this)
     }
 
     /**

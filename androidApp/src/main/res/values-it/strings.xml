@@ -12,4 +12,10 @@
         <item quantity="many">%1$d brani</item>
         <item quantity="other">%1$d brani</item>
     </plurals>
+    <string name="widget_description">Cosa sta suonando, con riproduci, successivo e precedente</string>
+    <string name="widget_nothing_playing">Niente in riproduzione</string>
+    <string name="widget_play">Riproduci</string>
+    <string name="widget_pause">Pausa</string>
+    <string name="widget_next">Successivo</string>
+    <string name="widget_previous">Precedente</string>
 </resources>

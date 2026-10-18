@@ -111,6 +111,18 @@ class BrowseTree(
         return search(query).firstOrNull { !it.browsable }?.let { resolvePlay(it.id) }
     }
 
+    /**
+     * Picking up after the app was closed (Play pressed on a car, headphones or a widget): the
+     * last collection listened to, from the last song heard if it belongs to it; otherwise all
+     * music shuffled.
+     */
+    fun resume(lastTrackId: String?): PlayRequest? {
+        val context = recent.firstOrNull() ?: return resolvePlay(SHUFFLE_ALL)
+        val tracks = tracksOf(context).ifEmpty { return resolvePlay(SHUFFLE_ALL) }
+        val index = tracks.indexOfFirst { it.id == lastTrackId }.coerceAtLeast(0)
+        return PlayRequest(tracks, index, context)
+    }
+
     /** Voice or typed search from the car: artists, albums, then songs (each within its album). */
     fun search(query: String): List<BrowseNode> {
         val results = library.search(query)
