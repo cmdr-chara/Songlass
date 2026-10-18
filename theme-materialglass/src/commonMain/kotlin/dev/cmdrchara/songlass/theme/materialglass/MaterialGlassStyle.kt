@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -26,8 +27,8 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
@@ -131,15 +132,14 @@ private fun TransportPill(icon: ImageVector, description: String, onClick: () ->
         if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 400f),
         label = "transportShape",
     )
-    val fill = if (prominent) palette.vivid.copy(alpha = if (palette.dark) 0.75f else 0.62f) else colors.fill
-    // On the vivid fill, dark ink on light hues (yellow, lime) and white on deep ones.
-    val iconTint = if (!prominent) LocalContentColor.current
-    else if (palette.vivid.luminance() > 0.45f) palette.ink.takeIf { !palette.dark } ?: Color.Black else Color.White
+    val fill = if (prominent) palette.primary else palette.primaryContainer
+    val iconTint = if (prominent) palette.onPrimary else palette.onPrimaryContainer
     Box(
         Modifier
             .size(width = width, height = 72.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .seaDecor(RoundedCornerShape(corner), palette, glow = prominent, base = fill)
+            .clip(RoundedCornerShape(corner))
+            .background(fill)
             .clickable(interaction, indication = null, role = Role.Button, onClickLabel = description, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -168,13 +168,14 @@ private fun CardRow(
         if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f),
         label = "cardRowPress",
     )
-    val fill = if (highlighted) palette.vivid.copy(alpha = if (palette.dark) 0.3f else 0.2f) else colors.fill.copy(alpha = colors.fill.alpha * 0.8f)
+    val fill = if (highlighted) palette.primaryContainer else palette.container
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .seaDecor(RoundedCornerShape(20.dp), palette, glow = false, base = fill)
+            .clip(RoundedCornerShape(20.dp))
+            .background(fill)
             .then(if (onClick != null) Modifier.clickable(interaction, indication = null, onClick = onClick) else Modifier)
             .heightIn(min = if (subtitle != null) 64.dp else 48.dp)
             .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
@@ -186,7 +187,7 @@ private fun CardRow(
         }
         Column(Modifier.weight(1f)) {
             val content = LocalContentColor.current
-            AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content, maxLines = 1)
+            AppText(title, AppTheme.typography.body, color = if (highlighted) palette.onPrimaryContainer else content, maxLines = 1)
             if (subtitle != null) {
                 AppText(subtitle, AppTheme.typography.subheadline, color = content.copy(alpha = 0.6f), maxLines = 1)
             }

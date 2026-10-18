@@ -79,40 +79,38 @@ private const val HUE_CHANGE_MILLIS = 360
 private const val DEFAULT_HUE = 275f
 
 /**
- * The file's palette rule, for any hue: a vivid surface colour (`C`), a pale glow (`C'`, ~89%
- * lightness) and a dark, desaturated colour for text on it (~48% saturation, ~35% lightness).
+ * Tonal roles from one hue, after Material 3: a near-neutral background, cards a step below, a
+ * saturated primary for the main action, a soft primary container for secondary actions and
+ * strong text. The glass of the navigation layer keeps the Figma file's vivid colour (`C`) and
+ * pale glow (`C'`). Only distinct tones keep the layers apart; one pastel everywhere looked washed out.
  */
 internal class SeaPalette(val hue: Float, val dark: Boolean) {
-    val vivid: Color = Hsl(hue, 1f, 0.5f).toColor()
-    val glow: Color = Hsl(hue, 1f, if (dark) 0.62f else 0.89f).toColor()
-    val ink: Color = if (dark) Hsl(hue, 0.9f, 0.86f).toColor() else Hsl(hue, 0.48f, 0.35f).toColor()
+    private fun tone(s: Float, l: Float) = Hsl(hue, s, l).toColor()
 
-    fun appColors(): AppColors = if (dark) {
-        AppColors(
-            isDark = true,
-            background = Hsl(hue, 0.32f, 0.07f).toColor(),
-            secondaryBackground = Hsl(hue, 0.32f, 0.14f).toColor(),
-            label = Hsl(hue, 0.3f, 0.96f).toColor(),
-            secondaryLabel = Hsl(hue, 0.25f, 0.82f).toColor().copy(alpha = 0.7f),
-            tertiaryLabel = Hsl(hue, 0.2f, 0.8f).toColor().copy(alpha = 0.38f),
-            separator = Hsl(hue, 0.2f, 0.7f).toColor().copy(alpha = 0.2f),
-            fill = vivid.copy(alpha = 0.22f),
-            accent = ink,
-        )
-    } else {
-        AppColors(
-            isDark = false,
-            // The file's backgrounds (#F3EDF7, #F8FAFD) are near-white tints of the surface hue.
-            background = Hsl(hue, 0.4f, 0.965f).toColor(),
-            secondaryBackground = Hsl(hue, 0.7f, 0.92f).toColor(),
-            label = Hsl(hue, 0.3f, 0.12f).toColor(),
-            secondaryLabel = Hsl(hue, 0.2f, 0.32f).toColor().copy(alpha = 0.85f),
-            tertiaryLabel = Hsl(hue, 0.15f, 0.35f).toColor().copy(alpha = 0.45f),
-            separator = Hsl(hue, 0.25f, 0.45f).toColor().copy(alpha = 0.2f),
-            fill = vivid.copy(alpha = 0.14f),
-            accent = ink,
-        )
-    }
+    val vivid: Color = tone(1f, 0.5f)
+    val glow: Color = tone(1f, if (dark) 0.62f else 0.89f)
+
+    val background: Color = if (dark) tone(0.18f, 0.07f) else tone(0.35f, 0.975f)
+    val container: Color = if (dark) tone(0.2f, 0.13f) else tone(0.42f, 0.925f)
+    val containerHigh: Color = if (dark) tone(0.2f, 0.18f) else tone(0.45f, 0.885f)
+    val primary: Color = if (dark) tone(0.85f, 0.78f) else tone(0.62f, 0.4f)
+    val onPrimary: Color = if (dark) tone(0.7f, 0.16f) else Color.White
+    val primaryContainer: Color = if (dark) tone(0.45f, 0.28f) else tone(0.85f, 0.86f)
+    val onPrimaryContainer: Color = if (dark) tone(0.85f, 0.9f) else tone(0.65f, 0.17f)
+    val label: Color = if (dark) tone(0.25f, 0.94f) else tone(0.3f, 0.1f)
+    val secondaryLabel: Color = if (dark) tone(0.15f, 0.74f) else tone(0.15f, 0.36f)
+
+    fun appColors(): AppColors = AppColors(
+        isDark = dark,
+        background = background,
+        secondaryBackground = container,
+        label = label,
+        secondaryLabel = secondaryLabel,
+        tertiaryLabel = secondaryLabel.copy(alpha = 0.55f),
+        separator = secondaryLabel.copy(alpha = 0.18f),
+        fill = containerHigh,
+        accent = primary,
+    )
 }
 
 /**

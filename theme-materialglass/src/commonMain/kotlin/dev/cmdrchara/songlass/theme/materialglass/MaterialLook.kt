@@ -108,10 +108,10 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @Composable
     override fun controlSurface(modifier: Modifier, shape: Shape, color: Color, prominent: Boolean): Modifier {
-        val palette = palette()
-        // The page's main action is the vivid surface colour, as the file's coloured buttons.
-        val fill = if (prominent) palette.vivid.copy(alpha = if (palette.dark) 0.75f else 0.62f) else color
-        return modifier.seaDecor(shape, palette, glow = true, base = fill)
+        // Content controls are clean tonal surfaces, as in Material 3: glass, glow and grain stay
+        // in the navigation layer. The page's main action is the saturated primary.
+        val fill = if (prominent) palette().primary else color
+        return modifier.clip(shape).background(fill)
     }
 
     @Composable
