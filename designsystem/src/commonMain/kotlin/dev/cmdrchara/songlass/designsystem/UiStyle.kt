@@ -76,6 +76,13 @@ enum class ShelfStyle {
     Pins,
 }
 
+/** A folder in the exclusion picker; null expanded means a leaf. */
+@Immutable
+data class FolderChoice(
+    val title: String, val subtitle: String, val expanded: Boolean?,
+    val excluded: Boolean, val enabled: Boolean, val expandLabel: String, val excludeLabel: String,
+)
+
 /** One band of the graphic equalizer: where it sits, what it is called and its gain. */
 @Immutable
 data class EqBand(val frequencyHz: Float, val label: String, val gainDb: Float)
@@ -299,6 +306,9 @@ interface UiStyle {
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
     )
+
+    @Composable
+    fun FolderChoiceRow(choice: FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier)
 
     /**
      * Graphic equalizer: the response [curve] (dB, log-spaced from 20 Hz to 20 kHz) with a point

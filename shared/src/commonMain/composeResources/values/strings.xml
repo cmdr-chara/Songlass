@@ -213,4 +213,22 @@
     </plurals>
     <string name="settings_resume_reconnect">Resume on Reconnect</string>
     <string name="settings_resume_reconnect_hint">If the music stopped because headphones or the car disconnected, it continues when they connect again within an hour.</string>
+    <string name="library_settings">Library</string>
+    <string name="library_filter_count">%1$d of %2$d songs visible</string>
+    <string name="library_minimum_duration">Minimum duration</string>
+    <string name="library_all_durations">Show all songs</string>
+    <string name="library_duration_seconds">At least %1$d seconds</string>
+    <string name="library_excluded_folders">Excluded folders</string>
+    <string name="library_exclusions_hint">Choose the folders to hide. Subfolders are included; your files stay on the device.</string>
+    <string name="library_parent_excluded">Hidden by an excluded parent folder</string>
+    <string name="library_no_folders">No music folders found.</string>
+    <string name="library_scanning">Reading your music…</string>
+    <string name="library_scanning_hint">Reading local tags. The next scan uses a cached copy.</string>
+    <string name="library_filtered_empty">No matching songs</string>
+    <string name="library_filtered_hint">Change the folder exclusions or minimum duration in Settings → Library.</string>
+    <plurals name="library_subfolders"><item quantity="one">1 subfolder</item><item quantity="other">%1$d subfolders</item></plurals>
+    <string name="library_expand_folder">Expand %1$s</string>
+    <string name="library_collapse_folder">Collapse %1$s</string>
+    <string name="library_exclude_folder">Exclude %1$s</string>
+    <string name="library_duration_hint">Unknown durations stay visible.</string>
 </resources>

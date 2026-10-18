@@ -113,7 +113,12 @@ fun HomeScreen(
                 }
             }
             if (!hasAccess || library.tracks.isEmpty()) {
-                item { LibraryEmptyState(hasAccess, onRequestAccess) }
+                item {
+                    val loading by state.isLibraryLoading.collectAsState()
+                    val preferences by state.settings.state.collectAsState()
+                    LibraryEmptyState(hasAccess, onRequestAccess, loading,
+                        preferences.libraryFilter != dev.cmdrchara.songlass.core.library.LibraryFilter())
+                }
                 return@LazyColumn
             }
 

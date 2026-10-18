@@ -115,7 +115,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
     InterfaceTheme(preferences.interfaceStyle, darkTheme, accessibility) {
         val library by graph.library.collectAsState()
         val hasLibraryAccess by graph.source.hasAccess.collectAsState()
-        LaunchedEffect(library) { state.library = library }
+        LaunchedEffect(library) { state.updateLibrary(library) }
         LaunchedEffect(hasLibraryAccess) { graph.refreshLibrary() }
         PlatformBackHandler(enabled = state.canGoBack) { state.goBack() }
 
@@ -196,10 +196,12 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,
                                 onOpenEqualizer = { state.open(Route.Equalizer) },
+                                onOpenLibrary = { state.open(Route.LibrarySettings) },
                                 backLabel = backLabel,
                                 onBack = state::goBack,
                                 contentPadding = padding,
                             )
+                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding)
                             Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
@@ -236,6 +238,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                 if (current != null) SongInformation(state, current, player)
                 TrackMenu(state, favoriteIds)
                 SleepTimerMenu(state)
+                dev.cmdrchara.songlass.ui.LibraryDurationMenu(state)
                 PlaylistSheets(state, rememberPlaylistExporter())
             }
         }

@@ -69,6 +69,10 @@ interface GlassLook {
     // change of look keeps the same composition tree (no rebuilt screens when switching style).
 
     @Composable
+    fun FolderChoiceRow(choice: dev.cmdrchara.songlass.designsystem.FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier) =
+        GlassFolderChoiceRow(choice, onExpand, onExcludedChange, material = false, modifier = modifier)
+
+    @Composable
     fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
         LiquidGlassSeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
 

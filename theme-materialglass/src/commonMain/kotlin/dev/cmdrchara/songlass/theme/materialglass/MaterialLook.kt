@@ -59,6 +59,10 @@ import kotlin.random.Random
 @Stable
 internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
+    @Composable
+    override fun FolderChoiceRow(choice: dev.cmdrchara.songlass.designsystem.FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier) =
+        dev.cmdrchara.songlass.theme.liquidglass.GlassFolderChoiceRow(choice, onExpand, onExcludedChange, material = true, modifier = modifier)
+
     /**
      * The palette where the surface is drawn: on pages tinted by a cover (album, folder, player)
      * the surrounding colours carry that cover's hue, so the glass matches the page; elsewhere it

@@ -40,6 +40,10 @@ import androidx.compose.ui.draw.clip
 import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.designsystem.SettingsGroup
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.shared.resources.library_scanning
+import dev.cmdrchara.songlass.shared.resources.library_scanning_hint
+import dev.cmdrchara.songlass.shared.resources.library_filtered_empty
+import dev.cmdrchara.songlass.shared.resources.library_filtered_hint
 import dev.cmdrchara.songlass.shared.resources.library_folders
 import dev.cmdrchara.songlass.shared.resources.tag_folder
 import dev.cmdrchara.songlass.shared.resources.folders_count
@@ -142,7 +146,12 @@ fun LibraryScreen(
             }
         }
         if (!hasAccess || library.tracks.isEmpty()) {
-            item { LibraryEmptyState(hasAccess, onRequestAccess) }
+            item {
+                    val loading by state.isLibraryLoading.collectAsState()
+                    val preferences by state.settings.state.collectAsState()
+                    LibraryEmptyState(hasAccess, onRequestAccess, loading,
+                        preferences.libraryFilter != dev.cmdrchara.songlass.core.library.LibraryFilter())
+                }
             return@LazyColumn
         }
         val pinned = pinnedItems
@@ -385,19 +394,29 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
 
 /** Shown before the user grants access to their music, or when no music was found. */
 @Composable
-internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?) {
+internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?, loading: Boolean = false, filtered: Boolean = false) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         AppText(
-            text = stringResource(if (hasAccess) Res.string.library_empty else Res.string.library_access_title),
+            text = stringResource(when {
+                !hasAccess -> Res.string.library_access_title
+                loading -> Res.string.library_scanning
+                filtered -> Res.string.library_filtered_empty
+                else -> Res.string.library_empty
+            }),
             style = AppTheme.typography.title3,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(8.dp))
         AppText(
-            text = stringResource(if (hasAccess) Res.string.library_empty_hint else Res.string.library_access_message),
+            text = stringResource(when {
+                !hasAccess -> Res.string.library_access_message
+                loading -> Res.string.library_scanning_hint
+                filtered -> Res.string.library_filtered_hint
+                else -> Res.string.library_empty_hint
+            }),
             style = AppTheme.typography.subheadline,
             color = AppTheme.colors.secondaryLabel,
             textAlign = TextAlign.Center,
@@ -459,6 +478,7 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
         onSubtitleClick = artist?.let { { state.open(Route.ArtistDetail(it)) } },
         tracks = album.tracks,
         durationMs = album.durationMs,
+        releaseYear = album.tracks.mapNotNull { it.releaseDate?.year }.distinct().singleOrNull(),
         context = album.playContext(),
         state = state,
         backLabel = backLabel,
@@ -531,6 +551,7 @@ internal fun ArtworkCollectionPage(
     onSubtitleClick: (() -> Unit)?,
     tracks: List<Track>,
     durationMs: Long,
+    releaseYear: Int? = null,
     context: PlayContext,
     state: AppState,
     backLabel: String,
@@ -554,7 +575,7 @@ internal fun ArtworkCollectionPage(
                     subtitle = subtitle,
                     onSubtitleClick = onSubtitleClick,
                     meta = pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size) +
-                        " · " + stringResource(Res.string.album_minutes, minutes),
+                        " · " + stringResource(Res.string.album_minutes, minutes) + (releaseYear?.let { " · $it" } ?: ""),
                     playLabel = stringResource(Res.string.action_play),
                     shuffleLabel = stringResource(Res.string.action_shuffle),
                     onPlay = { state.controller.playTracks(tracks, context = context) },

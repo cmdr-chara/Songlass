@@ -216,6 +216,11 @@ object AppIcons {
         }
     }
 
+    /** Duration: a clock face and two hands, drawn in the app's own icon language. */
+    val Clock: ImageVector by lazy {
+        icon("Clock") { stroke { circle(12f, 12f, 8.5f); moveTo(12f, 7f); lineTo(12f, 12f); lineTo(16f, 14f) } }
+    }
+
     /** Sleep timer: a crescent moon. */
     val Timer: ImageVector by lazy {
         icon("Timer") {

@@ -70,6 +70,7 @@ import dev.cmdrchara.songlass.shared.resources.settings_ui_style
 import dev.cmdrchara.songlass.shared.resources.settings_ui_style_hint
 import dev.cmdrchara.songlass.shared.resources.settings_material_glass
 import dev.cmdrchara.songlass.core.settings.InterfaceStyle
+import dev.cmdrchara.songlass.shared.resources.library_settings
 import org.jetbrains.compose.resources.stringResource
 
 /** App-wide preferences; values and persistence live in core. */
@@ -80,6 +81,7 @@ fun SettingsScreen(
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
     onOpenEqualizer: () -> Unit,
+    onOpenLibrary: () -> Unit,
     backLabel: String,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
@@ -145,6 +147,15 @@ fun SettingsScreen(
             }
         }
         item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                ListRow(
+                    title = stringResource(Res.string.library_settings),
+                    trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp) },
+                    onClick = onOpenLibrary,
+                )
+            }
+        }
         item { SectionTitle(stringResource(Res.string.settings_sound)) }
         item {
             val eq by equalizer.state.collectAsState()

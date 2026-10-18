@@ -274,3 +274,8 @@ fun PromptSheet(
     onDismiss: () -> Unit,
     initialText: String = "",
 ) = LocalUiStyle.current.PromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+
+@Composable
+fun FolderChoiceRow(choice: FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.FolderChoiceRow(choice, onExpand, onExcludedChange, modifier)

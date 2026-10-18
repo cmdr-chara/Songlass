@@ -220,6 +220,10 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.BackButton(label, onClick, modifier)
 
     @Composable
+    override fun FolderChoiceRow(choice: dev.cmdrchara.songlass.designsystem.FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier) =
+        LocalGlassLook.current.FolderChoiceRow(choice, onExpand, onExcludedChange, modifier)
+
+    @Composable
     override fun EqualizerEditor(
         bands: List<EqBand>,
         curve: List<Float>,

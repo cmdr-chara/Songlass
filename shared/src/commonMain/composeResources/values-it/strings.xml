@@ -213,4 +213,22 @@
     </plurals>
     <string name="settings_resume_reconnect">Riprendi al ricollegamento</string>
     <string name="settings_resume_reconnect_hint">Se la musica si è fermata perché cuffie o auto si sono scollegate, riparte quando si ricollegano entro un’ora.</string>
+    <string name="library_settings">Libreria</string>
+    <string name="library_filter_count">%1$d brani visibili su %2$d</string>
+    <string name="library_minimum_duration">Durata minima</string>
+    <string name="library_all_durations">Mostra tutti i brani</string>
+    <string name="library_duration_seconds">Almeno %1$d secondi</string>
+    <string name="library_excluded_folders">Cartelle escluse</string>
+    <string name="library_exclusions_hint">Scegli le cartelle da nascondere. Sono comprese le sottocartelle; i file restano sul dispositivo.</string>
+    <string name="library_parent_excluded">Nascosta dalla cartella superiore esclusa</string>
+    <string name="library_no_folders">Nessuna cartella musicale trovata.</string>
+    <string name="library_scanning">Lettura della musica…</string>
+    <string name="library_scanning_hint">Lettura dei tag locali. Le prossime scansioni useranno una copia in cache.</string>
+    <string name="library_filtered_empty">Nessun brano corrispondente</string>
+    <string name="library_filtered_hint">Modifica le cartelle escluse o la durata minima in Impostazioni → Libreria.</string>
+    <plurals name="library_subfolders"><item quantity="one">1 sottocartella</item><item quantity="other">%1$d sottocartelle</item></plurals>
+    <string name="library_expand_folder">Espandi %1$s</string>
+    <string name="library_collapse_folder">Comprimi %1$s</string>
+    <string name="library_exclude_folder">Escludi %1$s</string>
+    <string name="library_duration_hint">Le durate sconosciute restano incluse.</string>
 </resources>

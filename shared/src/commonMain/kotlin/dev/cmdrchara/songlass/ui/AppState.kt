@@ -32,6 +32,7 @@ sealed interface PlaylistPrompt {
 sealed interface Route {
     data object Settings : Route
     data object Equalizer : Route
+    data object LibrarySettings : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class FolderDetail(val folder: Folder) : Route
@@ -55,6 +56,7 @@ class AppState(graph: AppGraph) {
     val equalizer = graph.equalizer
     val userPlaylists = graph.userPlaylists
     val sleepTimer = graph.sleepTimer
+    val isLibraryLoading = graph.isLibraryLoading
     val history: ListeningHistory = graph.history
     val lyrics = graph.lyrics
 
@@ -74,6 +76,10 @@ class AppState(graph: AppGraph) {
     var isSongInfoVisible by mutableStateOf(false)
         private set
     fun updateArtworkExpansion(expanded: Boolean) { isArtworkExpanded = expanded }
+    var isLibraryDurationPickerOpen by mutableStateOf(false)
+        private set
+    fun openLibraryDurationPicker() { isLibraryDurationPickerOpen = true }
+    fun closeLibraryDurationPicker() { isLibraryDurationPickerOpen = false }
     var isSleepMenuOpen by mutableStateOf(false)
         private set
     fun openSleepMenu() { isSleepMenuOpen = true }
@@ -106,6 +112,23 @@ class AppState(graph: AppGraph) {
         tab = newTab
     }
 
+    /** Refresh route snapshots too: hidden songs must not survive in an older collection page. */
+    fun updateLibrary(updated: dev.cmdrchara.songlass.core.library.MusicLibrary) {
+        library = updated
+        backStacks.values.forEach { stack ->
+            for (index in stack.lastIndex downTo 0) {
+                val original = stack[index]
+                val refreshed: Route? = when (original) {
+                    is Route.AlbumDetail -> updated.albums.firstOrNull { it.title == original.album.title && it.artist == original.album.artist }?.let(Route::AlbumDetail)
+                    is Route.ArtistDetail -> updated.artists.firstOrNull { it.name == original.artist.name }?.let(Route::ArtistDetail)
+                    is Route.FolderDetail -> updated.folder(original.folder.id)?.let(Route::FolderDetail)
+                    else -> original
+                }
+                if (refreshed == null) stack.removeAt(index) else if (refreshed != original) stack[index] = refreshed
+            }
+        }
+    }
+
     fun open(route: Route) {
         backStacks.getValue(tab).add(route)
     }
@@ -115,6 +138,7 @@ class AppState(graph: AppGraph) {
             playlistPrompt != null -> closePlaylistPrompt()
             addToPlaylistTracks != null -> closeAddToPlaylist()
             playlistOptionsId != null -> closePlaylistOptions()
+            isLibraryDurationPickerOpen -> closeLibraryDurationPicker()
             isSleepMenuOpen -> closeSleepMenu()
             menuTrack != null -> closeMenu()
             isSongInfoVisible -> closeSongInfo()
@@ -168,7 +192,7 @@ class AppState(graph: AppGraph) {
     var editingPlaylistId by mutableStateOf<String?>(null)
 
     val hasOverlay: Boolean
-        get() = isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
+        get() = isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
 
     fun closeMenu() {

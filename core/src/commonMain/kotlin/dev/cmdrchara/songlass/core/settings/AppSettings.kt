@@ -1,5 +1,8 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.library.LibraryFilter
+import dev.cmdrchara.songlass.core.storage.getStringList
+import dev.cmdrchara.songlass.core.storage.putStringList
 import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
@@ -38,6 +41,12 @@ class AppSettings(private val store: KeyValueStore) {
                 else -> FolderSort.Name
             },
             resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
+            libraryFilter = LibraryFilter(
+                excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
+                    .filter { it.isNotBlank() }.toSet(),
+                minimumDurationMs = store.getString(MIN_DURATION_KEY)?.toLongOrNull()
+                    ?.takeIf { it in LibraryFilter.durationChoicesMs } ?: 0,
+            ),
         ),
     )
 
@@ -114,7 +123,24 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(resumeOnReconnect = enabled) }
     }
 
+    fun setMinimumDuration(durationMs: Long) {
+        require(durationMs in LibraryFilter.durationChoicesMs)
+        store.putString(MIN_DURATION_KEY, durationMs.toString())
+        _state.update { it.copy(libraryFilter = it.libraryFilter.copy(minimumDurationMs = durationMs)) }
+    }
+
+    fun setFolderExcluded(path: String, excluded: Boolean) {
+        val folder = path.trim('/')
+        if (folder.isBlank()) return
+        val current = state.value.libraryFilter
+        val folders = if (excluded) current.excludedFolders + folder else current.excludedFolders - folder
+        store.putStringList(EXCLUDED_FOLDERS_KEY, folders.sorted())
+        _state.update { it.copy(libraryFilter = it.libraryFilter.copy(excludedFolders = folders)) }
+    }
+
     private companion object {
+        const val EXCLUDED_FOLDERS_KEY = "library.excluded_folders"
+        const val MIN_DURATION_KEY = "library.minimum_duration_ms"
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"

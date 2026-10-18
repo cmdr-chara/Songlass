@@ -34,4 +34,5 @@ data class AppPreferences(
     val folderSort: FolderSort = FolderSort.Name,
     /** Play again when headphones or a car reconnect after cutting playback off. Off by default. */
     val resumeOnReconnect: Boolean = false,
+    val libraryFilter: dev.cmdrchara.songlass.core.library.LibraryFilter = dev.cmdrchara.songlass.core.library.LibraryFilter(),
 )

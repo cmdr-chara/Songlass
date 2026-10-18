@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import kotlinx.coroutines.sync.withLock
 
 /** Where the music comes from (MediaStore on Android, the demo list elsewhere). */
 interface MusicSource {
@@ -68,10 +69,21 @@ class AppGraph(
     private val playCounter = PlayCounter()
     private val outputResume = OutputResume(clock = { Clock.System.now().toEpochMilliseconds() })
 
+    private val _isLibraryLoading = MutableStateFlow(false)
+    val isLibraryLoading: StateFlow<Boolean> = _isLibraryLoading.asStateFlow()
+    private val refreshMutex = kotlinx.coroutines.sync.Mutex()
+
+    private val _allTracks = MutableStateFlow<List<Track>>(emptyList())
+    val allTracks: StateFlow<List<Track>> = _allTracks.asStateFlow()
     private val _library = MutableStateFlow(MusicLibrary(emptyList()))
     val library: StateFlow<MusicLibrary> = _library.asStateFlow()
 
     init {
+        scope.launch {
+            combine(allTracks, settings.state.map { it.libraryFilter }.distinctUntilChanged()) { tracks, filter ->
+                MusicLibrary(filter.apply(tracks))
+            }.collect { _library.value = it }
+        }
         // ReplayGain: the player's own volume evens out loudness, on top of the device volume.
         scope.launch {
             combine(player.state.map { it.replayGain }.distinctUntilChanged(), settings.state.map { it.replayGain }.distinctUntilChanged()) { tags, mode ->
@@ -119,7 +131,16 @@ class AppGraph(
     /** Re-reads the music from [source]; does nothing without access. */
     suspend fun refreshLibrary() {
         if (!source.hasAccess.value) return
-        _library.value = MusicLibrary(source.loadTracks())
+        refreshMutex.withLock {
+            _isLibraryLoading.value = true
+            try {
+                val tracks = source.loadTracks()
+                _allTracks.value = tracks
+                _library.value = MusicLibrary(settings.state.value.libraryFilter.apply(tracks))
+            } finally {
+                _isLibraryLoading.value = false
+            }
+        }
     }
 
     companion object {
