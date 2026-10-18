@@ -120,6 +120,7 @@ object NowPlayingWidgets {
         views.setTextViewText(R.id.title, content.title ?: context.getString(R.string.widget_nothing_playing))
         views.setImageViewResource(R.id.play, if (content.playing) R.drawable.widget_pause else R.drawable.widget_play)
         views.setContentDescription(R.id.play, context.getString(if (content.playing) R.string.widget_pause else R.string.widget_play))
+        views.setContentDescription(R.id.root, listOfNotNull(content.title ?: context.getString(R.string.widget_nothing_playing), content.subtitle).joinToString(", "))
         views.setOnClickPendingIntent(R.id.root, openApp(context))
         views.setOnClickPendingIntent(R.id.play, mediaKey(context, if (content.playing) KeyEvent.KEYCODE_MEDIA_PAUSE else KeyEvent.KEYCODE_MEDIA_PLAY))
         if (wide) {
