@@ -373,7 +373,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
         modifier = modifier
             .height(TabBarHeight)
             .liquidPress(grow = 0.015f, reach = 2.dp, link = link, side = LinkSide.Start)
-            .liquidGlass(Capsule)
+            .navigationBarGlass(Capsule)
             .pointerInput(slots) {
                 val insetPx = inset.toPx()
                 awaitEachGesture {
@@ -426,8 +426,8 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                     scaleY = 1f + 0.12f * l
                 }
                 .clip(Capsule)
-                .background(lerp(LocalGlassLook.current.selection(), colors.label.copy(alpha = 0.08f), lift.value))
-                .border(1.dp, Color.White.copy(alpha = 0.25f * lift.value), Capsule),
+                .background(lerp(LocalGlassLook.current.selection().copy(alpha = if (colors.isDark) 0.22f else 0.10f), colors.label.copy(alpha = 0.08f), lift.value))
+                .border(0.75.dp, Color.White.copy(alpha = (if (colors.isDark) 0.22f else 0.55f) + 0.15f * lift.value), Capsule),
         )
         Row(Modifier.fillMaxSize()) {
             slots.forEachIndexed { slot, index ->
@@ -508,7 +508,7 @@ private fun LiquidBridge(link: LiquidLink) {
                 clip = true
                 shape = GenericShape { _, _ -> if (fill != null) addPath(fill) }
             }
-            .liquidGlass(RoundedCornerShape(0), edges = false)
+            .navigationBarGlass(RoundedCornerShape(0), edges = false)
             .drawWithContent {
                 drawContent()
                 val n = neck ?: return@drawWithContent
@@ -524,7 +524,7 @@ private fun LiquidBridge(link: LiquidLink) {
 @Composable
 private fun tabTint(selected: Boolean): Color {
     val tint by animateColorAsState(
-        targetValue = if (selected) AppTheme.colors.accent else AppTheme.colors.label,
+        targetValue = if (selected) lerp(AppTheme.colors.accent, AppTheme.colors.label, 0.18f) else AppTheme.colors.label,
         animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "tabSelectionTint",
     )
@@ -538,7 +538,7 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
         modifier = Modifier
             .size(size)
             .liquidPress(grow = 0.05f, reach = 3.dp, link = link, side = LinkSide.End)
-            .liquidGlass(Capsule, interaction)
+            .navigationBarGlass(Capsule, interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .semantics {
                 role = Role.Tab

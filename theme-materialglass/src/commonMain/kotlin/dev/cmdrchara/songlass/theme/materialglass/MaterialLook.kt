@@ -81,9 +81,17 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         }
     }
 
+    @Composable
+    override fun navigationSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier =
+        glassSurface(modifier, shape, interactionSource, edges, navigationBar = false)
+
+    @Composable
+    override fun navigationBarSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier =
+        glassSurface(modifier, shape, interactionSource, edges, navigationBar = true)
+
     @OptIn(ExperimentalHazeApi::class)
     @Composable
-    override fun navigationSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier {
+    private fun glassSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean, navigationBar: Boolean): Modifier {
         val colors = AppTheme.colors
         val palette = palette()
         val accessibility = AppTheme.accessibility
@@ -91,7 +99,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         if (accessibility.reduceTransparency || source == null) {
             return modifier.seaDecor(shape, palette, glow = edges, base = colors.secondaryBackground)
         }
-        val style = remember(shape, palette.hue, palette.dark, edges) {
+        val style = remember(shape, palette.hue, palette.dark, edges, navigationBar) {
             GlassStyle.regular.then {
                 shape(shape)
                 backgroundColor(colors.background)
@@ -99,23 +107,25 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
                         // Stronger than the file's look: over busy covers the labels must stay legible.
-                        blurRadius = OpticalSizeValue.Fixed(36.dp),
-                        refractionDisplacement = if (edges) 14.dp else 0.dp,
-                        refractionStrength = if (edges) 0.42f else 0f,
+                        blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 22.dp else 36.dp),
+                        refractionDisplacement = if (!edges) 0.dp else if (navigationBar) 24.dp else 14.dp,
+                        refractionStrength = if (!edges) 0f else if (navigationBar) 0.65f else 0.42f,
                     ),
                 )
                 // Fill 2: the surface colour (33% in the file, raised for legibility); fill 1 (white,
                 // luminosity) lifts it to pastel.
-                tint(palette.vivid.copy(alpha = if (palette.dark) 0.55f else 0.5f))
-                whitePoint(if (palette.dark) -0.05f else 0.4f)
-                chromaMultiplier(1.15f)
+                // A tonal backing stabilizes label contrast; the stronger lens remains at the rim.
+                tint(if (navigationBar) palette.primaryContainer.copy(alpha = 0.68f)
+                    else palette.vivid.copy(alpha = if (palette.dark) 0.55f else 0.5f))
+                whitePoint(if (navigationBar) { if (palette.dark) -0.1f else 0.28f } else { if (palette.dark) -0.05f else 0.4f })
+                chromaMultiplier(if (navigationBar) 1.05f else 1.15f)
                 contentNormalBlend(0f)
                 // The file's glass has no specular or reflection of its own: light comes from the
                 // inner shadows drawn below.
-                specularIntensity(0f)
-                ambientResponse(0.08f)
+                specularIntensity(if (navigationBar) 0.2f else 0f)
+                ambientResponse(if (navigationBar) 0.12f else 0.08f)
                 edgeShadow(Color.Transparent)
-                chromaticAberrationStrength(if (edges) 0.5f else 0f)
+                chromaticAberrationStrength(if (!edges) 0f else if (navigationBar) 0.25f else 0.5f)
                 pressed { lightingIntensity(0.35f) }
             }
         }

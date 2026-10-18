@@ -37,6 +37,11 @@ interface GlassLook {
     @Composable
     fun navigationSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier
 
+    /** Tab-bar glass has its own contrast and lens strength, independent of the mini player. */
+    @Composable
+    fun navigationBarSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier =
+        modifier.appleGlass(shape, interactionSource, edges, navigationBar = true)
+
     /**
      * A filled control inside the content layer (buttons, chips, fields, groups) in [color].
      * Content controls never sample the backdrop: they are part of what the glass refracts.

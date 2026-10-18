@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -126,9 +127,8 @@ private class RippleNode(private val source: InteractionSource) : Node(), DrawMo
 }
 
 /**
- * Floating navigation bar in the glass of the navigation layer: every destination, Search
- * included, with an icon over its label. The selected one sits on a pill indicator that grows
- * out from its centre, as in Material 3.
+ * Floating glass navigation with a tonal capsule around the complete selected destination.
+ * Icon and label share its contrast colour; press feedback covers that same shape.
  */
 @Composable
 internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) {
@@ -136,18 +136,18 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
     Row(
-        look.navigationSurface(modifier.fillMaxWidth().height(72.dp), RoundedCornerShape(percent = 50), null, edges = true)
-            .padding(horizontal = 12.dp)
+        look.navigationBarSurface(modifier.fillMaxWidth().height(72.dp), RoundedCornerShape(percent = 50), null, edges = true)
+            .padding(horizontal = 8.dp)
             .selectableGroup(),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         tabs.forEachIndexed { index, tab ->
             val selected = index == selectedTab
             val interaction = remember { MutableInteractionSource() }
-            val indicatorWidth by animateDpAsState(
-                if (selected) 56.dp else 24.dp,
-                if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 500f),
-                label = "navIndicatorWidth",
+            val indicatorScale by animateFloatAsState(
+                if (selected) 1f else 0.68f,
+                if (reduceMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 500f),
+                label = "navIndicatorScale",
             )
             val indicatorAlpha by animateFloatAsState(if (selected) 1f else 0f, if (reduceMotion) snap() else tween(150), label = "navIndicatorAlpha")
             val tint by animateColorAsState(
@@ -155,34 +155,31 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 if (reduceMotion) snap() else tween(150),
                 label = "navTint",
             )
-            Column(
+            Box(
                 Modifier
                     .weight(1f)
                     .fillMaxHeight()
                     .selectable(selected, interaction, indication = null, role = Role.Tab) { onTabSelected(index) },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
+                contentAlignment = Alignment.Center,
             ) {
-                Box(Modifier.size(width = 64.dp, height = 32.dp), contentAlignment = Alignment.Center) {
-                    Box(
-                        Modifier
-                            .width(indicatorWidth)
-                            .height(32.dp)
-                            .graphicsLayer { alpha = indicatorAlpha }
-                            .clip(CircleShape)
-                            .background(palette.primaryContainer),
-                    )
-                    // The ripple stays inside the indicator's shape, as on Material navigation bars.
-                    Box(Modifier.size(width = 64.dp, height = 32.dp).clip(CircleShape).indication(interaction, MaterialRipple))
-                    AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
-                }
-                Spacer(Modifier.height(4.dp))
-                AppText(
-                    tab.label,
-                    AppTheme.typography.caption1.copy(fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
-                    color = AppTheme.colors.label,
-                    maxLines = 1,
+                Box(
+                    Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)
+                        .graphicsLayer { alpha = indicatorAlpha; scaleX = indicatorScale }
+                        .clip(CircleShape)
+                        .background(palette.primaryContainer)
+                        .border(1.dp, palette.onPrimaryContainer.copy(alpha = 0.16f), CircleShape),
                 )
+                Box(Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp).clip(CircleShape).indication(interaction, MaterialRipple))
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                    AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
+                    Spacer(Modifier.height(2.dp))
+                    AppText(
+                        tab.label,
+                        AppTheme.typography.caption1.copy(fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
+                        color = tint,
+                        maxLines = 1,
+                    )
+                }
             }
         }
     }
