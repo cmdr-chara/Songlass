@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Launch splash (Android 12+ splash screen API): the icon's disc swells in with a slight
-  overshoot, then the note rises into it. The disc spans the 160 dp circle the system shows.
+  Launch splash (Android 12+ splash screen API), drawn after the app icon: the glass bubble
+  swells in, then its sound bars grow from the middle outwards like an equalizer.
+  The bubble spans the 160 dp circle the system shows.
 -->
 <animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt">
@@ -12,7 +13,7 @@
             android:viewportWidth="108"
             android:viewportHeight="108">
             <group
-                android:name="disc"
+                android:name="bubble"
                 android:pivotX="54"
                 android:pivotY="54"
                 android:scaleX="0.6"
@@ -23,96 +24,131 @@
                             android:type="linear"
                             android:startX="18" android:startY="18"
                             android:endX="90" android:endY="90"
-                            android:startColor="#FFA58CFF"
-                            android:endColor="#FF4B2FD0" />
+                            android:startColor="#FFAE96FB"
+                            android:endColor="#FF5030E6" />
                     </aapt:attr>
                 </path>
                 <path
-                    android:fillColor="#33FFFFFF"
-                    android:strokeColor="#99FFFFFF"
-                    android:strokeWidth="1.2"
-                    android:pathData="M54,35a19,19 0 1,1 0,38a19,19 0 1,1 0,-38z" />
+                    android:strokeColor="#B3FFFFFF"
+                    android:strokeWidth="1.4"
+                    android:pathData="M54,19.5a34.5,34.5 0 1,1 0,69a34.5,34.5 0 1,1 0,-69z" />
                 <path
-                    android:strokeColor="#80FFFFFF"
-                    android:strokeWidth="2"
+                    android:strokeColor="#66FFFFFF"
+                    android:strokeWidth="3"
                     android:strokeLineCap="round"
-                    android:pathData="M41,47A14.5,14.5 0 0,1 57,39.8" />
+                    android:pathData="M30,40A28,28 0 0,1 58,26.3" />
             </group>
             <group
-                android:name="note"
+                android:name="bar0"
                 android:pivotX="54"
                 android:pivotY="54"
-                android:translateX="-2.5"
-                android:translateY="6">
+                android:scaleY="0">
                 <path
-                    android:name="note0"
-                    android:fillAlpha="0"
-                    android:fillColor="#FFFFFFFF"
-                    android:pathData="M48.5,62.5a5,3.8 0 1,0 10,0a5,3.8 0 1,0 -10,0z" />
+                    android:fillColor="#E6FFFFFF"
+                    android:pathData="M38.12,52.62a2.12,2.12 0 0,1 4.25,0v2.75a2.12,2.12 0 0,1 -4.25,0z" />
+            </group>
+            <group
+                android:name="bar1"
+                android:pivotX="54"
+                android:pivotY="54"
+                android:scaleY="0">
                 <path
-                    android:name="note1"
-                    android:fillAlpha="0"
-                    android:fillColor="#FFFFFFFF"
-                    android:pathData="M56.7,43h2.3v19.5h-2.3z" />
+                    android:fillColor="#E6FFFFFF"
+                    android:pathData="M43.88,48.62a2.62,2.62 0 0,1 5.25,0v10.75a2.62,2.62 0 0,1 -5.25,0z" />
+            </group>
+            <group
+                android:name="bar2"
+                android:pivotX="54"
+                android:pivotY="54"
+                android:scaleY="0">
                 <path
-                    android:name="note2"
-                    android:fillAlpha="0"
-                    android:fillColor="#FFFFFFFF"
-                    android:pathData="M59,43c0.4,3 1.9,4.5 4.2,6c2.6,1.9 3.4,4.5 2.3,7.5c-0.4,-3 -2.6,-4.9 -6.5,-5.6z" />
+                    android:fillColor="#E6FFFFFF"
+                    android:pathData="M50.88,44.12a3.12,3.12 0 0,1 6.25,0v19.75a3.12,3.12 0 0,1 -6.25,0z" />
+            </group>
+            <group
+                android:name="bar3"
+                android:pivotX="54"
+                android:pivotY="54"
+                android:scaleY="0">
+                <path
+                    android:fillColor="#E6FFFFFF"
+                    android:pathData="M58.88,49.12a2.62,2.62 0 0,1 5.25,0v9.75a2.62,2.62 0 0,1 -5.25,0z" />
+            </group>
+            <group
+                android:name="bar4"
+                android:pivotX="54"
+                android:pivotY="54"
+                android:scaleY="0">
+                <path
+                    android:fillColor="#E6FFFFFF"
+                    android:pathData="M65.62,52.88a2.12,2.12 0 0,1 4.25,0v2.25a2.12,2.12 0 0,1 -4.25,0z" />
             </group>
         </vector>
     </aapt:attr>
-    <target android:name="disc">
+    <target android:name="bubble">
         <aapt:attr name="android:animation">
             <set android:ordering="together">
                 <objectAnimator
                     android:propertyName="scaleX"
                     android:valueFrom="0.6" android:valueTo="1"
-                    android:duration="450"
+                    android:duration="420"
                     android:interpolator="@android:anim/overshoot_interpolator" />
                 <objectAnimator
                     android:propertyName="scaleY"
                     android:valueFrom="0.6" android:valueTo="1"
-                    android:duration="450"
+                    android:duration="420"
                     android:interpolator="@android:anim/overshoot_interpolator" />
             </set>
         </aapt:attr>
     </target>
-    <target android:name="note">
+    <target android:name="bar0">
         <aapt:attr name="android:animation">
             <objectAnimator
-                android:propertyName="translateY"
-                android:valueFrom="6" android:valueTo="0"
-                android:startOffset="220"
-                android:duration="380"
-                android:interpolator="@android:interpolator/decelerate_cubic" />
+                android:propertyName="scaleY"
+                android:valueFrom="0" android:valueTo="1"
+                android:startOffset="390"
+                android:duration="320"
+                android:interpolator="@android:anim/overshoot_interpolator" />
         </aapt:attr>
     </target>
-    <target android:name="note0">
+    <target android:name="bar1">
         <aapt:attr name="android:animation">
             <objectAnimator
-                android:propertyName="fillAlpha"
+                android:propertyName="scaleY"
                 android:valueFrom="0" android:valueTo="1"
-                android:startOffset="220"
-                android:duration="300" />
+                android:startOffset="250"
+                android:duration="320"
+                android:interpolator="@android:anim/overshoot_interpolator" />
         </aapt:attr>
     </target>
-    <target android:name="note1">
+    <target android:name="bar2">
         <aapt:attr name="android:animation">
             <objectAnimator
-                android:propertyName="fillAlpha"
+                android:propertyName="scaleY"
                 android:valueFrom="0" android:valueTo="1"
-                android:startOffset="220"
-                android:duration="300" />
+                android:startOffset="180"
+                android:duration="320"
+                android:interpolator="@android:anim/overshoot_interpolator" />
         </aapt:attr>
     </target>
-    <target android:name="note2">
+    <target android:name="bar3">
         <aapt:attr name="android:animation">
             <objectAnimator
-                android:propertyName="fillAlpha"
+                android:propertyName="scaleY"
                 android:valueFrom="0" android:valueTo="1"
-                android:startOffset="220"
-                android:duration="300" />
+                android:startOffset="320"
+                android:duration="320"
+                android:interpolator="@android:anim/overshoot_interpolator" />
+        </aapt:attr>
+    </target>
+    <target android:name="bar4">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="scaleY"
+                android:valueFrom="0" android:valueTo="1"
+                android:startOffset="460"
+                android:duration="320"
+                android:interpolator="@android:anim/overshoot_interpolator" />
         </aapt:attr>
     </target>
 </animated-vector>
