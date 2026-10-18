@@ -11,7 +11,6 @@ import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Folder
-import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
@@ -25,12 +24,18 @@ enum class PlayerPage { Artwork, Queue, Lyrics }
 /** Library categories listed above the folders, each opening its own page. */
 enum class LibraryCategory { Artists, Albums, Songs, Favorites }
 
+sealed interface PlaylistPrompt {
+    data class Create(val trackIds: List<String>) : PlaylistPrompt
+    data class Rename(val id: String, val currentName: String) : PlaylistPrompt
+}
+
 sealed interface Route {
     data object Settings : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class FolderDetail(val folder: Folder) : Route
     data class LibraryPage(val category: LibraryCategory) : Route
+    data class UserPlaylistDetail(val id: String) : Route
 }
 
 /** A stable snapshot so outgoing screens retain their route during navigation. */
@@ -45,6 +50,8 @@ class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val favorites: Favorites = graph.favorites
     val pins = graph.pins
+    val settings = graph.settings
+    val userPlaylists = graph.userPlaylists
     val sleepTimer = graph.sleepTimer
     val history: ListeningHistory = graph.history
     val lyrics = graph.lyrics
@@ -55,7 +62,6 @@ class AppState(graph: AppGraph) {
     var tab by mutableStateOf(Tab.Home)
         private set
     var searchQuery by mutableStateOf("")
-    var folderSort by mutableStateOf(FolderSort.Name)
     var isNowPlayingOpen by mutableStateOf(false)
         private set
     var playerPage by mutableStateOf(PlayerPage.Artwork)
@@ -89,7 +95,7 @@ class AppState(graph: AppGraph) {
 
     val searchResults by derivedStateOf { library.search(searchQuery) }
 
-    val canGoBack: Boolean get() = isSleepMenuOpen || menuTrack != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
+    val canGoBack: Boolean get() = hasOverlay || editingPlaylistId != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
         // Tapping the current tab again returns to its root, as in iOS.
@@ -103,11 +109,15 @@ class AppState(graph: AppGraph) {
 
     fun goBack() {
         when {
+            playlistPrompt != null -> closePlaylistPrompt()
+            addToPlaylistTracks != null -> closeAddToPlaylist()
+            playlistOptionsId != null -> closePlaylistOptions()
             isSleepMenuOpen -> closeSleepMenu()
             menuTrack != null -> closeMenu()
             isSongInfoVisible -> closeSongInfo()
             isArtworkExpanded -> updateArtworkExpansion(false)
             isNowPlayingOpen -> closeNowPlaying()
+            editingPlaylistId != null -> editingPlaylistId = null
             else -> backStacks.getValue(tab).removeLastOrNull()
         }
     }
@@ -124,9 +134,39 @@ class AppState(graph: AppGraph) {
         isNowPlayingOpen = false
     }
 
-    fun openMenu(track: Track) {
+    /** The user playlist the open track menu was opened from, for "Remove from playlist". */
+    var menuPlaylistId by mutableStateOf<String?>(null)
+        private set
+
+    fun openMenu(track: Track, fromPlaylist: String? = null) {
         menuTrack = track
+        menuPlaylistId = fromPlaylist
     }
+
+    /** Tracks waiting for the user to pick a playlist ("Add to a playlist"). */
+    var addToPlaylistTracks by mutableStateOf<List<Track>?>(null)
+        private set
+    fun openAddToPlaylist(tracks: List<Track>) { addToPlaylistTracks = tracks }
+    fun closeAddToPlaylist() { addToPlaylistTracks = null }
+
+    /** A name being asked: for a new playlist (with its first tracks) or to rename one. */
+    var playlistPrompt by mutableStateOf<PlaylistPrompt?>(null)
+        private set
+    fun askPlaylistName(prompt: PlaylistPrompt) { playlistPrompt = prompt }
+    fun closePlaylistPrompt() { playlistPrompt = null }
+
+    /** The "…" options of a user playlist page. */
+    var playlistOptionsId by mutableStateOf<String?>(null)
+        private set
+    fun openPlaylistOptions(id: String) { playlistOptionsId = id }
+    fun closePlaylistOptions() { playlistOptionsId = null }
+
+    /** User playlist whose songs show drag handles and remove buttons. */
+    var editingPlaylistId by mutableStateOf<String?>(null)
+
+    val hasOverlay: Boolean
+        get() = isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
+            playlistPrompt != null || playlistOptionsId != null
 
     fun closeMenu() {
         menuTrack = null

@@ -171,4 +171,17 @@
     <string name="settings_replay_gain_track">Stesso volume per ogni brano</string>
     <string name="settings_replay_gain_album">Stesso volume per ogni album</string>
     <string name="settings_replay_gain_hint">Usa i tag ReplayGain dei tuoi file. I brani senza restano invariati.</string>
+    <string name="playlist_add_to">Aggiungi a una playlist</string>
+    <string name="playlist_new">Nuova playlist</string>
+    <string name="playlist_import">Importa M3U</string>
+    <string name="playlist_export">Esporta come M3U</string>
+    <string name="playlist_rename">Rinomina</string>
+    <string name="playlist_delete">Elimina playlist</string>
+    <string name="playlist_edit">Modifica brani</string>
+    <string name="playlist_done">Fine</string>
+    <string name="playlist_name">Nome della playlist</string>
+    <string name="playlist_create">Crea</string>
+    <string name="playlist_save">Salva</string>
+    <string name="playlist_remove_song">Rimuovi dalla playlist</string>
+    <string name="playlist_empty">Ancora nessun brano. Aggiungili dal menu ··· di un brano.</string>
 </resources>

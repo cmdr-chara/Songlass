@@ -89,6 +89,8 @@ data class HomeFeed(
                     is PlayContext.Playlist -> library.playlists.firstOrNull { it.id == c.id }?.let(HomeItem::PlaylistItem)
                     is PlayContext.Artist -> library.artists.firstOrNull { it.name == c.name }?.let(HomeItem::ArtistItem)
                     PlayContext.Favorites -> favorites.takeIf { it.isNotEmpty() }?.let(HomeItem::FavoritesItem)
+                    // Shown in the Library, not on the Home yet.
+                    is PlayContext.UserPlaylist -> null
                 }
             }.take(ROW_SIZE)
 

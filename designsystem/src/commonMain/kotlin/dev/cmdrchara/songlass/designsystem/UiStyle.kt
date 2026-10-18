@@ -258,6 +258,19 @@ interface UiStyle {
     @Composable
     fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier)
 
+    /** Sheet asking for a short text, e.g. a playlist name; [onConfirm] gets the trimmed text. */
+    @Composable
+    fun PromptSheet(
+        visible: Boolean,
+        title: String,
+        initialText: String,
+        placeholder: String,
+        confirmLabel: String,
+        cancelLabel: String,
+        onConfirm: (String) -> Unit,
+        onDismiss: () -> Unit,
+    )
+
     /** Back control that floats over artwork and scrolling content, always legible. */
     @Composable
     fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier)

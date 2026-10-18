@@ -46,7 +46,7 @@ class Pins(private val store: KeyValueStore = InMemoryKeyValueStore()) {
                 ?.let { PinnedItem.AlbumPin(it, context) }
             is PlayContext.Playlist -> library.folder(context.id)?.let { PinnedItem.FolderPin(it, context) }
             is PlayContext.Artist -> library.artists.firstOrNull { it.name == context.name }?.let { PinnedItem.ArtistPin(it, context) }
-            PlayContext.Favorites -> null
+            PlayContext.Favorites, is PlayContext.UserPlaylist -> null
         }
     }
 

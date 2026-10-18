@@ -53,6 +53,9 @@ import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
 import dev.cmdrchara.songlass.ui.FolderScreen
 import dev.cmdrchara.songlass.ui.SleepTimerMenu
+import dev.cmdrchara.songlass.ui.PlaylistSheets
+import dev.cmdrchara.songlass.ui.UserPlaylistScreen
+import dev.cmdrchara.songlass.ui.rememberPlaylistExporter
 import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import dev.cmdrchara.songlass.designsystem.theme.LocalAmbientArtwork
 import dev.cmdrchara.songlass.theme.materialglass.MaterialGlassLayer
@@ -166,7 +169,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
 
         CompositionLocalProvider(LocalNavigationTint provides routeArtwork?.let { routeTint }) {
         Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.menuTrack != null || state.isSongInfoVisible || state.isSleepMenuOpen) Modifier.clearAndSetSemantics {} else Modifier)) {
+            Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.hasOverlay) Modifier.clearAndSetSemantics {} else Modifier)) {
                 AppScaffold(
                     tabs = listOf(
                         TabItem(tabTitles.getValue(Tab.Home), AppIcons.Home),
@@ -202,6 +205,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                             is Route.FolderDetail -> FolderScreen(route.folder, state, currentId, backLabel, padding)
+                            is Route.UserPlaylistDetail -> UserPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.LibraryPage -> LibraryCategoryScreen(route.category, state, currentId, favoriteIds, backLabel, padding)
                             null -> when (destination.tab) {
                                 Tab.Home -> HomeScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
@@ -212,7 +216,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                     }
                 }
             }
-            Box(Modifier.fillMaxSize().then(if (state.menuTrack != null || state.isSongInfoVisible || state.isSleepMenuOpen) Modifier.clearAndSetSemantics {} else Modifier)) {
+            Box(Modifier.fillMaxSize().then(if (state.hasOverlay) Modifier.clearAndSetSemantics {} else Modifier)) {
                 NowPlayingSheet(
                     visible = nowPlayingVisible,
                     artwork = current?.artwork(),
@@ -233,6 +237,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                 if (current != null) SongInformation(state, current, player)
                 TrackMenu(state, favoriteIds)
                 SleepTimerMenu(state)
+                PlaylistSheets(state, rememberPlaylistExporter())
             }
         }
         }

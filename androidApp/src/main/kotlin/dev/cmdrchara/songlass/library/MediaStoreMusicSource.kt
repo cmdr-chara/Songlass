@@ -41,6 +41,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             MediaStore.Audio.Media.DISC_NUMBER,
             MediaStore.Audio.Media.RELATIVE_PATH,
             MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.Audio.Media.DISPLAY_NAME,
         )
         val tracks = mutableListOf<Track>()
         context.contentResolver.query(
@@ -61,6 +62,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             val disc = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISC_NUMBER)
             val relativePath = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)
             val dateAdded = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val displayName = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             while (cursor.moveToNext()) {
                 val mediaId = cursor.getLong(id)
                 val (legacyDisc, legacyNumber) = TagNumbers.splitLegacyTrack(
@@ -86,6 +88,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                     folder = folderPath,
                     // DATE_ADDED is in seconds.
                     dateAddedMs = if (cursor.isNull(dateAdded)) null else cursor.getLong(dateAdded) * 1000,
+                    fileName = cursor.getString(displayName)?.takeIf { it.isNotBlank() },
                 )
             }
         }

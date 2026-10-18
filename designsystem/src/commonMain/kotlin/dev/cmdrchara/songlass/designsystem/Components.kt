@@ -219,3 +219,15 @@ fun CollectionTile(
 @Composable
 fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier = Modifier) =
     LocalUiStyle.current.VolumeSlider(value, onValueChange, label, modifier)
+
+@Composable
+fun PromptSheet(
+    visible: Boolean,
+    title: String,
+    placeholder: String,
+    confirmLabel: String,
+    cancelLabel: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+    initialText: String = "",
+) = LocalUiStyle.current.PromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)

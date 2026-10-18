@@ -14,6 +14,7 @@ import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
 import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Pins
+import dev.cmdrchara.songlass.core.playlists.UserPlaylists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
@@ -56,6 +57,7 @@ class AppGraph(
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store)
     val pins = Pins(store)
+    val userPlaylists = UserPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
     val settings = AppSettings(store)
     val lyrics = LyricsRepository(localLyrics, remoteLyrics, store)
     val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })

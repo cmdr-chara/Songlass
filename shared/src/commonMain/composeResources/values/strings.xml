@@ -171,4 +171,17 @@
     <string name="settings_replay_gain_track">Same loudness for every song</string>
     <string name="settings_replay_gain_album">Same loudness for every album</string>
     <string name="settings_replay_gain_hint">Uses the ReplayGain tags in your files. Songs without them play unchanged.</string>
+    <string name="playlist_add_to">Add to a Playlist</string>
+    <string name="playlist_new">New Playlist</string>
+    <string name="playlist_import">Import M3U</string>
+    <string name="playlist_export">Export as M3U</string>
+    <string name="playlist_rename">Rename</string>
+    <string name="playlist_delete">Delete Playlist</string>
+    <string name="playlist_edit">Edit Songs</string>
+    <string name="playlist_done">Done</string>
+    <string name="playlist_name">Playlist name</string>
+    <string name="playlist_create">Create</string>
+    <string name="playlist_save">Save</string>
+    <string name="playlist_remove_song">Remove from Playlist</string>
+    <string name="playlist_empty">No songs yet. Add them from a song’s ··· menu.</string>
 </resources>

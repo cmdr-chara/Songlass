@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 
 enum class AppearanceMode { System, Light, Dark }
@@ -30,4 +31,5 @@ data class AppPreferences(
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
+    val folderSort: FolderSort = FolderSort.Name,
 )

@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.cmdrchara.songlass.core.library.FolderSort
+import dev.cmdrchara.songlass.core.playlists.M3u
+import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.PinnedItem
 import dev.cmdrchara.songlass.designsystem.CollectionTile
@@ -106,11 +108,21 @@ fun LibraryScreen(
     contentPadding: PaddingValues,
 ) {
     val library = state.library
+    val onImportPlaylist = rememberPlaylistImporter { name, text ->
+        val entries = text?.let(M3u::parse).orEmpty()
+        val imported = M3u.resolve(entries, state.library)
+        if (imported.tracks.isNotEmpty()) {
+            val id = state.userPlaylists.create(name ?: "Playlist", imported.tracks.map { it.id })
+            state.open(Route.UserPlaylistDetail(id))
+        }
+    }
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
     val pinContexts by state.pins.contexts.collectAsState()
     val pinnedItems = remember(pinContexts, library) { state.pins.resolve(library) }
     val history by state.history.state.collectAsState()
-    val sortedFolders = remember(library, state.folderSort, history) { state.folderSort.sort(library.folders, history.playCounts) }
+    val preferences by state.settings.state.collectAsState()
+    val folderSort = preferences.folderSort
+    val sortedFolders = remember(library, folderSort, history) { folderSort.sort(library.folders, history.playCounts) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
             ScreenTitle(stringResource(Res.string.tab_library)) {
@@ -132,13 +144,15 @@ fun LibraryScreen(
             item { PinnedRow(pinned, state) }
         }
         item { CategoryGrid(library, favoriteTracks, state) }
+        item { SectionTitle(stringResource(Res.string.library_playlists)) }
+        item { UserPlaylistRow(state, onImportPlaylist) }
         if (library.folders.isNotEmpty()) {
             item { SectionTitle(stringResource(Res.string.library_folders)) }
             item {
                 SegmentedControl(
                     options = FolderSort.entries.map { stringResource(it.label) },
-                    selectedIndex = state.folderSort.ordinal,
-                    onSelect = { state.folderSort = FolderSort.entries[it] },
+                    selectedIndex = folderSort.ordinal,
+                    onSelect = { state.settings.setFolderSort(FolderSort.entries[it]) },
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
@@ -281,7 +295,7 @@ private fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: Ap
 
 /** Two folders per row, as cover tiles. */
 @Composable
-private fun FolderGridRow(folders: List<Folder>, state: AppState) {
+internal fun FolderGridRow(folders: List<Folder>, state: AppState) {
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         folders.forEach { folder -> FolderTile(folder, Modifier.weight(1f)) { state.open(Route.FolderDetail(folder)) } }
         if (folders.size == 1) Spacer(Modifier.weight(1f))
@@ -499,7 +513,7 @@ fun FolderScreen(folder: Folder, state: AppState, currentTrackId: String?, backL
 
 /** Shared layout of album and playlist pages; [row] draws each track. */
 @Composable
-private fun ArtworkCollectionPage(
+internal fun ArtworkCollectionPage(
     artwork: Artwork,
     kind: String,
     title: String,
@@ -515,6 +529,8 @@ private fun ArtworkCollectionPage(
     rows: List<Track> = tracks,
     /** Content between the header and the rows (e.g. a folder's sub-folders). */
     extra: (LazyListScope.() -> Unit)? = null,
+    /** Small action beside shuffle; pinning by default. */
+    headerAction: @Composable () -> Unit = { PinButton(context, state) },
     row: @Composable (index: Int, track: Track) -> Unit,
 ) {
     val minutes = (durationMs / 60_000).toInt()
@@ -548,7 +564,7 @@ private fun ArtworkCollectionPage(
                             )
                         }
                         Spacer(Modifier.width(8.dp))
-                        PinButton(context, state)
+                        headerAction()
                         IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, filled = true)
                         Spacer(Modifier.width(12.dp))
                         ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) })

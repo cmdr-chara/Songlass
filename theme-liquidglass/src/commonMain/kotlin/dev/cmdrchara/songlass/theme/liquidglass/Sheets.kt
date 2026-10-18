@@ -33,6 +33,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -73,15 +86,67 @@ internal fun LiquidGlassActionSheet(
     cancelLabel: String,
     onDismiss: () -> Unit,
     details: List<InfoRow> = emptyList(),
+    field: (@Composable () -> Unit)? = null,
 ) {
     val sheetTint = LocalSheetTint.current
     if (sheetTint == null) {
-        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false)
+        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field)
     } else {
         ProvideArtworkTint(sheetTint) {
-            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true)
+            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field)
         }
     }
+}
+
+/** Asks for a short text (a playlist name): a field above Confirm, in the action sheet's card. */
+@Composable
+internal fun LiquidGlassPromptSheet(
+    visible: Boolean,
+    title: String,
+    initialText: String,
+    placeholder: String,
+    confirmLabel: String,
+    cancelLabel: String,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var text by remember(visible) { mutableStateOf(initialText) }
+    val focus = remember { FocusRequester() }
+    val colors = AppTheme.colors
+    fun confirm() {
+        if (text.isNotBlank()) {
+            onDismiss()
+            onConfirm(text.trim())
+        }
+    }
+    LiquidGlassActionSheet(
+        visible = visible,
+        title = title,
+        subtitle = null,
+        artwork = null,
+        actions = listOf(SheetAction(confirmLabel, null) { if (text.isNotBlank()) onConfirm(text.trim()) }),
+        cancelLabel = cancelLabel,
+        onDismiss = onDismiss,
+        field = {
+            Box(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)
+                    .clip(RoundedCornerShape(12.dp)).background(colors.fill).padding(horizontal = 12.dp, vertical = 12.dp),
+            ) {
+                if (text.isEmpty()) AppText(placeholder, AppTheme.typography.body, color = colors.secondaryLabel, maxLines = 1)
+                BasicTextField(
+                    value = text,
+                    onValueChange = { text = it.take(80) },
+                    singleLine = true,
+                    textStyle = AppTheme.typography.body.copy(color = colors.label),
+                    cursorBrush = SolidColor(colors.accent),
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { confirm() }),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+            }
+            LaunchedEffect(visible) { if (visible) runCatching { focus.requestFocus() } }
+        },
+    )
 }
 
 @Composable
@@ -95,6 +160,7 @@ private fun ActionSheetContent(
     onDismiss: () -> Unit,
     details: List<InfoRow>,
     tinted: Boolean,
+    field: (@Composable () -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
@@ -147,7 +213,7 @@ private fun ActionSheetContent(
                 Column(
                     Modifier
                         .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars)
+                        .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 ) {
                     Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(rememberScrollState())) {
@@ -163,6 +229,7 @@ private fun ActionSheetContent(
                                 }
                             }
                         }
+                        field?.invoke()
                         details.forEach { detail ->
                             Separator()
                             Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {

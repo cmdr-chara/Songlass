@@ -11,6 +11,8 @@ import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.playlist_add_to
+import dev.cmdrchara.songlass.shared.resources.playlist_remove_song
 import dev.cmdrchara.songlass.shared.resources.action_add_to_queue
 import dev.cmdrchara.songlass.shared.resources.action_cancel
 import dev.cmdrchara.songlass.shared.resources.action_favorite
@@ -39,6 +41,10 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
         actions = listOfNotNull(
             SheetAction(stringResource(Res.string.action_play_next), AppIcons.PlayNext) { state.controller.playNext(listOf(track)) },
             SheetAction(stringResource(Res.string.action_add_to_queue), AppIcons.AddToQueue) { state.controller.addToQueue(listOf(track)) },
+            SheetAction(stringResource(Res.string.playlist_add_to), AppIcons.Library) { state.openAddToPlaylist(listOf(track)) },
+            state.menuPlaylistId?.let { playlistId ->
+                SheetAction(stringResource(Res.string.playlist_remove_song), AppIcons.Close) { state.userPlaylists.remove(playlistId, track.id) }
+            },
             SheetAction(
                 stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                 if (isFavorite) AppIcons.StarFilled else AppIcons.Star,

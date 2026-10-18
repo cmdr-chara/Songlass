@@ -17,6 +17,11 @@ sealed interface PlayContext {
         override val key: String get() = "artist$FIELD${name.orEmpty()}"
     }
 
+    /** A playlist the user made (see UserPlaylists). */
+    data class UserPlaylist(val id: String) : PlayContext {
+        override val key: String get() = "userplaylist$FIELD$id"
+    }
+
     data object Favorites : PlayContext {
         override val key: String get() = "favorites"
     }
@@ -31,6 +36,7 @@ sealed interface PlayContext {
                 "album" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { Album(it, parts.getOrNull(2)?.ifEmpty { null }) }
                 "playlist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { Playlist(it) }
                 "artist" -> if (parts.size >= 2) Artist(parts[1].ifEmpty { null }) else null
+                "userplaylist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { UserPlaylist(it) }
                 "favorites" -> Favorites
                 else -> null
             }

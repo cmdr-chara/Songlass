@@ -22,7 +22,12 @@ data class Track(
     val folder: String? = null,
     /** When the file arrived on the device (epoch ms), if known. */
     val dateAddedMs: Long? = null,
+    /** File name with extension (e.g. `01 Intro.flac`), used for playlist files; null if unknown. */
+    val fileName: String? = null,
 ) {
+    /** `folder/fileName` relative to the storage root, as written in M3U playlists; null if unknown. */
+    val path: String? get() = fileName?.let { name -> folder?.takeIf { it.isNotBlank() }?.let { "${it.trim('/')}/$name" } ?: name }
+
     /** Artist used to group albums: the album artist when tagged, otherwise the track artist. */
     val groupingArtist: String? get() = albumArtist ?: artist
 }

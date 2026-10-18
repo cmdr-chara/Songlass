@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,6 +31,11 @@ class AppSettings(private val store: KeyValueStore) {
                 "track" -> ReplayGainMode.Track
                 "album" -> ReplayGainMode.Album
                 else -> ReplayGainMode.Off
+            },
+            folderSort = when (store.getString(FOLDER_SORT_KEY)) {
+                "recent" -> FolderSort.RecentlyAdded
+                "most_played" -> FolderSort.MostPlayed
+                else -> FolderSort.Name
             },
         ),
     )
@@ -90,6 +96,18 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(replayGain = mode) }
     }
 
+    fun setFolderSort(sort: FolderSort) {
+        store.putString(
+            FOLDER_SORT_KEY,
+            when (sort) {
+                FolderSort.Name -> "name"
+                FolderSort.RecentlyAdded -> "recent"
+                FolderSort.MostPlayed -> "most_played"
+            },
+        )
+        _state.update { it.copy(folderSort = sort) }
+    }
+
     private companion object {
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
@@ -97,5 +115,6 @@ class AppSettings(private val store: KeyValueStore) {
         const val ARTWORK_STYLE_KEY = "settings.artwork_style"
         const val INTERFACE_STYLE_KEY = "settings.interface_style"
         const val REPLAY_GAIN_KEY = "settings.replay_gain"
+        const val FOLDER_SORT_KEY = "library.folder_sort"
     }
 }

@@ -193,4 +193,11 @@ class AppSettingsTest {
         store.putString("settings.replay_gain", "loud")
         assertEquals(dev.cmdrchara.songlass.core.player.ReplayGainMode.Off, AppSettings(store).state.value.replayGain)
     }
+
+    @Test
+    fun folderSortPersists() {
+        val store = InMemoryKeyValueStore()
+        AppSettings(store).setFolderSort(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed)
+        assertEquals(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed, AppSettings(store).state.value.folderSort)
+    }
 }

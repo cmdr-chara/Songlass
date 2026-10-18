@@ -174,6 +174,18 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassPosterCard(label, title, subtitle, artwork, onClick, modifier)
 
     @Composable
+    override fun PromptSheet(
+        visible: Boolean,
+        title: String,
+        initialText: String,
+        placeholder: String,
+        confirmLabel: String,
+        cancelLabel: String,
+        onConfirm: (String) -> Unit,
+        onDismiss: () -> Unit,
+    ) = LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+    @Composable
     override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
         LiquidGlassCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
 
