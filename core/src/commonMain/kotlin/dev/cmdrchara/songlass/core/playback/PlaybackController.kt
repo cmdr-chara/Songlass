@@ -41,6 +41,8 @@ class PlaybackController(
                 when (event) {
                     PlayerEvent.TrackEnded -> onTrackEnded()
                     PlayerEvent.AdvancedToNext -> onAdvancedToNext()
+                    // Remembered by the app graph for resuming on reconnect.
+                    PlayerEvent.PausedByDisconnect -> Unit
                 }
             }
         }
@@ -60,6 +62,12 @@ class PlaybackController(
     }
 
     fun pause() = player.pause()
+
+    /** Plays the current entry if it is paused; does nothing while playing or with an empty queue. */
+    fun resume() {
+        if (_queue.value.current == null || player.state.value.playWhenReady) return
+        togglePlayPause()
+    }
 
     /** Where the current queue was started from (album, playlist…), for the listening history. */
     var context: PlayContext? = null

@@ -211,4 +211,6 @@
         <item quantity="one">%1$d album</item>
         <item quantity="other">%1$d albums</item>
     </plurals>
+    <string name="settings_resume_reconnect">Resume on Reconnect</string>
+    <string name="settings_resume_reconnect_hint">If the music stopped because headphones or the car disconnected, it continues when they connect again within an hour.</string>
 </resources>

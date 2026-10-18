@@ -37,6 +37,7 @@ class AppSettings(private val store: KeyValueStore) {
                 "most_played" -> FolderSort.MostPlayed
                 else -> FolderSort.Name
             },
+            resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
         ),
     )
 
@@ -108,6 +109,11 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(folderSort = sort) }
     }
 
+    fun setResumeOnReconnect(enabled: Boolean) {
+        store.putString(RESUME_KEY, enabled.toString())
+        _state.update { it.copy(resumeOnReconnect = enabled) }
+    }
+
     private companion object {
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
@@ -116,5 +122,6 @@ class AppSettings(private val store: KeyValueStore) {
         const val INTERFACE_STYLE_KEY = "settings.interface_style"
         const val REPLAY_GAIN_KEY = "settings.replay_gain"
         const val FOLDER_SORT_KEY = "library.folder_sort"
+        const val RESUME_KEY = "settings.resume_on_reconnect"
     }
 }

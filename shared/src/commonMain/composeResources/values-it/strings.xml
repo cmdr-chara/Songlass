@@ -211,4 +211,6 @@
         <item quantity="one">%1$d album</item>
         <item quantity="other">%1$d album</item>
     </plurals>
+    <string name="settings_resume_reconnect">Riprendi al ricollegamento</string>
+    <string name="settings_resume_reconnect_hint">Se la musica si è fermata perché cuffie o auto si sono scollegate, riparte quando si ricollegano entro un’ora.</string>
 </resources>

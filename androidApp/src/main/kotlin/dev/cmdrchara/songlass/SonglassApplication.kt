@@ -1,6 +1,11 @@
 package dev.cmdrchara.songlass
 
 import android.app.Application
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.os.Handler
+import android.os.Looper
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -59,6 +64,39 @@ class SonglassApplication : Application() {
             Media3AudioPlayer(exoPlayer, scope, equalizer), musicSource, SharedPreferencesStore(this), scope,
             localLyrics = EmbeddedLyricsSource(exoPlayer),
             remoteLyrics = LrcLibLyricsSource(this),
+        )
+        watchAudioOutputs()
+    }
+
+    /**
+     * Reports headphones, headsets and car audio (Bluetooth A2DP/LE, wired, USB, hearing aids)
+     * as they connect, for resuming playback. The callback first lists the devices already
+     * connected; those are not new connections and are skipped.
+     */
+    private fun watchAudioOutputs() {
+        val audio = getSystemService(AudioManager::class.java)
+        audio.registerAudioDeviceCallback(object : AudioDeviceCallback() {
+            private var initial = true
+
+            override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+                if (initial) {
+                    initial = false
+                    return
+                }
+                if (addedDevices.any { it.isSink && it.type in PERSONAL_OUTPUTS }) graph.onOutputConnected()
+            }
+        }, Handler(Looper.getMainLooper()))
+    }
+
+    private companion object {
+        val PERSONAL_OUTPUTS = setOf(
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_BLE_SPEAKER,
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_HEARING_AID,
         )
     }
 }

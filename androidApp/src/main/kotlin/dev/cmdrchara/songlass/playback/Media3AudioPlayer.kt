@@ -76,6 +76,12 @@ class Media3AudioPlayer(
                 publishState()
             }
 
+            override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY) {
+                    _events.tryEmit(PlayerEvent.PausedByDisconnect)
+                }
+            }
+
             override fun onPlaybackStateChanged(playbackState: Int) {
                 if (playbackState == Player.STATE_ENDED) _events.tryEmit(PlayerEvent.TrackEnded)
             }

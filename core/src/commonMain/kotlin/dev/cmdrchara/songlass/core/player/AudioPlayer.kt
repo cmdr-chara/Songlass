@@ -30,6 +30,9 @@ sealed interface PlayerEvent {
 
     /** The track set with [AudioPlayer.setNext] started right after the previous one, without a gap. */
     data object AdvancedToNext : PlayerEvent
+
+    /** Playback paused because the audio output went away (headphones unplugged, Bluetooth lost). */
+    data object PausedByDisconnect : PlayerEvent
 }
 
 /**

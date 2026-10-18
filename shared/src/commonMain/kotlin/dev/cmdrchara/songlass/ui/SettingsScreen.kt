@@ -28,6 +28,8 @@ import dev.cmdrchara.songlass.shared.resources.eq_off
 import dev.cmdrchara.songlass.shared.resources.eq_on
 import dev.cmdrchara.songlass.shared.resources.eq_title
 import dev.cmdrchara.songlass.shared.resources.settings_sound
+import dev.cmdrchara.songlass.shared.resources.settings_resume_reconnect
+import dev.cmdrchara.songlass.shared.resources.settings_resume_reconnect_hint
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -156,6 +158,12 @@ fun SettingsScreen(
                     leading = { AppIcon(AppIcons.Equalizer, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
                     trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
                     onClick = onOpenEqualizer,
+                )
+                SettingsToggleRow(
+                    title = stringResource(Res.string.settings_resume_reconnect),
+                    subtitle = stringResource(Res.string.settings_resume_reconnect_hint),
+                    checked = preferences.resumeOnReconnect,
+                    onCheckedChange = settings::setResumeOnReconnect,
                 )
             }
         }

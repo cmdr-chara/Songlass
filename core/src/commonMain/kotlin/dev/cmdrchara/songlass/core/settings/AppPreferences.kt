@@ -32,4 +32,6 @@ data class AppPreferences(
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
     val folderSort: FolderSort = FolderSort.Name,
+    /** Play again when headphones or a car reconnect after cutting playback off. Off by default. */
+    val resumeOnReconnect: Boolean = false,
 )

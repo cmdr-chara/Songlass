@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.map
 import dev.cmdrchara.songlass.core.player.ReplayGain
 
 import dev.cmdrchara.songlass.core.playback.SleepTimer
+import dev.cmdrchara.songlass.core.playback.OutputResume
+import dev.cmdrchara.songlass.core.player.PlayerEvent
 import dev.cmdrchara.songlass.core.equalizer.Equalizer
 
 import dev.cmdrchara.songlass.core.history.ListeningHistory
@@ -64,6 +66,7 @@ class AppGraph(
     val lyrics = LyricsRepository(localLyrics, remoteLyrics, store)
     val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })
     private val playCounter = PlayCounter()
+    private val outputResume = OutputResume(clock = { Clock.System.now().toEpochMilliseconds() })
 
     private val _library = MutableStateFlow(MusicLibrary(emptyList()))
     val library: StateFlow<MusicLibrary> = _library.asStateFlow()
@@ -77,6 +80,13 @@ class AppGraph(
         }
         scope.launch {
             equalizer.state.map { it.chain }.distinctUntilChanged().collect(player::setEqualizer)
+        }
+        // Remember a pause caused by the output going away; any other start or stop forgets it.
+        scope.launch {
+            player.events.collect { if (it == PlayerEvent.PausedByDisconnect) outputResume.onPausedByDisconnect() }
+        }
+        scope.launch {
+            player.state.map { it.playWhenReady }.distinctUntilChanged().collect { playing -> if (playing) outputResume.cancel() }
         }
         // Count a play once enough of a track has been heard, and record where it started from.
         scope.launch {
@@ -96,6 +106,14 @@ class AppGraph(
                 }
             }
         }
+    }
+
+    /**
+     * Headphones, a headset or a car's audio connected (reported by the platform). Resumes the
+     * music if it stopped because they had disconnected and the setting is on.
+     */
+    fun onOutputConnected() {
+        if (outputResume.onOutputConnected(settings.state.value.resumeOnReconnect)) controller.resume()
     }
 
     /** Re-reads the music from [source]; does nothing without access. */

@@ -185,6 +185,14 @@ class AppSettingsTest {
     }
 
     @Test
+    fun resumeOnReconnectDefaultsToOffAndPersists() {
+        val store = dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore()
+        kotlin.test.assertFalse(AppSettings(store).state.value.resumeOnReconnect)
+        AppSettings(store).setResumeOnReconnect(true)
+        kotlin.test.assertTrue(AppSettings(store).state.value.resumeOnReconnect)
+    }
+
+    @Test
     fun replayGainDefaultsToOffAndPersists() {
         val store = InMemoryKeyValueStore()
         assertEquals(dev.cmdrchara.songlass.core.player.ReplayGainMode.Off, AppSettings(store).state.value.replayGain)
