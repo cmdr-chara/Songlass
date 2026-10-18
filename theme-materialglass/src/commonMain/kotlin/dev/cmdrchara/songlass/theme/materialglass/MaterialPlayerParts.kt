@@ -105,7 +105,7 @@ internal fun MaterialMiniPlayer(
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Bold), maxLines = 1)
-                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.label.copy(alpha = 0.8f), maxLines = 1)
             }
         }
         Box(

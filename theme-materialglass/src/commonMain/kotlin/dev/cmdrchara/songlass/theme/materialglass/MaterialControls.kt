@@ -151,7 +151,7 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
             )
             val indicatorAlpha by animateFloatAsState(if (selected) 1f else 0f, if (reduceMotion) snap() else tween(150), label = "navIndicatorAlpha")
             val tint by animateColorAsState(
-                if (selected) palette.onPrimaryContainer else AppTheme.colors.label.copy(alpha = 0.78f),
+                if (selected) palette.onPrimaryContainer else AppTheme.colors.label,
                 if (reduceMotion) snap() else tween(150),
                 label = "navTint",
             )
@@ -180,7 +180,7 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 AppText(
                     tab.label,
                     AppTheme.typography.caption1.copy(fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
-                    color = if (selected) AppTheme.colors.label else AppTheme.colors.label.copy(alpha = 0.78f),
+                    color = AppTheme.colors.label,
                     maxLines = 1,
                 )
             }

@@ -90,13 +90,15 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
                 optics(
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
-                        blurRadius = OpticalSizeValue.Fixed(24.dp),
+                        // Stronger than the file's look: over busy covers the labels must stay legible.
+                        blurRadius = OpticalSizeValue.Fixed(36.dp),
                         refractionDisplacement = if (edges) 14.dp else 0.dp,
                         refractionStrength = if (edges) 0.42f else 0f,
                     ),
                 )
-                // Fill 2: the surface colour at 33%; fill 1 (white, luminosity) lifts it to pastel.
-                tint(palette.vivid.copy(alpha = 0.33f))
+                // Fill 2: the surface colour (33% in the file, raised for legibility); fill 1 (white,
+                // luminosity) lifts it to pastel.
+                tint(palette.vivid.copy(alpha = if (palette.dark) 0.55f else 0.5f))
                 whitePoint(if (palette.dark) -0.05f else 0.4f)
                 chromaMultiplier(1.15f)
                 contentNormalBlend(0f)
