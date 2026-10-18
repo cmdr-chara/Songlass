@@ -52,6 +52,7 @@ import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
 import dev.cmdrchara.songlass.ui.FolderScreen
+import dev.cmdrchara.songlass.ui.SleepTimerMenu
 import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import dev.cmdrchara.songlass.designsystem.theme.LocalAmbientArtwork
 import dev.cmdrchara.songlass.theme.materialglass.MaterialGlassLayer
@@ -165,7 +166,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
 
         CompositionLocalProvider(LocalNavigationTint provides routeArtwork?.let { routeTint }) {
         Box(Modifier.fillMaxSize()) {
-            Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.menuTrack != null || state.isSongInfoVisible) Modifier.clearAndSetSemantics {} else Modifier)) {
+            Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.menuTrack != null || state.isSongInfoVisible || state.isSleepMenuOpen) Modifier.clearAndSetSemantics {} else Modifier)) {
                 AppScaffold(
                     tabs = listOf(
                         TabItem(tabTitles.getValue(Tab.Home), AppIcons.Home),
@@ -211,7 +212,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                     }
                 }
             }
-            Box(Modifier.fillMaxSize().then(if (state.menuTrack != null || state.isSongInfoVisible) Modifier.clearAndSetSemantics {} else Modifier)) {
+            Box(Modifier.fillMaxSize().then(if (state.menuTrack != null || state.isSongInfoVisible || state.isSleepMenuOpen) Modifier.clearAndSetSemantics {} else Modifier)) {
                 NowPlayingSheet(
                     visible = nowPlayingVisible,
                     artwork = current?.artwork(),
@@ -231,6 +232,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             CompositionLocalProvider(LocalSheetTint provides tintedArtwork?.let { contextTint }) {
                 if (current != null) SongInformation(state, current, player)
                 TrackMenu(state, favoriteIds)
+                SleepTimerMenu(state)
             }
         }
         }

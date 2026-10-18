@@ -45,6 +45,7 @@ class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val favorites: Favorites = graph.favorites
     val pins = graph.pins
+    val sleepTimer = graph.sleepTimer
     val history: ListeningHistory = graph.history
     val lyrics = graph.lyrics
 
@@ -64,6 +65,10 @@ class AppState(graph: AppGraph) {
     var isSongInfoVisible by mutableStateOf(false)
         private set
     fun updateArtworkExpansion(expanded: Boolean) { isArtworkExpanded = expanded }
+    var isSleepMenuOpen by mutableStateOf(false)
+        private set
+    fun openSleepMenu() { isSleepMenuOpen = true }
+    fun closeSleepMenu() { isSleepMenuOpen = false }
     fun showSongInfo() { isSongInfoVisible = true }
     fun closeSongInfo() { isSongInfoVisible = false }
     val isQueueVisible: Boolean get() = playerPage == PlayerPage.Queue
@@ -84,7 +89,7 @@ class AppState(graph: AppGraph) {
 
     val searchResults by derivedStateOf { library.search(searchQuery) }
 
-    val canGoBack: Boolean get() = menuTrack != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
+    val canGoBack: Boolean get() = isSleepMenuOpen || menuTrack != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
         // Tapping the current tab again returns to its root, as in iOS.
@@ -98,6 +103,7 @@ class AppState(graph: AppGraph) {
 
     fun goBack() {
         when {
+            isSleepMenuOpen -> closeSleepMenu()
             menuTrack != null -> closeMenu()
             isSongInfoVisible -> closeSongInfo()
             isArtworkExpanded -> updateArtworkExpansion(false)

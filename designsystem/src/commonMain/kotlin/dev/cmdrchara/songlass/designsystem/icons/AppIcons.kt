@@ -204,6 +204,25 @@ object AppIcons {
         }
     }
 
+    /** Speaker without waves, the quiet end of the volume slider. */
+    val SpeakerLow: ImageVector by lazy {
+        icon("SpeakerLow") {
+            fill { moveTo(5f, 9.5f); lineTo(9f, 9.5f); lineTo(14f, 5f); lineTo(14f, 19f); lineTo(9f, 14.5f); lineTo(5f, 14.5f); close() }
+        }
+    }
+
+    /** Sleep timer: a crescent moon. */
+    val Timer: ImageVector by lazy {
+        icon("Timer") {
+            fill {
+                moveTo(14.5f, 3.2f)
+                arcTo(9f, 9f, 0f, isMoreThanHalf = true, isPositiveArc = false, x1 = 20.8f, y1 = 15.6f)
+                arcTo(7f, 7f, 0f, isMoreThanHalf = false, isPositiveArc = true, x1 = 14.5f, y1 = 3.2f)
+                close()
+            }
+        }
+    }
+
     val More: ImageVector by lazy {
         icon("More") {
             for (x in listOf(5f, 12f, 19f)) fill { circle(x, 12f, 1.75f) }

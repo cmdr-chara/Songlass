@@ -95,6 +95,10 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.SeekBar(positionMs, durationMs, qualityLabel, isPlaying, onSeek, modifier)
 
     @Composable
+    override fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
+        LiquidGlassVolumeSlider(value, onValueChange, label, modifier)
+
+    @Composable
     override fun TransportControls(
         isPlaying: Boolean,
         labels: PlaybackLabels,

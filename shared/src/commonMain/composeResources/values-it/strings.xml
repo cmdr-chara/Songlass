@@ -153,4 +153,22 @@
     <string name="sort_most_played">Più ascoltati</string>
     <string name="action_pin">Fissa nella Libreria</string>
     <string name="action_unpin">Togli dalla Libreria</string>
+    <string name="playback_volume">Volume</string>
+    <string name="sleep_title">Timer di spegnimento</string>
+    <plurals name="sleep_minutes">
+        <item quantity="one">%1$d minuto</item>
+        <item quantity="other">%1$d minuti</item>
+    </plurals>
+    <plurals name="sleep_remaining">
+        <item quantity="one">Si ferma tra %1$d minuto</item>
+        <item quantity="other">Si ferma tra %1$d minuti</item>
+    </plurals>
+    <string name="sleep_end_of_track">Fine del brano</string>
+    <string name="sleep_until_end">Si ferma alla fine di questo brano</string>
+    <string name="sleep_off">Disattiva timer</string>
+    <string name="settings_replay_gain">Normalizza volume</string>
+    <string name="settings_replay_gain_off">Disattivato</string>
+    <string name="settings_replay_gain_track">Stesso volume per ogni brano</string>
+    <string name="settings_replay_gain_album">Stesso volume per ogni album</string>
+    <string name="settings_replay_gain_hint">Usa i tag ReplayGain dei tuoi file. I brani senza restano invariati.</string>
 </resources>

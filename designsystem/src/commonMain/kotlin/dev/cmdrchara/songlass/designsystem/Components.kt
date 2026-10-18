@@ -215,3 +215,7 @@ fun CollectionTile(
     modifier: Modifier = Modifier,
     circular: Boolean = false,
 ) = LocalUiStyle.current.CollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
+
+@Composable
+fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.VolumeSlider(value, onValueChange, label, modifier)

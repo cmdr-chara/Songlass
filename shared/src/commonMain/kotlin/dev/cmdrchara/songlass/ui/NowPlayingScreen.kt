@@ -1,5 +1,15 @@
 package dev.cmdrchara.songlass.ui
 
+import androidx.compose.runtime.collectAsState
+
+import dev.cmdrchara.songlass.shared.resources.sleep_title
+
+import dev.cmdrchara.songlass.shared.resources.playback_volume
+
+import dev.cmdrchara.songlass.core.playback.SleepTimerState
+
+import dev.cmdrchara.songlass.designsystem.VolumeSlider
+
 import androidx.compose.foundation.combinedClickable
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
@@ -152,6 +162,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                     }
                 }
                 val compact = state.playerPage == PlayerPage.Lyrics
+                val systemVolume = rememberSystemVolume()
+                val sleepTimer by state.sleepTimer.state.collectAsState()
                 // Controls take their natural height: the artwork and title get the rest.
                 Column(
                     Modifier.fillMaxWidth()
@@ -187,10 +199,15 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                         Spacer(Modifier.height(seekGap))
                     }
                     SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality, isPlaying = player.isPlaying)
+                    if (!compact && systemVolume != null) {
+                        VolumeSlider(systemVolume.value, systemVolume.set, stringResource(Res.string.playback_volume))
+                    }
                     Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (outputPicker != null) AudioOutputButton(outputName, onClick = outputPicker)
                         Spacer(Modifier.weight(1f))
                         val lyricsOn = state.playerPage == PlayerPage.Lyrics
+                        val timerOn = sleepTimer != SleepTimerState.Off
+                        IconButton(AppIcons.Timer, stringResource(Res.string.sleep_title), state::openSleepMenu, selected = timerOn, filled = timerOn)
                         IconButton(AppIcons.Lyrics, stringResource(Res.string.playback_lyrics), state::toggleLyrics, selected = lyricsOn, filled = lyricsOn)
                         IconButton(AppIcons.Queue, stringResource(Res.string.playback_queue), state::toggleQueue, selected = state.isQueueVisible, filled = state.isQueueVisible)
                         IconButton(AppIcons.More, stringResource(Res.string.action_more), onClick = { state.openMenu(track) })

@@ -217,4 +217,43 @@ class PlaybackControllerTest {
         controller.shuffleTracks(tracks(3))
         assertNull(controller.context)
     }
+
+    @Test
+    fun nextTrackIsPreparedAndFollowsQueueChanges() = test { controller ->
+        controller.playTracks(tracks(3))
+        assertEquals("2", player.nextTrack?.id)
+        controller.playNext(listOf(track("x")))
+        assertEquals("x", player.nextTrack?.id)
+        controller.skipTo(controller.queue.value.entries.last().id)
+        assertNull(player.nextTrack)
+    }
+
+    @Test
+    fun gaplessAdvanceMovesTheQueueWithoutReloading() = test { controller ->
+        controller.playTracks(tracks(3))
+        player.finishTrack()
+        assertEquals("2", controller.queue.value.current?.track?.id)
+        assertEquals("2", player.loadedTrack?.id)
+        assertEquals("3", player.nextTrack?.id)
+        assertTrue(player.state.value.isPlaying)
+    }
+
+    @Test
+    fun repeatOneQueuesTheSameTrack() = test { controller ->
+        controller.playTracks(tracks(3))
+        controller.setRepeat(RepeatMode.One)
+        assertEquals("1", player.nextTrack?.id)
+    }
+
+    @Test
+    fun stopAfterCurrentPausesOnTheNextTrack() = test { controller ->
+        controller.playTracks(tracks(3))
+        controller.setStopAfterCurrent(true)
+        assertNull(player.nextTrack)
+        player.finishTrack()
+        assertEquals("2", player.loadedTrack?.id)
+        assertFalse(player.state.value.playWhenReady)
+        assertFalse(controller.stopAfterCurrent.value)
+        assertEquals("3", player.nextTrack?.id)
+    }
 }

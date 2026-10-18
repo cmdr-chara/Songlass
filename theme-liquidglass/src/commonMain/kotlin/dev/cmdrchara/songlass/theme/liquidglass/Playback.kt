@@ -33,6 +33,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.contentDescription
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -163,6 +166,48 @@ internal fun LiquidGlassSeekBar(
             val x = (size.width * fraction).coerceIn(thumbWidth / 2f, maxOf(thumbWidth / 2f, size.width - thumbWidth / 2f))
             drawRoundRect(content, Offset(x - thumbWidth / 2f, y - thumbHeight / 2f), Size(thumbWidth, thumbHeight), CornerRadius(thumbWidth / 2f))
         }
+    }
+}
+
+/**
+ * Volume as in Apple Music: speakers at both ends of a thin rail that thickens while dragged.
+ * Tapping anywhere jumps there; accessibility can set it directly.
+ */
+@Composable
+internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) {
+    val content = LocalContentColor.current
+    val currentOnChange by rememberUpdatedState(onValueChange)
+    var dragging by remember { mutableStateOf(false) }
+    val railHeight by animateFloatAsState(if (dragging) 10f else 6f, label = "volumeRail")
+    Row(modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
+        AppIcon(AppIcons.SpeakerLow, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f))
+        Canvas(
+            Modifier.weight(1f).fillMaxHeight().padding(horizontal = 10.dp)
+                .semantics {
+                    contentDescription = label
+                    progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..1f)
+                    setProgress { v -> currentOnChange(v.coerceIn(0f, 1f)); true }
+                }
+                .pointerInput(Unit) {
+                    detectTapGestures { offset -> if (size.width > 0) currentOnChange((offset.x / size.width).coerceIn(0f, 1f)) }
+                }
+                .pointerInput(Unit) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragging = true },
+                        onDragEnd = { dragging = false },
+                        onDragCancel = { dragging = false },
+                    ) { change, _ ->
+                        if (size.width > 0) currentOnChange((change.position.x / size.width).coerceIn(0f, 1f))
+                        change.consume()
+                    }
+                },
+        ) {
+            val h = railHeight.dp.toPx()
+            val y = size.height / 2f - h / 2f
+            drawRoundRect(content.copy(alpha = 0.25f), Offset(0f, y), Size(size.width, h), CornerRadius(h / 2f))
+            drawRoundRect(content.copy(alpha = 0.85f), Offset(0f, y), Size(size.width * value.coerceIn(0f, 1f), h), CornerRadius(h / 2f))
+        }
+        AppIcon(AppIcons.AudioOutput, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f))
     }
 }
 

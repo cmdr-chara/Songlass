@@ -1,5 +1,13 @@
 package dev.cmdrchara.songlass
 
+import kotlinx.coroutines.flow.distinctUntilChanged
+
+import kotlinx.coroutines.flow.map
+
+import dev.cmdrchara.songlass.core.player.ReplayGain
+
+import dev.cmdrchara.songlass.core.playback.SleepTimer
+
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.history.PlayCounter
 import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
@@ -45,6 +53,7 @@ class AppGraph(
     remoteLyrics: LyricsSource = LyricsSource.Empty,
 ) {
     val controller = PlaybackController(player, scope)
+    val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store)
     val pins = Pins(store)
     val settings = AppSettings(store)
@@ -56,6 +65,12 @@ class AppGraph(
     val library: StateFlow<MusicLibrary> = _library.asStateFlow()
 
     init {
+        // ReplayGain: the player's own volume evens out loudness, on top of the device volume.
+        scope.launch {
+            combine(player.state.map { it.replayGain }.distinctUntilChanged(), settings.state.map { it.replayGain }.distinctUntilChanged()) { tags, mode ->
+                ReplayGain.volumeFor(tags, mode)
+            }.distinctUntilChanged().collect(player::setVolume)
+        }
         // Count a play once enough of a track has been heard, and record where it started from.
         scope.launch {
             combine(controller.queue, player.state) { queue, state -> queue.current to state }.collect { (entry, state) ->

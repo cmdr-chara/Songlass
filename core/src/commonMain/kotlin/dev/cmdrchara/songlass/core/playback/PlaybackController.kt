@@ -11,6 +11,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -28,15 +30,36 @@ class PlaybackController(
     val queue: StateFlow<PlaybackQueue> = _queue.asStateFlow()
     val playerState: StateFlow<PlayerState> = player.state
 
+    private val _stopAfterCurrent = MutableStateFlow(false)
+
+    /** Playback pauses when the current track ends (sleep timer "end of track"). */
+    val stopAfterCurrent: StateFlow<Boolean> = _stopAfterCurrent.asStateFlow()
+
     init {
         scope.launch {
             player.events.collect { event ->
                 when (event) {
                     PlayerEvent.TrackEnded -> onTrackEnded()
+                    PlayerEvent.AdvancedToNext -> onAdvancedToNext()
                 }
             }
         }
+        // Keep the track that follows ready in the player, for gapless playback.
+        scope.launch {
+            combine(_queue, _stopAfterCurrent) { queue, stop -> if (stop) null else queue.upcomingTrack() }
+                .distinctUntilChanged()
+                .collect { player.setNext(it) }
+        }
     }
+
+    /** What plays after the current entry when it ends by itself, honouring repeat. */
+    private fun PlaybackQueue.upcomingTrack(): Track? = nextIndex(userInitiated = false)?.let { entries[it].track }
+
+    fun setStopAfterCurrent(enabled: Boolean) {
+        _stopAfterCurrent.value = enabled
+    }
+
+    fun pause() = player.pause()
 
     /** Where the current queue was started from (album, playlist…), for the listening history. */
     var context: PlayContext? = null
@@ -142,12 +165,23 @@ class PlaybackController(
     private fun onTrackEnded() {
         val queue = _queue.value
         val index = queue.nextIndex(userInitiated = false) ?: return
+        if (_stopAfterCurrent.value) {
+            // Ready on the next track, paused, as when a sleep timer ends a song.
+            _stopAfterCurrent.value = false
+            return moveTo(index, playWhenReady = false)
+        }
         if (index == queue.currentIndex) {
             player.seekTo(0)
             player.play()
         } else {
             moveTo(index, playWhenReady = true)
         }
+    }
+
+    /** The player already started the next track: only the queue position moves. */
+    private fun onAdvancedToNext() {
+        val index = _queue.value.nextIndex(userInitiated = false) ?: return
+        _queue.update { it.withCurrentIndex(index) }
     }
 
     companion object {

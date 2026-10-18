@@ -183,4 +183,14 @@ class AppSettingsTest {
         store.putString("settings.interface_style", "holo")
         assertEquals(InterfaceStyle.LiquidGlass, AppSettings(store).state.value.interfaceStyle)
     }
+
+    @Test
+    fun replayGainDefaultsToOffAndPersists() {
+        val store = InMemoryKeyValueStore()
+        assertEquals(dev.cmdrchara.songlass.core.player.ReplayGainMode.Off, AppSettings(store).state.value.replayGain)
+        AppSettings(store).setReplayGain(dev.cmdrchara.songlass.core.player.ReplayGainMode.Album)
+        assertEquals(dev.cmdrchara.songlass.core.player.ReplayGainMode.Album, AppSettings(store).state.value.replayGain)
+        store.putString("settings.replay_gain", "loud")
+        assertEquals(dev.cmdrchara.songlass.core.player.ReplayGainMode.Off, AppSettings(store).state.value.replayGain)
+    }
 }

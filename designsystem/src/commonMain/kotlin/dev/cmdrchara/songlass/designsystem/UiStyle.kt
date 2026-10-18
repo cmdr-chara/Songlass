@@ -160,6 +160,10 @@ interface UiStyle {
     @Composable
     fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier)
 
+    /** Volume slider between a quiet and a loud speaker, [value] 0..1. */
+    @Composable
+    fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier)
+
     @Composable
     fun TransportControls(
         isPlaying: Boolean,

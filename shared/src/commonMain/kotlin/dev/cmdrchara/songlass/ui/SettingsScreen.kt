@@ -1,5 +1,17 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.shared.resources.settings_replay_gain_hint
+
+import dev.cmdrchara.songlass.shared.resources.settings_replay_gain_album
+
+import dev.cmdrchara.songlass.shared.resources.settings_replay_gain_track
+
+import dev.cmdrchara.songlass.shared.resources.settings_replay_gain_off
+
+import dev.cmdrchara.songlass.shared.resources.settings_replay_gain
+
+import dev.cmdrchara.songlass.core.player.ReplayGainMode
+
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -122,6 +134,24 @@ fun SettingsScreen(
             }
         }
         item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
+        item { SectionTitle(stringResource(Res.string.settings_replay_gain)) }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+                ReplayGainMode.entries.forEach { mode ->
+                    val label = when (mode) {
+                        ReplayGainMode.Off -> Res.string.settings_replay_gain_off
+                        ReplayGainMode.Track -> Res.string.settings_replay_gain_track
+                        ReplayGainMode.Album -> Res.string.settings_replay_gain_album
+                    }
+                    SettingsChoiceRow(
+                        title = stringResource(label),
+                        selected = preferences.replayGain == mode,
+                        onClick = { settings.setReplayGain(mode) },
+                    )
+                }
+            }
+        }
+        item { SettingsHint(stringResource(Res.string.settings_replay_gain_hint)) }
         item { SectionTitle(stringResource(Res.string.settings_accessibility)) }
         item {
             SettingsGroup(Modifier.padding(horizontal = 16.dp)) {

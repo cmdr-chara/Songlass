@@ -23,6 +23,26 @@ class FakeAudioPlayer : AudioPlayer {
     var loadedTrack: Track? = null
         private set
 
+    /** What [setNext] queued after the current track. */
+    var nextTrack: Track? = null
+        private set
+
+    var volume: Float = 1f
+        private set
+
+    override fun setNext(track: Track?) {
+        nextTrack = track
+    }
+
+    override fun setVolume(volume: Float) {
+        this.volume = volume
+    }
+
+    /** Simulates the platform reading the file's loudness tags. */
+    fun reportReplayGain(tags: ReplayGainTags?) {
+        _state.update { it.copy(replayGain = tags) }
+    }
+
     override fun load(track: Track, playWhenReady: Boolean) {
         loadedTrack = track
         _state.value = PlayerState(
@@ -69,8 +89,16 @@ class FakeAudioPlayer : AudioPlayer {
         }
     }
 
-    /** Simulates the track playing to its end. */
+    /** Simulates the track playing to its end: the next one starts gaplessly if one was set. */
     fun finishTrack() {
+        val next = nextTrack
+        if (next != null) {
+            loadedTrack = next
+            nextTrack = null
+            _state.update { it.copy(status = PlayerStatus.Ready, positionMs = 0, durationMs = next.durationMs, replayGain = null) }
+            _events.tryEmit(PlayerEvent.AdvancedToNext)
+            return
+        }
         _state.update { it.copy(status = PlayerStatus.Ended, positionMs = it.durationMs) }
         _events.tryEmit(PlayerEvent.TrackEnded)
     }

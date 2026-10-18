@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.player.ReplayGainMode
+
 enum class AppearanceMode { System, Light, Dark }
 
 /** How covers are shown in Now Playing and on album/playlist pages. */
@@ -26,4 +28,6 @@ data class AppPreferences(
     val reduceTransparency: Boolean = false,
     val artworkStyle: ArtworkStyle = ArtworkStyle.FullBleed,
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
+    /** Off by default: changing loudness on its own would surprise. */
+    val replayGain: ReplayGainMode = ReplayGainMode.Off,
 )

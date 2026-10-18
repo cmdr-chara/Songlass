@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.player.ReplayGainMode
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,6 +25,11 @@ class AppSettings(private val store: KeyValueStore) {
             interfaceStyle = when (store.getString(INTERFACE_STYLE_KEY)) {
                 "material_glass" -> InterfaceStyle.MaterialGlass
                 else -> InterfaceStyle.LiquidGlass
+            },
+            replayGain = when (store.getString(REPLAY_GAIN_KEY)) {
+                "track" -> ReplayGainMode.Track
+                "album" -> ReplayGainMode.Album
+                else -> ReplayGainMode.Off
             },
         ),
     )
@@ -72,11 +78,24 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(interfaceStyle = style) }
     }
 
+    fun setReplayGain(mode: ReplayGainMode) {
+        store.putString(
+            REPLAY_GAIN_KEY,
+            when (mode) {
+                ReplayGainMode.Off -> "off"
+                ReplayGainMode.Track -> "track"
+                ReplayGainMode.Album -> "album"
+            },
+        )
+        _state.update { it.copy(replayGain = mode) }
+    }
+
     private companion object {
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"
         const val ARTWORK_STYLE_KEY = "settings.artwork_style"
         const val INTERFACE_STYLE_KEY = "settings.interface_style"
+        const val REPLAY_GAIN_KEY = "settings.replay_gain"
     }
 }
