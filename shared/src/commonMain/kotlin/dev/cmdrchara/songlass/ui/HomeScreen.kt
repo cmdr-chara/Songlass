@@ -60,6 +60,7 @@ import dev.cmdrchara.songlass.shared.resources.home_your_playlists
 import dev.cmdrchara.songlass.shared.resources.library_favorites
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_home
+import dev.cmdrchara.songlass.shared.resources.settings_title
 import dev.cmdrchara.songlass.shared.resources.tag_album
 import dev.cmdrchara.songlass.shared.resources.tag_artist
 import dev.cmdrchara.songlass.shared.resources.tag_playlist
@@ -98,7 +99,17 @@ fun HomeScreen(
         val shelfWidth = screenWidth - 16.dp * 2 - 28.dp
 
         LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
-            item { ScreenTitle(stringResource(Res.string.tab_home)) }
+            item {
+                // Settings are reachable from both main tabs, like the account button in Apple Music.
+                ScreenTitle(stringResource(Res.string.tab_home)) {
+                    IconButton(
+                        icon = AppIcons.Settings,
+                        contentDescription = stringResource(Res.string.settings_title),
+                        onClick = { state.open(Route.Settings) },
+                        modifier = Modifier.size(48.dp),
+                    )
+                }
+            }
             if (!hasAccess || library.tracks.isEmpty()) {
                 item { LibraryEmptyState(hasAccess, onRequestAccess) }
                 return@LazyColumn
