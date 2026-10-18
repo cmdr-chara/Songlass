@@ -25,7 +25,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
  * The content layer that glass elements refract. Set by the scaffold; `null` outside it,
  * in which case glass falls back to an opaque surface.
  */
-internal val LocalGlassSource = staticCompositionLocalOf<HazeState?> { null }
+val LocalGlassSource = staticCompositionLocalOf<HazeState?> { null }
 
 /**
  * Regular Liquid Glass background for navigation-layer elements (tab bar, mini player).
@@ -34,12 +34,20 @@ internal val LocalGlassSource = staticCompositionLocalOf<HazeState?> { null }
  * This is the only place that touches Haze's experimental glass API, so swapping the
  * implementation (or library) only changes this function.
  */
-@OptIn(ExperimentalHazeApi::class)
 @Composable
 internal fun Modifier.liquidGlass(
     shape: RoundedCornerShape,
     interactionSource: InteractionSource? = null,
     edges: Boolean = true,
+): Modifier = LocalGlassLook.current.navigationSurface(this, shape, interactionSource, edges)
+
+/** Apple's Liquid Glass material, the default [GlassLook.navigationSurface]. */
+@OptIn(ExperimentalHazeApi::class)
+@Composable
+internal fun Modifier.appleGlass(
+    shape: RoundedCornerShape,
+    interactionSource: InteractionSource?,
+    edges: Boolean,
 ): Modifier {
     val colors = AppTheme.colors
     val accessibility = AppTheme.accessibility

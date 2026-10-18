@@ -419,7 +419,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                     scaleY = 1f + 0.12f * l
                 }
                 .clip(Capsule)
-                .background(lerp(colors.fill, colors.label.copy(alpha = 0.08f), lift.value))
+                .background(lerp(LocalGlassLook.current.selection(), colors.label.copy(alpha = 0.08f), lift.value))
                 .border(1.dp, Color.White.copy(alpha = 0.25f * lift.value), Capsule),
         )
         Row(Modifier.fillMaxSize()) {
@@ -646,8 +646,7 @@ internal fun LiquidGlassIconButton(
                 .fillMaxSize()
                 .then(if (filled) Modifier.padding(6.dp) else Modifier)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .clip(CircleShape)
-                .background(background),
+                .let { if (background.alpha > 0f) LocalGlassLook.current.controlSurface(it, CircleShape, background, prominent = solid) else it },
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(

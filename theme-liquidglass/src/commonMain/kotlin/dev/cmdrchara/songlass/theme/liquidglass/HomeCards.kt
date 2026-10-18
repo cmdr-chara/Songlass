@@ -66,7 +66,7 @@ internal fun LiquidGlassPosterCard(label: String, title: String, subtitle: Strin
             Column(
                 Modifier
                     .graphicsLayer { scaleX = scale; scaleY = scale }
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(LocalGlassLook.current.corner(16.dp)))
                     .background(tint.background)
                     .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
             ) {
@@ -104,8 +104,7 @@ internal fun LiquidGlassShortcutTile(title: String, artwork: Artwork, circular: 
         modifier
             .height(ShortcutHeight)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clip(RoundedCornerShape(10.dp))
-            .background(AppTheme.colors.secondaryBackground)
+            .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(LocalGlassLook.current.corner(10.dp)), AppTheme.colors.secondaryBackground, prominent = false) }
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {

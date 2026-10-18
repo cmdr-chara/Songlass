@@ -153,6 +153,12 @@ data class ArtworkTint(
 val LocalNavigationTint = staticCompositionLocalOf<ArtworkTint?> { null }
 
 /**
+ * Cover of what is playing, provided by the app for styles whose colours follow the music
+ * (Material Glass); `null` when nothing is loaded.
+ */
+val LocalAmbientArtwork = staticCompositionLocalOf<dev.cmdrchara.songlass.designsystem.Artwork?> { null }
+
+/**
  * Tint of the screen a modal sheet (track menu, song information) was opened from, or null:
  * the sheet then reads as part of that screen instead of a neutral system panel.
  */

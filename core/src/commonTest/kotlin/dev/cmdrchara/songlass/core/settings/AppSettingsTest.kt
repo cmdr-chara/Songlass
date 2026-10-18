@@ -173,4 +173,14 @@ class AppSettingsTest {
         val store = InMemoryKeyValueStore().apply { putString("settings.artwork_style", "hologram") }
         assertEquals(ArtworkStyle.FullBleed, AppSettings(store).state.value.artworkStyle)
     }
+
+    @Test
+    fun interfaceStyleDefaultsToLiquidGlassAndPersists() {
+        val store = InMemoryKeyValueStore()
+        assertEquals(InterfaceStyle.LiquidGlass, AppSettings(store).state.value.interfaceStyle)
+        AppSettings(store).setInterfaceStyle(InterfaceStyle.MaterialGlass)
+        assertEquals(InterfaceStyle.MaterialGlass, AppSettings(store).state.value.interfaceStyle)
+        store.putString("settings.interface_style", "holo")
+        assertEquals(InterfaceStyle.LiquidGlass, AppSettings(store).state.value.interfaceStyle)
+    }
 }

@@ -46,6 +46,9 @@ import dev.cmdrchara.songlass.shared.resources.settings_reduce_transparency
 import dev.cmdrchara.songlass.shared.resources.settings_reduce_transparency_hint
 import dev.cmdrchara.songlass.shared.resources.settings_title
 import dev.cmdrchara.songlass.shared.resources.settings_ui_style
+import dev.cmdrchara.songlass.shared.resources.settings_ui_style_hint
+import dev.cmdrchara.songlass.shared.resources.settings_material_glass
+import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import org.jetbrains.compose.resources.stringResource
 
 /** App-wide preferences; values and persistence live in core. */
@@ -67,6 +70,23 @@ fun SettingsScreen(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() },
             )
         }
+        item { SectionTitle(stringResource(Res.string.settings_ui_style)) }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+                InterfaceStyle.entries.forEach { style ->
+                    val label = when (style) {
+                        InterfaceStyle.LiquidGlass -> Res.string.settings_liquid_glass
+                        InterfaceStyle.MaterialGlass -> Res.string.settings_material_glass
+                    }
+                    SettingsChoiceRow(
+                        title = stringResource(label),
+                        selected = preferences.interfaceStyle == style,
+                        onClick = { settings.setInterfaceStyle(style) },
+                    )
+                }
+            }
+        }
+        item { SettingsHint(stringResource(Res.string.settings_ui_style_hint)) }
         item { SectionTitle(stringResource(Res.string.settings_appearance)) }
         item {
             SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
@@ -128,15 +148,6 @@ fun SettingsScreen(
             }
         }
         item { SettingsHint(stringResource(Res.string.settings_accessibility_hint)) }
-        item { SectionTitle(stringResource(Res.string.settings_ui_style)) }
-        item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp)) {
-                ListRow(
-                    title = stringResource(Res.string.settings_liquid_glass),
-                    trailing = { AppIcon(AppIcons.Checkmark, contentDescription = null, tint = AppTheme.colors.accent) },
-                )
-            }
-        }
     }
 }
 

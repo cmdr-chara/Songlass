@@ -145,4 +145,6 @@
         <item quantity="one">%1$d cartella</item>
         <item quantity="other">%1$d cartelle</item>
     </plurals>
+    <string name="settings_material_glass">Material Glass</string>
+    <string name="settings_ui_style_hint">Material Glass colora tutta l’interfaccia con la copertina in riproduzione.</string>
 </resources>

@@ -129,8 +129,7 @@ internal fun LiquidGlassSegmentedControl(options: List<String>, selectedIndex: I
         modifier = modifier
             .fillMaxWidth()
             .height(36.dp)
-            .clip(CircleShape)
-            .background(colors.fill)
+            .let { LocalGlassLook.current.controlSurface(it, CircleShape, colors.fill, prominent = false) }
             .padding(2.dp),
     ) {
         if (options.isNotEmpty()) {
@@ -188,8 +187,7 @@ internal fun LiquidGlassActionButton(text: String, icon: ImageVector?, onClick: 
         modifier = modifier
             .height(48.dp)
             .graphicsLayer { alpha = pressedAlpha }
-            .clip(RoundedCornerShape(percent = 50))
-            .background(colors.fill)
+            .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(percent = 50), colors.fill, prominent = false) }
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.Center,
@@ -235,8 +233,7 @@ internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Un
         modifier = modifier
             .fillMaxWidth()
             .height(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(colors.fill)
+            .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(LocalGlassLook.current.corner(12.dp)), colors.fill, prominent = false) }
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

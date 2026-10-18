@@ -21,6 +21,10 @@ class AppSettings(private val store: KeyValueStore) {
                 "square" -> ArtworkStyle.Square
                 else -> ArtworkStyle.FullBleed
             },
+            interfaceStyle = when (store.getString(INTERFACE_STYLE_KEY)) {
+                "material_glass" -> InterfaceStyle.MaterialGlass
+                else -> InterfaceStyle.LiquidGlass
+            },
         ),
     )
 
@@ -57,10 +61,22 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(artworkStyle = style) }
     }
 
+    fun setInterfaceStyle(style: InterfaceStyle) {
+        store.putString(
+            INTERFACE_STYLE_KEY,
+            when (style) {
+                InterfaceStyle.LiquidGlass -> "liquid_glass"
+                InterfaceStyle.MaterialGlass -> "material_glass"
+            },
+        )
+        _state.update { it.copy(interfaceStyle = style) }
+    }
+
     private companion object {
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"
         const val ARTWORK_STYLE_KEY = "settings.artwork_style"
+        const val INTERFACE_STYLE_KEY = "settings.interface_style"
     }
 }

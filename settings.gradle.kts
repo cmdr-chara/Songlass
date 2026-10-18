@@ -31,5 +31,6 @@ dependencyResolutionManagement {
 include(":core")
 include(":designsystem")
 include(":theme-liquidglass")
+include(":theme-materialglass")
 include(":shared")
 include(":androidApp")

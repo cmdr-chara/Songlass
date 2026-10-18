@@ -45,7 +45,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 @Composable
 internal fun LiquidGlassSettingsGroup(content: @Composable () -> Unit, modifier: Modifier) {
     Column(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(AppTheme.colors.secondaryBackground),
+        LocalGlassLook.current.controlSurface(modifier.fillMaxWidth(), RoundedCornerShape(LocalGlassLook.current.corner(20.dp)), AppTheme.colors.secondaryBackground, prominent = false),
     ) {
         content()
     }

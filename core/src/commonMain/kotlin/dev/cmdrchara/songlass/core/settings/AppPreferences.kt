@@ -11,9 +11,19 @@ enum class ArtworkStyle {
     Square,
 }
 
+/** The interface style ("UI Style"); screens are the same, the look of every component changes. */
+enum class InterfaceStyle {
+    /** Apple-inspired iOS 26 Liquid Glass (default). */
+    LiquidGlass,
+
+    /** Pastel coloured glass after the "Google Sea Glass" Figma file. */
+    MaterialGlass,
+}
+
 data class AppPreferences(
     val appearance: AppearanceMode = AppearanceMode.System,
     val reduceMotion: Boolean = false,
     val reduceTransparency: Boolean = false,
     val artworkStyle: ArtworkStyle = ArtworkStyle.FullBleed,
+    val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
 )

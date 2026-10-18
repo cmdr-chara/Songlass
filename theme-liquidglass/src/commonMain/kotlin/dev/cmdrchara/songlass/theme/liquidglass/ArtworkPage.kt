@@ -108,9 +108,7 @@ internal fun LiquidGlassArtworkHeader(artwork: Artwork, contentDescription: Stri
 @Composable
 internal fun LiquidGlassTag(text: String, modifier: Modifier) {
     Box(
-        modifier
-            .clip(CircleShape)
-            .background(AppTheme.colors.fill)
+        LocalGlassLook.current.controlSurface(modifier, CircleShape, AppTheme.colors.fill, prominent = false)
             .padding(horizontal = 10.dp, vertical = 3.dp),
     ) {
         AppText(text, AppTheme.typography.caption1.copy(fontWeight = FontWeight.SemiBold), color = AppTheme.colors.secondaryLabel, maxLines = 1)
@@ -132,8 +130,7 @@ internal fun LiquidGlassProminentButton(icon: ImageVector, contentDescription: S
         modifier
             .size(56.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .clip(CircleShape)
-            .background(AppTheme.colors.accent)
+            .let { LocalGlassLook.current.controlSurface(it, CircleShape, AppTheme.colors.accent, prominent = true) }
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

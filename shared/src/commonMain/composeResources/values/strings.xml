@@ -145,4 +145,6 @@
         <item quantity="one">%1$d folder</item>
         <item quantity="other">%1$d folders</item>
     </plurals>
+    <string name="settings_material_glass">Material Glass</string>
+    <string name="settings_ui_style_hint">Material Glass colours the whole interface with the cover of what is playing.</string>
 </resources>

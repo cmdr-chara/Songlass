@@ -52,6 +52,9 @@ import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
 import dev.cmdrchara.songlass.ui.FolderScreen
+import dev.cmdrchara.songlass.core.settings.InterfaceStyle
+import dev.cmdrchara.songlass.designsystem.theme.LocalAmbientArtwork
+import dev.cmdrchara.songlass.theme.materialglass.MaterialGlassTheme
 import dev.cmdrchara.songlass.ui.LibraryCategoryScreen
 import dev.cmdrchara.songlass.ui.Route
 import dev.cmdrchara.songlass.ui.SearchScreen
@@ -97,8 +100,12 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         AppearanceMode.Light -> false
         AppearanceMode.Dark -> true
     }
-    LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility) {
-        val state = remember(graph) { AppState(graph) }
+    // Navigation state outlives a change of interface style.
+    val state = remember(graph) { AppState(graph) }
+    val playingQueue by graph.controller.queue.collectAsState()
+    val ambientArtwork = playingQueue.current?.track?.artwork()
+    CompositionLocalProvider(LocalAmbientArtwork provides ambientArtwork) {
+    InterfaceTheme(preferences.interfaceStyle, darkTheme, accessibility) {
         val library by graph.library.collectAsState()
         val hasLibraryAccess by graph.source.hasAccess.collectAsState()
         LaunchedEffect(library) { state.library = library }
@@ -227,5 +234,15 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             }
         }
         }
+    }
+    }
+}
+
+/** The chosen interface style's tokens and components around [content]. */
+@Composable
+private fun InterfaceTheme(style: InterfaceStyle, darkTheme: Boolean, accessibility: UiAccessibility, content: @Composable () -> Unit) {
+    when (style) {
+        InterfaceStyle.LiquidGlass -> LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility, content = content)
+        InterfaceStyle.MaterialGlass -> MaterialGlassTheme(darkTheme = darkTheme, accessibility = accessibility, content = content)
     }
 }
