@@ -181,6 +181,39 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     ) = MaterialMiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
 
     @Composable
+    override fun CollectionDetails(
+        kind: String,
+        title: String,
+        subtitle: String?,
+        onSubtitleClick: (() -> Unit)?,
+        meta: String,
+        playLabel: String,
+        shuffleLabel: String,
+        onPlay: () -> Unit,
+        onShuffle: () -> Unit,
+        action: @Composable () -> Unit,
+        modifier: Modifier,
+    ) = MaterialCollectionDetails(kind, title, subtitle, onSubtitleClick, meta, playLabel, shuffleLabel, onPlay, onShuffle, action, modifier)
+
+    @Composable
+    override fun FilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        MaterialFilterChips(options, selectedIndex, onSelect, modifier)
+
+    @Composable
+    override fun ArtistAvatar(artwork: Artwork, modifier: Modifier) = MaterialArtistAvatar(artwork, modifier)
+
+    @Composable
+    override fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) =
+        MaterialSearchField(query, onQueryChange, placeholder, clearLabel, modifier)
+
+    @Composable
+    override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) =
+        MaterialIconButton(icon, contentDescription, onClick, selected, filled, modifier)
+
+    @Composable
+    override fun Tag(text: String, modifier: Modifier) = MaterialTag(text, modifier)
+
+    @Composable
     override fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) =
         MaterialArtworkShelf(items, style, itemSize, modifier)
 

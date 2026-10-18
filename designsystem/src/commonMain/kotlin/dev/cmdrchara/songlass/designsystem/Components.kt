@@ -146,8 +146,9 @@ fun SearchField(
     query: String,
     onQueryChange: (String) -> Unit,
     placeholder: String,
+    clearLabel: String,
     modifier: Modifier = Modifier,
-) = LocalUiStyle.current.SearchField(query, onQueryChange, placeholder, modifier)
+) = LocalUiStyle.current.SearchField(query, onQueryChange, placeholder, clearLabel, modifier)
 
 @Composable
 fun NowPlayingSheet(
@@ -220,6 +221,28 @@ fun CollectionTile(
 @Composable
 fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier = Modifier) =
     LocalUiStyle.current.VolumeSlider(value, onValueChange, label, modifier)
+
+@Composable
+fun CollectionDetails(
+    kind: String,
+    title: String,
+    subtitle: String?,
+    onSubtitleClick: (() -> Unit)?,
+    meta: String,
+    playLabel: String,
+    shuffleLabel: String,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+    modifier: Modifier = Modifier,
+    action: @Composable () -> Unit = {},
+) = LocalUiStyle.current.CollectionDetails(kind, title, subtitle, onSubtitleClick, meta, playLabel, shuffleLabel, onPlay, onShuffle, action, modifier)
+
+@Composable
+fun FilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.FilterChips(options, selectedIndex, onSelect, modifier)
+
+@Composable
+fun ArtistAvatar(artwork: Artwork, modifier: Modifier = Modifier) = LocalUiStyle.current.ArtistAvatar(artwork, modifier)
 
 @Composable
 fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier = Modifier) =

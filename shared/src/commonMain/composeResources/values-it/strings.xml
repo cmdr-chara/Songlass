@@ -205,4 +205,10 @@
     <string name="eq_import_failed">Questo file non contiene filtri utilizzabili da Songlass.</string>
     <string name="eq_decimal_separator">,</string>
     <string name="settings_sound">Suono</string>
+    <string name="search_clear">Cancella</string>
+    <string name="search_all">Tutto</string>
+    <plurals name="albums_count">
+        <item quantity="one">%1$d album</item>
+        <item quantity="other">%1$d album</item>
+    </plurals>
 </resources>

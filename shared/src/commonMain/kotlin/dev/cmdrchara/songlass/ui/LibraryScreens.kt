@@ -45,6 +45,7 @@ import dev.cmdrchara.songlass.shared.resources.tag_folder
 import dev.cmdrchara.songlass.shared.resources.folders_count
 import dev.cmdrchara.songlass.designsystem.FloatingBackButton
 import dev.cmdrchara.songlass.shared.resources.tag_album
+import dev.cmdrchara.songlass.shared.resources.tag_artist
 import dev.cmdrchara.songlass.designsystem.Tag
 import dev.cmdrchara.songlass.designsystem.ProminentButton
 import dev.cmdrchara.songlass.designsystem.ArtworkTintedPage
@@ -68,6 +69,8 @@ import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.ArtistAvatar
+import dev.cmdrchara.songlass.designsystem.CollectionDetails
 import dev.cmdrchara.songlass.designsystem.ArtworkShelf
 import dev.cmdrchara.songlass.designsystem.ShelfItem
 import dev.cmdrchara.songlass.designsystem.ShelfStyle
@@ -78,6 +81,7 @@ import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.albums_count
 import dev.cmdrchara.songlass.shared.resources.library_access_button
 import dev.cmdrchara.songlass.shared.resources.library_access_message
 import dev.cmdrchara.songlass.shared.resources.library_access_title
@@ -337,33 +341,44 @@ fun ArtistRow(artist: Artist, onClick: () -> Unit) {
     ListRow(
         title = artistName(artist.name),
         leading = {
-            val art = artist.albums.firstOrNull()?.artwork()
-            if (art != null) AlbumArt(art, Modifier.size(48.dp), cornerRadius = 24.dp)
+            val art = artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
+            if (art != null) ArtistAvatar(art, Modifier.size(48.dp))
         },
         onClick = onClick,
     )
 }
 
 
+/** An artist in their cover's colours: header, Play/Shuffle, their albums as a shelf, then every song. */
 @Composable
 fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
-        item { BackLink(backLabel) { state.goBack() } }
-        item {
-            Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                AppText(artistName(artist.name), AppTheme.typography.largeTitle, modifier = Modifier.weight(1f), maxLines = 2)
-                PinButton(PlayContext.Artist(artist.name), state)
+    val context = PlayContext.Artist(artist.name)
+    val albums = artist.albums
+    val albumItems = albums.map { album ->
+        ShelfItem(album.playContext().key, albumTitle(album.title), stringResource(Res.string.tag_album), album.artwork(), { state.open(Route.AlbumDetail(album)) })
+    }
+    ArtworkCollectionPage(
+        artwork = albums.firstOrNull()?.artwork() ?: artist.tracks.first().artwork(),
+        kind = stringResource(Res.string.tag_artist),
+        title = artistName(artist.name),
+        subtitle = if (albums.isEmpty()) null else pluralStringResource(Res.plurals.albums_count, albums.size, albums.size),
+        onSubtitleClick = null,
+        tracks = artist.tracks,
+        durationMs = artist.tracks.sumOf { it.durationMs },
+        context = context,
+        state = state,
+        backLabel = backLabel,
+        contentPadding = contentPadding,
+        extra = if (albums.isEmpty()) null else {
+            {
+                item { SectionTitle(stringResource(Res.string.library_albums)) }
+                item { ArtworkShelf(albumItems, ShelfStyle.Carousel, 150.dp) }
+                item { SectionTitle(stringResource(Res.string.library_songs)) }
             }
-        }
-        if (artist.albums.isNotEmpty()) {
-            item { SectionTitle(stringResource(Res.string.library_albums)) }
-            items(artist.albums.chunked(2)) { pair -> AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) } }
-        }
-        item { SectionTitle(stringResource(Res.string.library_songs)) }
-        itemsIndexed(artist.tracks, key = { _, t -> t.id }) { index, track ->
-            TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                state.controller.playTracks(artist.tracks, index, PlayContext.Artist(artist.name))
-            }
+        },
+    ) { index, track ->
+        TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
+            state.controller.playTracks(artist.tracks, index, context)
         }
     }
 }
@@ -533,38 +548,19 @@ internal fun ArtworkCollectionPage(
         LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
             item { ArtworkHeader(artwork) }
             item {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-                    Tag(kind)
-                    Spacer(Modifier.height(8.dp))
-                    AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
-                    // Play and shuffle sit beside the details instead of on a row of their own.
-                    Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            if (subtitle != null) {
-                                AppText(
-                                    subtitle,
-                                    AppTheme.typography.headline,
-                                    color = AppTheme.colors.secondaryLabel,
-                                    maxLines = 1,
-                                    modifier = if (onSubtitleClick != null) {
-                                        Modifier.clickable(role = Role.Button, onClick = onSubtitleClick).padding(vertical = 4.dp)
-                                    } else Modifier.padding(vertical = 4.dp),
-                                )
-                            }
-                            AppText(
-                                text = pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size) +
-                                    " · " + stringResource(Res.string.album_minutes, minutes),
-                                style = AppTheme.typography.footnote,
-                                color = AppTheme.colors.secondaryLabel,
-                            )
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        headerAction()
-                        IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, filled = true)
-                        Spacer(Modifier.width(12.dp))
-                        ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) })
-                    }
-                }
+                CollectionDetails(
+                    kind = kind,
+                    title = title,
+                    subtitle = subtitle,
+                    onSubtitleClick = onSubtitleClick,
+                    meta = pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size) +
+                        " · " + stringResource(Res.string.album_minutes, minutes),
+                    playLabel = stringResource(Res.string.action_play),
+                    shuffleLabel = stringResource(Res.string.action_shuffle),
+                    onPlay = { state.controller.playTracks(tracks, context = context) },
+                    onShuffle = { state.controller.shuffleTracks(tracks, context) },
+                    action = headerAction,
+                )
             }
             extra?.invoke(this)
             itemsIndexed(rows, key = { _, t -> t.id }) { index, track -> row(index, track) }

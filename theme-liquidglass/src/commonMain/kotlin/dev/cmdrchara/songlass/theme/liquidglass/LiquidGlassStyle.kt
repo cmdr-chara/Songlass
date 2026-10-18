@@ -88,7 +88,7 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) =
-        LiquidGlassIconButton(icon, contentDescription, onClick, selected, modifier, filled = filled)
+        LocalGlassLook.current.IconButton(icon, contentDescription, onClick, selected, filled, modifier)
 
     @Composable
     override fun AlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: Modifier) =
@@ -121,8 +121,8 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassLyricsViewport(modifier, content)
 
     @Composable
-    override fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier) =
-        LiquidGlassSearchField(query, onQueryChange, placeholder, modifier)
+    override fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) =
+        LocalGlassLook.current.SearchField(query, onQueryChange, placeholder, clearLabel, modifier)
 
     @Composable
     override fun NowPlayingSheet(
@@ -163,7 +163,7 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassArtworkHeader(artwork, contentDescription, modifier)
 
     @Composable
-    override fun Tag(text: String, modifier: Modifier) = LiquidGlassTag(text, modifier)
+    override fun Tag(text: String, modifier: Modifier) = LocalGlassLook.current.Tag(text, modifier)
 
     @Composable
     override fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
@@ -188,6 +188,28 @@ object LiquidGlassStyle : UiStyle {
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
     ) = LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+    @Composable
+    override fun CollectionDetails(
+        kind: String,
+        title: String,
+        subtitle: String?,
+        onSubtitleClick: (() -> Unit)?,
+        meta: String,
+        playLabel: String,
+        shuffleLabel: String,
+        onPlay: () -> Unit,
+        onShuffle: () -> Unit,
+        action: @Composable () -> Unit,
+        modifier: Modifier,
+    ) = LocalGlassLook.current.CollectionDetails(kind, title, subtitle, onSubtitleClick, meta, playLabel, shuffleLabel, onPlay, onShuffle, action, modifier)
+
+    @Composable
+    override fun FilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        LocalGlassLook.current.FilterChips(options, selectedIndex, onSelect, modifier)
+
+    @Composable
+    override fun ArtistAvatar(artwork: Artwork, modifier: Modifier) = LocalGlassLook.current.ArtistAvatar(artwork, modifier)
 
     @Composable
     override fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) =

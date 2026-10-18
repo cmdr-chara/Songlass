@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass
 
+import dev.cmdrchara.songlass.designsystem.Artwork
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -130,19 +131,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val followArtwork = preferences.artworkStyle == ArtworkStyle.FullBleed
         val tintedArtwork = when {
             nowPlayingVisible -> current?.artwork()
-            else -> when (val route = state.currentRoute) {
-                is Route.AlbumDetail -> route.album.artwork()
-                is Route.FolderDetail -> route.folder.artwork()
-                else -> null
-            }
+            else -> state.currentRoute.pageArtwork(state)
         }
         val contextTint = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork)
         val tintIsDark = contextTint.isDark
-        val routeArtwork = when (val route = state.currentRoute) {
-            is Route.AlbumDetail -> route.album.artwork()
-            is Route.FolderDetail -> route.folder.artwork()
-            else -> null
-        }
+        val routeArtwork = state.currentRoute.pageArtwork(state)
         val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
         SystemBarAppearance(lightIcons = if (tintedArtwork != null) tintIsDark else darkTheme)
         val tabTitles = mapOf(
@@ -258,4 +251,13 @@ private fun InterfaceTheme(style: InterfaceStyle, darkTheme: Boolean, accessibil
     LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility) {
         MaterialGlassLayer(enabled = style == InterfaceStyle.MaterialGlass, darkTheme = darkTheme, content = content)
     }
+}
+
+/** The cover a page is tinted with (album, folder, artist, playlist), so the bars match it. */
+private fun Route?.pageArtwork(state: AppState): Artwork? = when (this) {
+    is Route.AlbumDetail -> album.artwork()
+    is Route.FolderDetail -> folder.artwork()
+    is Route.ArtistDetail -> artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
+    is Route.UserPlaylistDetail -> state.userPlaylists.get(id)?.let { it.artwork(it.tracksIn(state.library)) }
+    else -> null
 }

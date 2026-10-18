@@ -13,6 +13,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -223,7 +224,7 @@ internal fun LiquidGlassAlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: M
 }
 
 @Composable
-internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier) {
+internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) {
     val colors = AppTheme.colors
     Row(
         modifier = modifier
@@ -247,6 +248,17 @@ internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Un
                 cursorBrush = SolidColor(colors.accent),
                 modifier = Modifier.fillMaxWidth(),
             )
+        }
+        if (query.isNotEmpty()) {
+            // iOS clear button: a small grey circle with a cross.
+            Box(
+                Modifier.size(36.dp).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = clearLabel) { onQueryChange("") },
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(Modifier.size(18.dp).clip(CircleShape).background(colors.secondaryLabel.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
+                    AppIcon(AppIcons.Close, contentDescription = clearLabel, size = 12.dp, tint = colors.background)
+                }
+            }
         }
     }
 }

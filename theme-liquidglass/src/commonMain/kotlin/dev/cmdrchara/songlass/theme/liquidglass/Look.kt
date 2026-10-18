@@ -136,6 +136,39 @@ interface GlassLook {
     fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
         LiquidGlassCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
 
+    @Composable
+    fun CollectionDetails(
+        kind: String,
+        title: String,
+        subtitle: String?,
+        onSubtitleClick: (() -> Unit)?,
+        meta: String,
+        playLabel: String,
+        shuffleLabel: String,
+        onPlay: () -> Unit,
+        onShuffle: () -> Unit,
+        action: @Composable () -> Unit,
+        modifier: Modifier,
+    ) = LiquidGlassCollectionDetails(kind, title, subtitle, onSubtitleClick, meta, playLabel, shuffleLabel, onPlay, onShuffle, action, modifier)
+
+    @Composable
+    fun FilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        LiquidGlassFilterChips(options, selectedIndex, onSelect, modifier)
+
+    @Composable
+    fun ArtistAvatar(artwork: Artwork, modifier: Modifier) = LiquidGlassArtistAvatar(artwork, modifier)
+
+    @Composable
+    fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) =
+        LiquidGlassSearchField(query, onQueryChange, placeholder, clearLabel, modifier)
+
+    @Composable
+    fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) =
+        LiquidGlassIconButton(icon, contentDescription, onClick, selected, modifier, filled = filled)
+
+    @Composable
+    fun Tag(text: String, modifier: Modifier) = LiquidGlassTag(text, modifier)
+
     /** The expanded tab bar (Search included, if any). */
     @Composable
     fun NavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) =

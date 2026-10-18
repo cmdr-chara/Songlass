@@ -64,6 +64,7 @@ class AppState(graph: AppGraph) {
     var tab by mutableStateOf(Tab.Home)
         private set
     var searchQuery by mutableStateOf("")
+    var searchFilter by mutableStateOf(SearchFilter.All)
     var isNowPlayingOpen by mutableStateOf(false)
         private set
     var playerPage by mutableStateOf(PlayerPage.Artwork)

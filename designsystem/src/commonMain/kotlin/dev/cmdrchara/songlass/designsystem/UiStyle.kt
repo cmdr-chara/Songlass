@@ -211,7 +211,7 @@ interface UiStyle {
     fun LyricsViewport(modifier: Modifier, content: @Composable () -> Unit)
 
     @Composable
-    fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, modifier: Modifier)
+    fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier)
 
     /**
      * Full-screen sheet for Now Playing, with a grabber and swipe-down to dismiss.
@@ -315,6 +315,34 @@ interface UiStyle {
         onBandChange: (Int, Float) -> Unit,
         modifier: Modifier,
     )
+
+    /**
+     * Details and main actions under a collection's cover (album, folder, playlist, artist):
+     * [kind] ("Album"), [title], [subtitle] (tappable when [onSubtitleClick] is set), [meta]
+     * ("12 songs · 40 min"), Play and Shuffle, and a small extra [action] such as pinning.
+     */
+    @Composable
+    fun CollectionDetails(
+        kind: String,
+        title: String,
+        subtitle: String?,
+        onSubtitleClick: (() -> Unit)?,
+        meta: String,
+        playLabel: String,
+        shuffleLabel: String,
+        onPlay: () -> Unit,
+        onShuffle: () -> Unit,
+        action: @Composable () -> Unit,
+        modifier: Modifier,
+    )
+
+    /** One-of-many filter shown as a row of chips that scrolls sideways. */
+    @Composable
+    fun FilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier)
+
+    /** An artist's picture (their first cover) in the style's artist shape. */
+    @Composable
+    fun ArtistAvatar(artwork: Artwork, modifier: Modifier)
 
     /** A horizontal row of covers; [itemSize] is the cover size the screen designed for. */
     @Composable
