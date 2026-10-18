@@ -27,6 +27,7 @@ import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
+import dev.cmdrchara.songlass.designsystem.BackButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
@@ -94,17 +95,7 @@ fun SectionTitle(text: String, action: (@Composable () -> Unit)? = null) {
 /** iOS-style back link: chevron plus the previous screen's title, 44 dp tall. */
 @Composable
 fun BackLink(label: String, onBack: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .heightIn(min = 44.dp)
-            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onBack)
-            .padding(start = 8.dp, end = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AppIcon(AppIcons.ChevronLeft, contentDescription = null, size = 26.dp, tint = AppTheme.colors.accent)
-        AppText(label, AppTheme.typography.body, color = AppTheme.colors.accent, maxLines = 1)
-    }
+    BackButton(label, onBack, Modifier.windowInsetsPadding(WindowInsets.statusBars))
 }
 
 @Composable

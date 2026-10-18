@@ -250,3 +250,18 @@ internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Un
         }
     }
 }
+
+/** iOS back link: chevron plus the previous page's title in the accent colour, 44 dp tall. */
+@Composable
+internal fun LiquidGlassBackButton(label: String, onClick: () -> Unit, modifier: Modifier) {
+    Row(
+        modifier = modifier
+            .heightIn(min = 44.dp)
+            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)
+            .padding(start = 8.dp, end = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        AppIcon(AppIcons.ChevronLeft, contentDescription = null, size = 26.dp, tint = AppTheme.colors.accent)
+        AppText(label, AppTheme.typography.body, color = AppTheme.colors.accent, maxLines = 1)
+    }
+}

@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.theme.materialglass
 
+import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -35,7 +36,10 @@ import dev.chrisbanes.haze.glass.GlassDefaults
 import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
+import androidx.compose.ui.graphics.vector.ImageVector
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.TabItem
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.theme.liquidglass.GlassLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassSource
@@ -144,6 +148,34 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     // Pills everywhere and generously rounded cards (the file's cards use 24–32 px at 0.6 dp/px).
     override fun corner(base: Dp): Dp = base * 1.6f
+
+    // Material 3 structure: a navigation bar that stays put, bottom sheets, back arrows, ripples
+    // and M3 selection controls. The glass stays the file's.
+    override val minimizesOnScroll: Boolean get() = false
+    override val bottomSheets: Boolean get() = true
+    override val backIcon: ImageVector get() = AppIcons.ArrowBack
+
+    @Composable
+    override fun pressIndication(): Indication = MaterialRipple
+
+    @Composable
+    override fun NavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) =
+        MaterialNavigationBar(tabs, selectedTab, onTabSelected, modifier)
+
+    @Composable
+    override fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) = MaterialBackButton(label, onClick, modifier)
+
+    @Composable
+    override fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        MaterialSettingsChoiceRow(title, selected, onClick, modifier)
+
+    @Composable
+    override fun SettingsToggleRow(title: String, subtitle: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean, modifier: Modifier) =
+        MaterialSettingsToggleRow(title, subtitle, checked, onCheckedChange, enabled, modifier)
+
+    @Composable
+    override fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        MaterialSegmentedControl(options, selectedIndex, onSelect, modifier)
 }
 
 /** Glass-like surface without backdrop: base fill plus the file's light, glow and grain. */

@@ -118,6 +118,11 @@ object AppIcons {
         icon("ChevronLeft") { stroke { moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f) } }
     }
 
+    /** Arrow pointing left, the back control of Material layouts. */
+    val ArrowBack: ImageVector by lazy {
+        icon("ArrowBack") { stroke { moveTo(19f, 12f); lineTo(5f, 12f); moveTo(11f, 6f); lineTo(5f, 12f); lineTo(11f, 18f) } }
+    }
+
     val ChevronRight: ImageVector by lazy {
         icon("ChevronRight") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
     }

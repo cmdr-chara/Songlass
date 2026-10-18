@@ -131,7 +131,7 @@ internal fun LiquidGlassScaffold(
         MinimizeOnScroll(thresholdPx = with(density) { MinimizeScrollThreshold.toPx() }) { minimizeRequested = it }
     }
     // Without an accessory there is nothing to show inline, so the bar stays expanded.
-    val minimized = !accessibility.reduceMotion && minimizeRequested && accessory != null
+    val minimized = LocalGlassLook.current.minimizesOnScroll && !accessibility.reduceMotion && minimizeRequested && accessory != null
     val colors = AppTheme.colors
 
     // App opening, after the launch splash: the page settles in from slightly larger while the
@@ -305,18 +305,25 @@ private fun NavigationLayer(
                 verticalArrangement = Arrangement.spacedBy(BarSpacing),
             ) {
                 accessory?.invoke()
-                val link = remember { LiquidLink() }
-                Box(contentAlignment = Alignment.CenterEnd) {
-                    if (searchIndex >= 0) LiquidBridge(link)
-                    Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
-                        TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link)
-                        if (searchIndex >= 0) {
-                            val search = tabs[searchIndex]
-                            GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = TabBarHeight, link = link) {
-                                onTabSelected(searchIndex)
-                            }
-                        }
-                    }
+                LocalGlassLook.current.NavigationBar(tabs, selectedTab, onTabSelected, Modifier)
+            }
+        }
+    }
+}
+
+/** iOS 26 tab bar: the tab pill and, beside it, the search circle, merging when pressed together. */
+@Composable
+internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) {
+    val searchIndex = tabs.indexOfFirst { it.isSearch }
+    val link = remember { LiquidLink() }
+    Box(modifier, contentAlignment = Alignment.CenterEnd) {
+        if (searchIndex >= 0) LiquidBridge(link)
+        Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
+            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link)
+            if (searchIndex >= 0) {
+                val search = tabs[searchIndex]
+                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = TabBarHeight, link = link) {
+                    onTabSelected(searchIndex)
                 }
             }
         }

@@ -140,7 +140,7 @@ internal fun LiquidGlassProminentButton(icon: ImageVector, contentDescription: S
 
 @Composable
 internal fun LiquidGlassFloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
-    FloatingCircleButton(dev.cmdrchara.songlass.designsystem.icons.AppIcons.ChevronLeft, contentDescription, onClick, modifier)
+    FloatingCircleButton(LocalGlassLook.current.backIcon, contentDescription, onClick, modifier)
 
 /** 44 dp target; the visible circle uses the page background so it reads over any cover. */
 @Composable

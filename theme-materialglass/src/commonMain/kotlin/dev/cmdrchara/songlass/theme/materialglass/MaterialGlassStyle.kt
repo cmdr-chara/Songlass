@@ -128,7 +128,7 @@ private fun TransportPill(icon: ImageVector, description: String, onClick: () ->
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(corner))
             .background(fill)
-            .clickable(interaction, indication = null, role = Role.Button, onClickLabel = description, onClick = onClick),
+            .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClickLabel = description, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         AppIcon(icon, contentDescription = description, size = if (prominent) 34.dp else 28.dp, tint = iconTint)
@@ -164,7 +164,7 @@ private fun CardRow(
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(20.dp))
             .background(fill)
-            .then(if (onClick != null) Modifier.clickable(interaction, indication = null, onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.clickable(interaction, indication = MaterialRipple, onClick = onClick) else Modifier)
             .heightIn(min = if (subtitle != null) 64.dp else 48.dp)
             .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,

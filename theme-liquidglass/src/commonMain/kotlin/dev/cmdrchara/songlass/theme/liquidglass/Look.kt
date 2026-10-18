@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,7 +12,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.vector.ImageVector
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.TabItem
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 /**
@@ -44,6 +48,19 @@ interface GlassLook {
     /** Corner radius of cards and grouped surfaces designed at [base] for Liquid Glass. */
     fun corner(base: Dp): Dp
 
+    /** Whether scrolling down folds the tab bar into one row with the mini player (iOS 26). */
+    val minimizesOnScroll: Boolean get() = true
+
+    /** Menus as a bottom sheet attached to the screen edge instead of iOS's floating card with Cancel. */
+    val bottomSheets: Boolean get() = false
+
+    /** Icon of back controls. */
+    val backIcon: ImageVector get() = AppIcons.ChevronLeft
+
+    /** Press feedback for rows and buttons (e.g. a ripple); null keeps each component's own highlight. */
+    @Composable
+    fun pressIndication(): Indication? = null
+
     // Components a look may redraw in its own shape. Kept here, not in a separate UiStyle, so a
     // change of look keeps the same composition tree (no rebuilt screens when switching style).
 
@@ -68,6 +85,26 @@ interface GlassLook {
 
     @Composable
     fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = LiquidGlassSettingsGroup(content, modifier)
+
+    @Composable
+    fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassSettingsChoiceRow(title, selected, onClick, modifier)
+
+    @Composable
+    fun SettingsToggleRow(title: String, subtitle: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean, modifier: Modifier) =
+        LiquidGlassSettingsToggleRow(title, subtitle, checked, onCheckedChange, enabled, modifier)
+
+    @Composable
+    fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        LiquidGlassSegmentedControl(options, selectedIndex, onSelect, modifier)
+
+    @Composable
+    fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) = LiquidGlassBackButton(label, onClick, modifier)
+
+    /** The expanded tab bar (Search included, if any). */
+    @Composable
+    fun NavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) =
+        LiquidNavigationBar(tabs, selectedTab, onTabSelected, modifier)
 }
 
 /** Apple's iOS 26 Liquid Glass. */

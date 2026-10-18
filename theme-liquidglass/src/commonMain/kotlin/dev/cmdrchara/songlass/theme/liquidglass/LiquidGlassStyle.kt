@@ -63,7 +63,7 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassSettingsChoiceRow(title, selected, onClick, modifier)
+        LocalGlassLook.current.SettingsChoiceRow(title, selected, onClick, modifier)
 
     @Composable
     override fun SettingsToggleRow(
@@ -73,11 +73,11 @@ object LiquidGlassStyle : UiStyle {
         onCheckedChange: (Boolean) -> Unit,
         enabled: Boolean,
         modifier: Modifier,
-    ) = LiquidGlassSettingsToggleRow(title, subtitle, checked, onCheckedChange, enabled, modifier)
+    ) = LocalGlassLook.current.SettingsToggleRow(title, subtitle, checked, onCheckedChange, enabled, modifier)
 
     @Composable
     override fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
-        LiquidGlassSegmentedControl(options, selectedIndex, onSelect, modifier)
+        LocalGlassLook.current.SegmentedControl(options, selectedIndex, onSelect, modifier)
 
     @Composable
     override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
@@ -185,6 +185,10 @@ object LiquidGlassStyle : UiStyle {
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
     ) = LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+    @Composable
+    override fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) =
+        LocalGlassLook.current.BackButton(label, onClick, modifier)
 
     @Composable
     override fun EqualizerEditor(

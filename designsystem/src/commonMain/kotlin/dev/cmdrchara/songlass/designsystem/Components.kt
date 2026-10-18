@@ -221,6 +221,10 @@ fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, mo
     LocalUiStyle.current.VolumeSlider(value, onValueChange, label, modifier)
 
 @Composable
+fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.BackButton(label, onClick, modifier)
+
+@Composable
 fun EqualizerEditor(
     bands: List<EqBand>,
     curve: List<Float>,

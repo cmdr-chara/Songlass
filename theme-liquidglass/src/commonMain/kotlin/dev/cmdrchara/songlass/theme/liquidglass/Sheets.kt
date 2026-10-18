@@ -164,10 +164,13 @@ private fun ActionSheetContent(
 ) {
     val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
+    val look = LocalGlassLook.current
+    val bottomSheet = look.bottomSheets
     // In a tinted context the card is a slightly raised shade of the same hue; otherwise the
-    // neutral system surface.
+    // neutral system surface (a tonal container for bottom sheets).
     val surface = when {
         tinted -> lerp(colors.background, colors.label, if (colors.isDark) 0.1f else 0.05f)
+        bottomSheet -> colors.secondaryBackground
         colors.isDark -> Color(0xFF2C2C2E)
         else -> Color.White
     }
@@ -210,6 +213,10 @@ private fun ActionSheetContent(
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
             CompositionLocalProvider(LocalContentColor provides colors.label) {
+                if (bottomSheet) {
+                    BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight)
+                    return@CompositionLocalProvider
+                }
                 Column(
                     Modifier
                         .fillMaxWidth()
@@ -284,5 +291,90 @@ private fun SheetRow(label: String, icon: ImageVector?, bold: Boolean = false, o
         val style = AppTheme.typography.body.let { if (bold) it.copy(fontWeight = FontWeight.SemiBold) else it }
         AppText(label, style, color = AppTheme.colors.accent, modifier = Modifier.weight(1f), maxLines = 1)
         if (icon != null) AppIcon(icon, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent)
+    }
+}
+
+private val BottomSheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+
+/**
+ * Material bottom sheet: attached to the bottom edge with a drag handle, a header, then the actions
+ * as rows with a leading icon. No Cancel button: tapping outside or Back closes it.
+ */
+@Composable
+private fun BottomSheetContent(
+    visible: Boolean,
+    title: String,
+    subtitle: String?,
+    artwork: Artwork?,
+    actions: List<SheetAction>,
+    onDismiss: () -> Unit,
+    details: List<InfoRow>,
+    field: (@Composable () -> Unit)?,
+    surface: Color,
+    maxHeight: androidx.compose.ui.unit.Dp,
+) {
+    val colors = AppTheme.colors
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .shadow(8.dp, BottomSheetShape)
+            .clip(BottomSheetShape)
+            .background(surface)
+            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+            .heightIn(max = maxHeight)
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 8.dp),
+    ) {
+        Box(
+            Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 6.dp)
+                .size(width = 32.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(colors.label.copy(alpha = 0.4f)),
+        )
+        Row(Modifier.padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (artwork != null) {
+                LiquidGlassAlbumArt(artwork, cornerRadius = 12.dp, modifier = Modifier.size(56.dp))
+                Spacer(Modifier.width(16.dp))
+            }
+            Column {
+                AppText(title, AppTheme.typography.title3, maxLines = 2)
+                if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel, maxLines = 1)
+            }
+        }
+        field?.invoke()
+        details.forEach { detail ->
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp)) {
+                AppText(detail.label, AppTheme.typography.caption1, color = colors.secondaryLabel)
+                AppText(detail.value, AppTheme.typography.body)
+            }
+        }
+        if (actions.isNotEmpty()) {
+            Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp).height(1.dp).background(colors.separator))
+        }
+        actions.forEach { action ->
+            BottomSheetRow(action.label, action.icon) {
+                if (visible) {
+                    onDismiss()
+                    action.onClick()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomSheetRow(label: String, icon: ImageVector?, onClick: () -> Unit) {
+    val interaction = remember { MutableInteractionSource() }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 56.dp)
+            .clickable(interaction, indication = LocalGlassLook.current.pressIndication(), role = Role.Button, onClick = onClick)
+            .padding(horizontal = 24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (icon != null) {
+            AppIcon(icon, contentDescription = null, size = 24.dp, tint = AppTheme.colors.secondaryLabel)
+            Spacer(Modifier.width(16.dp))
+        }
+        AppText(label, AppTheme.typography.body, color = AppTheme.colors.label, modifier = Modifier.weight(1f), maxLines = 1)
     }
 }

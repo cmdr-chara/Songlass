@@ -291,6 +291,10 @@ interface UiStyle {
         modifier: Modifier,
     )
 
+    /** Back control at the top of a pushed page; [label] names the previous page. */
+    @Composable
+    fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier)
+
     /** Back control that floats over artwork and scrolling content, always legible. */
     @Composable
     fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier)
