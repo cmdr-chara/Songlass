@@ -1,0 +1,199 @@
+package dev.cmdrchara.songlass.theme.materialglass
+
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.UiStyle
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
+import dev.cmdrchara.songlass.theme.liquidglass.LiquidGlassStyle
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.Dp
+
+/**
+ * Material Glass components: the Liquid Glass ones (structure, gestures, motion) except where the
+ * file's expressive language asks for its own shape: a wavy seek bar, pill transport buttons
+ * with a larger play button, and list rows as separate rounded cards.
+ */
+object MaterialGlassStyle : UiStyle by LiquidGlassStyle {
+
+    @Composable
+    override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
+        WavySeekBar(positionMs, durationMs, qualityLabel, isPlaying, onSeek, modifier)
+
+    @Composable
+    override fun TransportControls(
+        isPlaying: Boolean,
+        labels: PlaybackLabels,
+        onPrevious: () -> Unit,
+        onPlayPause: () -> Unit,
+        onNext: () -> Unit,
+        modifier: Modifier,
+    ) {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TransportPill(AppIcons.Previous, labels.previous, onPrevious, width = 84.dp, prominent = false, playing = false)
+            TransportPill(
+                icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
+                description = if (isPlaying) labels.pause else labels.play,
+                onClick = onPlayPause,
+                width = 124.dp,
+                prominent = true,
+                playing = isPlaying,
+            )
+            TransportPill(AppIcons.Next, labels.next, onNext, width = 84.dp, prominent = false, playing = false)
+        }
+    }
+
+    @Composable
+    override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
+        // Rows inside a group are part of its card, not cards of their own.
+        LiquidGlassStyle.SettingsGroup({ CompositionLocalProvider(LocalInsideGroup provides true, content = content) }, modifier)
+
+    @Composable
+    override fun ListRow(
+        title: String,
+        subtitle: String?,
+        leading: (@Composable () -> Unit)?,
+        trailing: (@Composable () -> Unit)?,
+        highlighted: Boolean,
+        onClick: (() -> Unit)?,
+        modifier: Modifier,
+    ) {
+        if (LocalInsideGroup.current) return LiquidGlassStyle.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+        CardRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+    }
+}
+
+/** True inside a grouped surface, where rows must not become cards. */
+private val LocalInsideGroup = staticCompositionLocalOf { false }
+
+/** The current [SeaPalette], as the Material look sees it where this is drawn. */
+@Composable
+internal fun currentPalette(): SeaPalette {
+    val look = LocalGlassLook.current
+    return if (look is MaterialLook) look.palette() else SeaPalette(275f, AppTheme.colors.isDark)
+}
+
+/**
+ * Pill transport button. The play button is wider and in the vivid surface colour; while music
+ * plays it squares off a little, as expressive buttons change shape with their state.
+ */
+@Composable
+private fun TransportPill(icon: ImageVector, description: String, onClick: () -> Unit, width: Dp, prominent: Boolean, playing: Boolean) {
+    val palette = currentPalette()
+    val colors = AppTheme.colors
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed && !reduceMotion) 0.93f else 1f,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.55f, stiffness = 600f),
+        label = "transportPress",
+    )
+    val corner by animateDpAsState(
+        if (playing) 26.dp else 36.dp,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 400f),
+        label = "transportShape",
+    )
+    val fill = if (prominent) palette.vivid.copy(alpha = if (palette.dark) 0.75f else 0.62f) else colors.fill
+    // On the vivid fill, dark ink on light hues (yellow, lime) and white on deep ones.
+    val iconTint = if (!prominent) LocalContentColor.current
+    else if (palette.vivid.luminance() > 0.45f) palette.ink.takeIf { !palette.dark } ?: Color.Black else Color.White
+    Box(
+        Modifier
+            .size(width = width, height = 72.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .seaDecor(RoundedCornerShape(corner), palette, glow = prominent, base = fill)
+            .clickable(interaction, indication = null, role = Role.Button, onClickLabel = description, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        AppIcon(icon, contentDescription = description, size = if (prominent) 34.dp else 28.dp, tint = iconTint)
+    }
+}
+
+/** A list row as its own rounded card, the current song lit in the surface colour. */
+@Composable
+private fun CardRow(
+    title: String,
+    subtitle: String?,
+    leading: (@Composable () -> Unit)?,
+    trailing: (@Composable () -> Unit)?,
+    highlighted: Boolean,
+    onClick: (() -> Unit)?,
+    modifier: Modifier,
+) {
+    val palette = currentPalette()
+    val colors = AppTheme.colors
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed && !reduceMotion) 0.98f else 1f,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f),
+        label = "cardRowPress",
+    )
+    val fill = if (highlighted) palette.vivid.copy(alpha = if (palette.dark) 0.3f else 0.2f) else colors.fill.copy(alpha = colors.fill.alpha * 0.8f)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 3.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .seaDecor(RoundedCornerShape(20.dp), palette, glow = false, base = fill)
+            .then(if (onClick != null) Modifier.clickable(interaction, indication = null, onClick = onClick) else Modifier)
+            .heightIn(min = if (subtitle != null) 64.dp else 48.dp)
+            .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leading != null) {
+            leading()
+            Spacer(Modifier.width(12.dp))
+        }
+        Column(Modifier.weight(1f)) {
+            val content = LocalContentColor.current
+            AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content, maxLines = 1)
+            if (subtitle != null) {
+                AppText(subtitle, AppTheme.typography.subheadline, color = content.copy(alpha = 0.6f), maxLines = 1)
+            }
+        }
+        if (trailing != null) {
+            Spacer(Modifier.width(8.dp))
+            trailing()
+        }
+    }
+}

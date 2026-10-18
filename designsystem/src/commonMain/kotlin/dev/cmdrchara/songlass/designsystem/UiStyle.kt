@@ -149,7 +149,7 @@ interface UiStyle {
     fun AlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: Modifier)
 
     @Composable
-    fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, onSeek: (Long) -> Unit, modifier: Modifier)
+    fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier)
 
     @Composable
     fun TransportControls(

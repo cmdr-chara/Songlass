@@ -56,7 +56,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
      * is the hue of what is playing.
      */
     @Composable
-    private fun palette(): SeaPalette {
+    internal fun palette(): SeaPalette {
         val colors = AppTheme.colors
         return remember(colors.accent, colors.isDark, base.hue) {
             val accent = Hsl.of(colors.accent)
@@ -124,7 +124,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 }
 
 /** Glass-like surface without backdrop: base fill plus the file's light, glow and grain. */
-private fun Modifier.seaDecor(shape: Shape, palette: SeaPalette, glow: Boolean, base: Color): Modifier =
+internal fun Modifier.seaDecor(shape: Shape, palette: SeaPalette, glow: Boolean, base: Color): Modifier =
     seaGlow(shape, palette, enabled = glow).clip(shape).background(base).seaLight(shape, palette)
 
 /**

@@ -13,6 +13,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import dev.cmdrchara.songlass.designsystem.LocalUiStyle
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.AppColors
 import dev.cmdrchara.songlass.designsystem.theme.AppTypography
@@ -50,6 +51,7 @@ fun MaterialGlassTheme(
             LocalAppTypography provides typography,
             LocalContentColor provides colors.label,
             LocalGlassLook provides MaterialLook(palette),
+            LocalUiStyle provides MaterialGlassStyle,
             content = content,
         )
     }

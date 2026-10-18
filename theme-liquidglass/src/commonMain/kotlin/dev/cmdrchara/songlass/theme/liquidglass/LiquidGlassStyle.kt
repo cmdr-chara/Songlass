@@ -91,7 +91,7 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassAlbumArt(artwork, cornerRadius, modifier)
 
     @Composable
-    override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, onSeek: (Long) -> Unit, modifier: Modifier) =
+    override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
         LiquidGlassSeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
 
     @Composable

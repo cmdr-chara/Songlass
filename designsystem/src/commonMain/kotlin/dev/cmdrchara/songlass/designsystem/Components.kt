@@ -110,7 +110,9 @@ fun SeekBar(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
     qualityLabel: String? = null,
-) = LocalUiStyle.current.SeekBar(positionMs, durationMs, qualityLabel, onSeek, modifier)
+    /** Lets styles animate the bar only while music plays. */
+    isPlaying: Boolean = false,
+) = LocalUiStyle.current.SeekBar(positionMs, durationMs, qualityLabel, isPlaying, onSeek, modifier)
 
 @Composable
 fun TransportControls(

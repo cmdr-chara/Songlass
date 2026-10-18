@@ -186,7 +186,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                         }
                         Spacer(Modifier.height(seekGap))
                     }
-                    SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality)
+                    SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality, isPlaying = player.isPlaying)
                     Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
                         if (outputPicker != null) AudioOutputButton(outputName, onClick = outputPicker)
                         Spacer(Modifier.weight(1f))
