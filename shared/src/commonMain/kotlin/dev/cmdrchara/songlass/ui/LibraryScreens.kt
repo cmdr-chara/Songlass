@@ -15,6 +15,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import dev.cmdrchara.songlass.core.library.FolderSort
+import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.library.PinnedItem
+import dev.cmdrchara.songlass.designsystem.CollectionTile
+import dev.cmdrchara.songlass.shared.resources.library_pinned
+import dev.cmdrchara.songlass.shared.resources.sort_name
+import dev.cmdrchara.songlass.shared.resources.sort_recent
+import dev.cmdrchara.songlass.shared.resources.sort_most_played
+import dev.cmdrchara.songlass.shared.resources.action_pin
+import dev.cmdrchara.songlass.shared.resources.action_unpin
+import dev.cmdrchara.songlass.designsystem.SegmentedControl
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -92,6 +106,11 @@ fun LibraryScreen(
     contentPadding: PaddingValues,
 ) {
     val library = state.library
+    val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
+    val pinContexts by state.pins.contexts.collectAsState()
+    val pinnedItems = remember(pinContexts, library) { state.pins.resolve(library) }
+    val history by state.history.state.collectAsState()
+    val sortedFolders = remember(library, state.folderSort, history) { state.folderSort.sort(library.folders, history.playCounts) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item {
             ScreenTitle(stringResource(Res.string.tab_library)) {
@@ -107,38 +126,92 @@ fun LibraryScreen(
             item { LibraryEmptyState(hasAccess, onRequestAccess) }
             return@LazyColumn
         }
-        item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                LibraryCategory.entries.forEach { category ->
-                    val count = when (category) {
-                        LibraryCategory.Artists -> library.artists.size
-                        LibraryCategory.Albums -> library.albums.size
-                        LibraryCategory.Songs -> library.tracks.size
-                        LibraryCategory.Favorites -> favoriteIds.size
-                    }
-                    CategoryRow(category, count) { state.open(Route.LibraryPage(category)) }
-                }
-            }
+        val pinned = pinnedItems
+        if (pinned.isNotEmpty()) {
+            item { SectionTitle(stringResource(Res.string.library_pinned)) }
+            item { PinnedRow(pinned, state) }
         }
+        item { CategoryGrid(library, favoriteTracks, state) }
         if (library.folders.isNotEmpty()) {
             item { SectionTitle(stringResource(Res.string.library_folders)) }
-            items(library.folders.chunked(2)) { pair -> FolderGridRow(pair, state) }
+            item {
+                SegmentedControl(
+                    options = FolderSort.entries.map { stringResource(it.label) },
+                    selectedIndex = state.folderSort.ordinal,
+                    onSelect = { state.folderSort = FolderSort.entries[it] },
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                )
+            }
+            items(sortedFolders.chunked(2)) { pair -> FolderGridRow(pair, state) }
         }
     }
 }
 
+/** Artists, Albums, Songs and Favorites as tiles with a fan of their covers. */
 @Composable
-private fun CategoryRow(category: LibraryCategory, count: Int, onClick: () -> Unit) {
-    ListRow(
+private fun CategoryGrid(library: MusicLibrary, favorites: List<Track>, state: AppState) {
+    @Composable
+    fun tile(category: LibraryCategory, count: Int, covers: List<Artwork>, modifier: Modifier) = CollectionTile(
         title = stringResource(category.label),
-        leading = { AppIcon(category.icon, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
-        trailing = {
-            AppText(count.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel)
-            AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel)
-        },
-        onClick = onClick,
+        subtitle = count.toString(),
+        icon = category.icon,
+        artworks = covers,
+        circular = category == LibraryCategory.Artists,
+        onClick = { state.open(Route.LibraryPage(category)) },
+        modifier = modifier,
     )
+    val artistCovers = remember(library) { library.artists.mapNotNull { it.albums.firstOrNull()?.artwork() }.take(3) }
+    val albumCovers = remember(library) { library.albums.take(3).map { it.artwork() } }
+    val songCovers = remember(library) { library.tracks.distinctBy { it.album }.takeLast(3).map { it.artwork() } }
+    val favoriteCovers = remember(favorites) { favorites.distinctBy { it.album }.take(3).map { it.artwork() } }
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            tile(LibraryCategory.Artists, library.artists.size, artistCovers, Modifier.weight(1f))
+            tile(LibraryCategory.Albums, library.albums.size, albumCovers, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            tile(LibraryCategory.Songs, library.tracks.size, songCovers, Modifier.weight(1f))
+            tile(LibraryCategory.Favorites, favorites.size, favoriteCovers, Modifier.weight(1f))
+        }
+    }
 }
+
+/** Pinned albums, folders and artists, one tap away (as Pins in iOS 26 Apple Music). */
+@Composable
+private fun PinnedRow(items: List<PinnedItem>, state: AppState) {
+    LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        items(items, key = { it.context.key }) { item ->
+            val (title, artwork, circular) = when (item) {
+                is PinnedItem.AlbumPin -> Triple(albumTitle(item.album.title), item.album.artwork(), false)
+                is PinnedItem.FolderPin -> Triple(item.folder.name, item.folder.artwork(), false)
+                is PinnedItem.ArtistPin -> Triple(artistName(item.artist.name), item.artist.albums.firstOrNull()?.artwork() ?: item.artist.tracks.first().artwork(), true)
+            }
+            Column(
+                Modifier.width(PinSize).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button) {
+                    when (item) {
+                        is PinnedItem.AlbumPin -> state.open(Route.AlbumDetail(item.album))
+                        is PinnedItem.FolderPin -> state.open(Route.FolderDetail(item.folder))
+                        is PinnedItem.ArtistPin -> state.open(Route.ArtistDetail(item.artist))
+                    }
+                },
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                AlbumArt(artwork, Modifier.size(PinSize), cornerRadius = if (circular) PinSize / 2 else 14.dp)
+                Spacer(Modifier.height(6.dp))
+                AppText(title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium), maxLines = 1, textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+private val PinSize = 96.dp
+
+private val FolderSort.label
+    get() = when (this) {
+        FolderSort.Name -> Res.string.sort_name
+        FolderSort.RecentlyAdded -> Res.string.sort_recent
+        FolderSort.MostPlayed -> Res.string.sort_most_played
+    }
 
 /** Artists, Albums, Songs or Favorites on their own page. */
 @Composable
@@ -268,12 +341,10 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
     LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
         item { BackLink(backLabel) { state.goBack() } }
         item {
-            AppText(
-                artistName(artist.name),
-                AppTheme.typography.largeTitle,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                maxLines = 2,
-            )
+            Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                AppText(artistName(artist.name), AppTheme.typography.largeTitle, modifier = Modifier.weight(1f), maxLines = 2)
+                PinButton(PlayContext.Artist(artist.name), state)
+            }
         }
         if (artist.albums.isNotEmpty()) {
             item { SectionTitle(stringResource(Res.string.library_albums)) }
@@ -476,7 +547,8 @@ private fun ArtworkCollectionPage(
                                 color = AppTheme.colors.secondaryLabel,
                             )
                         }
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(8.dp))
+                        PinButton(context, state)
                         IconButton(AppIcons.Shuffle, stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, filled = true)
                         Spacer(Modifier.width(12.dp))
                         ProminentButton(AppIcons.Play, stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) })
@@ -489,6 +561,20 @@ private fun ArtworkCollectionPage(
         // Back stays reachable over the cover and while scrolling.
         FloatingBackButton(backLabel, onClick = state::goBack, modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 8.dp, top = 4.dp))
     }
+}
+
+/** Pins or unpins [context] at the top of the Library. */
+@Composable
+internal fun PinButton(context: PlayContext, state: AppState) {
+    val pins by state.pins.contexts.collectAsState()
+    val pinned = context in pins
+    IconButton(
+        AppIcons.Pin,
+        stringResource(if (pinned) Res.string.action_unpin else Res.string.action_pin),
+        onClick = { state.pins.toggle(context) },
+        selected = pinned,
+        filled = true,
+    )
 }
 
 /** Albums always have a title (see MusicLibrary.albums). */

@@ -11,6 +11,7 @@ import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Folder
+import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
@@ -43,6 +44,7 @@ data class ScreenDestination(val tab: Tab, val route: Route?, val depth: Int)
 class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val favorites: Favorites = graph.favorites
+    val pins = graph.pins
     val history: ListeningHistory = graph.history
     val lyrics = graph.lyrics
 
@@ -52,6 +54,7 @@ class AppState(graph: AppGraph) {
     var tab by mutableStateOf(Tab.Home)
         private set
     var searchQuery by mutableStateOf("")
+    var folderSort by mutableStateOf(FolderSort.Name)
     var isNowPlayingOpen by mutableStateOf(false)
         private set
     var playerPage by mutableStateOf(PlayerPage.Artwork)

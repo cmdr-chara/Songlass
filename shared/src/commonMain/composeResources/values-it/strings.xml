@@ -147,4 +147,10 @@
     </plurals>
     <string name="settings_material_glass">Material Glass</string>
     <string name="settings_ui_style_hint">Material Glass colora tutta l’interfaccia con la copertina in riproduzione.</string>
+    <string name="library_pinned">Fissati</string>
+    <string name="sort_name">A–Z</string>
+    <string name="sort_recent">Recenti</string>
+    <string name="sort_most_played">Più ascoltati</string>
+    <string name="action_pin">Fissa nella Libreria</string>
+    <string name="action_unpin">Togli dalla Libreria</string>
 </resources>

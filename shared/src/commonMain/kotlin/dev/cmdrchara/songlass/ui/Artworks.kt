@@ -1,41 +1,30 @@
 package dev.cmdrchara.songlass.ui
 
-import androidx.compose.ui.graphics.Color
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.foundation.generativeCoverColors
+import dev.cmdrchara.songlass.designsystem.foundation.monogramOf
 import kotlin.math.absoluteValue
 
-// Placeholder gradient per album (stable across runs), shown until or instead of the real cover.
-
-private val palettes = listOf(
-    0xFFFF9A8B to 0xFFFF6A88,
-    0xFF8EC5FC to 0xFFE0C3FC,
-    0xFF43E97B to 0xFF38F9D7,
-    0xFFFA709A to 0xFFFEE140,
-    0xFF30CFD0 to 0xFF330867,
-    0xFFA18CD1 to 0xFFFBC2EB,
-    0xFFF6D365 to 0xFFFDA085,
-    0xFF5EE7DF to 0xFFB490CA,
-    0xFF667EEA to 0xFF764BA2,
-    0xFFFF758C to 0xFFFF7EB3,
-)
-
-private fun artworkFor(key: String, imageKey: String?): Artwork {
-    val (a, b) = palettes[key.hashCode().absoluteValue % palettes.size]
-    return Artwork(listOf(Color(a), Color(b)), imageKey)
+/** Shown until, or instead of, the real cover: a generated one, stable for the same [key]. */
+private fun artworkFor(key: String, imageKey: String?, title: String?): Artwork {
+    val seed = key.hashCode()
+    return Artwork(generativeCoverColors(seed), imageKey, seed = seed.absoluteValue, monogram = monogramOf(title))
 }
 
 // The image key is a track's URI: the platform loader reads the cover embedded in that file.
 // An album uses its first track's cover.
 
-fun Album.artwork(): Artwork = artworkFor("$title|$artist", tracks.firstOrNull()?.uri)
+fun Album.artwork(): Artwork = artworkFor("$title|$artist", tracks.firstOrNull()?.uri, title)
 
-fun Playlist.artwork(): Artwork = artworkFor("playlist|$id", tracks.firstOrNull()?.uri)
+fun Playlist.artwork(): Artwork = artworkFor("playlist|$id", tracks.firstOrNull()?.uri, name)
 
 /** Same key as the folder's own playlist, so both share colors and cache. */
-fun Folder.artwork(): Artwork = artworkFor("playlist|$id", allTracks.firstOrNull()?.uri)
+fun Folder.artwork(): Artwork = artworkFor("playlist|$id", allTracks.firstOrNull()?.uri, name)
 
-fun Track.artwork(): Artwork = artworkFor("$album|$groupingArtist", uri)
+/** Songs of an album share its cover; a lone song gets its own from the title. */
+fun Track.artwork(): Artwork =
+    if (album != null) artworkFor("$album|$groupingArtist", uri, album) else artworkFor("song|$title|$artist", uri, title)

@@ -170,6 +170,10 @@ object LiquidGlassStyle : UiStyle {
         LiquidGlassPosterCard(label, title, subtitle, artwork, onClick, modifier)
 
     @Composable
+    override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
+        LiquidGlassCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
+
+    @Composable
     override fun ShortcutTile(title: String, artwork: Artwork, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
         LiquidGlassShortcutTile(title, artwork, circular, onClick, modifier)
 }

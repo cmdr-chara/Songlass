@@ -204,3 +204,14 @@ fun PosterCard(label: String, title: String, artwork: Artwork, onClick: () -> Un
 @Composable
 fun ShortcutTile(title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, circular: Boolean = false) =
     LocalUiStyle.current.ShortcutTile(title, artwork, circular, onClick, modifier)
+
+@Composable
+fun CollectionTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    artworks: List<Artwork>,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    circular: Boolean = false,
+) = LocalUiStyle.current.CollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -19,6 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.shadow
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -123,3 +128,55 @@ internal fun LiquidGlassShortcutTile(title: String, artwork: Artwork, circular: 
 }
 
 private val ShortcutHeight = 56.dp
+
+/**
+ * Library category tile: title, count and icon over a tonal card, with up to three covers fanned
+ * out from the bottom right corner like records pulled from a shelf.
+ */
+@Composable
+internal fun LiquidGlassCollectionTile(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    artworks: List<Artwork>,
+    circular: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier,
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val scale = pressScale(interaction)
+    val look = LocalGlassLook.current
+    val colors = AppTheme.colors
+    Box(
+        modifier
+            .height(CollectionTileHeight)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .let { look.controlSurface(it, RoundedCornerShape(look.corner(18.dp)), colors.secondaryBackground, prominent = false) }
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
+    ) {
+        val covers = artworks.take(3)
+        covers.forEachIndexed { index, artwork ->
+            // Back to front: the last cover is the most visible.
+            val i = covers.size - 1 - index
+            val size = 54.dp - 4.dp * i
+            Box(
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 12.dp + 30.dp * i, bottom = 12.dp + 6.dp * i)
+                    .graphicsLayer { rotationZ = if (circular) 0f else (8f - i * 9f) }
+                    .shadow(4.dp, if (circular) CircleShape else RoundedCornerShape(8.dp))
+                    .size(size),
+            ) {
+                LiquidGlassAlbumArt(artwork, cornerRadius = if (circular) size / 2 else 8.dp, modifier = Modifier.fillMaxSize())
+            }
+        }
+        Column(Modifier.padding(14.dp)) {
+            AppIcon(icon, contentDescription = null, size = 22.dp, tint = colors.accent)
+            Spacer(Modifier.height(8.dp))
+            AppText(title, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), maxLines = 1)
+            AppText(subtitle, AppTheme.typography.footnote, color = colors.secondaryLabel, maxLines = 1)
+        }
+    }
+}
+
+private val CollectionTileHeight = 132.dp

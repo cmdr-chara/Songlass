@@ -54,6 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.foundation.GenerativeCover
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
@@ -216,12 +217,7 @@ internal fun LiquidGlassAlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: M
         if (image != null) {
             Image(bitmap = image, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
         } else {
-            Image(
-                imageVector = AppIcons.MusicNote,
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.35f)),
-                modifier = Modifier.fillMaxSize(0.38f),
-            )
+            GenerativeCover(artwork, Modifier.fillMaxSize())
         }
     }
 }

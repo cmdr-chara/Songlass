@@ -16,7 +16,16 @@ import androidx.compose.ui.unit.Dp
  * or when the file has no cover.
  */
 @Immutable
-data class Artwork(val colors: List<Color>, val imageKey: String? = null)
+/**
+ * A cover: [imageKey] loads the real image when there is one; otherwise styles draw a
+ * generated cover from [seed] with the [monogram] initials. [colors] tint pages around it.
+ */
+data class Artwork(
+    val colors: List<Color>,
+    val imageKey: String? = null,
+    val seed: Int = 0,
+    val monogram: String? = null,
+)
 
 /**
  * A top-level destination. [isSearch] marks the search tab, which some styles place apart
@@ -237,6 +246,13 @@ interface UiStyle {
      */
     @Composable
     fun ShortcutTile(title: String, artwork: Artwork, circular: Boolean, onClick: () -> Unit, modifier: Modifier)
+
+    /**
+     * Library category tile: a tonal card with an [icon], [title], [subtitle] and a small fan of
+     * [artworks] (shown as circles when [circular], e.g. artists).
+     */
+    @Composable
+    fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier)
 
     /** Back control that floats over artwork and scrolling content, always legible. */
     @Composable

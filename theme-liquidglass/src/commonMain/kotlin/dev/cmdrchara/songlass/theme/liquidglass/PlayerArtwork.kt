@@ -56,6 +56,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.foundation.GenerativeCover
 import dev.cmdrchara.songlass.designsystem.foundation.LARGE_ARTWORK_PX
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -199,11 +200,7 @@ internal fun PlayerArtworkHero(
         if (image != null) {
             Image(image, contentDescription = null, contentScale = ContentScale.Crop, alignment = Alignment.TopCenter, modifier = Modifier.fillMaxSize().then(imageMotion))
         } else {
-            Image(
-                AppIcons.MusicNote, contentDescription = null,
-                colorFilter = ColorFilter.tint(Color.White.copy(alpha = 0.25f)),
-                modifier = Modifier.fillMaxSize(0.3f).then(imageMotion),
-            )
+            GenerativeCover(artwork, Modifier.fillMaxSize().then(imageMotion), showMonogram = false)
         }
     }
 }

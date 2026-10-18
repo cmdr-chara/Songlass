@@ -122,6 +122,29 @@ object AppIcons {
         icon("ChevronRight") { stroke { moveTo(9f, 5f); lineTo(16f, 12f); lineTo(9f, 19f) } }
     }
 
+    /** Pin: a pushpin leaning right. */
+    val Pin: ImageVector by lazy {
+        icon("Pin") {
+            fill {
+                moveTo(9f, 3.5f)
+                lineTo(15f, 3.5f)
+                quadTo(16f, 3.5f, 15.6f, 4.5f)
+                lineTo(14.6f, 7f)
+                lineTo(14.6f, 11f)
+                lineTo(17.2f, 13.6f)
+                quadTo(17.8f, 14.5f, 16.8f, 14.5f)
+                lineTo(7.2f, 14.5f)
+                quadTo(6.2f, 14.5f, 6.8f, 13.6f)
+                lineTo(9.4f, 11f)
+                lineTo(9.4f, 7f)
+                lineTo(8.4f, 4.5f)
+                quadTo(8f, 3.5f, 9f, 3.5f)
+                close()
+            }
+            stroke { moveTo(12f, 14.5f); lineTo(12f, 20.5f) }
+        }
+    }
+
     /** Folder: a tab on the top left over a rounded body. */
     val Folder: ImageVector by lazy {
         icon("Folder") {
