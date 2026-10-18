@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass
 
 import android.Manifest
+import android.animation.ValueAnimator
 import android.content.ComponentName
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,6 +22,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Hand over from the launch splash: the icon swells and fades while the splash dissolves
+        // into the first screen, which plays its own entrance. Instant when animations are off.
+        splashScreen.setOnExitAnimationListener { view ->
+            if (!ValueAnimator.areAnimatorsEnabled()) return@setOnExitAnimationListener view.remove()
+            view.iconView?.animate()?.scaleX(1.18f)?.scaleY(1.18f)?.alpha(0f)?.setDuration(SPLASH_EXIT_MS)?.start()
+            view.animate().alpha(0f).setDuration(SPLASH_EXIT_MS).withEndAction(view::remove).start()
+        }
         enableEdgeToEdge()
         setContent {
             App(
@@ -43,5 +51,9 @@ class MainActivity : ComponentActivity() {
         controllerFuture?.let(MediaController::releaseFuture)
         controllerFuture = null
         super.onStop()
+    }
+
+    private companion object {
+        const val SPLASH_EXIT_MS = 260L
     }
 }

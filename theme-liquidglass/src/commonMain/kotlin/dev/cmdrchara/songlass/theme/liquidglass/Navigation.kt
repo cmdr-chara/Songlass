@@ -134,6 +134,14 @@ internal fun LiquidGlassScaffold(
     val minimized = !accessibility.reduceMotion && minimizeRequested && accessory != null
     val colors = AppTheme.colors
 
+    // App opening, after the launch splash: the page settles in from slightly larger while the
+    // floating bars rise into place a beat later, like an iOS app zooming open. Fade only with
+    // Reduce Motion.
+    val entrance = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        entrance.animateTo(1f, if (accessibility.reduceMotion) tween(LiquidGlassMotion.ReducedMillis) else spring(dampingRatio = 0.9f, stiffness = 180f))
+    }
+    val barsRise = with(density) { 72.dp.toPx() }
     // Behind the page there is black, visible around it while it recedes under the player.
     Box(Modifier.fillMaxSize().background(Color.Black)) {
     Box(
@@ -164,9 +172,20 @@ internal fun LiquidGlassScaffold(
                 .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier)
                 .background(colors.background),
         ) {
-            // Keep the content inset at the expanded height while the floating bars animate.
-            // Measuring the animated container would make the list jump during expansion.
-            content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
+                    val e = entrance.value
+                    alpha = (e * 1.6f).coerceAtMost(1f)
+                    if (!accessibility.reduceMotion) {
+                        scaleX = 1.05f - 0.05f * e
+                        scaleY = 1.05f - 0.05f * e
+                    }
+                },
+            ) {
+                // Keep the content inset at the expanded height while the floating bars animate.
+                // Measuring the animated container would make the list jump during expansion.
+                content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
+            }
         }
         val navigationTint = LocalNavigationTint.current
         CompositionLocalProvider(LocalGlassSource provides hazeState) {
@@ -174,6 +193,12 @@ internal fun LiquidGlassScaffold(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
+                    .graphicsLayer {
+                        // The bars follow the page with a short delay.
+                        val e = ((entrance.value - 0.15f) / 0.85f).coerceIn(0f, 1f)
+                        alpha = e
+                        if (!accessibility.reduceMotion) translationY = (1f - e) * barsRise
+                    }
                     .fillMaxWidth()
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = BarHorizontalMargin)

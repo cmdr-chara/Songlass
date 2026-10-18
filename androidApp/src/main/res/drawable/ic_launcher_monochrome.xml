@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Separate paths: overlapping subpaths with opposite winding would leave a hole. -->
+    <group android:translateX="-3">
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M45.5,66a6.5,5 0 1,0 13,0a6.5,5 0 1,0 -13,0z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M56.5,40h3v26h-3z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M59.5,40c0.5,4 2.5,6 5.5,8c3.5,2.5 4.5,6 3,10c-0.5,-4 -3.5,-6.5 -8.5,-7.5z" />
+    </group>
+</vector>
