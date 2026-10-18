@@ -43,8 +43,9 @@ object LiquidGlassStyle : UiStyle {
         onClick: () -> Unit,
         onPlayPause: () -> Unit,
         onNext: () -> Unit,
+        onPrevious: () -> Unit,
         modifier: Modifier,
-    ) = LiquidGlassMiniPlayer(state, labels, onClick, onPlayPause, onNext, modifier)
+    ) = LocalGlassLook.current.MiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
 
     @Composable
     override fun ListRow(
@@ -97,7 +98,7 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
-        LiquidGlassVolumeSlider(value, onValueChange, label, modifier)
+        LocalGlassLook.current.VolumeSlider(value, onValueChange, label, modifier)
 
     @Composable
     override fun TransportControls(

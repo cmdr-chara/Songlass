@@ -113,6 +113,7 @@ interface UiStyle {
         onClick: () -> Unit,
         onPlayPause: () -> Unit,
         onNext: () -> Unit,
+        onPrevious: () -> Unit,
         modifier: Modifier,
     )
 

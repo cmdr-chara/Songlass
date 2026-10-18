@@ -37,6 +37,7 @@ import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -164,6 +165,21 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @Composable
     override fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) = MaterialBackButton(label, onClick, modifier)
+
+    @Composable
+    override fun MiniPlayer(
+        state: MiniPlayerState,
+        labels: PlaybackLabels,
+        onClick: () -> Unit,
+        onPlayPause: () -> Unit,
+        onNext: () -> Unit,
+        onPrevious: () -> Unit,
+        modifier: Modifier,
+    ) = MaterialMiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
+
+    @Composable
+    override fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
+        MaterialVolumeSlider(value, onValueChange, label, modifier)
 
     @Composable
     override fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) =

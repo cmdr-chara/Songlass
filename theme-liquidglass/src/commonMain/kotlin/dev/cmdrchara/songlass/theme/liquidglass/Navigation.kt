@@ -551,7 +551,10 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
     }
 }
 
-/** Glass capsule shown above (or inline with) the tab bar while something is playing. */
+/**
+ * Glass capsule shown above (or inline with) the tab bar while something is playing, as the
+ * iOS 26 tab bar accessory. Swiping it sideways changes track.
+ */
 @Composable
 internal fun LiquidGlassMiniPlayer(
     state: MiniPlayerState,
@@ -559,34 +562,40 @@ internal fun LiquidGlassMiniPlayer(
     onClick: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
+    onPrevious: () -> Unit,
     modifier: Modifier,
 ) {
     val interaction = remember { MutableInteractionSource() }
+    val swipe = rememberTrackSwipe()
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(MinimizedHeight)
             // Where the Now Playing transition starts from and returns to.
-            .onGloballyPositioned { PlayerMorph.source = it.boundsInWindow() }
+            .miniPlayerFrame()
             .liquidPress(grow = 0.015f, reach = 2.dp)
             .liquidGlass(Capsule, interaction)
+            .trackSwipe(swipe, onNext, onPrevious)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+            .trackSwipeActions(labels, onNext, onPrevious)
             .padding(start = MiniArtInset, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // The cover fills the leading end of the capsule, its rounded side concentric with it.
-        Box(
-            Modifier
-                .size(MinimizedHeight - MiniArtInset * 2)
-                .clip(RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50, topEndPercent = 20, bottomEndPercent = 20))
-                .onGloballyPositioned { PlayerMorph.thumb = it.boundsInWindow() },
-        ) {
-            LiquidGlassAlbumArt(state.artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
-        }
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-            AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+        Row(Modifier.weight(1f).followTrackSwipe(swipe), verticalAlignment = Alignment.CenterVertically) {
+            // The cover fills the leading end of the capsule, its rounded side concentric with it.
+            Box(
+                Modifier
+                    .size(MinimizedHeight - MiniArtInset * 2)
+                    .clip(RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50, topEndPercent = 20, bottomEndPercent = 20))
+                    .miniPlayerCover(),
+            ) {
+                LiquidGlassAlbumArt(state.artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+            }
         }
         LiquidGlassIconButton(
             icon = if (state.isPlaying) AppIcons.Pause else AppIcons.Play,

@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -100,6 +101,21 @@ interface GlassLook {
 
     @Composable
     fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) = LiquidGlassBackButton(label, onClick, modifier)
+
+    @Composable
+    fun MiniPlayer(
+        state: MiniPlayerState,
+        labels: PlaybackLabels,
+        onClick: () -> Unit,
+        onPlayPause: () -> Unit,
+        onNext: () -> Unit,
+        onPrevious: () -> Unit,
+        modifier: Modifier,
+    ) = LiquidGlassMiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
+
+    @Composable
+    fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
+        LiquidGlassVolumeSlider(value, onValueChange, label, modifier)
 
     /** The expanded tab bar (Search included, if any). */
     @Composable

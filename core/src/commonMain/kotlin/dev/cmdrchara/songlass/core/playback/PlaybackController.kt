@@ -110,6 +110,15 @@ class PlaybackController(
         moveTo(index, playWhenReady = player.state.value.playWhenReady)
     }
 
+    /**
+     * Always goes to the previous entry, however long the current one has played (restarts it if
+     * there is none). For gestures that show the track changing, such as swiping the mini player.
+     */
+    fun skipToPreviousTrack() {
+        val index = _queue.value.previousIndex() ?: return player.seekTo(0)
+        moveTo(index, playWhenReady = player.state.value.playWhenReady)
+    }
+
     /** Plays the given queue entry (e.g. tapped in the Up Next list). */
     fun skipTo(entryId: Long) {
         val index = _queue.value.indexOf(entryId)

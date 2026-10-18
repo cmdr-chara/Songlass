@@ -111,6 +111,14 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun previousTrackIgnoresThreshold() = test { controller ->
+        controller.playTracks(tracks(3), startIndex = 1)
+        player.advanceBy(PlaybackController.RESTART_THRESHOLD_MS + 1)
+        controller.skipToPreviousTrack()
+        assertEquals("1", player.loadedTrack?.id)
+    }
+
+    @Test
     fun previousOnFirstTrackRestartsIt() = test { controller ->
         controller.playTracks(tracks(3))
         player.advanceBy(1_000)

@@ -165,6 +165,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                     onClick = state::openNowPlaying,
                     onPlayPause = state.controller::togglePlayPause,
                     onNext = state.controller::skipToNext,
+                    onPrevious = state.controller::skipToPreviousTrack,
                 )
             }
         }

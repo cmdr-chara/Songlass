@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import kotlin.math.abs
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
@@ -173,14 +174,39 @@ internal fun LiquidGlassSeekBar(
  * Volume as in Apple Music: speakers at both ends of a thin rail that thickens while dragged.
  * Tapping anywhere jumps there; accessibility can set it directly.
  */
+/**
+ * iOS 26 volume slider: a thin rail between a quiet and a loud speaker that thickens under the
+ * finger. Dragging is relative (touching never makes the volume jump); pulled past either end the
+ * rail stretches like rubber and the speaker on that side swells, then both spring back on
+ * release. Reduce Motion keeps the rail still.
+ */
 @Composable
 internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) {
     val content = LocalContentColor.current
+    val reduceMotion = AppTheme.accessibility.reduceMotion
     val currentOnChange by rememberUpdatedState(onValueChange)
+    val currentValue by rememberUpdatedState(value)
+    val scope = rememberCoroutineScope()
     var dragging by remember { mutableStateOf(false) }
-    val railHeight by animateFloatAsState(if (dragging) 10f else 6f, label = "volumeRail")
+    // Rubber band past the ends in px: negative before the start, positive after the end.
+    val stretch = remember { Animatable(0f) }
+    val density = LocalDensity.current
+    val maxStretch = with(density) { 16.dp.toPx() }
+    val railHeight by animateFloatAsState(
+        if (dragging && !reduceMotion) 12f else 6f,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 600f),
+        label = "volumeRail",
+    )
+    fun swell(side: Float) = 1f + 0.22f * (side / maxStretch).coerceIn(0f, 1f)
     Row(modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(AppIcons.SpeakerLow, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f))
+        AppIcon(
+            AppIcons.SpeakerLow, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f),
+            modifier = Modifier.graphicsLayer {
+                val s = swell(-stretch.value)
+                scaleX = s; scaleY = s
+                translationX = minOf(stretch.value, 0f) * 0.3f
+            },
+        )
         Canvas(
             Modifier.weight(1f).fillMaxHeight().padding(horizontal = 10.dp)
                 .semantics {
@@ -188,27 +214,63 @@ internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Uni
                     progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..1f)
                     setProgress { v -> currentOnChange(v.coerceIn(0f, 1f)); true }
                 }
-                .pointerInput(Unit) {
-                    detectTapGestures { offset -> if (size.width > 0) currentOnChange((offset.x / size.width).coerceIn(0f, 1f)) }
-                }
-                .pointerInput(Unit) {
+                .pointerInput(reduceMotion) {
+                    var startValue = 0f
+                    var travelled = 0f
+                    fun release() {
+                        dragging = false
+                        scope.launch { stretch.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 420f)) }
+                    }
                     detectHorizontalDragGestures(
-                        onDragStart = { dragging = true },
-                        onDragEnd = { dragging = false },
-                        onDragCancel = { dragging = false },
-                    ) { change, _ ->
-                        if (size.width > 0) currentOnChange((change.position.x / size.width).coerceIn(0f, 1f))
+                        onDragStart = {
+                            dragging = true
+                            startValue = currentValue
+                            travelled = 0f
+                        },
+                        onDragEnd = { release() },
+                        onDragCancel = { release() },
+                    ) { change, amount ->
                         change.consume()
+                        if (size.width <= 0) return@detectHorizontalDragGestures
+                        travelled += amount
+                        val raw = startValue + travelled / size.width
+                        currentOnChange(raw.coerceIn(0f, 1f))
+                        if (!reduceMotion) {
+                            val over = when {
+                                raw < 0f -> raw * size.width
+                                raw > 1f -> (raw - 1f) * size.width
+                                else -> 0f
+                            }
+                            scope.launch { stretch.snapTo(rubberBand(over, maxStretch)) }
+                        }
                     }
                 },
         ) {
-            val h = railHeight.dp.toPx()
+            val s = stretch.value
+            // Stretched, the rail also thins a little, like something elastic being pulled.
+            val h = railHeight.dp.toPx() * (1f - 0.3f * (abs(s) / maxStretch).coerceIn(0f, 1f))
+            val left = minOf(s, 0f)
+            val width = size.width + abs(s)
             val y = size.height / 2f - h / 2f
-            drawRoundRect(content.copy(alpha = 0.25f), Offset(0f, y), Size(size.width, h), CornerRadius(h / 2f))
-            drawRoundRect(content.copy(alpha = 0.85f), Offset(0f, y), Size(size.width * value.coerceIn(0f, 1f), h), CornerRadius(h / 2f))
+            drawRoundRect(content.copy(alpha = 0.25f), Offset(left, y), Size(width, h), CornerRadius(h / 2f))
+            drawRoundRect(content.copy(alpha = 0.85f), Offset(left, y), Size(width * value.coerceIn(0f, 1f), h), CornerRadius(h / 2f))
         }
-        AppIcon(AppIcons.AudioOutput, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f))
+        AppIcon(
+            AppIcons.AudioOutput, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f),
+            modifier = Modifier.graphicsLayer {
+                val s = swell(stretch.value)
+                scaleX = s; scaleY = s
+                translationX = maxOf(stretch.value, 0f) * 0.3f
+            },
+        )
     }
+}
+
+/** Resistance past the end of a control: grows quickly at first, then never beyond [max]. */
+private fun rubberBand(over: Float, max: Float): Float {
+    if (over == 0f) return 0f
+    val magnitude = max * (1f - 1f / (abs(over) / max * 0.55f + 1f))
+    return if (over < 0f) -magnitude else magnitude
 }
 
 @Composable

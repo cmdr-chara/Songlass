@@ -34,8 +34,9 @@ fun MiniPlayer(
     onClick: () -> Unit,
     onPlayPause: () -> Unit,
     onNext: () -> Unit,
+    onPrevious: () -> Unit,
     modifier: Modifier = Modifier,
-) = LocalUiStyle.current.MiniPlayer(state, labels, onClick, onPlayPause, onNext, modifier)
+) = LocalUiStyle.current.MiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
 
 @Composable
 fun ListRow(
