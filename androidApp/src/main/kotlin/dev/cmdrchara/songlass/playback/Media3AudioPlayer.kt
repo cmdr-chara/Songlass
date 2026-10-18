@@ -13,6 +13,7 @@ import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import dev.cmdrchara.songlass.core.player.ReplayGainTags
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import dev.cmdrchara.songlass.core.equalizer.EqChain
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.AudioFormatInfo
 import dev.cmdrchara.songlass.core.player.AudioPlayer
@@ -40,6 +41,7 @@ import kotlinx.coroutines.launch
 class Media3AudioPlayer(
     val exoPlayer: ExoPlayer,
     private val scope: CoroutineScope,
+    private val equalizer: EqualizerProcessor? = null,
 ) : AudioPlayer {
     private val _state = MutableStateFlow(PlayerState())
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -114,6 +116,10 @@ class Media3AudioPlayer(
 
     override fun setVolume(volume: Float) {
         exoPlayer.volume = volume.coerceIn(0f, 1f)
+    }
+
+    override fun setEqualizer(chain: EqChain) {
+        equalizer?.setChain(chain)
     }
 
     override fun play() {

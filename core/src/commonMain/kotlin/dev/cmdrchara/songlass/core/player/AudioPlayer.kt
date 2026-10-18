@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.player
 
+import dev.cmdrchara.songlass.core.equalizer.EqChain
 import dev.cmdrchara.songlass.core.model.Track
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -51,6 +52,9 @@ interface AudioPlayer {
 
     /** Player output volume, 0..1, on top of the device volume (used for ReplayGain). */
     fun setVolume(volume: Float)
+
+    /** Equalizer applied to the output; players without one ignore it. */
+    fun setEqualizer(chain: EqChain) {}
     fun play()
     fun pause()
     fun seekTo(positionMs: Long)

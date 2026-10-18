@@ -31,6 +31,7 @@ sealed interface PlaylistPrompt {
 
 sealed interface Route {
     data object Settings : Route
+    data object Equalizer : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class FolderDetail(val folder: Folder) : Route
@@ -51,6 +52,7 @@ class AppState(graph: AppGraph) {
     val favorites: Favorites = graph.favorites
     val pins = graph.pins
     val settings = graph.settings
+    val equalizer = graph.equalizer
     val userPlaylists = graph.userPlaylists
     val sleepTimer = graph.sleepTimer
     val history: ListeningHistory = graph.history

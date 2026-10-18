@@ -52,6 +52,10 @@ data class SheetAction(
     val onClick: () -> Unit,
 )
 
+/** One band of the graphic equalizer: where it sits, what it is called and its gain. */
+@Immutable
+data class EqBand(val frequencyHz: Float, val label: String, val gainDb: Float)
+
 @Immutable
 data class InfoRow(val label: String, val value: String)
 
@@ -269,6 +273,22 @@ interface UiStyle {
         cancelLabel: String,
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
+    )
+
+    /**
+     * Graphic equalizer: the response [curve] (dB, log-spaced from 20 Hz to 20 kHz) with a point
+     * per band that is dragged up and down within ±[maxGainDb]. [formatGain] writes a gain for
+     * display and accessibility; [enabled] false dims the curve but keeps it editable.
+     */
+    @Composable
+    fun EqualizerEditor(
+        bands: List<EqBand>,
+        curve: List<Float>,
+        maxGainDb: Float,
+        enabled: Boolean,
+        formatGain: (Float) -> String,
+        onBandChange: (Int, Float) -> Unit,
+        modifier: Modifier,
     )
 
     /** Back control that floats over artwork and scrolling content, always legible. */

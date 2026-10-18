@@ -48,6 +48,8 @@ import dev.cmdrchara.songlass.ui.HomeScreen
 import dev.cmdrchara.songlass.ui.LibraryScreen
 import dev.cmdrchara.songlass.ui.SystemBarAppearance
 import dev.cmdrchara.songlass.ui.SettingsScreen
+import dev.cmdrchara.songlass.shared.resources.settings_title
+import dev.cmdrchara.songlass.ui.EqualizerScreen
 import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
@@ -198,10 +200,13 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 settings = graph.settings,
                                 preferences = preferences,
                                 systemAccessibility = systemAccessibility,
+                                equalizer = graph.equalizer,
+                                onOpenEqualizer = { state.open(Route.Equalizer) },
                                 backLabel = backLabel,
                                 onBack = state::goBack,
                                 contentPadding = padding,
                             )
+                            Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                             is Route.FolderDetail -> FolderScreen(route.folder, state, currentId, backLabel, padding)

@@ -184,4 +184,25 @@
     <string name="playlist_save">Salva</string>
     <string name="playlist_remove_song">Rimuovi dalla playlist</string>
     <string name="playlist_empty">Ancora nessun brano. Aggiungili dal menu ··· di un brano.</string>
+    <string name="eq_title">Equalizzatore</string>
+    <string name="eq_on">Attivo</string>
+    <string name="eq_off">Disattivato</string>
+    <string name="eq_hint">Trascina i punti per modellare il suono. Il volume si abbassa da solo quanto serve per i rinforzi, così niente distorce.</string>
+    <string name="eq_presets">Preimpostazioni</string>
+    <string name="eq_preset_flat">Neutro</string>
+    <string name="eq_preset_more_bass">Più bassi</string>
+    <string name="eq_preset_less_bass">Meno bassi</string>
+    <string name="eq_preset_more_treble">Più acuti</string>
+    <string name="eq_preset_less_treble">Meno acuti</string>
+    <string name="eq_preset_voice">Voce</string>
+    <string name="eq_preset_low_volume">Volume basso</string>
+    <string name="eq_custom">Personalizzato</string>
+    <string name="eq_headphones">Cuffie</string>
+    <string name="eq_headphones_none">Nessuna correzione</string>
+    <string name="eq_headphones_import">Importa profilo AutoEQ</string>
+    <string name="eq_headphones_delete">Rimuovi «%1$s»</string>
+    <string name="eq_headphones_hint">Su autoeq.app scegli le tue cuffie, scarica il file dell’equalizzatore parametrico (ParametricEQ.txt) e importalo qui. La correzione si applica prima delle bande qui sopra.</string>
+    <string name="eq_import_failed">Questo file non contiene filtri utilizzabili da Songlass.</string>
+    <string name="eq_decimal_separator">,</string>
+    <string name="settings_sound">Suono</string>
 </resources>

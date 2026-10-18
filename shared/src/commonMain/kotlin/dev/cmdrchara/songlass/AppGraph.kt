@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.map
 import dev.cmdrchara.songlass.core.player.ReplayGain
 
 import dev.cmdrchara.songlass.core.playback.SleepTimer
+import dev.cmdrchara.songlass.core.equalizer.Equalizer
 
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.history.PlayCounter
@@ -59,6 +60,7 @@ class AppGraph(
     val pins = Pins(store)
     val userPlaylists = UserPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
     val settings = AppSettings(store)
+    val equalizer = Equalizer(store) { Clock.System.now().toEpochMilliseconds() }
     val lyrics = LyricsRepository(localLyrics, remoteLyrics, store)
     val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })
     private val playCounter = PlayCounter()
@@ -72,6 +74,9 @@ class AppGraph(
             combine(player.state.map { it.replayGain }.distinctUntilChanged(), settings.state.map { it.replayGain }.distinctUntilChanged()) { tags, mode ->
                 ReplayGain.volumeFor(tags, mode)
             }.distinctUntilChanged().collect(player::setVolume)
+        }
+        scope.launch {
+            equalizer.state.map { it.chain }.distinctUntilChanged().collect(player::setEqualizer)
         }
         // Count a play once enough of a track has been heard, and record where it started from.
         scope.launch {

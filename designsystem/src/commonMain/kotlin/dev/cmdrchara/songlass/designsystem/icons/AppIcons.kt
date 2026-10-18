@@ -223,6 +223,19 @@ object AppIcons {
         }
     }
 
+    /** Three sliders at different heights. */
+    val Equalizer: ImageVector by lazy {
+        icon("Equalizer") {
+            stroke {
+                for ((x, knob) in listOf(6f to 15f, 12f to 8f, 18f to 13f)) {
+                    moveTo(x, 4f); lineTo(x, knob - 2.2f)
+                    moveTo(x, knob + 2.2f); lineTo(x, 20f)
+                }
+            }
+            for ((x, knob) in listOf(6f to 15f, 12f to 8f, 18f to 13f)) fill { circle(x, knob, 2.4f) }
+        }
+    }
+
     val More: ImageVector by lazy {
         icon("More") {
             for (x in listOf(5f, 12f, 19f)) fill { circle(x, 12f, 1.75f) }

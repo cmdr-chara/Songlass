@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import dev.cmdrchara.songlass.designsystem.EqBand
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -184,6 +185,17 @@ object LiquidGlassStyle : UiStyle {
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
     ) = LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+    @Composable
+    override fun EqualizerEditor(
+        bands: List<EqBand>,
+        curve: List<Float>,
+        maxGainDb: Float,
+        enabled: Boolean,
+        formatGain: (Float) -> String,
+        onBandChange: (Int, Float) -> Unit,
+        modifier: Modifier,
+    ) = LiquidGlassEqualizerEditor(bands, curve, maxGainDb, enabled, formatGain, onBandChange, modifier)
 
     @Composable
     override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =

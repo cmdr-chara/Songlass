@@ -11,14 +11,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
-import dev.cmdrchara.songlass.core.playlists.M3u
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-actual fun rememberPlaylistImporter(onResult: (name: String?, text: String?) -> Unit): (() -> Unit)? {
+actual fun rememberTextFileImporter(kind: TextFileKind, onResult: (fileName: String?, text: String?) -> Unit): (() -> Unit)? {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val currentResult by rememberUpdatedState(onResult)
@@ -31,11 +30,11 @@ actual fun rememberPlaylistImporter(onResult: (name: String?, text: String?) -> 
                         if (cursor.moveToFirst()) cursor.getString(0) else null
                     }
                     val text = context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val bytes = stream.readNBytes(MAX_PLAYLIST_BYTES + 1)
-                        // M3U8 is UTF-8; plain M3U is often Latin-1, which UTF-8 decoding keeps readable enough.
-                        if (bytes.size > MAX_PLAYLIST_BYTES) null else bytes.decodeToString()
+                        val bytes = stream.readNBytes(MAX_TEXT_BYTES + 1)
+                        // M3U8 and AutoEQ files are UTF-8; plain M3U is often Latin-1, which UTF-8 decoding keeps readable enough.
+                        if (bytes.size > MAX_TEXT_BYTES) null else bytes.decodeToString()
                     }
-                    M3u.nameFromFile(fileName) to text
+                    fileName to text
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {
@@ -45,8 +44,12 @@ actual fun rememberPlaylistImporter(onResult: (name: String?, text: String?) -> 
             currentResult(name, text)
         }
     }
-    // M3U files have no consistently registered MIME type; the parser ignores anything else.
-    return { launcher.launch(arrayOf("audio/x-mpegurl", "audio/mpegurl", "application/vnd.apple.mpegurl", "application/x-mpegurl", "text/plain", "application/octet-stream")) }
+    val types = when (kind) {
+        // M3U files have no consistently registered MIME type; the parser ignores anything else.
+        TextFileKind.Playlist -> arrayOf("audio/x-mpegurl", "audio/mpegurl", "application/vnd.apple.mpegurl", "application/x-mpegurl", "text/plain", "application/octet-stream")
+        TextFileKind.EqualizerProfile -> arrayOf("text/plain", "application/octet-stream")
+    }
+    return { launcher.launch(types) }
 }
 
 @Composable
@@ -68,4 +71,4 @@ actual fun rememberPlaylistExporter(): ((fileName: String, content: String) -> U
     }
 }
 
-private const val MAX_PLAYLIST_BYTES = 1024 * 1024
+private const val MAX_TEXT_BYTES = 1024 * 1024

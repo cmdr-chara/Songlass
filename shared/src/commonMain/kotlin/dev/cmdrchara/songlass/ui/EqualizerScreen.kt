@@ -1,0 +1,188 @@
+package dev.cmdrchara.songlass.ui
+
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.equalizer.EqChain
+import dev.cmdrchara.songlass.core.equalizer.EqPreset
+import dev.cmdrchara.songlass.core.equalizer.Equalizer
+import dev.cmdrchara.songlass.core.equalizer.GraphicEq
+import dev.cmdrchara.songlass.designsystem.EqBand
+import dev.cmdrchara.songlass.designsystem.EqualizerEditor
+import dev.cmdrchara.songlass.designsystem.ListRow
+import dev.cmdrchara.songlass.designsystem.SettingsChoiceRow
+import dev.cmdrchara.songlass.designsystem.SettingsGroup
+import dev.cmdrchara.songlass.designsystem.SettingsToggleRow
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.eq_custom
+import dev.cmdrchara.songlass.shared.resources.eq_decimal_separator
+import dev.cmdrchara.songlass.shared.resources.eq_headphones
+import dev.cmdrchara.songlass.shared.resources.eq_headphones_delete
+import dev.cmdrchara.songlass.shared.resources.eq_headphones_hint
+import dev.cmdrchara.songlass.shared.resources.eq_headphones_import
+import dev.cmdrchara.songlass.shared.resources.eq_headphones_none
+import dev.cmdrchara.songlass.shared.resources.eq_hint
+import dev.cmdrchara.songlass.shared.resources.eq_import_failed
+import dev.cmdrchara.songlass.shared.resources.eq_preset_flat
+import dev.cmdrchara.songlass.shared.resources.eq_preset_less_bass
+import dev.cmdrchara.songlass.shared.resources.eq_preset_less_treble
+import dev.cmdrchara.songlass.shared.resources.eq_preset_low_volume
+import dev.cmdrchara.songlass.shared.resources.eq_preset_more_bass
+import dev.cmdrchara.songlass.shared.resources.eq_preset_more_treble
+import dev.cmdrchara.songlass.shared.resources.eq_preset_voice
+import dev.cmdrchara.songlass.shared.resources.eq_presets
+import dev.cmdrchara.songlass.shared.resources.eq_title
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import kotlin.math.abs
+import kotlin.math.roundToInt
+
+/** Graphic equalizer, presets and headphone corrections; values and persistence live in core. */
+@Composable
+fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, contentPadding: PaddingValues) {
+    val state by equalizer.state.collectAsState()
+    var importFailed by remember { mutableStateOf(false) }
+    val importer = rememberTextFileImporter(TextFileKind.EqualizerProfile) { fileName, text ->
+        importFailed = text == null || equalizer.importProfile(fileName ?: "AutoEQ", text) == null
+    }
+    val separator = stringResource(Res.string.eq_decimal_separator)
+    val bands = remember(state.gains) {
+        GraphicEq.frequencies.zip(state.gains) { f, g -> EqBand(f.toFloat(), frequencyLabel(f), g.toFloat()) }
+    }
+    // The curve the user shapes, without the automatic preamp (it would only shift everything down).
+    val curve = remember(state.gains, state.profile) {
+        EqChain(state.profile?.filters.orEmpty() + GraphicEq.filters(state.gains), 0.0).curve(CURVE_POINTS).map { it.toFloat() }
+    }
+
+    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
+        item { BackLink(backLabel, onBack) }
+        item {
+            AppText(
+                stringResource(Res.string.eq_title),
+                AppTheme.typography.largeTitle,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() },
+            )
+        }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp)) {
+                SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, equalizer::setEnabled)
+            }
+        }
+        item {
+            EqualizerEditor(
+                bands = bands,
+                curve = curve,
+                maxGainDb = GraphicEq.MAX_GAIN_DB.toFloat(),
+                enabled = state.enabled,
+                formatGain = { formatGain(it, separator) },
+                onBandChange = { band, gain ->
+                    // Shaping the sound means wanting to hear it.
+                    if (!state.enabled) equalizer.setEnabled(true)
+                    equalizer.setGain(band, gain.toDouble())
+                },
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp),
+            )
+        }
+        item { Hint(stringResource(Res.string.eq_hint)) }
+        item { SectionTitle(stringResource(Res.string.eq_presets)) }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+                EqPreset.entries.forEach { preset ->
+                    SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
+                        equalizer.applyPreset(preset)
+                        if (preset != EqPreset.Flat) equalizer.setEnabled(true)
+                    })
+                }
+                if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
+            }
+        }
+        item { SectionTitle(stringResource(Res.string.eq_headphones)) }
+        item {
+            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+                SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { equalizer.selectProfile(null) })
+                state.profiles.forEach { profile ->
+                    SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { equalizer.selectProfile(profile.id) })
+                }
+            }
+        }
+        item {
+            SettingsGroup(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
+                if (importer != null) {
+                    ListRow(
+                        title = stringResource(Res.string.eq_headphones_import),
+                        leading = { AppIcon(AppIcons.ImportFile, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                        onClick = importer,
+                    )
+                }
+                state.profile?.let { profile ->
+                    ListRow(
+                        title = stringResource(Res.string.eq_headphones_delete, profile.name),
+                        leading = { AppIcon(AppIcons.Close, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                        onClick = { equalizer.deleteProfile(profile.id) },
+                    )
+                }
+            }
+        }
+        if (importFailed) item { Hint(stringResource(Res.string.eq_import_failed)) }
+        item { Hint(stringResource(Res.string.eq_headphones_hint)) }
+    }
+}
+
+private const val CURVE_POINTS = 96
+
+private val EqPreset.label: StringResource
+    get() = when (this) {
+        EqPreset.Flat -> Res.string.eq_preset_flat
+        EqPreset.MoreBass -> Res.string.eq_preset_more_bass
+        EqPreset.LessBass -> Res.string.eq_preset_less_bass
+        EqPreset.MoreTreble -> Res.string.eq_preset_more_treble
+        EqPreset.LessTreble -> Res.string.eq_preset_less_treble
+        EqPreset.Voice -> Res.string.eq_preset_voice
+        EqPreset.LowVolume -> Res.string.eq_preset_low_volume
+    }
+
+/** 31 → "31", 1000 → "1k", 16000 → "16k". */
+private fun frequencyLabel(hz: Double): String =
+    if (hz >= 1000) "${(hz / 1000).roundToInt()}k" else hz.roundToInt().toString()
+
+/** "+3.5 dB", "−2 dB", "0 dB", with the locale's decimal separator. */
+private fun formatGain(db: Float, separator: String): String {
+    val halves = (db * 2).roundToInt()
+    val whole = abs(halves) / 2
+    val number = if (halves % 2 == 0) "$whole" else "$whole${separator}5"
+    val sign = when {
+        halves > 0 -> "+"
+        halves < 0 -> "−"
+        else -> ""
+    }
+    return "$sign$number dB"
+}
+
+@Composable
+private fun Hint(text: String) {
+    AppText(
+        text,
+        AppTheme.typography.footnote,
+        color = AppTheme.colors.label.copy(alpha = 0.7f),
+        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+    )
+}

@@ -21,6 +21,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import dev.cmdrchara.songlass.core.equalizer.Equalizer
+import dev.cmdrchara.songlass.shared.resources.eq_off
+import dev.cmdrchara.songlass.shared.resources.eq_on
+import dev.cmdrchara.songlass.shared.resources.eq_title
+import dev.cmdrchara.songlass.shared.resources.settings_sound
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -69,6 +76,8 @@ fun SettingsScreen(
     settings: AppSettings,
     preferences: AppPreferences,
     systemAccessibility: UiAccessibility,
+    equalizer: Equalizer,
+    onOpenEqualizer: () -> Unit,
     backLabel: String,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
@@ -134,6 +143,22 @@ fun SettingsScreen(
             }
         }
         item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
+        item { SectionTitle(stringResource(Res.string.settings_sound)) }
+        item {
+            val eq by equalizer.state.collectAsState()
+            SettingsGroup(Modifier.padding(horizontal = 16.dp)) {
+                ListRow(
+                    title = stringResource(Res.string.eq_title),
+                    subtitle = when {
+                        !eq.enabled -> stringResource(Res.string.eq_off)
+                        else -> listOfNotNull(stringResource(Res.string.eq_on), eq.profile?.name).joinToString(" · ")
+                    },
+                    leading = { AppIcon(AppIcons.Equalizer, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                    trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
+                    onClick = onOpenEqualizer,
+                )
+            }
+        }
         item { SectionTitle(stringResource(Res.string.settings_replay_gain)) }
         item {
             SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {

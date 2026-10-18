@@ -221,6 +221,17 @@ fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, mo
     LocalUiStyle.current.VolumeSlider(value, onValueChange, label, modifier)
 
 @Composable
+fun EqualizerEditor(
+    bands: List<EqBand>,
+    curve: List<Float>,
+    maxGainDb: Float,
+    enabled: Boolean,
+    formatGain: (Float) -> String,
+    onBandChange: (Int, Float) -> Unit,
+    modifier: Modifier = Modifier,
+) = LocalUiStyle.current.EqualizerEditor(bands, curve, maxGainDb, enabled, formatGain, onBandChange, modifier)
+
+@Composable
 fun PromptSheet(
     visible: Boolean,
     title: String,
