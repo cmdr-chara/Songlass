@@ -44,6 +44,7 @@ class AppSettings(private val store: KeyValueStore) {
         },
         resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
         crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
+        manualCrossfadeDurationMs = store.getString(MANUAL_CROSSFADE_KEY)?.let(::parseCrossfadeDurationMs) ?: 0L,
         amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
         libraryFilter = LibraryFilter(
             excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
@@ -62,6 +63,12 @@ class AppSettings(private val store: KeyValueStore) {
         require(durationMs in 0L..12_000L)
         store.putString(CROSSFADE_KEY, durationMs.toString())
         _state.update { it.copy(crossfadeDurationMs = durationMs) }
+    }
+
+    fun setManualCrossfadeDuration(durationMs: Long) {
+        require(parseCrossfadeDurationMs(durationMs.toString()) != null)
+        store.putString(MANUAL_CROSSFADE_KEY, durationMs.toString())
+        _state.update { it.copy(manualCrossfadeDurationMs = durationMs) }
     }
 
     fun setAppearance(appearance: AppearanceMode) {
@@ -168,6 +175,7 @@ class AppSettings(private val store: KeyValueStore) {
         const val FOLDER_SORT_KEY = "library.folder_sort"
         const val RESUME_KEY = "settings.resume_on_reconnect"
         const val CROSSFADE_KEY = "settings.crossfade_duration_ms"
+        const val MANUAL_CROSSFADE_KEY = "settings.manual_crossfade_duration_ms"
         const val AMLL_KEY = "settings.amll_enabled"
     }
 }

@@ -28,8 +28,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
-    SettingsTarget.Crossfade -> Res.string.settings_crossfade
+    SettingsTarget.Crossfade -> Res.string.settings_search_crossfade_automatic
     SettingsTarget.CrossfadeDuration -> Res.string.settings_search_crossfade_duration
+    SettingsTarget.ManualCrossfadeDuration -> Res.string.settings_search_manual_crossfade_duration
     SettingsTarget.AmllLyrics -> Res.string.settings_amll
     SettingsTarget.ReduceMotion -> Res.string.settings_reduce_motion
     SettingsTarget.ReduceTransparency -> Res.string.settings_reduce_transparency
@@ -59,7 +60,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> appearance
             SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade,
             SettingsTarget.Equalizer -> playback
-            SettingsTarget.CrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
+            SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$playback › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders -> library
             SettingsTarget.AmllLyrics -> lyrics
@@ -92,8 +93,10 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             ReplayGainMode.Track -> Res.string.settings_replay_gain_track_short
             ReplayGainMode.Album -> Res.string.settings_replay_gain_album_short
         })
-        SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> if (preferences.crossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off)
+        SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> if (preferences.crossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)
             else stringResource(Res.string.settings_search_duration_value, preferences.crossfadeDurationMs)
+        SettingsTarget.ManualCrossfadeDuration -> if (preferences.manualCrossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)
+            else stringResource(Res.string.settings_search_duration_value, preferences.manualCrossfadeDurationMs)
         SettingsTarget.AmllLyrics -> enabled(preferences.amllEnabled)
         SettingsTarget.ReduceMotion -> if (system.reduceMotion) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceMotion)
         SettingsTarget.ReduceTransparency -> if (system.reduceTransparency) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceTransparency)

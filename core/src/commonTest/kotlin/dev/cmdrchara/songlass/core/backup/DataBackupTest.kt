@@ -15,6 +15,7 @@ import dev.cmdrchara.songlass.core.playlists.SmartRules
 import dev.cmdrchara.songlass.core.playlists.UserPlaylists
 import dev.cmdrchara.songlass.core.search.SearchHistory
 import dev.cmdrchara.songlass.core.search.SearchTarget
+import dev.cmdrchara.songlass.core.settings.AppSettings
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import kotlinx.coroutines.test.runTest
@@ -29,6 +30,30 @@ class DataBackupTest {
     private val library = listOf(song("1"), song("2"), song("3"), song("4"))
     private val playlistName = "Mix: 12:34 \u001F\u001E\n😀"
     private val parametricEq = "Preamp: -3 dB\nFilter 1: ON PK Fc 100 Hz Gain 2.5 dB Q 1.0\nFilter 2: ON HSC Fc 8000 Hz Gain -3 dB Q 0.7"
+
+    @Test
+    fun independentCrossfadeDurationsRoundTripAndLegacyBackupRestoresManualOff() {
+        val source = InMemoryKeyValueStore()
+        val sourceSettings = AppSettings(source).apply {
+            setCrossfadeDuration(6_000L)
+            setManualCrossfadeDuration(1_250L)
+        }
+        val target = InMemoryKeyValueStore()
+        val targetSettings = AppSettings(target)
+        val backup = DataBackup(target)
+        val preview = backup.preview(DataBackup(source) { NOW }.export(library).text, library)
+        assertTrue(target.snapshot().isEmpty(), "preview must not apply audio preferences")
+        backup.apply(preview)
+        targetSettings.reload()
+        assertEquals(sourceSettings.state.value, targetSettings.state.value)
+
+        val legacy = InMemoryKeyValueStore().apply { putString("settings.crossfade_duration_ms", "1250") }
+        backup.apply(backup.preview(DataBackup(legacy) { NOW }.export(library).text, library))
+        targetSettings.reload()
+        assertEquals(1_250L, targetSettings.state.value.crossfadeDurationMs)
+        assertEquals(0L, targetSettings.state.value.manualCrossfadeDurationMs)
+        assertNull(target.getString("settings.manual_crossfade_duration_ms"))
+    }
 
     /** Fills [store] through the real repositories, so the stored layouts are the app's own. */
     private fun populate(store: KeyValueStore, tracks: List<Track>) {

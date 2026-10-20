@@ -34,8 +34,10 @@ data class AppPreferences(
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
-    /** Optional decoded-audio overlap between tracks; zero preserves gapless playback. */
+    /** Optional overlap at the natural end of a track; zero preserves gapless playback. */
     val crossfadeDurationMs: Long = 0,
+    /** Independent overlap for explicit track changes. Off preserves the existing immediate change. */
+    val manualCrossfadeDurationMs: Long = 0,
     val folderSort: FolderSort = FolderSort.Name,
     /** Play again when headphones or a car reconnect after cutting playback off. Off by default. */
     val resumeOnReconnect: Boolean = false,

@@ -80,7 +80,10 @@ class AppState(graph: AppGraph) {
     /** Settings keeps its pane while an external editor (for example EQ) is on top. */
     var settingsPane by mutableStateOf(SettingsPane.Overview)
         private set
-    fun selectSettingsPane(pane: SettingsPane) { settingsPane = pane }
+    fun selectSettingsPane(pane: SettingsPane) {
+        if (pane != SettingsPane.Playback) settingsSearch.durationDraft = null
+        settingsPane = pane
+    }
     var settingsSearch by mutableStateOf(SettingsSearchSession())
         private set
 

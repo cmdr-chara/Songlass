@@ -32,6 +32,8 @@ import dev.cmdrchara.songlass.core.browse.play
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -59,6 +61,13 @@ class PlaybackService : MediaLibraryService() {
         scope.launch {
             audio.activePlayer.collect { active ->
                 forwardingPlayer.switchPlayer(active)
+            }
+        }
+        // A manually selected track prepares paused until its fade can start. Expose the logical
+        // play intent to the session, including cancellations that do not change ExoPlayer state.
+        scope.launch {
+            audio.state.map { it.status to it.playWhenReady }.distinctUntilChanged().collect {
+                forwardingPlayer.refreshPlaybackIntent()
             }
         }
     }

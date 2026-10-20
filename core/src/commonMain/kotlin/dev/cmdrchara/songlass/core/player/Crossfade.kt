@@ -24,6 +24,23 @@ data class CrossfadePlan(val startMs: Long, val durationMs: Long) {
 /** Linear gains (0..1) of the two tracks at one moment of the overlap. */
 data class CrossfadeGains(val outgoing: Float, val incoming: Float)
 
+enum class CrossfadeKind { Automatic, Manual }
+
+enum class CrossfadeSkipReason {
+    Disabled, Unsupported, NotPlaying, SameTrack, UnknownDuration, TooShort,
+    NotReady, PrepareFailed, Interrupted,
+}
+
+/** Last attempted transition, not a promise of sample-accurate output timing. */
+data class CrossfadeStatus(
+    val kind: CrossfadeKind,
+    val requestedDurationMs: Long,
+    val effectiveDurationMs: Long = 0,
+    val skipReason: CrossfadeSkipReason? = null,
+)
+
+data class CrossfadeDecision(val plan: CrossfadePlan?, val skipReason: CrossfadeSkipReason?)
+
 enum class CrossfadePhase {
     /** The next track is prepared on a second player but has not started. */
     Armed,
@@ -111,6 +128,49 @@ object Crossfade {
         val start = maxOf(positionMs.coerceAtLeast(0), outgoingDurationMs - wanted)
         val duration = outgoingDurationMs - start
         return if (duration < MIN_EFFECTIVE_MS) null else CrossfadePlan(start, duration)
+    }
+
+    /** A manual change starts now, bounded by the outgoing remainder and both track lengths. */
+    fun manualPlan(
+        configuredMs: Long,
+        outgoingDurationMs: Long,
+        incomingDurationMs: Long,
+        positionMs: Long = 0,
+        sameTrack: Boolean = false,
+    ): CrossfadePlan? {
+        val configured = normalize(configuredMs)
+        if (configured < MIN_EFFECTIVE_MS || sameTrack) return null
+        if (outgoingDurationMs <= 0 || incomingDurationMs <= 0) return null
+        val start = positionMs.coerceIn(0, outgoingDurationMs)
+        val duration = minOf(configured, minOf(outgoingDurationMs, incomingDurationMs) / 2, outgoingDurationMs - start)
+        return if (duration < MIN_EFFECTIVE_MS) null else CrossfadePlan(start, duration)
+    }
+
+    /** Shared eligibility and user-visible suppression reasons; called when a join is attempted. */
+    fun decide(
+        kind: CrossfadeKind,
+        configuredMs: Long,
+        outgoingDurationMs: Long,
+        incomingDurationMs: Long,
+        positionMs: Long = 0,
+        sameTrack: Boolean = false,
+        supported: Boolean = true,
+        playing: Boolean = true,
+    ): CrossfadeDecision {
+        val reason = when {
+            normalize(configuredMs) < MIN_EFFECTIVE_MS -> CrossfadeSkipReason.Disabled
+            !supported -> CrossfadeSkipReason.Unsupported
+            !playing -> CrossfadeSkipReason.NotPlaying
+            sameTrack -> CrossfadeSkipReason.SameTrack
+            outgoingDurationMs <= 0 || incomingDurationMs <= 0 -> CrossfadeSkipReason.UnknownDuration
+            else -> null
+        }
+        if (reason != null) return CrossfadeDecision(null, reason)
+        val plan = when (kind) {
+            CrossfadeKind.Automatic -> plan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs)
+            CrossfadeKind.Manual -> manualPlan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs)
+        }
+        return CrossfadeDecision(plan, if (plan == null) CrossfadeSkipReason.TooShort else null)
     }
 
     /**

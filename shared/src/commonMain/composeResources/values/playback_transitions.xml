@@ -1,0 +1,24 @@
+<resources>
+    <string name="settings_crossfade_automatic">Automatic advance</string>
+    <string name="settings_crossfade_manual">Manual track changes</string>
+    <string name="settings_crossfade_off_ms">Off · %1$d ms</string>
+    <string name="settings_crossfade_automatic_hint">Blend into the next song as the current one ends. Off keeps the existing gapless path.</string>
+    <string name="settings_crossfade_manual_hint">A separate overlap for Next, Previous or choosing a different song while playing. Off changes tracks directly, as before.</string>
+    <string name="settings_crossfade_presets_hint">Presets fill this draft. Only Save applies the change.</string>
+    <string name="settings_crossfade_limits">Automatic repeats of the same song stay gapless. Unknown durations or too little remaining audio prevent an overlap. Short tracks shorten it. Paused changes stay direct; manual overlap is used only during playback.</string>
+    <string name="settings_crossfade_unsupported">This player does not support overlapping tracks. Saved preferences are preserved, but cannot be applied or edited here. The iOS demo does not provide native audio playback.</string>
+    <string name="settings_crossfade_no_status">No transition outcome has been reported in this session. The durations above are preferences, not measured audio timings.</string>
+    <string name="settings_crossfade_last_automatic">Last automatic transition</string>
+    <string name="settings_crossfade_last_manual">Last manual transition</string>
+    <string name="settings_crossfade_applied">Overlap started: %1$d ms requested, %2$d ms in the applied plan. This is not a measurement of the audio output.</string>
+    <string name="settings_crossfade_requested">Requested for this attempt: %1$d ms.</string>
+    <string name="settings_crossfade_reason_disabled">No overlap: this transition was disabled.</string>
+    <string name="settings_crossfade_reason_unsupported">No overlap: the player does not support it.</string>
+    <string name="settings_crossfade_reason_not_playing">No overlap: the outgoing track was not playing.</string>
+    <string name="settings_crossfade_reason_same_track">No overlap: the same song was selected or repeated.</string>
+    <string name="settings_crossfade_reason_unknown_duration">No overlap: a track duration was unknown.</string>
+    <string name="settings_crossfade_reason_too_short">No overlap: there was too little audio left for a safe transition.</string>
+    <string name="settings_crossfade_reason_not_ready">No overlap: the next player was not ready in time.</string>
+    <string name="settings_crossfade_reason_prepare_failed">No overlap: the incoming track could not be prepared.</string>
+    <string name="settings_crossfade_reason_interrupted">The transition was interrupted by a command or a change in audio state.</string>
+</resources>

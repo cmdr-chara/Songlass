@@ -112,6 +112,9 @@ class AppGraph(
         scope.launch {
             settings.state.map { it.crossfadeDurationMs }.distinctUntilChanged().collect(player::setCrossfade)
         }
+        scope.launch {
+            settings.state.map { it.manualCrossfadeDurationMs }.distinctUntilChanged().collect(player::setManualCrossfade)
+        }
         // ReplayGain: the player's own volume evens out loudness, on top of the device volume.
         scope.launch {
             if (player.handlesReplayGain) {

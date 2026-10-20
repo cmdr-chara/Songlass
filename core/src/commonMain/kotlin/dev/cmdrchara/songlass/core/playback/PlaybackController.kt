@@ -39,8 +39,8 @@ class PlaybackController(
         scope.launch {
             player.events.collect { event ->
                 when (event) {
-                    PlayerEvent.TrackEnded -> onTrackEnded()
-                    PlayerEvent.AdvancedToNext -> onAdvancedToNext()
+                    is PlayerEvent.TrackEnded -> if (event.generation == player.eventGeneration) onTrackEnded()
+                    is PlayerEvent.AdvancedToNext -> if (event.generation == player.eventGeneration) onAdvancedToNext()
                     // Remembered by the app graph for resuming on reconnect.
                     PlayerEvent.PausedByDisconnect -> Unit
                 }
@@ -105,7 +105,7 @@ class PlaybackController(
     /** Goes to the next entry, keeping the play/pause state. Does nothing at the end of a non-repeating queue. */
     fun skipToNext() {
         val index = _queue.value.nextIndex(userInitiated = true) ?: return
-        moveTo(index, playWhenReady = player.state.value.playWhenReady)
+        moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
     /**
@@ -115,7 +115,7 @@ class PlaybackController(
     fun skipToPrevious() {
         if (player.state.value.positionMs > RESTART_THRESHOLD_MS) return player.seekTo(0)
         val index = _queue.value.previousIndex() ?: return player.seekTo(0)
-        moveTo(index, playWhenReady = player.state.value.playWhenReady)
+        moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
     /**
@@ -124,13 +124,13 @@ class PlaybackController(
      */
     fun skipToPreviousTrack() {
         val index = _queue.value.previousIndex() ?: return player.seekTo(0)
-        moveTo(index, playWhenReady = player.state.value.playWhenReady)
+        moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
     /** Plays the given queue entry (e.g. tapped in the Up Next list). */
     fun skipTo(entryId: Long) {
         val index = _queue.value.indexOf(entryId)
-        if (index >= 0) moveTo(index, playWhenReady = true)
+        if (index >= 0) moveTo(index, playWhenReady = true, manual = true)
     }
 
     fun setShuffle(enabled: Boolean) = _queue.update { it.withShuffle(enabled, random) }
@@ -172,18 +172,19 @@ class PlaybackController(
     }
 
     private fun replaceQueue(queue: PlaybackQueue) {
+        val replacing = _queue.value.current != null
         _queue.value = queue
-        loadCurrent(playWhenReady = true)
+        loadCurrent(playWhenReady = true, manual = replacing)
     }
 
-    private fun moveTo(index: Int, playWhenReady: Boolean) {
+    private fun moveTo(index: Int, playWhenReady: Boolean, manual: Boolean = false) {
         _queue.update { it.withCurrentIndex(index) }
-        loadCurrent(playWhenReady)
+        loadCurrent(playWhenReady, manual)
     }
 
-    private fun loadCurrent(playWhenReady: Boolean) {
+    private fun loadCurrent(playWhenReady: Boolean, manual: Boolean = false) {
         val entry = _queue.value.current ?: return player.stop()
-        player.load(entry.track, playWhenReady)
+        if (manual) player.transitionTo(entry.track, playWhenReady) else player.load(entry.track, playWhenReady)
     }
 
     private fun onTrackEnded() {

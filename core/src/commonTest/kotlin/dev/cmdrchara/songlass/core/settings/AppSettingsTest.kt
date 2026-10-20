@@ -12,6 +12,56 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppSettingsTest {
     @Test
+    fun existingAutomaticDurationIsPreservedWithoutEnablingManualOrWritingMigrationKeys() {
+        val store = InMemoryKeyValueStore().apply {
+            putString("settings.crossfade_duration_ms", "1250")
+            putString("settings.replay_gain", "album")
+        }
+        val before = store.snapshot()
+        val settings = AppSettings(store)
+        assertEquals(1_250L, settings.state.value.crossfadeDurationMs)
+        assertEquals(0L, settings.state.value.manualCrossfadeDurationMs)
+        assertEquals(before, store.snapshot())
+    }
+
+    @Test
+    fun manualDurationPersistsIndependentlyAndReloads() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        settings.setCrossfadeDuration(6_000L)
+        settings.setManualCrossfadeDuration(1_250L)
+        assertEquals("1250", store.getString("settings.manual_crossfade_duration_ms"))
+        assertEquals(1_250L, AppSettings(store).state.value.manualCrossfadeDurationMs)
+        assertEquals(6_000L, AppSettings(store).state.value.crossfadeDurationMs)
+        settings.setCrossfadeDuration(0L)
+        assertEquals(1_250L, settings.state.value.manualCrossfadeDurationMs)
+        store.putString("settings.manual_crossfade_duration_ms", "250")
+        settings.reload()
+        assertEquals(250L, settings.state.value.manualCrossfadeDurationMs)
+        settings.setManualCrossfadeDuration(0L)
+        assertEquals(0L, AppSettings(store).state.value.manualCrossfadeDurationMs)
+    }
+
+    @Test
+    fun invalidManualDurationsFallBackWithoutChangingAutomaticDurationOrStoredData() {
+        val store = InMemoryKeyValueStore().apply { putString("settings.crossfade_duration_ms", "4000") }
+        for (value in listOf("invalid", "-1", "249", "12001", "9223372036854775808")) {
+            store.putString("settings.manual_crossfade_duration_ms", value)
+            val settings = AppSettings(store)
+            assertEquals(0L, settings.state.value.manualCrossfadeDurationMs)
+            assertEquals(4_000L, settings.state.value.crossfadeDurationMs)
+            assertEquals(value, store.getString("settings.manual_crossfade_duration_ms"))
+        }
+        val settings = AppSettings(store)
+        settings.setManualCrossfadeDuration(1_250L)
+        for (value in listOf(-1L, 1L, 249L, 12_001L)) {
+            kotlin.test.assertFailsWith<IllegalArgumentException> { settings.setManualCrossfadeDuration(value) }
+            assertEquals(1_250L, settings.state.value.manualCrossfadeDurationMs)
+            assertEquals("1250", store.getString("settings.manual_crossfade_duration_ms"))
+        }
+    }
+
+    @Test
     fun amllDefaultsOnAndPersistsBothChoicesAndReloads() {
         val store = InMemoryKeyValueStore()
         val settings = AppSettings(store)

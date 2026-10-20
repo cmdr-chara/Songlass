@@ -20,6 +20,9 @@ import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import dev.cmdrchara.songlass.core.player.Crossfade
+import dev.cmdrchara.songlass.core.player.CrossfadeKind
+import dev.cmdrchara.songlass.core.player.CrossfadeSkipReason
+import dev.cmdrchara.songlass.core.player.CrossfadeStatus
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -37,13 +40,15 @@ import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import org.jetbrains.compose.resources.stringResource
 
 /** UI navigation only: preference values and persistence remain in core. */
-enum class SettingsPane { Overview, Appearance, Playback, Lyrics, Accessibility, CrossfadeDuration }
+enum class SettingsPane { Overview, Appearance, Playback, Lyrics, Accessibility }
 
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
     preferences: AppPreferences,
     supportsAmllLyrics: Boolean,
+    supportsCrossfade: Boolean,
+    crossfadeStatus: CrossfadeStatus?,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
     pane: SettingsPane,
@@ -62,23 +67,48 @@ fun SettingsScreen(
 ) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    fun closeDurationEditor() {
+        focus.clearFocus(); keyboard?.hide()
+        search.durationDraft = null
+    }
+    fun openDurationEditor(kind: CrossfadeKind) {
+        if (!supportsCrossfade) return
+        focus.clearFocus(); keyboard?.hide()
+        search.durationDraft = SettingsDurationDraft(kind,
+            if (kind == CrossfadeKind.Automatic) preferences.crossfadeDurationMs else preferences.manualCrossfadeDurationMs)
+    }
+    val durationRequest = search.focus?.takeIf { isActive && pane == SettingsPane.Playback }
+    LaunchedEffect(durationRequest?.id, supportsCrossfade) {
+        val request = durationRequest ?: return@LaunchedEffect
+        if (search.openedDurationRequestId == request.id) return@LaunchedEffect
+        val kind = when (request.target) {
+            SettingsTarget.CrossfadeDuration -> CrossfadeKind.Automatic
+            SettingsTarget.ManualCrossfadeDuration -> CrossfadeKind.Manual
+            else -> return@LaunchedEffect
+        }
+        // Consume each request once: Save, Cancel and Back must not immediately reopen the draft.
+        search.openedDurationRequestId = request.id
+        openDurationEditor(kind)
+    }
     fun backFrom(page: SettingsPane) {
         focus.clearFocus(); keyboard?.hide()
         when {
+            page == SettingsPane.Playback && search.durationDraft != null -> closeDurationEditor()
             page == SettingsPane.Overview -> { search.updateQuery(""); search.returnToResults() }
             search.resultPane == page -> { search.returnToResults(); onPaneChanged(SettingsPane.Overview) }
-            page == SettingsPane.CrossfadeDuration -> onPaneChanged(SettingsPane.Playback)
             else -> onPaneChanged(SettingsPane.Overview)
         }
     }
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics) { index.search(search.query, supportsAmllLyrics) }
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade)
+    }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
-        ScreenTransition(pane, direction = { from, to ->
-            if (to == SettingsPane.Overview || (from == SettingsPane.CrossfadeDuration && to == SettingsPane.Playback)) NavigationDirection.Backward else NavigationDirection.Forward
+        ScreenTransition(pane, direction = { _, to ->
+            if (to == SettingsPane.Overview) NavigationDirection.Backward else NavigationDirection.Forward
         }) { page ->
             val searching = page == SettingsPane.Overview && search.query.isNotBlank()
             val scroll = if (searching) search.resultsScroll else search.paneScroll.getValue(page)
@@ -96,12 +126,15 @@ fun SettingsScreen(
                         SettingsPane.Playback -> Res.string.settings_playback
                         SettingsPane.Lyrics -> Res.string.settings_lyrics
                         SettingsPane.Accessibility -> Res.string.settings_accessibility
-                        SettingsPane.CrossfadeDuration -> Res.string.settings_crossfade
                     }
                     LocalGlassLook.current.SettingsPageTitle(stringResource(title),
                         when (page) {
                             SettingsPane.Overview -> if (search.query.isNotEmpty()) stringResource(Res.string.settings_title) else backLabel
-                            SettingsPane.CrossfadeDuration -> stringResource(if (search.resultPane == page) Res.string.settings_search_results else Res.string.settings_playback)
+                            SettingsPane.Playback -> stringResource(when {
+                                search.durationDraft != null -> Res.string.action_cancel
+                                search.resultPane == page -> Res.string.settings_search_results
+                                else -> Res.string.settings_title
+                            })
                             else -> if (search.resultPane == page) stringResource(Res.string.settings_search_results) else stringResource(Res.string.settings_title)
                         },
                         if (page == SettingsPane.Overview && search.query.isEmpty()) onBack else ({ backFrom(page) }), Modifier)
@@ -121,7 +154,9 @@ fun SettingsScreen(
                         }
                     }
                     SettingsPane.Appearance -> appearanceSettings(settings, preferences, request)
-                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, onOpenEqualizer, request) { onPaneChanged(SettingsPane.CrossfadeDuration) }
+                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer,
+                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, crossfadeStatus,
+                        search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
                     SettingsPane.Lyrics -> if (supportsAmllLyrics) {
                         item {
                             SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
@@ -134,14 +169,6 @@ fun SettingsScreen(
                         item { SettingsHint(stringResource(Res.string.settings_amll_hint)) }
                     }
                     SettingsPane.Accessibility -> accessibilitySettings(settings, preferences, systemAccessibility, request)
-                    SettingsPane.CrossfadeDuration -> item {
-                        SettingsSearchAnchor(SettingsTarget.CrossfadeDuration, request) {
-                            CrossfadeDurationEditor(preferences.crossfadeDurationMs) { duration ->
-                                settings.setCrossfadeDuration(duration)
-                                backFrom(SettingsPane.CrossfadeDuration)
-                            }
-                        }
-                    }
                 }
                 item(key = "end") { Spacer(Modifier.height(20.dp)) }
             }
@@ -316,8 +343,20 @@ private fun ArtworkPreview(style: ArtworkStyle) {
 }
 
 private val crossfadePresets = listOf(0L, 2_000L, 4_000L, 6_000L, 8_000L, 12_000L)
+private val manualCrossfadePresets = listOf(0L, 400L, 1_000L, 2_000L)
 
-private fun LazyListScope.playbackSettings(settings: AppSettings, preferences: AppPreferences, equalizer: Equalizer, openEq: () -> Unit, request: SettingsFocusRequest?, openCustom: () -> Unit) {
+private fun LazyListScope.playbackSettings(
+    settings: AppSettings,
+    preferences: AppPreferences,
+    equalizer: Equalizer,
+    openEq: () -> Unit,
+    request: SettingsFocusRequest?,
+    supportsCrossfade: Boolean,
+    crossfadeStatus: CrossfadeStatus?,
+    draft: SettingsDurationDraft?,
+    openDuration: (CrossfadeKind) -> Unit,
+    closeDuration: () -> Unit,
+) {
     item { SettingsSection(stringResource(Res.string.settings_sound)) }
     item {
         val eq by equalizer.state.collectAsState()
@@ -347,48 +386,137 @@ private fun LazyListScope.playbackSettings(settings: AppSettings, preferences: A
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_replay_gain_hint)) }
-    item { SettingsSection(stringResource(Res.string.settings_crossfade)) }
-    item {
+    item(key = "crossfade-title") { SettingsSection(stringResource(Res.string.settings_crossfade)) }
+    item(key = "automatic-crossfade") {
         SettingsSearchAnchor(SettingsTarget.Crossfade, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                crossfadePresets.forEach { duration ->
-                    SettingsChoiceRow(if (duration == 0L) stringResource(Res.string.settings_crossfade_off)
-                        else stringResource(Res.string.settings_crossfade_seconds, duration / 1_000L),
-                        preferences.crossfadeDurationMs == duration, { settings.setCrossfadeDuration(duration) })
+            SettingsSearchAnchor(SettingsTarget.CrossfadeDuration, request) {
+                CrossfadeDurationControl(CrossfadeKind.Automatic, preferences.crossfadeDurationMs,
+                    supportsCrossfade, draft?.takeIf { it.kind == CrossfadeKind.Automatic },
+                    { openDuration(CrossfadeKind.Automatic) }, closeDuration) { duration ->
+                    settings.setCrossfadeDuration(duration)
+                    closeDuration()
                 }
-                val custom = preferences.crossfadeDurationMs !in crossfadePresets
-                SettingsChoiceRow(
-                    if (custom) stringResource(Res.string.settings_crossfade_custom_value, preferences.crossfadeDurationMs)
-                    else stringResource(Res.string.settings_crossfade_custom),
-                    custom, openCustom,
-                )
             }
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_crossfade_hint)) }
+    item(key = "automatic-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_automatic_hint)) }
+    item(key = "manual-crossfade") {
+        SettingsSearchAnchor(SettingsTarget.ManualCrossfadeDuration, request) {
+            CrossfadeDurationControl(CrossfadeKind.Manual, preferences.manualCrossfadeDurationMs,
+                supportsCrossfade, draft?.takeIf { it.kind == CrossfadeKind.Manual },
+                { openDuration(CrossfadeKind.Manual) }, closeDuration) { duration ->
+                settings.setManualCrossfadeDuration(duration)
+                closeDuration()
+            }
+        }
+    }
+    item(key = "manual-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_manual_hint)) }
+    item(key = "crossfade-limits") {
+        SettingsHint(stringResource(if (supportsCrossfade) Res.string.settings_crossfade_limits else Res.string.settings_crossfade_unsupported))
+    }
+    item(key = "crossfade-status") {
+        if (supportsCrossfade) CrossfadeStatusNote(crossfadeStatus)
+    }
+}
+
+@Composable
+private fun crossfadeDurationValue(durationMs: Long): String =
+    stringResource(if (durationMs == 0L) Res.string.settings_crossfade_off_ms else Res.string.settings_search_duration_value, durationMs)
+
+@Composable
+private fun CrossfadeDurationControl(
+    kind: CrossfadeKind,
+    currentMs: Long,
+    enabled: Boolean,
+    draft: SettingsDurationDraft?,
+    onEdit: () -> Unit,
+    onCancel: () -> Unit,
+    onSave: (Long) -> Unit,
+) {
+    val title = stringResource(if (kind == CrossfadeKind.Automatic) Res.string.settings_crossfade_automatic else Res.string.settings_crossfade_manual)
+    val value = crossfadeDurationValue(currentMs)
+    SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+        if (enabled) {
+            SettingsLink(title, value, if (kind == CrossfadeKind.Automatic) AppIcons.Queue else AppIcons.Next,
+                summaryIsValue = true, onClick = { if (draft == null) onEdit() else onCancel() })
+        } else {
+            ListRow(title, subtitle = value)
+        }
+        if (enabled && draft != null) CrossfadeDurationEditor(draft, onSave, onCancel)
+    }
 }
 
 /** Drafts do not change audio or persistence until explicitly saved. */
 @Composable
-private fun CrossfadeDurationEditor(initialMs: Long, onSave: (Long) -> Unit) {
-    var draft by remember(initialMs) { mutableStateOf(if (initialMs == 0L) "" else initialMs.toString()) }
-    var invalid by remember { mutableStateOf(false) }
+private fun CrossfadeDurationEditor(draft: SettingsDurationDraft, onSave: (Long) -> Unit, onCancel: () -> Unit) {
     val validation = stringResource(Res.string.settings_crossfade_ms_invalid, Crossfade.MIN_EFFECTIVE_MS, Crossfade.MAX_DURATION_MS)
     fun save() {
-        val value = draft.trim().toLongOrNull()
-        if (value != null && (value == 0L || value in Crossfade.MIN_EFFECTIVE_MS..Crossfade.MAX_DURATION_MS)) onSave(value)
-        else invalid = true
+        val value = parseCrossfadeDurationMs(draft.text)
+        if (value != null) onSave(value) else draft.invalid = true
     }
-    Column(Modifier.fillMaxWidth().padding(top = 16.dp)) {
-        LocalGlassLook.current.SettingsDurationField(draft, { draft = it; invalid = false },
-            stringResource(Res.string.settings_crossfade_ms_label), ::save, Modifier.padding(horizontal = pageInset))
-        SettingsHint(stringResource(Res.string.settings_crossfade_ms_hint, Crossfade.MIN_EFFECTIVE_MS, Crossfade.MAX_DURATION_MS))
-        if (invalid) AppText(validation, AppTheme.typography.footnote, color = AppTheme.colors.label,
-            modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp).semantics {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        LocalGlassLook.current.SettingsDurationField(draft.text, { draft.text = it; draft.invalid = false },
+            stringResource(Res.string.settings_crossfade_ms_label), ::save,
+            Modifier.fillMaxWidth().semantics { if (draft.invalid) error(validation) })
+        AppText(stringResource(Res.string.settings_crossfade_ms_hint, Crossfade.MIN_EFFECTIVE_MS, Crossfade.MAX_DURATION_MS),
+            AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+        if (draft.invalid) AppText(validation, AppTheme.typography.footnote, color = AppTheme.colors.label,
+            modifier = Modifier.semantics {
                 error(validation); liveRegion = LiveRegionMode.Polite
             })
-        ActionButton(stringResource(Res.string.playlist_save), ::save,
-            Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 12.dp))
+        AppText(stringResource(Res.string.settings_crossfade_presets_hint), AppTheme.typography.footnote,
+            color = AppTheme.colors.secondaryLabel)
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val presets = if (draft.kind == CrossfadeKind.Automatic) crossfadePresets else manualCrossfadePresets
+            presets.forEach { duration ->
+                ActionButton(crossfadeDurationValue(duration), { draft.text = duration.toString(); draft.invalid = false })
+            }
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            if (LocalDensity.current.fontScale > 1.3f || maxWidth < 260.dp) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionButton(stringResource(Res.string.playlist_save), ::save, Modifier.fillMaxWidth(), AppIcons.Checkmark)
+                    ActionButton(stringResource(Res.string.action_cancel), onCancel, Modifier.fillMaxWidth())
+                }
+            } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton(stringResource(Res.string.action_cancel), onCancel, Modifier.weight(1f))
+                ActionButton(stringResource(Res.string.playlist_save), ::save, Modifier.weight(1f), AppIcons.Checkmark)
+            }
+        }
+    }
+}
+
+/** Reports the player's last attempt, separately from the durations currently configured above. */
+@Composable
+private fun CrossfadeStatusNote(status: CrossfadeStatus?) {
+    if (status == null) {
+        SettingsHint(stringResource(Res.string.settings_crossfade_no_status))
+        return
+    }
+    val title = stringResource(if (status.kind == CrossfadeKind.Automatic) Res.string.settings_crossfade_last_automatic else Res.string.settings_crossfade_last_manual)
+    val reason = status.skipReason
+    val outcome = if (reason == null && status.effectiveDurationMs > 0) {
+        stringResource(Res.string.settings_crossfade_applied, status.requestedDurationMs, status.effectiveDurationMs)
+    } else if (reason == null) stringResource(Res.string.settings_crossfade_no_status) else {
+        stringResource(when (reason) {
+            CrossfadeSkipReason.Disabled -> Res.string.settings_crossfade_reason_disabled
+            CrossfadeSkipReason.Unsupported -> Res.string.settings_crossfade_reason_unsupported
+            CrossfadeSkipReason.NotPlaying -> Res.string.settings_crossfade_reason_not_playing
+            CrossfadeSkipReason.SameTrack -> Res.string.settings_crossfade_reason_same_track
+            CrossfadeSkipReason.UnknownDuration -> Res.string.settings_crossfade_reason_unknown_duration
+            CrossfadeSkipReason.TooShort -> Res.string.settings_crossfade_reason_too_short
+            CrossfadeSkipReason.NotReady -> Res.string.settings_crossfade_reason_not_ready
+            CrossfadeSkipReason.PrepareFailed -> Res.string.settings_crossfade_reason_prepare_failed
+            CrossfadeSkipReason.Interrupted -> Res.string.settings_crossfade_reason_interrupted
+        })
+    }
+    SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            AppText(title, AppTheme.typography.subheadline, color = AppTheme.colors.label)
+            AppText(outcome, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+            if (reason != null) AppText(stringResource(Res.string.settings_crossfade_requested, status.requestedDurationMs),
+                AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+        }
     }
 }
 

@@ -3,7 +3,7 @@ package dev.cmdrchara.songlass.core.settings
 /** Stable destinations, independent of translated labels and the UI's navigation stack. */
 enum class SettingsTarget {
     InterfaceStyle, Appearance, ArtworkStyle, ResumeOnReconnect, ReplayGain, Crossfade,
-    CrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
+    CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
     HomeCustomization, Backup, About,
 }
@@ -29,18 +29,23 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
         return entries.mapIndexedNotNull { order, entry ->
             if (entry.target == SettingsTarget.AmllLyrics && !supportsAmllLyrics) return@mapIndexedNotNull null
+            if (!supportsCrossfade && entry.target in crossfadeTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
         }.sortedWith(compareBy<Match> { it.priority }.thenBy { it.cost }.thenBy { it.order })
             .map { it.target }
     }
 
     private data class Match(val target: SettingsTarget, val priority: Int, val cost: Int, val order: Int)
+
+    private companion object {
+        val crossfadeTargets = setOf(SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration)
+    }
 }
 
 private class IndexedSetting(
@@ -121,10 +126,12 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "headphones|cuffie|bluetooth|wired|cavo|usb|car|auto|reconnect|ricollega|ripresa|disconnessione")
     SettingsTarget.ReplayGain -> terms("ReplayGain", "Volume normalization", "Normalizza volume", "Normalizzazione",
         aliases = "loudness|gain|guadagno|track|album|brano|volume|clipping|normalize|normalise")
-    SettingsTarget.Crossfade -> terms("Crossfade", "Sfumatura tra brani",
-        aliases = "transition|transizione|overlap|sovrapposizione|gapless|fade|dissolvenza")
+    SettingsTarget.Crossfade -> terms("Crossfade", "Automatic crossfade", "Crossfade automatico", "Sfumatura tra brani",
+        aliases = "transition|transizione|overlap|sovrapposizione|gapless|fade|dissolvenza|automatic advance|avanzamento automatico")
     SettingsTarget.CrossfadeDuration -> terms("Crossfade duration", "Durata crossfade", "Custom crossfade duration", "Durata personalizzata",
-        aliases = "ms|milliseconds|millisecondi|millisecond|custom|personalizzata|exact|precisa|duration|durata")
+        aliases = "ms|milliseconds|millisecondi|millisecond|custom|personalizzata|exact|precisa|duration|durata|automatic|automatico")
+    SettingsTarget.ManualCrossfadeDuration -> terms("Manual crossfade duration", "Durata crossfade manuale", "Manual track changes", "Cambio manuale",
+        aliases = "ms|milliseconds|millisecondi|millisecond|skip|next|previous|avanti|indietro|transition|transizione|overlap|sovrapposizione|fade|dissolvenza|custom|personalizzata")
     SettingsTarget.AmllLyrics -> terms("Lyrics", "Testi", "AMLL lyrics", "Testi parola per parola",
         aliases = "amll|karaoke|word timed|synchronized|sincronizzati|sincronizzazione|testo|lyrics provider")
     SettingsTarget.ReduceMotion -> terms("Reduce motion", "Riduci movimento",

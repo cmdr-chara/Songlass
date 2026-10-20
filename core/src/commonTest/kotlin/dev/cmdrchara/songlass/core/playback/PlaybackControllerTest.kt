@@ -1,6 +1,9 @@
 package dev.cmdrchara.songlass.core.playback
 
 import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
+import dev.cmdrchara.songlass.core.player.AudioPlayer
+import dev.cmdrchara.songlass.core.player.PlayerEvent
+import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.PlayerStatus
 import dev.cmdrchara.songlass.core.queue.RepeatMode
 import dev.cmdrchara.songlass.core.track
@@ -9,6 +12,8 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -283,4 +288,103 @@ class PlaybackControllerTest {
         assertFalse(controller.stopAfterCurrent.value)
         assertEquals("3", player.nextTrack?.id)
     }
+
+    @Test
+    fun explicitTrackChoicesUseManualTransitionsButInitialPlaybackDoesNot() = runTest(UnconfinedTestDispatcher()) {
+        val audio = RecordingPlayer()
+        val controller = PlaybackController(audio, backgroundScope, Random(0))
+        controller.playTracks(tracks(4))
+        assertEquals(listOf("1"), audio.loads)
+        assertTrue(audio.manual.isEmpty())
+        controller.skipToNext()
+        controller.skipToPreviousTrack()
+        controller.skipTo(controller.queue.value.entries[2].id)
+        controller.playTracks(listOf(track("collection")))
+        assertEquals(listOf("2", "1", "3", "collection"), audio.manual.map { it.first })
+        assertEquals(0, controller.queue.value.currentIndex)
+    }
+
+    @Test
+    fun manualSkipPreservesPauseAndPreviousRestartRemainsASeek() = runTest(UnconfinedTestDispatcher()) {
+        val audio = RecordingPlayer()
+        val controller = PlaybackController(audio, backgroundScope)
+        controller.playTracks(tracks(3))
+        controller.pause()
+        controller.skipToNext()
+        assertEquals("2" to false, audio.manual.single())
+        controller.resume()
+        audio.fake.seekTo(4_000)
+        controller.skipToPrevious()
+        assertEquals(0, audio.fake.state.value.positionMs)
+        assertEquals(1, audio.manual.size)
+        controller.skipToPrevious()
+        assertEquals("1" to true, audio.manual.last())
+    }
+
+    @Test
+    fun automaticFallbackRemovalAndErrorRecoveryStayImmediate() = runTest(UnconfinedTestDispatcher()) {
+        val audio = RecordingPlayer()
+        val controller = PlaybackController(audio, backgroundScope)
+        controller.playTracks(tracks(4))
+        audio.signal(PlayerEvent.TrackEnded(audio.eventGeneration))
+        assertEquals("2", audio.fake.loadedTrack?.id)
+        controller.removeFromQueue(controller.queue.value.current!!.id)
+        assertEquals("3", audio.fake.loadedTrack?.id)
+        audio.fake.fail("fixture")
+        controller.togglePlayPause()
+        assertEquals(listOf("1", "2", "3", "3"), audio.loads)
+        assertTrue(audio.manual.isEmpty())
+    }
+
+    @Test
+    fun bufferedAdvanceFromBeforeAManualSkipCannotAdvanceAgain() = runTest {
+        val audio = RecordingPlayer()
+        val controller = PlaybackController(audio, backgroundScope)
+        runCurrent()
+        controller.playTracks(tracks(4))
+        runCurrent()
+        audio.signal(PlayerEvent.AdvancedToNext(audio.eventGeneration))
+        controller.skipToNext()
+        runCurrent()
+        assertEquals(1, controller.queue.value.currentIndex)
+        assertEquals("2", audio.fake.loadedTrack?.id)
+    }
+
+    @Test
+    fun bufferedEndFromBeforeAReplacementOrStopCannotChangeTheNewQueue() = runTest {
+        val audio = RecordingPlayer()
+        val controller = PlaybackController(audio, backgroundScope)
+        runCurrent()
+        controller.playTracks(tracks(4))
+        runCurrent()
+        audio.signal(PlayerEvent.TrackEnded(audio.eventGeneration))
+        controller.skipTo(controller.queue.value.entries[2].id)
+        runCurrent()
+        assertEquals(2, controller.queue.value.currentIndex)
+        audio.signal(PlayerEvent.TrackEnded(audio.eventGeneration))
+        controller.clearQueue()
+        controller.playTracks(tracks(3))
+        runCurrent()
+        assertEquals(0, controller.queue.value.currentIndex)
+        assertEquals("1", audio.fake.loadedTrack?.id)
+    }
+}
+
+/** Records the command boundary, and can deliver events after the user has changed the timeline. */
+private class RecordingPlayer(val fake: FakeAudioPlayer = FakeAudioPlayer()) : AudioPlayer by fake {
+    override val events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 16)
+    val loads = mutableListOf<String>()
+    val manual = mutableListOf<Pair<String, Boolean>>()
+
+    override fun load(track: Track, playWhenReady: Boolean) {
+        loads += track.id
+        fake.load(track, playWhenReady)
+    }
+
+    override fun transitionTo(track: Track, playWhenReady: Boolean) {
+        manual += track.id to playWhenReady
+        fake.load(track, playWhenReady)
+    }
+
+    fun signal(event: PlayerEvent) { check(events.tryEmit(event)) }
 }

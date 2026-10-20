@@ -19,6 +19,8 @@ data class PlayerState(
     val audioFormat: AudioFormatInfo? = null,
     /** Loudness tags of the playing file (see [ReplayGainTags]); null until read or if absent. */
     val replayGain: ReplayGainTags? = null,
+    /** Last attempted transition; durations describe its applied plan, not measured audio timing. */
+    val crossfadeStatus: CrossfadeStatus? = null,
 ) {
     val isPlaying: Boolean
         get() = playWhenReady && (status == PlayerStatus.Ready || status == PlayerStatus.Buffering)
@@ -26,10 +28,10 @@ data class PlayerState(
 
 sealed interface PlayerEvent {
     /** The loaded track played to the end by itself and nothing was queued after it. */
-    data object TrackEnded : PlayerEvent
+    data class TrackEnded(val generation: Long = 0) : PlayerEvent
 
     /** The track set with [AudioPlayer.setNext] started right after the previous one, without a gap. */
-    data object AdvancedToNext : PlayerEvent
+    data class AdvancedToNext(val generation: Long = 0) : PlayerEvent
 
     /** Playback paused because the audio output went away (headphones unplugged, Bluetooth lost). */
     data object PausedByDisconnect : PlayerEvent
@@ -44,7 +46,13 @@ interface AudioPlayer {
     val state: StateFlow<PlayerState>
     val events: Flow<PlayerEvent>
 
+    /** Explicit timeline replacements invalidate queued end/advance events from earlier loads. */
+    val eventGeneration: Long get() = 0
+
     fun load(track: Track, playWhenReady: Boolean)
+
+    /** A user-selected track; the queue already moved, so this must not emit AdvancedToNext. */
+    fun transitionTo(track: Track, playWhenReady: Boolean) = load(track, playWhenReady)
 
     /**
      * The track to play right after the current one, prepared ahead so there is no gap; null to
@@ -68,6 +76,11 @@ interface AudioPlayer {
      * playing gaplessly. Takes effect from the next transition; a running overlap finishes.
      */
     fun setCrossfade(durationMs: Long) {}
+
+    /** Independent overlap for [transitionTo], off by default. Never changes automatic joins. */
+    fun setManualCrossfade(durationMs: Long) {}
+
+    val supportsCrossfade: Boolean get() = false
 
     /** True when the platform applies loudness tags separately to each overlapping decoder. */
     val handlesReplayGain: Boolean get() = false

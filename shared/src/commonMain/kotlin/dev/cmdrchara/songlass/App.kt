@@ -213,6 +213,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 settings = graph.settings,
                                 preferences = preferences,
                                 supportsAmllLyrics = graph.supportsAmllLyrics,
+                                supportsCrossfade = graph.player.supportsCrossfade,
+                                crossfadeStatus = player.crossfadeStatus,
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,
                                 onOpenEqualizer = { state.open(Route.Equalizer) },

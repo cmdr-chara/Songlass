@@ -42,7 +42,7 @@ class SettingsSearchTest {
         assertEquals(listOf(SettingsTarget.Appearance), index.search("modalita scura", true))
         assertEquals(index.search("accessibilita", true), index.search("accessibilita\u0300", true))
         assertTrue(index.search("accessibilita", true).containsAll(listOf(SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency)))
-        assertEquals(listOf(SettingsTarget.CrossfadeDuration), index.search("\tMS,\n", true))
+        assertEquals(listOf(SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration), index.search("\tMS,\n", true))
     }
 
     @Test
@@ -78,6 +78,29 @@ class SettingsSearchTest {
             assertEquals(listOf(SettingsTarget.AmllLyrics), lyrics.search(query, true), query)
         }
         assertFalse(SettingsTarget.AmllLyrics in index.search("settings", false))
+    }
+
+    @Test
+    fun automaticAndManualDurationsCanBeFoundIndependently() {
+        for (query in listOf("manual crossfade", "manuale ms", "skip", "cambio manuale")) {
+            assertEquals(listOf(SettingsTarget.ManualCrossfadeDuration), index.search(query, true), query)
+        }
+        assertEquals(SettingsTarget.Crossfade, index.search("automatic crossfade", true).first())
+        assertEquals(listOf(SettingsTarget.CrossfadeDuration), index.search("automatico ms", true))
+        assertEquals(listOf(SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration), index.search("milliseconds", true))
+    }
+
+    @Test
+    fun unsupportedOverlapControlsAreExcludedWithoutHidingOtherPlaybackSettings() {
+        for (query in listOf("crossfade", "ms", "manual crossfade", "gapless", "automatico")) {
+            val results = index.search(query, supportsAmllLyrics = true, supportsCrossfade = false)
+            assertFalse(SettingsTarget.Crossfade in results, query)
+            assertFalse(SettingsTarget.CrossfadeDuration in results, query)
+            assertFalse(SettingsTarget.ManualCrossfadeDuration in results, query)
+        }
+        assertEquals(listOf(SettingsTarget.ReplayGain), index.search("normalizzazione", true, false))
+        assertEquals(listOf(SettingsTarget.ResumeOnReconnect), index.search("resume on reconnect", true, false))
+        assertEquals(listOf(SettingsTarget.ManualCrossfadeDuration), index.search("manual crossfade", true, true))
     }
 
     @Test

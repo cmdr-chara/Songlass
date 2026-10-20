@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.update
  * platform players are wired in. Time does not pass on its own: call [advanceBy] or [finishTrack].
  */
 class FakeAudioPlayer : AudioPlayer {
+    override var eventGeneration: Long = 0
+        private set
     private val _state = MutableStateFlow(PlayerState())
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
 
@@ -44,6 +46,7 @@ class FakeAudioPlayer : AudioPlayer {
     }
 
     override fun load(track: Track, playWhenReady: Boolean) {
+        eventGeneration++
         loadedTrack = track
         _state.value = PlayerState(
             status = PlayerStatus.Ready,
@@ -72,6 +75,7 @@ class FakeAudioPlayer : AudioPlayer {
     }
 
     override fun stop() {
+        eventGeneration++
         loadedTrack = null
         _state.value = PlayerState()
     }
@@ -96,11 +100,11 @@ class FakeAudioPlayer : AudioPlayer {
             loadedTrack = next
             nextTrack = null
             _state.update { it.copy(status = PlayerStatus.Ready, positionMs = 0, durationMs = next.durationMs, replayGain = null) }
-            _events.tryEmit(PlayerEvent.AdvancedToNext)
+            _events.tryEmit(PlayerEvent.AdvancedToNext(eventGeneration))
             return
         }
         _state.update { it.copy(status = PlayerStatus.Ended, positionMs = it.durationMs) }
-        _events.tryEmit(PlayerEvent.TrackEnded)
+        _events.tryEmit(PlayerEvent.TrackEnded(eventGeneration))
     }
 
     fun fail(message: String) {

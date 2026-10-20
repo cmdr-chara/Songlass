@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.player.CrossfadeKind
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
@@ -35,6 +36,8 @@ class SettingsSearchSession {
     val paneScroll = SettingsPane.entries.associateWith { LazyListState() }
     var resultPane by mutableStateOf<SettingsPane?>(null)
     var focus by mutableStateOf<SettingsFocusRequest?>(null)
+    internal var durationDraft by mutableStateOf<SettingsDurationDraft?>(null)
+    internal var openedDurationRequestId: Int? = null
     private var nextRequest = 0
 
     fun updateQuery(value: String) {
@@ -45,14 +48,22 @@ class SettingsSearchSession {
     }
 
     fun select(target: SettingsTarget) {
+        durationDraft = null
         resultPane = target.settingsPane
         focus = SettingsFocusRequest(target, ++nextRequest)
     }
 
     fun returnToResults() {
+        durationDraft = null
         resultPane = null
         focus = null
     }
+}
+
+/** Unsaved presentation state survives lazy-item disposal, but is never persisted. */
+internal class SettingsDurationDraft(val kind: CrossfadeKind, initialMs: Long) {
+    var text by mutableStateOf(initialMs.toString())
+    var invalid by mutableStateOf(false)
 }
 
 /** A fresh request also reveals a result that has already been opened once. */
@@ -66,8 +77,8 @@ class SettingsFocusRequest(val target: SettingsTarget, val id: Int) {
 internal val SettingsTarget.settingsPane: SettingsPane?
     get() = when (this) {
         SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> SettingsPane.Appearance
-        SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade -> SettingsPane.Playback
-        SettingsTarget.CrossfadeDuration -> SettingsPane.CrossfadeDuration
+        SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade,
+        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> SettingsPane.Playback
         SettingsTarget.AmllLyrics -> SettingsPane.Lyrics
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> SettingsPane.Accessibility
         else -> null
@@ -92,8 +103,9 @@ internal val SettingsTarget.settingsItemIndex: Int?
         SettingsTarget.ArtworkStyle -> 8
         SettingsTarget.ResumeOnReconnect -> 2
         SettingsTarget.ReplayGain -> 4
-        SettingsTarget.Crossfade -> 7
-        SettingsTarget.CrossfadeDuration, SettingsTarget.AmllLyrics -> 1
+        SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> 7
+        SettingsTarget.ManualCrossfadeDuration -> 9
+        SettingsTarget.AmllLyrics -> 1
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> 2
         else -> null
     }

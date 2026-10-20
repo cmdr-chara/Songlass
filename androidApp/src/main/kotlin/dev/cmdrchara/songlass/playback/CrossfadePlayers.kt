@@ -67,7 +67,7 @@ class PlayerVoice(
     }
 }
 
-enum class CrossfadeStage { Off, Idle, Armed, Fading }
+enum class CrossfadeStage { Off, Idle, Armed, PreparingManual, Fading }
 
 /**
  * Snapshot for runtime checks (debug probes, tests on a device). Holds no track names or other
@@ -91,4 +91,5 @@ data class CrossfadeDiagnostics(
     val progress: Float,
     val outgoingVolume: Float,
     val incomingVolume: Float,
+    val manualConfiguredMs: Long = 0,
 )

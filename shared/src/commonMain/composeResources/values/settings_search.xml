@@ -6,7 +6,9 @@
     <string name="settings_search_results">Search results</string>
     <string name="settings_search_current">Current: %1$s</string>
     <string name="settings_search_located">Located setting: %1$s</string>
-    <string name="settings_search_crossfade_duration">Custom crossfade duration</string>
+    <string name="settings_search_crossfade_automatic">Automatic crossfade</string>
+    <string name="settings_search_crossfade_duration">Automatic crossfade duration</string>
+    <string name="settings_search_manual_crossfade_duration">Manual crossfade duration</string>
     <string name="settings_search_duration_value">%1$d ms</string>
     <plurals name="settings_search_result_count">
         <item quantity="one">%1$d setting found</item>

@@ -82,6 +82,59 @@ class CrossfadeTest {
     }
 
     @Test
+    fun manualChangeStartsAtTheCurrentPositionInsteadOfWaitingForTheEnd() {
+        val manual = Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, 10_000)!!
+        assertEquals(CrossfadePlan(10_000, 1_250), manual)
+        assertEquals(fourMinutes - 1_250, Crossfade.plan(1_250, fourMinutes, fourMinutes, 10_000)!!.startMs)
+    }
+
+    @Test
+    fun manualPlanUsesTheRemainingAudioAndTheShorterTrackLimit() {
+        assertEquals(CrossfadePlan(fourMinutes - 800, 800),
+            Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, fourMinutes - 800))
+        assertEquals(CrossfadePlan(1_000, 500), Crossfade.manualPlan(12_000, fourMinutes, 1_000, 1_000))
+        assertNull(Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, fourMinutes - 249))
+        assertNull(Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, Long.MAX_VALUE))
+        assertEquals(0, Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, Long.MIN_VALUE)!!.startMs)
+    }
+
+    @Test
+    fun manualPlanKeepsTheExistingOffUnknownAndRepeatOneGuards() {
+        assertNull(Crossfade.manualPlan(0, fourMinutes, fourMinutes))
+        assertNull(Crossfade.manualPlan(249, fourMinutes, fourMinutes))
+        assertNull(Crossfade.manualPlan(1_250, 0, fourMinutes))
+        assertNull(Crossfade.manualPlan(1_250, fourMinutes, 0))
+        assertNull(Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, sameTrack = true))
+        assertEquals(12_000, Crossfade.manualPlan(Long.MAX_VALUE, fourMinutes, fourMinutes)!!.durationMs)
+    }
+
+    @Test
+    fun eligibilityExplainsWhyATransitionCannotRun() {
+        fun reason(ms: Long = 1_250, out: Long = fourMinutes, incoming: Long = fourMinutes,
+            same: Boolean = false, supported: Boolean = true, playing: Boolean = true) =
+            Crossfade.decide(CrossfadeKind.Manual, ms, out, incoming,
+                sameTrack = same, supported = supported, playing = playing).skipReason
+        assertEquals(CrossfadeSkipReason.Disabled, reason(ms = 0))
+        assertEquals(CrossfadeSkipReason.Unsupported, reason(supported = false))
+        assertEquals(CrossfadeSkipReason.NotPlaying, reason(playing = false))
+        assertEquals(CrossfadeSkipReason.SameTrack, reason(same = true))
+        assertEquals(CrossfadeSkipReason.UnknownDuration, reason(out = 0))
+        assertEquals(CrossfadeSkipReason.UnknownDuration, reason(incoming = 0))
+        assertEquals(CrossfadeSkipReason.TooShort, reason(incoming = 400))
+        assertNull(reason())
+    }
+
+    @Test
+    fun automaticAndManualDecisionsKeepTheirOwnTiming() {
+        val automatic = Crossfade.decide(CrossfadeKind.Automatic, 4_000, fourMinutes, fourMinutes, 20_000)
+        val manual = Crossfade.decide(CrossfadeKind.Manual, 750, fourMinutes, fourMinutes, 20_000)
+        assertEquals(CrossfadePlan(fourMinutes - 4_000, 4_000), automatic.plan)
+        assertEquals(CrossfadePlan(20_000, 750), manual.plan)
+        assertNull(automatic.skipReason)
+        assertNull(manual.skipReason)
+    }
+
+    @Test
     fun progressFollowsThePlaybackPosition() {
         val plan = CrossfadePlan(startMs = 10_000, durationMs = 4_000)
         assertEquals(0f, plan.progressAt(0))
@@ -183,6 +236,8 @@ class CrossfadeTest {
         // iOS and demo players keep playing gaplessly: the default implementation does nothing.
         val player = FakeAudioPlayer()
         player.setCrossfade(8_000)
+        player.setManualCrossfade(1_250)
+        assertTrue(!player.supportsCrossfade)
         assertEquals(PlayerStatus.Idle, player.state.value.status)
     }
 }

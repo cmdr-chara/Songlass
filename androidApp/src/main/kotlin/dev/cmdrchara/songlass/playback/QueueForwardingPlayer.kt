@@ -23,14 +23,19 @@ class QueueForwardingPlayer(
     /** Keep one session player and its listeners while the active decoder changes. */
     fun switchPlayer(player: Player) { setPlayer(player) }
 
+    /** Core intent can change while the underlying, still-preparing decoder remains paused. */
+    fun refreshPlaybackIntent() { invalidateState() }
+
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
         if (playWhenReady) controller.resume() else controller.pause()
+        refreshPlaybackIntent()
         return Futures.immediateVoidFuture()
     }
 
     override fun handleStop(): ListenableFuture<*> {
         val target = audio ?: return super.handleStop()
         target.stop()
+        refreshPlaybackIntent()
         return Futures.immediateVoidFuture()
     }
 
@@ -50,7 +55,12 @@ class QueueForwardingPlayer(
                 Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM,
             )
             .build()
-        return state.buildUpon().setAvailableCommands(commands).build()
+        val builder = state.buildUpon().setAvailableCommands(commands)
+        if ((audio as? Media3AudioPlayer)?.isPreparingManualTransition == true && state.playerError == null) {
+            builder.setPlaybackState(Player.STATE_BUFFERING)
+                .setPlayWhenReady(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+        }
+        return builder.build()
     }
 
     // Items handed over by media browsers (Android Auto) were already resolved and queued in
@@ -66,6 +76,7 @@ class QueueForwardingPlayer(
             Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> controller.skipToPrevious()
             else -> controller.seekTo(positionMs.coerceAtLeast(0))
         }
+        refreshPlaybackIntent()
         return Futures.immediateVoidFuture()
     }
 }
