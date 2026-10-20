@@ -386,6 +386,28 @@ private fun LazyListScope.playbackSettings(
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_replay_gain_hint)) }
+    item(key = "long-tracks-title") { SettingsSection(stringResource(Res.string.settings_long_section)) }
+    item(key = "per-track-resume") {
+        SettingsSearchAnchor(SettingsTarget.ResumePerTrack, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsToggleRow(stringResource(Res.string.settings_long_resume), preferences.resumePerTrack,
+                    settings::setResumePerTrack, subtitle = stringResource(Res.string.settings_long_resume_hint))
+            }
+        }
+    }
+    item(key = "long-duration-threshold") {
+        SettingsSearchAnchor(SettingsTarget.LongTrackThreshold, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                AppText(stringResource(Res.string.settings_long_threshold), AppTheme.typography.subheadline,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
+                AppSettings.LONG_TRACK_CHOICES_MS.forEach { duration ->
+                    SettingsChoiceRow(stringResource(Res.string.settings_long_minutes, (duration / 60_000L).toInt()),
+                        preferences.longTrackThresholdMs == duration, { settings.setLongTrackThreshold(duration) })
+                }
+            }
+        }
+    }
+    item(key = "long-tracks-hint") { SettingsHint(stringResource(Res.string.settings_long_hint)) }
     item(key = "crossfade-title") { SettingsSection(stringResource(Res.string.settings_crossfade)) }
     item(key = "automatic-crossfade") {
         SettingsSearchAnchor(SettingsTarget.Crossfade, request) {

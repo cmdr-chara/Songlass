@@ -148,6 +148,14 @@ fun LibraryScreen(
                 )
             }
         }
+        item {
+            val saved by state.trackMarkers.state.collectAsState()
+            ListRow(stringResource(Res.string.bookmark_open),
+                subtitle = stringResource(Res.string.bookmark_library_hint),
+                leading = { AppIcon(AppIcons.Bookmark, null, size = 24.dp, tint = AppTheme.colors.accent) },
+                trailing = { AppText(saved.bookmarks.size.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel) },
+                onClick = { state.openBookmarks() })
+        }
         if (!hasAccess || library.tracks.isEmpty()) {
             item {
                     val loading by state.isLibraryLoading.collectAsState()

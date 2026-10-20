@@ -22,6 +22,16 @@ object AppIcons {
         } }
     }
 
+    /** Original bookmark silhouette, shared by the three visual languages. */
+    val Bookmark: ImageVector by lazy {
+        icon("Bookmark") {
+            stroke(width = 2f) {
+                moveTo(6f, 4f); lineTo(18f, 4f); lineTo(18f, 21f)
+                lineTo(12f, 16.5f); lineTo(6f, 21f); close()
+            }
+        }
+    }
+
     val Play: ImageVector by lazy {
         icon("Play") { fill { moveTo(7f, 4.5f); lineTo(20f, 12f); lineTo(7f, 19.5f); close() } }
     }

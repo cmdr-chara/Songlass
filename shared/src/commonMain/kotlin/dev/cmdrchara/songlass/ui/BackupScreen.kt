@@ -114,6 +114,8 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
                     BackupCountRow(stringResource(Res.string.backup_playlists), checked.counts.userPlaylists + checked.counts.smartPlaylists)
                     BackupCountRow(stringResource(Res.string.backup_history), checked.counts.datedPlays)
                     BackupCountRow(stringResource(Res.string.backup_profiles), checked.counts.headphoneProfiles + checked.counts.outputProfiles)
+                    BackupCountRow(stringResource(Res.string.bookmark_backup_progress), checked.counts.trackProgress)
+                    BackupCountRow(stringResource(Res.string.bookmark_open), checked.counts.bookmarks)
                     BackupCountRow(stringResource(Res.string.backup_matched), checked.tracks.unchanged + checked.tracks.remapped)
                     BackupCountRow(stringResource(Res.string.backup_missing), checked.tracks.missing)
                     if (checked.tracks.conflicting > 0) BackupCountRow(stringResource(Res.string.backup_conflicting), checked.tracks.conflicting)

@@ -7,6 +7,7 @@ import dev.cmdrchara.songlass.core.player.PlayerEvent
 import dev.cmdrchara.songlass.core.player.PlayerState
 import dev.cmdrchara.songlass.core.player.PlayerStatus
 import dev.cmdrchara.songlass.core.queue.PlaybackQueue
+import dev.cmdrchara.songlass.core.settings.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,12 +26,16 @@ class PlaybackController(
     private val player: AudioPlayer,
     scope: CoroutineScope,
     private val random: Random = Random,
+    private val markers: TrackMarkers? = null,
+    private val preferences: () -> AppPreferences = { AppPreferences() },
 ) {
     private val _queue = MutableStateFlow(PlaybackQueue())
     val queue: StateFlow<PlaybackQueue> = _queue.asStateFlow()
     val playerState: StateFlow<PlayerState> = player.state
 
     private val _stopAfterCurrent = MutableStateFlow(false)
+    /** The decoder identity, deliberately independent of refreshed queue metadata. */
+    private var loadedTrack: Track? = null
 
     /** Playback pauses when the current track ends (sleep timer "end of track"). */
     val stopAfterCurrent: StateFlow<Boolean> = _stopAfterCurrent.asStateFlow()
@@ -44,6 +49,28 @@ class PlaybackController(
                     // Remembered by the app graph for resuming on reconnect.
                     PlayerEvent.PausedByDisconnect -> Unit
                 }
+            }
+        }
+        // The player already publishes position ticks. Persist only at useful milestones and
+        // on pauses; never write to storage for every position notification.
+        scope.launch {
+            var wasPlaying = false
+            var previousSignature: TrackSignature? = null
+            player.state.collect { status ->
+                val track = loadedTrack
+                val signature = track?.let(TrackSignature::of)
+                if (track != null) {
+                    if (status.status == PlayerStatus.Ended) safeMarkers { markers?.completed(track) }
+                    else if (status.status == PlayerStatus.Ready && status.positionMs >= 0) {
+                        val enabled = preferences().resumePerTrack
+                        if (enabled && (status.playWhenReady || (wasPlaying && previousSignature == signature))) {
+                            safeMarkers { markers?.checkpoint(track, status.positionMs,
+                                preferences().longTrackThresholdMs, force = !status.playWhenReady) }
+                        }
+                    }
+                }
+                previousSignature = signature
+                wasPlaying = status.playWhenReady
             }
         }
         // Keep the track that follows ready in the player, for gapless playback.
@@ -61,7 +88,10 @@ class PlaybackController(
         _stopAfterCurrent.value = enabled
     }
 
-    fun pause() = player.pause()
+    fun pause() {
+        checkpointCurrent(force = true)
+        player.pause()
+    }
 
     /** Plays the current entry if it is paused; does nothing while playing or with an empty queue. */
     fun resume() {
@@ -91,16 +121,56 @@ class PlaybackController(
         val state = player.state.value
         when {
             state.status == PlayerStatus.Ended -> {
-                player.seekTo(0)
+                seekTo(0)
                 player.play()
             }
             state.status == PlayerStatus.Idle || state.status == PlayerStatus.Error -> loadCurrent(playWhenReady = true)
-            state.playWhenReady -> player.pause()
+            state.playWhenReady -> pause()
             else -> player.play()
         }
     }
 
-    fun seekTo(positionMs: Long) = player.seekTo(positionMs)
+    fun seekTo(positionMs: Long) {
+        player.seekTo(positionMs)
+        loadedTrack?.let { track ->
+            if (positionMs <= 0L) safeMarkers { markers?.restart(track) }
+            // A SeekBar drag can emit many intermediate seeks; only checkpoint on a
+            // meaningful position change, with final flush on pause/change of track.
+            else checkpointCurrent(force = false)
+        }
+    }
+
+    /** For chapters and bookmarks. Does not change the queue when the track is already active. */
+    fun playBookmark(track: Track, positionMs: Long) {
+        val at = positionMs.coerceIn(0L, track.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
+        if (loadedTrack?.id == track.id && loadedTrack?.uri == track.uri) {
+            seekTo(at)
+            if (!player.state.value.playWhenReady) player.play()
+            return
+        }
+        val index = _queue.value.entries.indexOfFirst { it.track.id == track.id && it.track.uri == track.uri }
+        if (index >= 0) moveTo(index, playWhenReady = true, manual = true, positionOverrideMs = at)
+        else {
+            context = null
+            replaceQueue(PlaybackQueue.of(listOf(track), repeatMode = _queue.value.repeatMode, random = random), at)
+        }
+    }
+
+    /** Contextual ±10 s buttons use the same seek semantics as the progress slider. */
+    fun skipBy(deltaMs: Long) {
+        val now = player.state.value.positionMs.coerceAtLeast(0)
+        val maximum = player.state.value.durationMs.takeIf { it > 0 }
+            ?: loadedTrack?.durationMs?.takeIf { it > 0 } ?: Long.MAX_VALUE
+        val target = if (deltaMs > 0 && now > Long.MAX_VALUE - deltaMs) Long.MAX_VALUE else
+            if (deltaMs < 0 && now < -deltaMs) 0L else now + deltaMs
+        seekTo(target.coerceIn(0L, maximum))
+    }
+
+    /** A deliberate fresh start overrides and removes any saved per-track point. */
+    fun playFromBeginning(track: Track) {
+        safeMarkers { markers?.restart(track) }
+        playBookmark(track, 0L)
+    }
 
     /** Goes to the next entry, keeping the play/pause state. Does nothing at the end of a non-repeating queue. */
     fun skipToNext() {
@@ -113,8 +183,8 @@ class PlaybackController(
      * otherwise goes to the previous entry (or restarts if there is none).
      */
     fun skipToPrevious() {
-        if (player.state.value.positionMs > RESTART_THRESHOLD_MS) return player.seekTo(0)
-        val index = _queue.value.previousIndex() ?: return player.seekTo(0)
+        if (player.state.value.positionMs > RESTART_THRESHOLD_MS) return seekTo(0)
+        val index = _queue.value.previousIndex() ?: return seekTo(0)
         moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
@@ -123,7 +193,7 @@ class PlaybackController(
      * there is none). For gestures that show the track changing, such as swiping the mini player.
      */
     fun skipToPreviousTrack() {
-        val index = _queue.value.previousIndex() ?: return player.seekTo(0)
+        val index = _queue.value.previousIndex() ?: return seekTo(0)
         moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
@@ -146,7 +216,7 @@ class PlaybackController(
         _queue.update { it.remove(entryId) }
         val after = _queue.value.current
         when {
-            after == null -> player.stop()
+            after == null -> { checkpointCurrent(force = true); loadedTrack = null; player.stop() }
             after.id != before?.id -> loadCurrent(playWhenReady = player.state.value.playWhenReady)
         }
     }
@@ -161,6 +231,8 @@ class PlaybackController(
     }
 
     fun clearQueue() {
+        checkpointCurrent(force = true)
+        loadedTrack = null
         _queue.update { PlaybackQueue(repeatMode = it.repeatMode) }
         player.stop()
     }
@@ -168,26 +240,53 @@ class PlaybackController(
     private fun addTracks(change: (PlaybackQueue) -> PlaybackQueue) {
         val wasEmpty = _queue.value.current == null
         _queue.update(change)
-        if (wasEmpty) loadCurrent(playWhenReady = true)
+        if (wasEmpty) loadCurrent(playWhenReady = true, explicitSelection = true)
     }
 
-    private fun replaceQueue(queue: PlaybackQueue) {
+    private fun replaceQueue(queue: PlaybackQueue, positionOverrideMs: Long? = null) {
         val replacing = _queue.value.current != null
         _queue.value = queue
-        loadCurrent(playWhenReady = true, manual = replacing)
+        loadCurrent(playWhenReady = true, manual = replacing, explicitSelection = true, positionOverrideMs = positionOverrideMs)
     }
 
-    private fun moveTo(index: Int, playWhenReady: Boolean, manual: Boolean = false) {
+    private fun moveTo(index: Int, playWhenReady: Boolean, manual: Boolean = false, positionOverrideMs: Long? = null) {
         _queue.update { it.withCurrentIndex(index) }
-        loadCurrent(playWhenReady, manual)
+        loadCurrent(playWhenReady, manual, explicitSelection = manual, positionOverrideMs = positionOverrideMs)
     }
 
-    private fun loadCurrent(playWhenReady: Boolean, manual: Boolean = false) {
-        val entry = _queue.value.current ?: return player.stop()
-        if (manual) player.transitionTo(entry.track, playWhenReady) else player.load(entry.track, playWhenReady)
+    private fun loadCurrent(
+        playWhenReady: Boolean,
+        manual: Boolean = false,
+        explicitSelection: Boolean = false,
+        positionOverrideMs: Long? = null,
+    ) {
+        checkpointCurrent(force = true)
+        val entry = _queue.value.current ?: run { loadedTrack = null; return player.stop() }
+        val chosen = if (explicitSelection && preferences().resumePerTrack)
+            markers?.progressFor(entry.track, preferences().longTrackThresholdMs) else null
+        val start = positionOverrideMs ?: chosen ?: 0L
+        // Assign before the player's synchronous state callback can run: it must not attribute
+        // the new decoder's zero position to the previously loaded recording.
+        loadedTrack = entry.track
+        if (manual) player.transitionToAt(entry.track, playWhenReady, start)
+        else player.loadAt(entry.track, playWhenReady, start)
+    }
+
+    private inline fun safeMarkers(write: () -> Unit) {
+        // A storage failure must never block Play, Pause, Stop or queue advancement.
+        try { write() } catch (_: Exception) { }
+    }
+
+    private fun checkpointCurrent(force: Boolean = false) {
+        val track = loadedTrack ?: return
+        if (!preferences().resumePerTrack) return
+        val status = player.state.value
+        if (status.status == PlayerStatus.Ended) safeMarkers { markers?.completed(track) }
+        else safeMarkers { markers?.checkpoint(track, status.positionMs, preferences().longTrackThresholdMs, force) }
     }
 
     private fun onTrackEnded() {
+        loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
         val queue = _queue.value
         val index = queue.nextIndex(userInitiated = false) ?: return
         if (_stopAfterCurrent.value) {
@@ -196,7 +295,7 @@ class PlaybackController(
             return moveTo(index, playWhenReady = false)
         }
         if (index == queue.currentIndex) {
-            player.seekTo(0)
+            seekTo(0)
             player.play()
         } else {
             moveTo(index, playWhenReady = true)
@@ -205,8 +304,10 @@ class PlaybackController(
 
     /** The player already started the next track: only the queue position moves. */
     private fun onAdvancedToNext() {
+        loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
         val index = _queue.value.nextIndex(userInitiated = false) ?: return
         _queue.update { it.withCurrentIndex(index) }
+        loadedTrack = _queue.value.current?.track
     }
 
     companion object {

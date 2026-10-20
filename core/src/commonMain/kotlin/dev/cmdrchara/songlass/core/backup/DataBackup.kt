@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.backup
 
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.playback.TrackMarkersCodec
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 
 enum class BackupError {
@@ -57,6 +58,8 @@ data class BackupCounts(
     /** Settings and library filter entries. */
     val settings: Int = 0,
     val homeEntries: Int = 0,
+    val trackProgress: Int = 0,
+    val bookmarks: Int = 0,
 )
 
 /** Result of [DataBackup.export]. `toString` leaves the text out so it cannot end up in logs. */
@@ -298,6 +301,8 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
             importedLyrics = entries.keys.count { it.startsWith(BackupKeys.LYRICS_PREFIX) },
             settings = entries.keys.count { it.startsWith("settings.") || (it.startsWith("library.") && it != BackupKeys.PINS) },
             homeEntries = entries.keys.count { it.startsWith("home.") },
+            trackProgress = entries[TrackMarkersCodec.PROGRESS_KEY]?.let { TrackMarkersCodec.decodeProgress(it).size } ?: 0,
+            bookmarks = entries[TrackMarkersCodec.BOOKMARKS_KEY]?.let { TrackMarkersCodec.decodeBookmarks(it).size } ?: 0,
         )
     }
 

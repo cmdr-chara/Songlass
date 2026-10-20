@@ -24,6 +24,7 @@ import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.LibraryIndex
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
+import dev.cmdrchara.songlass.core.playback.TrackMarkers
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
 import dev.cmdrchara.songlass.core.settings.AppSettings
@@ -62,14 +63,15 @@ class AppGraph(
     val tagEditor: dev.cmdrchara.songlass.core.model.FileTagEditor? = null,
     amllLyrics: LyricsSource? = null,
 ) {
-    val controller = PlaybackController(player, scope)
+    val settings = AppSettings(store)
+    val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
+    val controller = PlaybackController(player, scope, markers = trackMarkers, preferences = { settings.state.value })
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store)
     val pins = Pins(store)
     val searchHistory = dev.cmdrchara.songlass.core.search.SearchHistory(store)
     val smartPlaylists = dev.cmdrchara.songlass.core.playlists.SmartPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
     val userPlaylists = UserPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
-    val settings = AppSettings(store)
     val homeCustomization = dev.cmdrchara.songlass.core.home.HomeCustomization(store)
     private val dataBackup = dev.cmdrchara.songlass.core.backup.DataBackup(store) { Clock.System.now().toEpochMilliseconds() }
     private val backupMutex = kotlinx.coroutines.sync.Mutex()
@@ -101,6 +103,9 @@ class AppGraph(
     val library: StateFlow<MusicLibrary> = libraryIndex.state
 
     init {
+        scope.launch {
+            source.hasAccess.collect { access -> if (!access) trackMarkers.setLibrary(emptyList()) }
+        }
         scope.launch {
             combine(allTracks, settings.state.map { it.libraryFilter }.distinctUntilChanged()) { _, _ ->
                 Unit
@@ -172,6 +177,7 @@ class AppGraph(
         kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
             backupMutex.withLock {
                 _isRestoringBackup.value = true
+                trackMarkers.writesSuspended = true
                 try {
                     val tracks = allTracks.value
                     val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
@@ -179,6 +185,7 @@ class AppGraph(
                         dataBackup.apply(dataBackup.preview(text, tracks))
                     }
                     settings.reload()
+                    trackMarkers.reload()
                     homeCustomization.reload()
                     favorites.reload()
                     pins.reload()
@@ -191,6 +198,7 @@ class AppGraph(
                     result
                 } finally {
                     _isRestoringBackup.value = false
+                    trackMarkers.writesSuspended = false
                 }
             }
         }
@@ -202,6 +210,7 @@ class AppGraph(
             _isLibraryLoading.value = true
             try {
                 val tracks = source.loadTracks()
+                trackMarkers.setLibrary(tracks)
                 _allTracks.value = tracks
                 controller.refreshTracks(tracks)
                 libraryIndex.refresh()

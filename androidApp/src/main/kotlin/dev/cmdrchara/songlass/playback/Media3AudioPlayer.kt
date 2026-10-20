@@ -112,6 +112,8 @@ class Media3AudioPlayer(
     private var nextPlacement = NextPlacement.None
     private var crossfadeMs = 0L
     private var manualCrossfadeMs = 0L
+    /** Non-zero only for the synchronous load/transition being prepared. */
+    private var initialPositionMs = 0L
     private var outputVolume = 1f
     private var replayGainMode = ReplayGainMode.Off
     override val handlesReplayGain: Boolean get() = true
@@ -240,6 +242,16 @@ class Media3AudioPlayer(
         })
     }
 
+    override fun loadAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        initialPositionMs = startPositionMs.coerceAtLeast(0)
+        try { load(track, playWhenReady) } finally { initialPositionMs = 0L }
+    }
+
+    override fun transitionToAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        initialPositionMs = startPositionMs.coerceAtLeast(0)
+        try { transitionTo(track, playWhenReady) } finally { initialPositionMs = 0L }
+    }
+
     override fun load(track: Track, playWhenReady: Boolean) {
         eventGeneration++
         interrupt(CrossfadeInterruption.Load)
@@ -253,7 +265,7 @@ class Media3AudioPlayer(
         }
         voice.replayGain = null
         _state.value = _state.value.copy(audioFormat = null, replayGain = null)
-        voice.player.setMediaItem(track.toMediaItem())
+        voice.player.setMediaItem(track.toMediaItem(), initialPositionMs)
         // setMediaItem dropped whatever followed the old track.
         nextPlacement = NextPlacement.None
         reconcileNext()
@@ -307,7 +319,8 @@ class Media3AudioPlayer(
         fadePlan = null
         nextPlacement = NextPlacement.None
         nextSkipReason = null
-        if (!reusable) incoming.player.setMediaItem(track.toMediaItem())
+        if (!reusable) incoming.player.setMediaItem(track.toMediaItem(), initialPositionMs)
+        else if (initialPositionMs > 0L) incoming.player.seekTo(initialPositionMs)
         // Decode while paused: the target's intro must not advance silently while READY waits
         // for the application looper. The pending intent is exposed by publishState instead.
         incoming.player.playWhenReady = false

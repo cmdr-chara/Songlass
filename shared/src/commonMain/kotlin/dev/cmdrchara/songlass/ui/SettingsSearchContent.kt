@@ -31,6 +31,8 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.Crossfade -> Res.string.settings_search_crossfade_automatic
     SettingsTarget.CrossfadeDuration -> Res.string.settings_search_crossfade_duration
     SettingsTarget.ManualCrossfadeDuration -> Res.string.settings_search_manual_crossfade_duration
+    SettingsTarget.ResumePerTrack -> Res.string.settings_long_resume
+    SettingsTarget.LongTrackThreshold -> Res.string.settings_long_threshold
     SettingsTarget.AmllLyrics -> Res.string.settings_amll
     SettingsTarget.ReduceMotion -> Res.string.settings_reduce_motion
     SettingsTarget.ReduceTransparency -> Res.string.settings_reduce_transparency
@@ -59,6 +61,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
         val section = when (target) {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> appearance
             SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade,
+            SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
             SettingsTarget.Equalizer -> playback
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$playback › $equalizer"
@@ -88,6 +91,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         })
         SettingsTarget.ArtworkStyle -> stringResource(if (preferences.artworkStyle == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
         SettingsTarget.ResumeOnReconnect -> enabled(preferences.resumeOnReconnect)
+        SettingsTarget.ResumePerTrack -> enabled(preferences.resumePerTrack)
+        SettingsTarget.LongTrackThreshold -> stringResource(Res.string.settings_long_minutes,
+            (preferences.longTrackThresholdMs / 60_000L).toInt())
         SettingsTarget.ReplayGain -> stringResource(when (preferences.replayGain) {
             ReplayGainMode.Off -> Res.string.settings_replay_gain_off
             ReplayGainMode.Track -> Res.string.settings_replay_gain_track_short

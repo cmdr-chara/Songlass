@@ -51,8 +51,21 @@ interface AudioPlayer {
 
     fun load(track: Track, playWhenReady: Boolean)
 
+    /** Start at a saved position as part of the load, not as a later seek during an overlap. */
+    fun loadAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        load(track, playWhenReady)
+        if (startPositionMs > 0) seekTo(startPositionMs)
+    }
+
     /** A user-selected track; the queue already moved, so this must not emit AdvancedToNext. */
     fun transitionTo(track: Track, playWhenReady: Boolean) = load(track, playWhenReady)
+
+    /** Native implementations with a manual overlap prepare the incoming voice at this position. */
+    fun transitionToAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        // For platforms without manual-overlap support, load at the requested position.
+        // Overlap-capable platforms override this to prepare the incoming decoder directly.
+        loadAt(track, playWhenReady, startPositionMs)
+    }
 
     /**
      * The track to play right after the current one, prepared ahead so there is no gap; null to

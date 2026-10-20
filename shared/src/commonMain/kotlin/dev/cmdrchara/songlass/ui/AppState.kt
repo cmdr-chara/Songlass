@@ -35,6 +35,7 @@ sealed interface Route {
     data object Settings : Route
     data object HomeCustomization : Route
     data object Backup : Route
+    data class Bookmarks(val track: Track? = null) : Route
     data class TagEditor(val track: Track) : Route
     data object Equalizer : Route
     data object AutoEqCatalog : Route
@@ -60,6 +61,7 @@ data class ScreenDestination(val tab: Tab, val route: Route?, val depth: Int)
 @Stable
 class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
+    val trackMarkers = graph.trackMarkers
     val favorites: Favorites = graph.favorites
     val pins = graph.pins
     val searchHistory = graph.searchHistory
@@ -249,6 +251,12 @@ class AppState(graph: AppGraph) {
     val hasOverlay: Boolean
         get() = deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
+
+    fun openBookmarks(track: Track? = null) {
+        closeMenu()
+        closeNowPlaying()
+        open(Route.Bookmarks(track))
+    }
 
     fun openTagEditor(track: Track) {
         closeNowPlaying()

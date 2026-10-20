@@ -55,6 +55,14 @@ class FakeAudioPlayer : AudioPlayer {
         )
     }
 
+    override fun loadAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        load(track, playWhenReady)
+        seekTo(startPositionMs)
+    }
+
+    override fun transitionToAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) =
+        loadAt(track, playWhenReady, startPositionMs)
+
     override fun play() {
         if (loadedTrack != null) _state.update { it.copy(playWhenReady = true) }
     }

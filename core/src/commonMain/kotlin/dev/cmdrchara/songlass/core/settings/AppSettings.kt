@@ -46,6 +46,8 @@ class AppSettings(private val store: KeyValueStore) {
         crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
         manualCrossfadeDurationMs = store.getString(MANUAL_CROSSFADE_KEY)?.let(::parseCrossfadeDurationMs) ?: 0L,
         amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
+        resumePerTrack = store.getString(PER_TRACK_KEY)?.toBooleanStrictOrNull() ?: false,
+        longTrackThresholdMs = store.getString(LONG_THRESHOLD_KEY)?.toLongOrNull()?.takeIf { it in LONG_TRACK_CHOICES_MS } ?: 10 * 60_000L,
         libraryFilter = LibraryFilter(
             excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
                 .filter { it.isNotBlank() }.toSet(),
@@ -143,6 +145,17 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(resumeOnReconnect = enabled) }
     }
 
+    fun setResumePerTrack(enabled: Boolean) {
+        store.putString(PER_TRACK_KEY, enabled.toString())
+        _state.update { it.copy(resumePerTrack = enabled) }
+    }
+
+    fun setLongTrackThreshold(durationMs: Long) {
+        require(durationMs in LONG_TRACK_CHOICES_MS)
+        store.putString(LONG_THRESHOLD_KEY, durationMs.toString())
+        _state.update { it.copy(longTrackThresholdMs = durationMs) }
+    }
+
     fun setAmllEnabled(enabled: Boolean) {
         store.putString(AMLL_KEY, enabled.toString())
         _state.update { it.copy(amllEnabled = enabled) }
@@ -163,7 +176,10 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(libraryFilter = it.libraryFilter.copy(excludedFolders = folders)) }
     }
 
-    private companion object {
+    companion object {
+        val LONG_TRACK_CHOICES_MS = listOf(60_000L, 300_000L, 600_000L, 1_200_000L, 1_800_000L, 3_600_000L)
+        private const val PER_TRACK_KEY = "settings.resume_per_track"
+        private const val LONG_THRESHOLD_KEY = "settings.long_track_threshold_ms"
         const val EXCLUDED_FOLDERS_KEY = "library.excluded_folders"
         const val MIN_DURATION_KEY = "library.minimum_duration_ms"
         const val APPEARANCE_KEY = "settings.appearance"

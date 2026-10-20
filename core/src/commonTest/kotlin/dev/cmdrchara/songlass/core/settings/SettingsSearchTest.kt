@@ -6,6 +6,16 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class SettingsSearchTest {
+    @Test
+    fun longTrackSettingsHaveBilingualSearchDestinations() {
+        val documents = SettingsTarget.entries.map { SettingsSearchDocument(it, "Control ${it.name}", "Settings") }
+        val index = SettingsSearchIndex(documents)
+        assertEquals(listOf(SettingsTarget.ResumePerTrack), index.search("resume each track", true))
+        assertEquals(listOf(SettingsTarget.ResumePerTrack), index.search("riprendi ogni brano", true))
+        assertEquals(listOf(SettingsTarget.LongTrackThreshold), index.search("long track threshold", true))
+        assertEquals(listOf(SettingsTarget.LongTrackThreshold), index.search("soglia brani lunghi", true))
+    }
+
     private val documents = SettingsTarget.entries.map { target ->
         SettingsSearchDocument(target, "Control ${target.name}", "Settings")
     }

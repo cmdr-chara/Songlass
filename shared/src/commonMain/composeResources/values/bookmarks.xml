@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bookmark_open">Bookmarks</string>
+    <string name="bookmark_library_hint">Saved positions, including unavailable files</string>
+    <string name="bookmark_intro">Bookmarks save a point without changing the audio file. Unavailable or ambiguous tracks cannot be opened.</string>
+    <string name="bookmark_from_start">Play from beginning (discard saved position)</string>
+    <string name="bookmark_add">Add bookmark at this position</string>
+    <string name="bookmark_current_position">Position: %1$s</string>
+    <string name="bookmark_unavailable">File unavailable or identity ambiguous</string>
+    <string name="bookmark_title_optional">Title (optional)</string>
+    <string name="bookmark_save">Save</string>
+    <string name="bookmark_rename">Rename</string>
+    <string name="bookmark_delete">Delete</string>
+    <string name="bookmark_write_failed">Could not save the change.</string>
+    <string name="bookmark_untitled">Bookmark at %1$s</string>
+    <string name="bookmark_empty">No bookmarks saved yet.</string>
+    <string name="bookmark_backup_progress">Per-track resume points</string>
+    <string name="bookmark_seek_back">−10 s</string>
+    <string name="bookmark_seek_forward">+10 s</string>
+    <string name="bookmark_seek_back_accessible">Back ten seconds</string>
+    <string name="bookmark_seek_forward_accessible">Forward ten seconds</string>
+    <string name="settings_long_section">Long tracks</string>
+    <string name="settings_long_resume">Resume each track</string>
+    <string name="settings_long_resume_hint">Off by default. When enabled, each long track remembers its own position across sessions.</string>
+    <string name="settings_long_threshold">Minimum track duration</string>
+    <string name="settings_long_minutes">%1$d min</string>
+    <string name="settings_long_hint">This duration also controls when the optional ±10-second buttons appear. Android's last-session playback resumption still restores the last collection and track, independently of this setting.</string>
+</resources>

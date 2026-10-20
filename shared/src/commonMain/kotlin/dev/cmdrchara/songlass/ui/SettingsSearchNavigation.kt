@@ -78,7 +78,8 @@ internal val SettingsTarget.settingsPane: SettingsPane?
     get() = when (this) {
         SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> SettingsPane.Appearance
         SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade,
-        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> SettingsPane.Playback
+        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration,
+        SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold -> SettingsPane.Playback
         SettingsTarget.AmllLyrics -> SettingsPane.Lyrics
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> SettingsPane.Accessibility
         else -> null
@@ -103,8 +104,10 @@ internal val SettingsTarget.settingsItemIndex: Int?
         SettingsTarget.ArtworkStyle -> 8
         SettingsTarget.ResumeOnReconnect -> 2
         SettingsTarget.ReplayGain -> 4
-        SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> 7
-        SettingsTarget.ManualCrossfadeDuration -> 9
+        SettingsTarget.ResumePerTrack -> 7
+        SettingsTarget.LongTrackThreshold -> 8
+        SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> 11
+        SettingsTarget.ManualCrossfadeDuration -> 13
         SettingsTarget.AmllLyrics -> 1
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> 2
         else -> null

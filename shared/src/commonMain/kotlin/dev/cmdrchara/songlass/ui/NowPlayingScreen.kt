@@ -83,6 +83,9 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val track = queue.current?.track ?: return
     val trackArtwork = remember(track, state.library) { track.artwork(state.library) }
     val controller = state.controller
+    val preferences by state.settings.state.collectAsState()
+    val durationForControls = player.durationMs.takeIf { it > 0 } ?: track.durationMs
+    val isLongTrack = durationForControls >= preferences.longTrackThresholdMs && durationForControls > 0L
     val secondary = LocalContentColor.current.copy(alpha = 0.72f)
     val isFavorite = track.id in favoriteIds
     val outputPicker = rememberAudioOutputPicker()
@@ -197,6 +200,17 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             repeat()
                         }
                         Spacer(Modifier.height(seekGap))
+                    }
+                    if (isLongTrack) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            val rewindLabel = stringResource(Res.string.bookmark_seek_back_accessible)
+                            val forwardLabel = stringResource(Res.string.bookmark_seek_forward_accessible)
+                            ActionButton(stringResource(Res.string.bookmark_seek_back), { controller.skipBy(-10_000L) },
+                                Modifier.weight(1f).semantics { contentDescription = rewindLabel })
+                            ActionButton(stringResource(Res.string.bookmark_seek_forward), { controller.skipBy(10_000L) },
+                                Modifier.weight(1f).semantics { contentDescription = forwardLabel })
+                        }
                     }
                     SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality, isPlaying = player.isPlaying)
                     if (!compact && systemVolume != null) {

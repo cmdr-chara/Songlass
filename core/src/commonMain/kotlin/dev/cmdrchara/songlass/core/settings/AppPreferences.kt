@@ -38,6 +38,10 @@ data class AppPreferences(
     val crossfadeDurationMs: Long = 0,
     /** Independent overlap for explicit track changes. Off preserves the existing immediate change. */
     val manualCrossfadeDurationMs: Long = 0,
+    /** Per-track progress is distinct from Android session resumption; opt in explicitly. */
+    val resumePerTrack: Boolean = false,
+    /** Long tracks offer ±10 s and (when enabled) independent resume points. */
+    val longTrackThresholdMs: Long = 10 * 60_000L,
     val folderSort: FolderSort = FolderSort.Name,
     /** Play again when headphones or a car reconnect after cutting playback off. Off by default. */
     val resumeOnReconnect: Boolean = false,

@@ -11,6 +11,8 @@ import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.shared.resources.tags_edit
+import dev.cmdrchara.songlass.shared.resources.bookmark_open
+import dev.cmdrchara.songlass.shared.resources.bookmark_from_start
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.playlist_add_to
 import dev.cmdrchara.songlass.shared.resources.playlist_remove_song
@@ -44,6 +46,8 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
             SheetAction(stringResource(Res.string.action_play_next), AppIcons.PlayNext) { state.controller.playNext(listOf(track)) },
             SheetAction(stringResource(Res.string.action_add_to_queue), AppIcons.AddToQueue) { state.controller.addToQueue(listOf(track)) },
             SheetAction(stringResource(Res.string.playlist_add_to), AppIcons.Library) { state.openAddToPlaylist(listOf(track)) },
+            SheetAction(stringResource(Res.string.bookmark_open), AppIcons.Bookmark) { state.openBookmarks(track) },
+            SheetAction(stringResource(Res.string.bookmark_from_start), AppIcons.Previous) { state.controller.playFromBeginning(track) },
             state.menuPlaylistId?.let { playlistId ->
                 SheetAction(stringResource(Res.string.playlist_remove_song), AppIcons.Close) { state.userPlaylists.remove(playlistId, track.id) }
             },

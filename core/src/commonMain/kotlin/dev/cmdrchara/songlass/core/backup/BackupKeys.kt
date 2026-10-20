@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.backup
 
 import dev.cmdrchara.songlass.core.search.SearchHistory
+import dev.cmdrchara.songlass.core.playback.TrackMarkersCodec
 import dev.cmdrchara.songlass.core.search.SearchTarget
 
 /** How the value stored under a managed key is read, and whether it refers to tracks. */
@@ -22,6 +23,8 @@ internal enum class ValueKind {
 
     /** Imported lyrics; the key, not the value, names the track (by URI). */
     ImportedLyrics,
+    TrackProgress,
+    TrackBookmarks,
 }
 
 /**
@@ -48,6 +51,8 @@ internal object BackupKeys {
         HISTORY_COUNTS to ValueKind.PlayCounts,
         HISTORY_DATED to ValueKind.DatedPlays,
         SEARCH to ValueKind.SearchTargets,
+        TrackMarkersCodec.PROGRESS_KEY to ValueKind.TrackProgress,
+        TrackMarkersCodec.BOOKMARKS_KEY to ValueKind.TrackBookmarks,
         "history.contexts" to ValueKind.Plain,
         "history.tracking_started_ms" to ValueKind.Plain,
         PLAYLISTS_INDEX to ValueKind.Plain,
@@ -140,17 +145,22 @@ internal object ValueCodecs {
 
     fun canonical(kind: ValueKind, value: String): String = when (kind) {
         ValueKind.Plain, ValueKind.ImportedLyrics -> value
+        ValueKind.TrackProgress -> TrackMarkersCodec.encodeProgress(TrackMarkersCodec.decodeProgress(value))
+        ValueKind.TrackBookmarks -> TrackMarkersCodec.encodeBookmarks(TrackMarkersCodec.decodeBookmarks(value))
         ValueKind.SearchTargets -> encodeSearch(decodeSearch(value).distinct().take(SearchHistory.MAX))
         else -> render(records(kind, value))
     }
 
-    fun isCanonical(kind: ValueKind, value: String): Boolean = canonical(kind, value) == value
+    fun isCanonical(kind: ValueKind, value: String): Boolean =
+        runCatching { canonical(kind, value) == value }.getOrDefault(false)
 
     fun searchTargetCount(value: String): Int = decodeSearch(value).size
 
     /** Track ids named by a canonical [value], in order, repeats included. */
     fun references(kind: ValueKind, value: String): List<String> = when (kind) {
         ValueKind.Plain, ValueKind.ImportedLyrics -> emptyList()
+        ValueKind.TrackProgress -> TrackMarkersCodec.decodeProgress(value).map { it.track.id }
+        ValueKind.TrackBookmarks -> TrackMarkersCodec.decodeBookmarks(value).map { it.track.id }
         ValueKind.SearchTargets -> decodeSearch(value).filterIsInstance<SearchTarget.Song>().map { it.id }
         else -> records(kind, value).map { it.id }
     }
@@ -158,6 +168,8 @@ internal object ValueCodecs {
     /** Replaces each id by [resolve]; ids it maps to null are removed and reported to [onDrop]. */
     fun remap(kind: ValueKind, value: String, resolve: (String) -> String?, onDrop: () -> Unit): String = when (kind) {
         ValueKind.Plain, ValueKind.ImportedLyrics -> value
+        ValueKind.TrackProgress -> TrackMarkersCodec.remapProgress(value, resolve)
+        ValueKind.TrackBookmarks -> TrackMarkersCodec.remapBookmarks(value, resolve)
         ValueKind.SearchTargets -> encodeSearch(
             decodeSearch(value).mapNotNull { target ->
                 if (target !is SearchTarget.Song) return@mapNotNull target

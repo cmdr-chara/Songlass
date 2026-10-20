@@ -5,7 +5,7 @@ enum class SettingsTarget {
     InterfaceStyle, Appearance, ArtworkStyle, ResumeOnReconnect, ReplayGain, Crossfade,
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
-    HomeCustomization, Backup, About,
+    HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -132,6 +132,10 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "ms|milliseconds|millisecondi|millisecond|custom|personalizzata|exact|precisa|duration|durata|automatic|automatico")
     SettingsTarget.ManualCrossfadeDuration -> terms("Manual crossfade duration", "Durata crossfade manuale", "Manual track changes", "Cambio manuale",
         aliases = "ms|milliseconds|millisecondi|millisecond|skip|next|previous|avanti|indietro|transition|transizione|overlap|sovrapposizione|fade|dissolvenza|custom|personalizzata")
+    SettingsTarget.ResumePerTrack -> terms("Resume each track", "Riprendi ogni brano", "Per-track resume",
+        aliases = "resume|ripresa|riprendi|progress|progresso|posizione|podcast|audiolibri|audiobooks|long tracks|brani lunghi")
+    SettingsTarget.LongTrackThreshold -> terms("Long track threshold", "Soglia brani lunghi", "Track duration",
+        aliases = "minutes|minuti|durata|durazione|soglia|10 seconds|10 secondi|salto|podcast|audiobooks")
     SettingsTarget.AmllLyrics -> terms("Lyrics", "Testi", "AMLL lyrics", "Testi parola per parola",
         aliases = "amll|karaoke|word timed|synchronized|sincronizzati|sincronizzazione|testo|lyrics provider")
     SettingsTarget.ReduceMotion -> terms("Reduce motion", "Riduci movimento",

@@ -12,6 +12,25 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppSettingsTest {
     @Test
+    fun perTrackResumeStartsOffAndThresholdPersistsIndependently() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        assertEquals(false, settings.state.value.resumePerTrack)
+        assertEquals(600_000L, settings.state.value.longTrackThresholdMs)
+        assertEquals(emptyMap(), store.snapshot())
+        settings.setResumePerTrack(true)
+        settings.setLongTrackThreshold(1_800_000L)
+        assertEquals(true, AppSettings(store).state.value.resumePerTrack)
+        assertEquals(1_800_000L, AppSettings(store).state.value.longTrackThresholdMs)
+        kotlin.test.assertFailsWith<IllegalArgumentException> { settings.setLongTrackThreshold(42L) }
+        assertEquals(1_800_000L, settings.state.value.longTrackThresholdMs)
+        store.putString("settings.long_track_threshold_ms", "bad")
+        settings.reload()
+        assertEquals(600_000L, settings.state.value.longTrackThresholdMs)
+        assertEquals(true, settings.state.value.resumePerTrack)
+    }
+
+    @Test
     fun existingAutomaticDurationIsPreservedWithoutEnablingManualOrWritingMigrationKeys() {
         val store = InMemoryKeyValueStore().apply {
             putString("settings.crossfade_duration_ms", "1250")

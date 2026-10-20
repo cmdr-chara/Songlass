@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bookmark_open">Segnalibri</string>
+    <string name="bookmark_library_hint">Punti salvati, anche per file non disponibili</string>
+    <string name="bookmark_intro">I segnalibri conservano un punto senza modificare il file audio. Le tracce mancanti o ambigue non possono essere aperte.</string>
+    <string name="bookmark_from_start">Riproduci dall’inizio (azzera il punto salvato)</string>
+    <string name="bookmark_add">Aggiungi segnalibro qui</string>
+    <string name="bookmark_current_position">Posizione: %1$s</string>
+    <string name="bookmark_unavailable">File non disponibile o identità ambigua</string>
+    <string name="bookmark_title_optional">Titolo (facoltativo)</string>
+    <string name="bookmark_save">Salva</string>
+    <string name="bookmark_rename">Rinomina</string>
+    <string name="bookmark_delete">Elimina</string>
+    <string name="bookmark_write_failed">Impossibile salvare la modifica.</string>
+    <string name="bookmark_untitled">Segnalibro a %1$s</string>
+    <string name="bookmark_empty">Nessun segnalibro salvato.</string>
+    <string name="bookmark_backup_progress">Punti di ripresa per traccia</string>
+    <string name="bookmark_seek_back">−10 s</string>
+    <string name="bookmark_seek_forward">+10 s</string>
+    <string name="bookmark_seek_back_accessible">Indietro di dieci secondi</string>
+    <string name="bookmark_seek_forward_accessible">Avanti di dieci secondi</string>
+    <string name="settings_long_section">Brani lunghi</string>
+    <string name="settings_long_resume">Ripresa per singola traccia</string>
+    <string name="settings_long_resume_hint">Disattivata per impostazione predefinita. Se attiva, ogni brano lungo conserva un punto indipendente, anche dopo il riavvio.</string>
+    <string name="settings_long_threshold">Durata minima del brano</string>
+    <string name="settings_long_minutes">%1$d min</string>
+    <string name="settings_long_hint">La soglia controlla anche quando compaiono i pulsanti ±10 secondi. La ripresa Android dell’ultima sessione ripristina la raccolta e l’ultimo brano, indipendentemente da questa opzione.</string>
+</resources>
