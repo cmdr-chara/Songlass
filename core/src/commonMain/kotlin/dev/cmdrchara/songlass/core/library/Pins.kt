@@ -30,6 +30,11 @@ class Pins(private val store: KeyValueStore = InMemoryKeyValueStore()) {
 
     fun isPinned(context: PlayContext): Boolean = context in _contexts.value
 
+    /** Re-reads the pins from [store], after something else (a backup restore) replaced them. */
+    fun reload() {
+        _contexts.value = store.getStringList(KEY).mapNotNull(PlayContext::fromKey).distinct()
+    }
+
     /** Pins [context] at the front, or unpins it. Returns whether it is now pinned. */
     fun toggle(context: PlayContext): Boolean {
         val current = _contexts.value
@@ -46,7 +51,7 @@ class Pins(private val store: KeyValueStore = InMemoryKeyValueStore()) {
                 ?.let { PinnedItem.AlbumPin(it, context) }
             is PlayContext.Playlist -> library.folder(context.id)?.let { PinnedItem.FolderPin(it, context) }
             is PlayContext.Artist -> library.artists.firstOrNull { it.name == context.name }?.let { PinnedItem.ArtistPin(it, context) }
-            PlayContext.Favorites, is PlayContext.UserPlaylist -> null
+            PlayContext.Favorites, is PlayContext.UserPlaylist, is PlayContext.SmartPlaylist -> null
         }
     }
 

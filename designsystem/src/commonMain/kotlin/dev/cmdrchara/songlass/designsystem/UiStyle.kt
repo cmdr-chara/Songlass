@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.designsystem
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -19,12 +20,15 @@ import androidx.compose.ui.unit.Dp
 /**
  * A cover: [imageKey] loads the real image when there is one; otherwise styles draw a
  * generated cover from [seed] with the [monogram] initials. [colors] tint pages around it.
+ * [fallbackImageKey] is another file's cover, drawn if already in memory while [imageKey]'s
+ * own decodes (an album track borrows its album's cover instead of flashing the placeholder).
  */
 data class Artwork(
     val colors: List<Color>,
     val imageKey: String? = null,
     val seed: Int = 0,
     val monogram: String? = null,
+    val fallbackImageKey: String? = null,
 )
 
 /**
@@ -65,6 +69,21 @@ data class ShelfItem(
     val onClick: () -> Unit,
     val icon: ImageVector? = null,
     val circular: Boolean = false,
+    /** Creation/import command, distinct from a collection with an icon placeholder. */
+    val isAction: Boolean = false,
+)
+
+/** A localized Home recommendation. Action collections may supply a representative mosaic. */
+@Immutable
+data class HomeHighlight(
+    val key: String,
+    val label: String,
+    val title: String,
+    val subtitle: String?,
+    val artwork: Artwork,
+    val artworks: List<Artwork>,
+    val icon: ImageVector?,
+    val onClick: () -> Unit,
 )
 
 /** How a shelf presents its items. */
@@ -83,9 +102,16 @@ data class FolderChoice(
     val excluded: Boolean, val enabled: Boolean, val expandLabel: String, val excludeLabel: String,
 )
 
-/** A dated chart value; labels arrive localized from the screen. */
+/** A dated chart value; labels arrive localized from the screen ([valueLabel] with its unit, e.g. "2 plays"). */
 @Immutable
-data class ListeningChartPoint(val label: String, val axisLabel: String, val value: Int, val description: String, val recorded: Boolean = true)
+data class ListeningChartPoint(
+    val label: String, val axisLabel: String, val value: Int, val description: String,
+    val recorded: Boolean = true, val valueLabel: String = value.toString(),
+)
+
+/** A headline figure of a summary; [change] is an already localized comparison, if there is one. */
+@Immutable
+data class StatFigure(val label: String, val value: String, val change: String? = null)
 
 /** One band of the graphic equalizer: where it sits, what it is called and its gain. */
 @Immutable
@@ -115,6 +141,24 @@ enum class NavigationDirection { Forward, Backward, Crossfade }
  */
 @Stable
 interface UiStyle {
+
+    /** Owns Home's scrolling header while the screen supplies shared lazy sections. */
+    @Composable
+    fun HomePage(title: String, trailing: @Composable () -> Unit, contentPadding: PaddingValues, modifier: Modifier, content: LazyListScope.() -> Unit)
+
+    /** Lets each style compose collection actions and album recommendations appropriately. */
+    @Composable
+    fun HomeHighlights(items: List<HomeHighlight>, itemWidth: Dp, modifier: Modifier)
+
+
+    /** Subpage heading with a Back action; styles own its single- or two-row composition. */
+    @Composable
+    fun BackPageTitle(text: String, backLabel: String, onBack: () -> Unit, modifier: Modifier)
+
+    /** Root-page title and optional trailing actions, including top system insets. */
+    @Composable
+    fun PageTitle(text: String, trailing: (@Composable () -> Unit)?, modifier: Modifier)
+
 
     /** Keeps outgoing content alive until its transition completes. Render the supplied snapshot. */
     @Composable
@@ -216,10 +260,13 @@ interface UiStyle {
 
     /** Readable lyric line, optionally tappable when a timestamp is available. */
     @Composable
-    fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier)
+    fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier, words: List<LyricWordTiming>, positionMs: Long)
 
     @Composable
     fun LyricsViewport(modifier: Modifier, content: @Composable () -> Unit)
+
+    @Composable
+    fun FormField(value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier)
 
     @Composable
     fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier)
@@ -227,6 +274,8 @@ interface UiStyle {
     /**
      * Full-screen sheet for Now Playing, with a grabber and swipe-down to dismiss.
      * Content colors inside are chosen by the style to stay legible on [artwork].
+     * [onStatusBarAppearanceChange] overrides light icons while the player or its dark backdrop
+     * covers the status row; null hands appearance back to the underlying route.
      */
     @Composable
     fun NowPlayingSheet(
@@ -240,6 +289,7 @@ interface UiStyle {
         onArtworkExpandedChange: (Boolean) -> Unit,
         dismissLabel: String,
         onDismiss: () -> Unit,
+        onStatusBarAppearanceChange: (Boolean?) -> Unit,
         content: @Composable (onArtworkTap: () -> Unit) -> Unit,
     )
 
@@ -314,8 +364,17 @@ interface UiStyle {
     @Composable
     fun FolderChoiceRow(choice: FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier)
 
+    /** [unrecordedLabel] names the dates before dated tracking began: unknown, never drawn as zero. */
     @Composable
-    fun ListeningChart(points: List<ListeningChartPoint>, summary: String, modifier: Modifier)
+    fun ListeningChart(points: List<ListeningChartPoint>, summary: String, unrecordedLabel: String, modifier: Modifier)
+
+    /** A few headline figures side by side (e.g. plays, songs, artists), read as one group. */
+    @Composable
+    fun StatSummary(figures: List<StatFigure>, modifier: Modifier)
+
+    /** A chart entry: its [rank] (shared by ties), artwork in [leading] and the [value] it ranks by. */
+    @Composable
+    fun RankedRow(rank: Int, title: String, subtitle: String?, leading: (@Composable () -> Unit)?, value: String, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier)
 
     /**
      * Graphic equalizer: the response [curve] (dB, log-spaced from 20 Hz to 20 kHz) with a point

@@ -18,6 +18,11 @@ class Favorites(private val store: KeyValueStore = InMemoryKeyValueStore()) {
 
     fun isFavorite(trackId: String): Boolean = trackId in _ids.value
 
+    /** Re-reads the list from [store], after something else (a backup restore) replaced it. */
+    fun reload() {
+        _ids.value = store.getStringList(KEY).distinct()
+    }
+
     /** Adds the track if missing, removes it otherwise. Returns the new state. */
     fun toggle(trackId: String): Boolean {
         val current = _ids.value

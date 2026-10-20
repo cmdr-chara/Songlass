@@ -6,15 +6,22 @@ import java.io.IOException
 import java.security.MessageDigest
 
 /** Only successful exact lookups are cached; Android may evict this private cache at any time. */
-internal class LyricsDiskCache(private val directory: File) {
+internal class LyricsDiskCache(
+    private val directory: File,
+    private val maxEntryBytes: Int = 512 * 1024,
+) {
+    init {
+        require(maxEntryBytes in 1 until Int.MAX_VALUE)
+    }
+
     fun read(signature: String): String? {
         val file = entry(signature)
         val age = System.currentTimeMillis() - file.lastModified()
-        if (!file.isFile || age !in 0..MAX_AGE_MS || file.length() > LrcLibLyricsSource.MAX_RESPONSE_BYTES) return null
+        if (!file.isFile || age !in 0..MAX_AGE_MS || file.length() > maxEntryBytes) return null
         return try {
             AtomicFile(file).openRead().use { input ->
-                val bytes = input.readNBytes(LrcLibLyricsSource.MAX_RESPONSE_BYTES + 1)
-                if (bytes.size > LrcLibLyricsSource.MAX_RESPONSE_BYTES) null else bytes.toString(Charsets.UTF_8)
+                val bytes = input.readNBytes(maxEntryBytes + 1)
+                if (bytes.size > maxEntryBytes) null else bytes.toString(Charsets.UTF_8)
             }
         } catch (_: IOException) {
             null
@@ -23,7 +30,7 @@ internal class LyricsDiskCache(private val directory: File) {
 
     fun write(signature: String, body: String) {
         val bytes = body.toByteArray(Charsets.UTF_8)
-        if (bytes.size > LrcLibLyricsSource.MAX_RESPONSE_BYTES) return
+        if (bytes.size > maxEntryBytes) return
         try {
             if (!directory.isDirectory && !directory.mkdirs()) return
             val atomic = AtomicFile(entry(signature))

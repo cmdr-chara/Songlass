@@ -12,6 +12,43 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppSettingsTest {
     @Test
+    fun amllDefaultsOnAndPersistsBothChoicesAndReloads() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        assertEquals(true, settings.state.value.amllEnabled)
+        settings.setAmllEnabled(false)
+        assertEquals("false", store.getString("settings.amll_enabled"))
+        assertEquals(false, settings.state.value.amllEnabled)
+        assertEquals(false, AppSettings(store).state.value.amllEnabled)
+        settings.setAmllEnabled(true)
+        assertEquals(true, AppSettings(store).state.value.amllEnabled)
+        store.putString("settings.amll_enabled", "false")
+        settings.reload()
+        assertEquals(false, settings.state.value.amllEnabled)
+        store.putString("settings.amll_enabled", "invalid")
+        settings.reload()
+        assertEquals(true, settings.state.value.amllEnabled)
+    }
+
+    @Test
+    fun crossfadePersistsAndReloadRefreshesExistingObservers() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        settings.setCrossfadeDuration(1_250L)
+        assertEquals("1250", store.getString("settings.crossfade_duration_ms"))
+        assertEquals(1_250L, AppSettings(store).state.value.crossfadeDurationMs)
+        store.putString("settings.crossfade_duration_ms", "12000")
+        settings.reload()
+        assertEquals(12_000L, settings.state.value.crossfadeDurationMs)
+        store.putString("settings.crossfade_duration_ms", "12001")
+        settings.reload()
+        assertEquals(0L, settings.state.value.crossfadeDurationMs)
+        kotlin.test.assertFailsWith<IllegalArgumentException> { settings.setCrossfadeDuration(-1L) }
+        kotlin.test.assertFailsWith<IllegalArgumentException> { settings.setCrossfadeDuration(12_001L) }
+        assertEquals(0L, settings.state.value.crossfadeDurationMs)
+    }
+
+    @Test
     fun emptyStoreUsesSystemAppearanceAndDefaultAccessibility() {
         assertEquals(AppPreferences(), AppSettings(InMemoryKeyValueStore()).state.value)
     }

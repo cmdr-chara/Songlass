@@ -28,6 +28,11 @@ class UserPlaylists(
 
     fun get(id: String): UserPlaylist? = _playlists.value.firstOrNull { it.id == id }
 
+    /** Re-reads the playlists from [store], after something else (a backup restore) replaced them. */
+    fun reload() {
+        _playlists.value = load()
+    }
+
     /** Creates a playlist named [name] (trimmed; a blank name is not allowed) and returns its id. */
     fun create(name: String, trackIds: List<String> = emptyList()): String {
         val created = clock()

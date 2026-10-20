@@ -75,8 +75,10 @@ internal fun LiquidGlassListRow(
     highlighted: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier,
+    titleMaxLines: Int = 2,
 ) {
     val colors = AppTheme.colors
+    val inset = LocalGlassRowHorizontalInset.current ?: LocalGlassLook.current.contentHorizontalInset
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressedColor by animateColorAsState(
@@ -88,8 +90,8 @@ internal fun LiquidGlassListRow(
         modifier = modifier
             .fillMaxWidth()
             .background(pressedColor)
-            .then(if (onClick != null) Modifier.clickable(interaction, indication = null, onClick = onClick) else Modifier)
-            .padding(start = 16.dp),
+            .then(if (onClick != null) Modifier.clickable(interaction, indication = null, role = Role.Button, onClick = onClick) else Modifier)
+            .padding(start = inset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) {
@@ -102,16 +104,16 @@ internal fun LiquidGlassListRow(
                 .heightIn(min = if (subtitle != null) 60.dp else 44.dp)
                 .drawBehind {
                     val y = size.height - 0.5.dp.toPx() / 2
-                    drawLine(colors.separator, Offset(0f, y), Offset(size.width, y), strokeWidth = 0.5.dp.toPx())
+                    drawLine(colors.label.copy(alpha = if (colors.isDark) 0.14f else 0.10f), Offset(0f, y), Offset(size.width, y), strokeWidth = 0.5.dp.toPx())
                 }
-                .padding(end = 16.dp, top = 8.dp, bottom = 8.dp),
+                .padding(end = inset, top = 10.dp, bottom = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
                 val content = LocalContentColor.current
-                AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content, maxLines = 1)
+                AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content, maxLines = titleMaxLines)
                 if (subtitle != null) {
-                    AppText(subtitle, AppTheme.typography.subheadline, color = content.copy(alpha = 0.6f), maxLines = 1)
+                    AppText(subtitle, AppTheme.typography.subheadline, color = content.copy(alpha = if (colors.isDark) 0.65f else 0.62f), maxLines = 1)
                 }
             }
             if (trailing != null) {
@@ -130,7 +132,7 @@ internal fun LiquidGlassSegmentedControl(options: List<String>, selectedIndex: I
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(36.dp)
+            .height(with(LocalDensity.current) { maxOf(36.dp, AppTheme.typography.footnote.lineHeight.toDp() + 18.dp) })
             .let { LocalGlassLook.current.controlSurface(it, CircleShape, colors.fill, prominent = false) }
             .padding(2.dp),
     ) {
@@ -187,7 +189,7 @@ internal fun LiquidGlassActionButton(text: String, icon: ImageVector?, onClick: 
     )
     Row(
         modifier = modifier
-            .height(48.dp)
+            .heightIn(min = 48.dp)
             .graphicsLayer { alpha = pressedAlpha }
             .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(percent = 50), colors.fill, prominent = false) }
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)

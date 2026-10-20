@@ -1,9 +1,10 @@
 package dev.cmdrchara.songlass.core.lyrics
 
-/** Parses local text and LRC without inventing lyrics or treating metadata as song text. */
+/** Parses local text, LRC and TTML without inventing lyrics or treating metadata as song text. */
 object LyricsParser {
     const val MAX_CHARACTERS = 128 * 1024
     const val MAX_LINES = 5_000
+    const val MAX_WORD_ENTRIES = 20_000
 
     private val timestamp = Regex("([0-9]+):([0-9]{2})(?:\\.([0-9]{1,3}))?")
     private val wordTag = Regex("[<\\[]([0-9]+:[0-9]{2}(?:\\.[0-9]{1,3})?)[>\\]]")
@@ -20,10 +21,14 @@ object LyricsParser {
         ) return null
         val normalized = text.removePrefix("\uFEFF").replace("\r\n", "\n").replace('\r', '\n')
         if (normalized.isBlank()) return null
+        val markup = normalized.trimStart()
+        if (markup.startsWith("<") && markup.getOrNull(1)?.let { it.isLetter() || it == '_' || it == '?' || it == '!' || it == '/' } == true)
+            return TtmlParser.parse(markup, source)
         val timed = mutableListOf<LyricsLine>()
         val plain = mutableListOf<LyricsLine>()
         var offsetMs = 0L
         var lineCount = 0
+        var wordCount = 0
         for (rawLine in normalized.lineSequence()) {
             if (++lineCount > MAX_LINES) return null
             val line = rawLine.trim()
@@ -52,13 +57,17 @@ object LyricsParser {
             }
             val content = line.substring(contentStart)
             if (times.isNotEmpty()) {
-                // Enhanced LRC word times are not line boundaries. Keep the actual sung words.
-                val words = wordTag.replace(content) { match ->
-                    val paired = (match.value.first() == '<' && match.value.last() == '>') ||
-                        (match.value.first() == '[' && match.value.last() == ']')
-                    if (paired && parseTimestamp(match.groupValues[1]) != null) "" else match.value
-                }.trim()
-                times.forEach { timed += LyricsLine(it, words) }
+                val parsed = parseWords(content, times.first())
+                val expansion = parsed.second.size.toLong() * times.size
+                if (expansion > MAX_WORD_ENTRIES - wordCount) return null
+                wordCount += expansion.toInt()
+                times.forEach { time ->
+                    val words = parsed.second.map { word ->
+                        word.copy(startMs = relocate(word.startMs, times.first(), time),
+                            endMs = word.endMs?.let { relocate(it, times.first(), time) })
+                    }
+                    timed += LyricsLine(time, parsed.first, words)
+                }
             } else if (!metadata || content.isNotEmpty()) {
                 plain += LyricsLine(null, content)
             }
@@ -66,12 +75,68 @@ object LyricsParser {
         if (timed.isNotEmpty()) {
             if (timed.none { it.text.isNotBlank() }) return null
             val lines = timed.map { line ->
-                line.copy(timeMs = applyOffset(requireNotNull(line.timeMs), offsetMs))
+                line.copy(
+                    timeMs = applyOffset(requireNotNull(line.timeMs), offsetMs),
+                    words = line.words.map { word -> word.copy(
+                        startMs = applyOffset(word.startMs, offsetMs),
+                        endMs = word.endMs?.let { applyOffset(it, offsetMs) },
+                    ) },
+                )
             }.sortedBy { it.timeMs }
-            return Lyrics(lines, source)
+            // A word crossing the next distinct lyric is inconsistent: keep readable line timing.
+            var nextTime: Long? = null
+            var groupTime: Long? = null
+            val checked = lines.asReversed().map { line ->
+                if (line.timeMs != groupTime) { nextTime = groupTime; groupTime = line.timeMs }
+                if (nextTime != null && line.words.any { it.startMs >= nextTime!! || (it.endMs ?: it.startMs) > nextTime!! })
+                    line.copy(words = emptyList()) else line
+            }.asReversed()
+            return Lyrics(checked, source)
         }
         val lines = plain.dropWhile { it.text.isBlank() }.dropLastWhile { it.text.isBlank() }
         return lines.takeIf { it.isNotEmpty() }?.let { Lyrics(it, source) }
+    }
+
+    /** Invalid word timing never makes the text disappear or creates fabricated timestamps. */
+    private fun parseWords(content: String, lineTime: Long): Pair<String, List<LyricsWord>> {
+        val text = StringBuilder()
+        val words = mutableListOf<LyricsWord>()
+        var cursor = 0
+        var anchor = lineTime
+        var valid = true
+        var tagged = false
+        for (match in wordTag.findAll(content)) {
+            val paired = (match.value.first() == '<' && match.value.last() == '>') ||
+                (match.value.first() == '[' && match.value.last() == ']')
+            val time = if (paired) parseTimestamp(match.groupValues[1]) else null
+            if (time == null) continue
+            tagged = true
+            val piece = content.substring(cursor, match.range.first)
+            val start = text.length
+            text.append(piece)
+            if (piece.isNotBlank()) words += LyricsWord(start, text.length, anchor, time)
+            if (time < anchor) valid = false
+            anchor = time
+            cursor = match.range.last + 1
+        }
+        val start = text.length
+        val tail = content.substring(cursor)
+        text.append(tail)
+        if (tail.isNotBlank()) words += LyricsWord(start, text.length, anchor, null)
+        val raw = text.toString()
+        val left = raw.indexOfFirst { !it.isWhitespace() }.coerceAtLeast(0)
+        val clean = raw.trim()
+        val ranges = if (!tagged || !valid || words.size > 2_048) emptyList() else words.mapNotNull { word ->
+            val from = maxOf(word.start, left) - left
+            val to = minOf(word.end, left + clean.length) - left
+            if (from >= to) null else word.copy(start = from, end = to)
+        }
+        return clean to ranges
+    }
+
+    private fun relocate(time: Long, from: Long, to: Long): Long {
+        val delta = (time - from).coerceAtLeast(0)
+        return if (to > Long.MAX_VALUE - delta) Long.MAX_VALUE else to + delta
     }
 
     private fun parseTimestamp(value: String): Long? {

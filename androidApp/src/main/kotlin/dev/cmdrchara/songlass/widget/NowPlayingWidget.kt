@@ -44,7 +44,8 @@ class NowPlayingWidget : AppWidgetProvider() {
 /**
  * Keeps the widgets in step with playback and draws them in the interface style chosen in the
  * app: Liquid Glass as a card in the cover's colour (like the app's tinted pages), Material Glass
- * as a Material You widget in the system's dynamic colours. Small and wide layouts are picked by
+ * as a Material You widget in the system's dynamic colours, Miuix as a neutral rounded card.
+ * Small and wide layouts are picked by
  * the launcher from the widget's size.
  */
 object NowPlayingWidgets {
@@ -52,9 +53,11 @@ object NowPlayingWidgets {
         val title: String?,
         val subtitle: String?,
         val trackUri: String?,
+        val artworkRevision: Long,
         val seed: Int,
         val playing: Boolean,
         val material: Boolean,
+        val miuix: Boolean,
         val dark: Boolean,
     )
 
@@ -88,9 +91,11 @@ object NowPlayingWidgets {
             title = track?.title,
             subtitle = track?.artist,
             trackUri = track?.uri,
+            artworkRevision = track?.artworkRevision ?: 0,
             seed = track?.artwork()?.seed ?: 0,
             playing = graph.player.state.value.playWhenReady,
             material = graph.settings.state.value.interfaceStyle == InterfaceStyle.MaterialGlass,
+            miuix = graph.settings.state.value.interfaceStyle == InterfaceStyle.Miuix,
             dark = (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
     }
@@ -102,7 +107,7 @@ object NowPlayingWidgets {
         val cover = withContext(Dispatchers.IO) {
             content.trackUri?.let { CoverImages.load(context, Uri.parse(it), COVER_PX, content.seed) }
         }
-        val tint = if (content.material) null else liquidTint(cover, content.dark)
+        val tint = if (content.material || content.miuix) null else liquidTint(cover, content.dark)
         val small = build(context, content, cover, tint, wide = false)
         val wide = build(context, content, cover, tint, wide = true)
         manager.updateAppWidget(ids, RemoteViews(mapOf(SizeF(110f, 110f) to small, SizeF(220f, 100f) to wide)))
@@ -110,6 +115,8 @@ object NowPlayingWidgets {
 
     private fun build(context: Context, content: Content, cover: Bitmap?, tint: ArtworkTint?, wide: Boolean): RemoteViews {
         val layout = when {
+            content.miuix && wide -> R.layout.widget_miuix_wide
+            content.miuix -> R.layout.widget_miuix_small
             content.material && wide -> R.layout.widget_material_wide
             content.material -> R.layout.widget_material_small
             wide -> R.layout.widget_liquid_wide

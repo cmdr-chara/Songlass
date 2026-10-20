@@ -18,6 +18,8 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,17 +30,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.semantics.contentDescription
+import dev.cmdrchara.songlass.designsystem.foundation.playerArtworkFrame
+import dev.cmdrchara.songlass.designsystem.foundation.squarePlayerArtworkFrame
+import dev.cmdrchara.songlass.designsystem.foundation.PlayerArtworkTransition
+import dev.cmdrchara.songlass.designsystem.foundation.LocalPlayerArtworkTransition
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
@@ -56,10 +63,14 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.geometry.Size
@@ -76,14 +87,14 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
-import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkHeaderIsDark
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
@@ -117,19 +128,35 @@ internal fun LiquidGlassSeekBar(
         return true
     }
 
+    val timeStyle = AppTheme.typography.footnote.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+    val secondary = content.copy(alpha = 0.72f)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val elapsedText = formatDuration(shownPosition)
+    val remainingText = "-" + formatDuration(duration - shownPosition)
+    val textWidths = remember(elapsedText, remainingText, qualityLabel, timeStyle, textMeasurer, density) {
+        // Reserve the wider actual timestamp on both sides, including proportional digits.
+        val time = maxOf(textMeasurer.measure(elapsedText, timeStyle).size.width,
+            textMeasurer.measure(remainingText, timeStyle).size.width)
+        val quality = textMeasurer.measure(qualityLabel.orEmpty(), timeStyle).size.width
+        with(density) { maxOf(48.dp, time.toDp()) to quality.toDp() }
+    }
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            val timeStyle = AppTheme.typography.footnote.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
-            val secondary = content.copy(alpha = 0.72f)
-            AppText(formatDuration(shownPosition), timeStyle, Modifier.widthIn(min = 48.dp), color = secondary)
-            AppText(
-                qualityLabel.orEmpty(), timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
-                color = secondary, textAlign = TextAlign.Center, maxLines = 1,
-            )
-            AppText(
-                "-" + formatDuration(duration - shownPosition), timeStyle, Modifier.widthIn(min = 48.dp),
-                color = secondary, textAlign = TextAlign.End,
-            )
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val timeWidth = textWidths.first.coerceAtMost(maxWidth / 2)
+            val stacked = qualityLabel != null && timeWidth * 2 + textWidths.second + 16.dp > maxWidth
+            Column {
+                if (stacked) AppText(qualityLabel.orEmpty(), timeStyle, Modifier.fillMaxWidth().padding(bottom = 4.dp),
+                    color = secondary, textAlign = TextAlign.Center)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AppText(elapsedText, timeStyle, Modifier.width(timeWidth), color = secondary)
+                    if (stacked) Spacer(Modifier.weight(1f))
+                    else AppText(qualityLabel.orEmpty(), timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
+                        color = secondary, textAlign = TextAlign.Center, maxLines = 1)
+                    AppText(remainingText, timeStyle, Modifier.width(timeWidth),
+                        color = secondary, textAlign = TextAlign.End)
+                }
+            }
         }
         Canvas(
             modifier = Modifier.fillMaxWidth().height(44.dp)
@@ -318,8 +345,10 @@ internal fun LiquidGlassNowPlayingSheet(
     onArtworkExpandedChange: (Boolean) -> Unit,
     dismissLabel: String,
     onDismiss: () -> Unit,
+    onStatusBarAppearanceChange: (Boolean?) -> Unit,
     content: @Composable (onArtworkTap: () -> Unit) -> Unit,
 ) {
+    val morph = LocalPlayerMorph.current
     val reduceMotion = AppTheme.accessibility.reduceMotion
     var artworkTapRequest by remember(artwork, visible, artworkVisible, artworkExpanded, reduceMotion) { mutableStateOf(0) }
     val onArtworkTap: () -> Unit = {
@@ -329,11 +358,26 @@ internal fun LiquidGlassNowPlayingSheet(
     val progress = remember { Animatable(0f) }
     val scope = rememberCoroutineScope()
     val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val currentOnStatusBarAppearanceChange by rememberUpdatedState(onStatusBarAppearanceChange)
+    val look = LocalGlassLook.current
+    val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+    var sourceAnchor by remember { mutableStateOf<Rect?>(null) }
+    var thumbAnchor by remember { mutableStateOf<Rect?>(null) }
+    var origin by remember { mutableStateOf(Offset.Zero) }
+    var headerCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var settling by remember { mutableStateOf(false) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
     val dismissThreshold = with(LocalDensity.current) { 140.dp.toPx() }
     val dismissVelocity = with(LocalDensity.current) { 1000.dp.toPx() }
+
+    fun dragWindowScale(): Float {
+        val coordinates = headerCoordinates?.takeIf { it.isAttached } ?: return 1f
+        val scale = abs(coordinates.localToWindow(Offset(0f, 1f)).y - coordinates.localToWindow(Offset.Zero).y)
+        return scale.takeIf { it.isFinite() && it > 0f } ?: 1f
+    }
 
     fun settleToOrigin(initialVelocity: Float = 0f) {
         settleJob?.cancel()
@@ -362,54 +406,124 @@ internal fun LiquidGlassNowPlayingSheet(
     LaunchedEffect(visible, reduceMotion) {
         if (visible) settleToOrigin() else settleJob?.cancel()
     }
-    LaunchedEffect(visible, reduceMotion) {
+    LaunchedEffect(visible, reduceMotion, fullBleed, artwork) {
+        // Freeze the resting anchors before the page below starts receding. Measuring that
+        // transformed page during the animation otherwise makes the destination move away.
+        if (visible && progress.value == 0f) {
+            sourceAnchor = morph.source
+            thumbAnchor = morph.thumb
+        }
         val target = if (visible) 1f else 0f
         when {
             reduceMotion -> progress.animateTo(target, tween(LiquidGlassMotion.ReducedMillis))
-            visible -> progress.animateTo(target, spring(dampingRatio = 0.88f, stiffness = 300f, visibilityThreshold = 0.002f))
-            else -> progress.animateTo(target, spring(dampingRatio = 1f, stiffness = 520f, visibilityThreshold = 0.002f))
+            visible -> progress.animateTo(target, look.playerOpenMotion)
+            else -> progress.animateTo(target, look.playerCloseMotion)
         }
-        if (!visible) dragOffset = 0f
+        if (!visible) {
+            dragOffset = 0f
+        }
     }
-    val screenHeight = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toFloat() }
-    // The page below recedes as the player opens and comes back while it is dragged down.
-    LaunchedEffect(Unit) {
-        snapshotFlow { progress.value.coerceIn(0f, 1f) * (1f - dragOffset / screenHeight.coerceAtLeast(1f)).coerceIn(0f, 1f) }
-            .collect { PlayerMorph.recede = it }
+    val screenHeight = LocalWindowInfo.current.containerSize.height.toFloat()
+    val statusBarHeight = WindowInsets.statusBars.getTop(density).toFloat()
+    val darkAppearance = AppTheme.colors.isDark
+    val fallbackTop = screenHeight - with(density) { 120.dp.toPx() }
+    // One fraction drives the page, sheet, and artwork in both directions. During a drag the
+    // top of the interpolated sheet follows the finger, then continues from that exact position.
+    val fraction: () -> Float = {
+        val travel = ((sourceAnchor?.top ?: fallbackTop) - origin.y).coerceAtLeast(1f)
+        val value = progress.value.coerceIn(0f, 1f) * if (reduceMotion) 1f else (1f - dragOffset / travel).coerceIn(0f, 1f)
+        // Once less than a pixel remains, hand off now instead of waiting for the spring tail.
+        if (!reduceMotion && value * travel < 1f) 0f else value
     }
-    DisposableEffect(Unit) { onDispose { PlayerMorph.recede = 0f } }
-    var origin by remember { mutableStateOf(Offset.Zero) }
-    val density = LocalDensity.current
+    val squareImageInFlight = remember(fullBleed, reduceMotion, artwork != null) {
+        derivedStateOf { !fullBleed && !reduceMotion && artwork != null && fraction() > 0f && fraction() < 1f }
+    }
+    val squareTransition = remember(squareImageInFlight) { PlayerArtworkTransition(squareImageInFlight) }
+    val artworkOwner = remember(fullBleed, reduceMotion, artwork != null, fallbackTop, squareTransition) {
+        derivedStateOf {
+            !reduceMotion && artwork != null && fraction() > 0f &&
+                (fullBleed || squareTransition.target() != null)
+        }
+    }
+    DisposableEffect(morph, artworkOwner) {
+        morph.artworkOwner = artworkOwner
+        onDispose { morph.artworkOwner = null }
+    }
+    fun localThumbnail(size: Size): Rect {
+        thumbAnchor?.let { return it.translate(-origin.x, -origin.y) }
+        val source = sourceAnchor?.translate(-origin.x, -origin.y)
+        val inset = with(density) { 6.dp.toPx() }
+        val side = ((source?.height ?: with(density) { 56.dp.toPx() }) - inset * 2f).coerceAtLeast(1f)
+        val left = (source?.left ?: with(density) { 16.dp.toPx() }) + inset
+        val top = (source?.top ?: (size.height - with(density) { 120.dp.toPx() })) + inset
+        return Rect(left, top, left + side, top + side)
+    }
+    fun artworkFrame(size: Size, t: Float): dev.cmdrchara.songlass.designsystem.foundation.PlayerArtworkFrame {
+        val target = if (fullBleed) null else squareTransition.target()
+        return if (target != null) squarePlayerArtworkFrame(localThumbnail(size), size, target.bounds, t)
+        else playerArtworkFrame(localThumbnail(size), size, t)
+    }
+    LaunchedEffect(reduceMotion, screenHeight, statusBarHeight, fullBleed, artworkVisible, artworkExpanded, darkAppearance) {
+        snapshotFlow {
+            val t = fraction()
+            val top = ((sourceAnchor?.top ?: fallbackTop) - origin.y) * (1f - t)
+            // The receding page leaves a black gap above it. Status icons must stay white
+            // over that gap even after the sheet itself has moved below the status row.
+            val pageTop = screenHeight * 0.04f * t
+            val sheetCoversStatus = if (reduceMotion) t > 0.5f else t > 0f && top <= statusBarHeight * 0.25f
+            val lightIcons = when {
+                sheetCoversStatus -> if (fullBleed && artworkVisible && !artworkExpanded) true else darkAppearance
+                !reduceMotion && pageTop > statusBarHeight * 0.5f -> true
+                else -> null // The uncovered route owns its system chrome again.
+            }
+            t to lightIcons
+        }.collect { (t, lightIcons) ->
+            morph.recede = t
+            currentOnStatusBarAppearanceChange(lightIcons)
+        }
+    }
+    DisposableEffect(morph) { onDispose { morph.recede = 0f; currentOnStatusBarAppearanceChange(null) } }
 
     // Keep the original full-bleed cover and fade, with controls in the selected appearance.
     // Only header chrome adapts to the image behind it; it must not recolor the whole player.
-    val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
     val hero = artworkVisible && fullBleed
-    val tint = animateArtworkTint(rememberArtworkTint(artwork, AppTheme.colors.isDark))
-    val headerDark = rememberArtworkHeaderIsDark(artwork, AppTheme.colors.isDark)
-    val headerTint = rememberArtworkTint(artwork, headerDark)
-    if (visible || progress.value > 0f) {
+    val tint = animateArtworkTint(look.playerTint(rememberArtworkTint(artwork, AppTheme.colors.isDark)))
+    val headerTint = rememberArtworkTint(artwork, dark = true)
+    // Animation frames belong to layout/drawing. Composition only needs to know when
+    // the outgoing sheet has fully left, not every intermediate spring value.
+    val sheetPresent by remember(visible) { derivedStateOf { visible || progress.value > 0f } }
+    if (sheetPresent) {
+        DisposableEffect(squareTransition) { onDispose { squareTransition.clearContainer() } }
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .onGloballyPositioned { origin = it.positionInWindow() }
-                .offset { IntOffset(0, if (reduceMotion) 0 else dragOffset.roundToInt()) }
                 .graphicsLayer {
-                    val p = progress.value
+                    val p = fraction()
+                    // Both layers read the same derived ownership in the drawing phase:
+                    // no coroutine completion or recomposition gap at the thumbnail hand-off.
+                    alpha = if (artwork != null && !reduceMotion && !morph.artworkInFlight) 0f else 1f
                     if (reduceMotion) {
                         alpha = p.coerceIn(0f, 1f)
                         return@graphicsLayer
                     }
-                    // Grow out of the mini player: the visible shape goes from its capsule to the
-                    // full screen. While closing after a drag, it shrinks back into the mini player.
-                    val full = Rect(Offset.Zero, size)
                     val fallback = with(density) { Rect(16.dp.toPx(), size.height - 120.dp.toPx(), size.width - 16.dp.toPx(), size.height - 64.dp.toPx()) }
-                    val source = PlayerMorph.source?.translate(-origin.x, -origin.y - dragOffset) ?: fallback
+                    val source = sourceAnchor?.translate(-origin.x, -origin.y) ?: fallback
                     val t = p.coerceIn(0f, 1f)
-                    val bounds = lerpRect(source, full, t)
+                    val bounds = artworkFrame(size, t).surface
+                    val thumb = localThumbnail(size)
+                    val outline = look.playerThumbnailShape().createOutline(thumb.size, layoutDirection, density) as? Outline.Rounded
+                    val rounded = outline?.roundRect
+                    fun corner(c: CornerRadius) = CornerRadius(c.x * (1f - t), c.y * (1f - t))
                     val radius = lerp(source.height / 2f, with(density) { 28.dp.toPx() }, t) * (1f - smoothstep(0.85f, 1f, t))
                     clip = true
-                    shape = GenericShape { _, _ -> addRoundRect(RoundRect(bounds, CornerRadius(radius))) }
+                    shape = GenericShape { _, _ ->
+                        addRoundRect(if (rounded != null) RoundRect(
+                            bounds.left, bounds.top, bounds.right, bounds.bottom,
+                            corner(rounded.topLeftCornerRadius), corner(rounded.topRightCornerRadius),
+                            corner(rounded.bottomRightCornerRadius), corner(rounded.bottomLeftCornerRadius),
+                        ) else RoundRect(bounds, CornerRadius(radius)))
+                    }
                 },
         ) {
             ArtworkBackdrop(
@@ -417,7 +531,7 @@ internal fun LiquidGlassNowPlayingSheet(
                 Modifier.fillMaxSize()
                     // At the very start and end the real mini player shows through, so the hand-off
                     // between it and the growing player is seamless.
-                    .graphicsLayer { if (!reduceMotion) alpha = smoothstep(0.02f, 0.25f, progress.value) }
+                    .graphicsLayer { if (!reduceMotion) alpha = smoothstep(0.02f, 0.25f, fraction()) }
                     .pointerInput(Unit) {
                     // This sibling is behind the controls: it catches taps on artwork and
                     // empty space without competing with the header, queue or seek gestures.
@@ -429,43 +543,123 @@ internal fun LiquidGlassNowPlayingSheet(
                 },
                 flat = hero,
             )
-            if (hero && artwork != null) ProvideArtworkTint(tint) {
-                PlayerArtworkHero(
-                    artwork = artwork,
-                    surface = tint.background,
-                    label = artworkLabel,
-                    expandLabel = expandArtworkLabel,
-                    tapRequest = artworkTapRequest,
-                    onTap = onArtworkTap,
-                    onExpand = { onArtworkExpandedChange(true) },
-                    modifier = Modifier.fillMaxWidth().fillMaxHeight(0.64f)
-                        .graphicsLayer {
-                            // The cover flies out of the mini player's thumbnail: scaled down to it
-                            // and cropped square at first, full width and height when open.
-                            // Eased ahead of the sheet, so the edge-to-edge cover reaches the sides first.
-                            val t = progress.value.coerceIn(0f, 1f).let { 1f - (1f - it) * (1f - it) }
-                            val thumb = PlayerMorph.thumb?.translate(-origin.x, -origin.y - dragOffset)
-                            if (reduceMotion || thumb == null || t >= 1f) return@graphicsLayer
-                            val scale = lerp(thumb.width / size.width, 1f, t)
-                            transformOrigin = TransformOrigin(0f, 0f)
-                            scaleX = scale
-                            scaleY = scale
-                            translationX = lerp(thumb.left, 0f, t)
-                            translationY = lerp(thumb.top, 0f, t)
-                            val visible = Rect(0f, 0f, size.width, lerp(size.width, size.height, t))
-                            // Starts as round as the mini player's thumbnail on its leading side.
-                            val corner = lerp(size.width / 2f, 0f, smoothstep(0f, 0.6f, t))
-                            clip = true
-                            shape = GenericShape { _, _ -> addRoundRect(RoundRect(visible, CornerRadius(corner))) }
-                        }
-                        .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
-                )
+            if (fullBleed && artwork != null) ProvideArtworkTint(tint) {
+                // Remeasure only the image, not the player controls. Crop then changes continuously
+                // from the square thumbnail to the tall hero; scaling an already cropped hero
+                // would land on a different part of the album cover at the miniature end.
+                Layout(
+                    modifier = Modifier.fillMaxSize(),
+                    content = {
+                        PlayerArtworkHero(
+                            artwork = artwork,
+                            surface = tint.background,
+                            label = artworkLabel,
+                            expandLabel = expandArtworkLabel,
+                            tapRequest = artworkTapRequest,
+                            onTap = onArtworkTap,
+                            onExpand = { if (visible) onArtworkExpandedChange(true) },
+                            transitionProgress = { if (reduceMotion) 1f else smoothstep(0.6f, 1f, fraction()) },
+                            interactive = visible && artworkVisible && !artworkExpanded,
+                            modifier = Modifier.fillMaxSize()
+                                .graphicsLayer {
+                                    // The cover takes over as queue/lyrics controls leave the card.
+                                    alpha = if (artworkVisible) 1f else if (reduceMotion) 0f else 1f - smoothstep(0.55f, 0.95f, fraction())
+                                    if (reduceMotion) return@graphicsLayer
+                                    val thumb = thumbAnchor ?: return@graphicsLayer
+                                    val outline = look.playerThumbnailShape().createOutline(thumb.size, layoutDirection, density) as? Outline.Rounded
+                                        ?: return@graphicsLayer
+                                    val round = outline.roundRect
+                                    val remaining = 1f - fraction()
+                                    fun corner(c: CornerRadius) = CornerRadius(c.x * remaining, c.y * remaining)
+                                    clip = true
+                                    shape = GenericShape { _, _ ->
+                                        addRoundRect(RoundRect(
+                                            0f, 0f, size.width, size.height,
+                                            corner(round.topLeftCornerRadius), corner(round.topRightCornerRadius),
+                                            corner(round.bottomRightCornerRadius), corner(round.bottomLeftCornerRadius),
+                                        ))
+                                    }
+                                }
+                                .then(if (artworkExpanded || !artworkVisible) Modifier.clearAndSetSemantics {} else Modifier),
+                        )
+                    },
+                ) { measurables, constraints ->
+                    val width = constraints.maxWidth
+                    val height = constraints.maxHeight
+                    val full = Rect(0f, 0f, width.toFloat(), height * 0.64f)
+                    val bounds = if (reduceMotion) full else playerArtworkFrame(
+                        localThumbnail(Size(width.toFloat(), height.toFloat())),
+                        Size(width.toFloat(), height.toFloat()), fraction(),
+                    ).cover
+                    val cover = measurables.single().measure(Constraints.fixed(
+                        bounds.width.roundToInt().coerceAtLeast(1), bounds.height.roundToInt().coerceAtLeast(1),
+                    ))
+                    layout(width, height) { cover.place(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+                }
             }
-            ProvideArtworkTint(tint) {
+            if (!fullBleed && artwork != null && !reduceMotion) {
+                Layout(
+                    modifier = Modifier.fillMaxSize().clearAndSetSemantics {},
+                    content = {
+                        PlayerSquareArtwork(artwork, Modifier.fillMaxSize().graphicsLayer {
+                            alpha = if (squareImageInFlight.value) {
+                                if (artworkVisible) 1f else 1f - smoothstep(0.55f, 0.95f, fraction())
+                            } else 0f
+                            val t = fraction()
+                            val thumb = localThumbnail(size)
+                            val round = (look.playerThumbnailShape().createOutline(
+                                thumb.size, layoutDirection, density,
+                            ) as? Outline.Rounded)?.roundRect
+                            val targetRadius = squareTransition.target()?.cornerRadius ?: 0f
+                            fun corner(c: CornerRadius?) = CornerRadius(
+                                lerp(c?.x ?: 0f, targetRadius, t),
+                                lerp(c?.y ?: 0f, targetRadius, t),
+                            )
+                            clip = true
+                            shape = GenericShape { _, _ -> addRoundRect(RoundRect(
+                                0f, 0f, size.width, size.height,
+                                corner(round?.topLeftCornerRadius), corner(round?.topRightCornerRadius),
+                                corner(round?.bottomRightCornerRadius), corner(round?.bottomLeftCornerRadius),
+                            )) }
+                        })
+                    },
+                ) { measurables, constraints ->
+                    val width = constraints.maxWidth
+                    val height = constraints.maxHeight
+                    val bounds = artworkFrame(Size(width.toFloat(), height.toFloat()), fraction()).cover
+                    val cover = measurables.single().measure(Constraints.fixed(
+                        bounds.width.roundToInt().coerceAtLeast(1), bounds.height.roundToInt().coerceAtLeast(1),
+                    ))
+                    layout(width, height) { cover.place(bounds.left.roundToInt(), bounds.top.roundToInt()) }
+                }
+            }
+            look.PlayerContent(tint) {
                 Column(
                     Modifier.fillMaxSize()
                         // Controls come in once the player has mostly grown, and leave first.
-                        .graphicsLayer { if (!reduceMotion) alpha = smoothstep(0.35f, 0.9f, progress.value) }
+                        .graphicsLayer {
+                            if (!reduceMotion) {
+                                val t = fraction()
+                                alpha = smoothstep(0.6f, 0.95f, t)
+                                val artworkFrame = artworkFrame(size, t)
+                                val frame = artworkFrame.surface
+                                // Let controls travel with the surface instead of being revealed
+                                // by a moving crop. Their layout and hit targets remain unchanged.
+                                transformOrigin = TransformOrigin(0f, 0f)
+                                scaleX = frame.width / size.width.coerceAtLeast(1f)
+                                // A zero scale has no inverse: pointer coordinates become NaN
+                                // while the gesture still owns this invisible controls layer.
+                                scaleY = if (fullBleed) (scaleX * artworkFrame.bodyReveal).coerceAtLeast(0.001f)
+                                    else scaleX.coerceAtLeast(0.001f)
+                                translationX = frame.left
+                                val coverBottom = if (fullBleed) size.height * 0.64f
+                                    else squareTransition.target()?.bounds?.bottom ?: size.height * 0.64f
+                                // Anchor both layouts' controls beneath the flying cover. Compressing
+                                // the whole Square page into the card exposed a tiny footer too early.
+                                translationY = artworkFrame.cover.bottom - coverBottom * scaleY
+                            }
+                        }
+                        .onGloballyPositioned(squareTransition::placeContainer)
                         .windowInsetsPadding(WindowInsets.safeDrawing)
                         .then(if (artworkExpanded) Modifier.clearAndSetSemantics {} else Modifier),
                 ) {
@@ -475,22 +669,27 @@ internal fun LiquidGlassNowPlayingSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
+                            .onGloballyPositioned { headerCoordinates = it }
                             .draggable(
                                 orientation = Orientation.Vertical,
                                 enabled = visible && !artworkExpanded,
                                 startDragImmediately = settling,
                                 state = rememberDraggableState { delta ->
-                                    dragOffset = (dragOffset + delta).coerceAtLeast(0f)
+                                    // Input is local to the shrinking controls layer. Convert back
+                                    // to window pixels so a drag never accelerates as it shrinks.
+                                    val windowDelta = delta * dragWindowScale()
+                                    if (windowDelta.isFinite()) dragOffset = (dragOffset + windowDelta).coerceAtLeast(0f)
                                 },
                                 onDragStarted = {
                                     settleJob?.cancel()
                                     settling = false
                                 },
                                 onDragStopped = { velocity ->
-                                    if (dragOffset > dismissThreshold || velocity > dismissVelocity) {
+                                    val windowVelocity = (velocity * dragWindowScale()).takeIf { it.isFinite() } ?: 0f
+                                    if (dragOffset > dismissThreshold || windowVelocity > dismissVelocity) {
                                         currentOnDismiss()
                                     } else {
-                                        settleToOrigin(velocity)
+                                        settleToOrigin(windowVelocity)
                                     }
                                 },
                             ),
@@ -513,7 +712,9 @@ internal fun LiquidGlassNowPlayingSheet(
                             Box(Modifier.size(width = 36.dp, height = 5.dp).clip(CircleShape).background(LocalContentColor.current.copy(alpha = 0.5f)))
                         }
                     }
-                    content(onArtworkTap)
+                    CompositionLocalProvider(LocalPlayerArtworkTransition provides squareTransition) {
+                        content(onArtworkTap)
+                    }
                 }
                 if (artwork != null) {
                     PlayerArtworkExpansion(
@@ -548,13 +749,6 @@ private fun ArtworkBackdrop(tint: ArtworkTint, modifier: Modifier, flat: Boolean
         )
     }
 }
-
-private fun lerpRect(a: Rect, b: Rect, t: Float) = Rect(
-    lerp(a.left, b.left, t),
-    lerp(a.top, b.top, t),
-    lerp(a.right, b.right, t),
-    lerp(a.bottom, b.bottom, t),
-)
 
 private fun smoothstep(edge0: Float, edge1: Float, x: Float): Float {
     val t = ((x - edge0) / (edge1 - edge0)).coerceIn(0f, 1f)

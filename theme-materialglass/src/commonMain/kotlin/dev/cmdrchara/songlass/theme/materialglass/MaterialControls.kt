@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
@@ -38,6 +40,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -135,53 +143,68 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
     val look = LocalGlassLook.current
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    Row(
-        look.navigationBarSurface(modifier.fillMaxWidth().height(72.dp), RoundedCornerShape(percent = 50), null, edges = true)
-            .padding(horizontal = 8.dp)
-            .selectableGroup(),
-        verticalAlignment = Alignment.CenterVertically,
+    val density = LocalDensity.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    var contentWidth by remember { mutableFloatStateOf(0f) }
+    val position by animateFloatAsState(
+        selectedTab.toFloat(),
+        if (reduceMotion) snap() else spring(dampingRatio = 0.84f, stiffness = 460f),
+        label = "materialNavPosition",
+    )
+    Box(
+        modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = 360.dp).fillMaxWidth().height(look.navigationBarHeight()),
     ) {
-        tabs.forEachIndexed { index, tab ->
-            val selected = index == selectedTab
-            val interaction = remember { MutableInteractionSource() }
-            val indicatorScale by animateFloatAsState(
-                if (selected) 1f else 0.68f,
-                if (reduceMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 500f),
-                label = "navIndicatorScale",
-            )
-            val indicatorAlpha by animateFloatAsState(if (selected) 1f else 0f, if (reduceMotion) snap() else tween(150), label = "navIndicatorAlpha")
-            val tint by animateColorAsState(
-                if (selected) palette.onPrimaryContainer else AppTheme.colors.label,
-                if (reduceMotion) snap() else tween(150),
-                label = "navTint",
-            )
+        Box(look.navigationBarSurface(Modifier.matchParentSize(),
+            RoundedCornerShape(percent = 50), null, edges = true))
+        Box(Modifier.matchParentSize().padding(horizontal = 6.dp).onSizeChanged {
+            contentWidth = it.width.toFloat()
+        }) {
+            val slotWidth = contentWidth / tabs.size.coerceAtLeast(1)
+            // A single moving indicator retains its identity between destinations.
             Box(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .selectable(selected, interaction, indication = null, role = Role.Tab) { onTabSelected(index) },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp)
-                        .graphicsLayer { alpha = indicatorAlpha; scaleX = indicatorScale }
-                        .clip(CircleShape)
-                        .background(palette.primaryContainer)
-                        .border(1.dp, palette.onPrimaryContainer.copy(alpha = 0.16f), CircleShape),
-                )
-                Box(Modifier.fillMaxSize().padding(horizontal = 4.dp, vertical = 8.dp).clip(CircleShape).indication(interaction, MaterialRipple))
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                    AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
-                    Spacer(Modifier.height(2.dp))
-                    AppText(
-                        tab.label,
-                        AppTheme.typography.caption1.copy(fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
-                        color = tint,
-                        maxLines = 1,
-                    )
+                Modifier.width(with(density) { slotWidth.toDp() }).fillMaxHeight()
+                    .graphicsLayer { translationX = slotWidth * position * if (rtl) -1f else 1f }
+                    .padding(horizontal = 3.dp, vertical = 5.dp)
+                    .then(look.navigationSelectionSurface(Modifier, RoundedCornerShape(percent = 50))),
+            )
+            Row(Modifier.fillMaxSize().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
+                tabs.forEachIndexed { index, tab ->
+                    val selected = index == selectedTab
+                    val interaction = remember { MutableInteractionSource() }
+                    Box(
+                        Modifier.weight(1f).fillMaxHeight()
+                            .selectable(selected, interaction, indication = null, role = Role.Tab) { onTabSelected(index) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Box(Modifier.fillMaxSize().padding(horizontal = 3.dp, vertical = 5.dp)
+                            .clip(CircleShape).indication(interaction, MaterialRipple))
+                        MaterialNavigationItem(tab, selected, palette.onPrimaryContainer, reduceMotion)
+                    }
                 }
             }
         }
+    }
+}
+
+/** Icon and label in their own scope: the tint animation never recomposes the glass bar. */
+@Composable
+private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, selectedTint: Color, reduceMotion: Boolean) {
+    val tint by animateColorAsState(
+        if (selected) selectedTint else AppTheme.colors.secondaryLabel,
+        if (reduceMotion) snap() else tween(150),
+        label = "navTint",
+    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
+        Spacer(Modifier.height(4.dp))
+        AppText(
+            tab.label,
+            AppTheme.typography.caption1.copy(fontSize = 12.sp, lineHeight = 16.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium),
+            color = tint,
+            maxLines = 1,
+        )
     }
 }
 
@@ -292,7 +315,7 @@ internal fun MaterialSettingsToggleRow(
 
 /**
  * Material connected button group used as a single choice: segments joined with small inner
- * corners, the selected one filled in the primary container with a check.
+ * corners, the selected one filled in the primary container with a check and slightly rounder inner corners.
  */
 @Composable
 internal fun MaterialSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
@@ -302,7 +325,8 @@ internal fun MaterialSegmentedControl(options: List<String>, selectedIndex: Int,
         options.forEachIndexed { index, option ->
             val selected = index == selectedIndex
             val outer = 20.dp
-            val inner by animateDpAsState(if (selected) 20.dp else 6.dp, if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 500f), label = "segmentCorner")
+            // A gentle change of shape keeps the selection joined to its neighbours (a full pill read as a detached blob).
+            val inner by animateDpAsState(if (selected) 12.dp else 6.dp, if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 500f), label = "segmentCorner")
             val shape = RoundedCornerShape(
                 topStart = if (index == 0) outer else inner,
                 bottomStart = if (index == 0) outer else inner,

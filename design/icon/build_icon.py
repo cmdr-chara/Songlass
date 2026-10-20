@@ -12,6 +12,7 @@ Coordinates use Android's 108-unit adaptive icon grid; the bubble fits the 66-un
 Run from the repository root: python3 design/icon/build_icon.py
 """
 import math
+import json
 import subprocess
 from pathlib import Path
 
@@ -317,14 +318,44 @@ def splash():
 
 def main():
     out = Path(__file__).parent
-    # Master SVG: as on iOS, the bubble is a bit larger than in Android's safe zone.
+    variants = out / "variants"
+    variants.mkdir(exist_ok=True)
+    ios_dir = ROOT / "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset"
+    shared = ROOT / "shared/src/commonMain/composeResources/drawable"
+    shared.mkdir(parents=True, exist_ok=True)
+    dark_background = [
+        Shape("M0,0h108v108h-108z", Linear(0, 0, 108, 108, [(0, rgba("292337", 1)), (0.5, rgba("14121E", 1)), (1, rgba("08090F", 1))])),
+        Shape("M0,0h108v108h-108z", Radial(18, 12, 78, [(0, rgba("8B65F6", 0.17)), (1, rgba("8B65F6", 0))])),
+    ]
+    # One silhouette drives Android themed icons and the iOS tinted asset.
+    mark = [Shape(capsule(CX + (cx - 627) * BAR_SCALE, CY, width * BAR_SCALE, height * BAR_SCALE), rgba("FFFFFF", 1))
+            for cx, width, height in SOURCE_BARS]
+    tinted_background = [Shape("M0,0h108v108h-108z", rgba("141414", 1))]
+    tinted_mark = [Shape(circle(CX, CY, R), rgba("282828", 1))] + mark
     svg = SvgWriter().document((BACKGROUND, FOREGROUND), scale=1.28)
     (out / "songlass-icon.svg").write_text(svg)
+    (variants / "songlass-light.svg").write_text(svg)
+    (variants / "songlass-dark.svg").write_text(SvgWriter().document((dark_background, FOREGROUND), scale=1.28))
+    (variants / "songlass-tinted.svg").write_text(SvgWriter().document((tinted_background, tinted_mark), scale=1.28))
+    (variants / "songlass-mark.svg").write_text(SvgWriter().document(([], mark), scale=1.28))
     (RES / "drawable/ic_launcher_background.xml").write_text(HEADER + vector(BACKGROUND))
     (RES / "drawable/ic_launcher_foreground.xml").write_text(HEADER + vector(FOREGROUND))
+    (RES / "drawable/ic_launcher_monochrome.xml").write_text(HEADER + vector(mark))
     (RES / "drawable/splash_icon.xml").write_text(splash())
-    ios = ROOT / "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png"
-    subprocess.run(["rsvg-convert", "-w", "1024", "-h", "1024", "-b", "#4A26DF", str(out / "songlass-icon.svg"), "-o", str(ios)], check=True)
+    night = RES / "drawable-night"
+    night.mkdir(exist_ok=True)
+    (night / "ic_launcher_background.xml").write_text(HEADER + vector(dark_background))
+    filenames = {"light": "AppIcon.png", "dark": "AppIcon-dark.png", "tinted": "AppIcon-tinted.png"}
+    images = []
+    for appearance, filename in filenames.items():
+        source = variants / ("songlass-" + appearance + ".svg")
+        subprocess.run(["rsvg-convert", "-w", "1024", "-h", "1024", str(source), "-o", str(ios_dir / filename)], check=True)
+        record = {"idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": filename}
+        if appearance != "light": record["appearances"] = [{"appearance": "luminosity", "value": appearance}]
+        images.append(record)
+    (ios_dir / "Contents.json").write_text(json.dumps({"images": images, "info": {"author": "xcode", "version": 1}}, indent=2) + "\n")
+    for appearance in ["light", "dark"]:
+        subprocess.run(["rsvg-convert", "-w", "256", "-h", "256", str(variants / ("songlass-" + appearance + ".svg")), "-o", str(shared / ("songlass_brand_" + appearance + ".png"))], check=True)
 
 
 if __name__ == "__main__":

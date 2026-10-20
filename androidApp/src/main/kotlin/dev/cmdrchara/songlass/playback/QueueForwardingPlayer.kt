@@ -17,7 +17,28 @@ import dev.cmdrchara.songlass.core.playback.PlaybackController
 class QueueForwardingPlayer(
     player: Player,
     private val controller: PlaybackController,
+    private val audio: dev.cmdrchara.songlass.core.player.AudioPlayer? = null,
 ) : ForwardingSimpleBasePlayer(player) {
+
+    /** Keep one session player and its listeners while the active decoder changes. */
+    fun switchPlayer(player: Player) { setPlayer(player) }
+
+    override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
+        if (playWhenReady) controller.resume() else controller.pause()
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleStop(): ListenableFuture<*> {
+        val target = audio ?: return super.handleStop()
+        target.stop()
+        return Futures.immediateVoidFuture()
+    }
+
+    override fun handleSetVolume(volume: Float, volumeOperationType: Int): ListenableFuture<*> {
+        val target = audio ?: return super.handleSetVolume(volume, volumeOperationType)
+        target.setVolume(volume)
+        return Futures.immediateVoidFuture()
+    }
 
     override fun getState(): State {
         val state = super.getState()
@@ -43,7 +64,7 @@ class QueueForwardingPlayer(
         when (seekCommand) {
             Player.COMMAND_SEEK_TO_NEXT, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> controller.skipToNext()
             Player.COMMAND_SEEK_TO_PREVIOUS, Player.COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM -> controller.skipToPrevious()
-            else -> return super.handleSeek(mediaItemIndex, positionMs, seekCommand)
+            else -> controller.seekTo(positionMs.coerceAtLeast(0))
         }
         return Futures.immediateVoidFuture()
     }

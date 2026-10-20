@@ -153,6 +153,13 @@ class PlaybackController(
 
     fun moveInQueue(fromIndex: Int, toIndex: Int) = _queue.update { it.move(fromIndex, toIndex) }
 
+    /** Saved file tags must reach every duplicate slot and the hidden unshuffled order. */
+    fun refreshTracks(tracks: List<Track>) {
+        val byId = tracks.associateBy { it.id }
+        _queue.update { it.withUpdatedTracks(byId) }
+        _queue.value.current?.track?.let(player::updateMetadata)
+    }
+
     fun clearQueue() {
         _queue.update { PlaybackQueue(repeatMode = it.repeatMode) }
         player.stop()

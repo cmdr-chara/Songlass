@@ -112,6 +112,22 @@ class LyricsRepositoryTest {
     }
 
     @Test
+    fun ttmlImportPersistsOriginalWordTimesAndInvalidXmlCannotReplaceIt() = runTest {
+        val store = InMemoryKeyValueStore()
+        val remote = RecordingSource { online }
+        val repository = LyricsRepository(remote = remote, store = store)
+        val document = """<tt xmlns="http://www.w3.org/ns/ttml"><body><p begin="1s" end="3s"><span begin="0s" end="1s">Neon</span> <span begin="1s" end="2s">skies</span></p></body></tt>"""
+        assertTrue(repository.import(song, document))
+        val expected = LyricsResult.Found(LyricsParser.parse(document, LyricsOrigin.File)!!)
+        assertEquals(expected, repository.load(song))
+        assertFalse(repository.import(song, "<tt><body><p>Broken</body></tt>"))
+        assertEquals(expected, repository.load(song, refresh = true))
+        val restored = LyricsRepository(remote = remote, store = store)
+        assertEquals(expected, restored.load(song.copy(id = "new-media-id")))
+        assertTrue(remote.calls.isEmpty())
+    }
+
+    @Test
     fun invalidImportPreservesPreviousLyricsAndReplacesCachedAbsence() = runTest {
         val repository = LyricsRepository()
         assertEquals(LyricsResult.NotFound, repository.load(song))

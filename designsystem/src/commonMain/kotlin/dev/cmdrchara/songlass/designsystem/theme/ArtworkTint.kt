@@ -43,6 +43,22 @@ data class ArtworkTint(
     companion object {
         const val MIN_CONTENT_CONTRAST = 7f
 
+        /** Protect bright details without darkening an already dark cover. */
+        fun headerScrimAlpha(samples: List<Color>): Float {
+            if (samples.isEmpty()) return 0f
+            // A high percentile catches small bright details without letting a single pixel
+            // impose a dark band across the whole cover.
+            val sorted = samples.sortedBy { it.luminance() }
+            val bright = sorted[((sorted.size - 1) * 0.9f).toInt()]
+            var alpha = 0f
+            while (alpha < 0.56f) {
+                val protected = Color(bright.red * (1f - alpha), bright.green * (1f - alpha), bright.blue * (1f - alpha))
+                if (contrast(Color.White, protected) >= 4.5f) break
+                alpha += 0.01f
+            }
+            return alpha.coerceAtMost(0.56f)
+        }
+
         /**
          * Builds the palette for [seed]; near-gray seeds give a neutral (unsaturated) tint.
          *
@@ -158,7 +174,7 @@ val LocalNavigationTint = staticCompositionLocalOf<ArtworkTint?> { null }
 
 /**
  * Cover of what is playing, provided by the app for styles whose colours follow the music
- * (Material Glass); `null` when nothing is loaded.
+ * (for example Miuix); `null` when nothing is loaded.
  */
 val LocalAmbientArtwork = staticCompositionLocalOf<dev.cmdrchara.songlass.designsystem.Artwork?> { null }
 
@@ -212,3 +228,6 @@ internal data class Hsl(val h: Float, val s: Float, val l: Float) {
         }
     }
 }
+
+/** Artwork-led pages can move their header into an inset card and keep neutral system chrome. */
+val LocalArtworkPageUsesTint = staticCompositionLocalOf { true }

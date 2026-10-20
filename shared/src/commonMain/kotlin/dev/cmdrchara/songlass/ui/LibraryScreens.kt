@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.ui
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,6 +26,7 @@ import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.PinnedItem
 import dev.cmdrchara.songlass.designsystem.CollectionTile
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import dev.cmdrchara.songlass.shared.resources.library_pinned
 import dev.cmdrchara.songlass.shared.resources.sort_name
 import dev.cmdrchara.songlass.shared.resources.sort_recent
@@ -134,7 +137,7 @@ fun LibraryScreen(
     val preferences by state.settings.state.collectAsState()
     val folderSort = preferences.folderSort
     val sortedFolders = remember(library, folderSort, history) { folderSort.sort(library.folders, history.playCounts) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
         item {
             ScreenTitle(stringResource(Res.string.tab_library)) {
                 IconButton(
@@ -169,7 +172,7 @@ fun LibraryScreen(
                     options = FolderSort.entries.map { stringResource(it.label) },
                     selectedIndex = folderSort.ordinal,
                     onSelect = { state.settings.setFolderSort(FolderSort.entries[it]) },
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                    modifier = Modifier.padding(horizontal = pageInset, vertical = 4.dp),
                 )
             }
             items(sortedFolders.chunked(2)) { pair -> FolderGridRow(pair, state) }
@@ -180,6 +183,28 @@ fun LibraryScreen(
 /** Artists, Albums, Songs and Favorites as tiles with a fan of their covers. */
 @Composable
 private fun CategoryGrid(library: MusicLibrary, favorites: List<Track>, state: AppState) {
+    if (LocalGlassLook.current.libraryCategoriesAsRows) {
+        Column(Modifier.padding(vertical = 8.dp)) {
+            LibraryCategory.entries.forEach { category ->
+                val count = when (category) {
+                    LibraryCategory.Artists -> library.artists.size
+                    LibraryCategory.Albums -> library.albums.size
+                    LibraryCategory.Songs -> library.tracks.size
+                    LibraryCategory.Favorites -> favorites.size
+                }
+                ListRow(stringResource(category.label),
+                    leading = { AppIcon(category.icon, null, size = 24.dp, tint = AppTheme.colors.accent) },
+                    trailing = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AppText(count.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel)
+                            Spacer(Modifier.width(12.dp))
+                            AppIcon(AppIcons.ChevronRight, null, size = 14.dp, tint = AppTheme.colors.tertiaryLabel)
+                        }
+                    }, onClick = { state.open(Route.LibraryPage(category)) })
+            }
+        }
+        return
+    }
     @Composable
     fun tile(category: LibraryCategory, count: Int, covers: List<Artwork>, modifier: Modifier) = CollectionTile(
         title = stringResource(category.label),
@@ -194,7 +219,7 @@ private fun CategoryGrid(library: MusicLibrary, favorites: List<Track>, state: A
     val albumCovers = remember(library) { library.albums.take(3).map { it.artwork() } }
     val songCovers = remember(library) { library.tracks.distinctBy { it.album }.takeLast(3).map { it.artwork() } }
     val favoriteCovers = remember(favorites) { favorites.distinctBy { it.album }.take(3).map { it.artwork() } }
-    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    Column(Modifier.padding(horizontal = pageInset, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             tile(LibraryCategory.Artists, library.artists.size, artistCovers, Modifier.weight(1f))
             tile(LibraryCategory.Albums, library.albums.size, albumCovers, Modifier.weight(1f))
@@ -247,13 +272,19 @@ fun LibraryCategoryScreen(
 ) {
     val library = state.library
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+    val listState = rememberLazyListState()
+    when (category) {
+        LibraryCategory.Songs -> PrefetchTrackRowArtwork(listState, library.tracks)
+        LibraryCategory.Favorites -> PrefetchTrackRowArtwork(listState, favoriteTracks)
+        else -> Unit
+    }
+    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), state = listState, contentPadding = contentPadding) {
         item { BackLink(backLabel) { state.goBack() } }
         item {
             AppText(
                 stringResource(category.label),
                 AppTheme.typography.largeTitle,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp),
             )
         }
         when (category) {
@@ -277,7 +308,7 @@ fun LibraryCategoryScreen(
                         stringResource(Res.string.favorites_empty),
                         AppTheme.typography.subheadline,
                         color = AppTheme.colors.secondaryLabel,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        modifier = Modifier.padding(horizontal = pageInset, vertical = 12.dp),
                     )
                 }
             } else {
@@ -295,7 +326,7 @@ fun LibraryCategoryScreen(
 /** Play and Shuffle side by side above a list of songs, as in Apple Music. */
 @Composable
 private fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: AppState) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
         ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
     }
@@ -304,7 +335,7 @@ private fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: Ap
 /** Two folders per row, as cover tiles. */
 @Composable
 internal fun FolderGridRow(folders: List<Folder>, state: AppState) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         folders.forEach { folder -> FolderTile(folder, Modifier.weight(1f)) { state.open(Route.FolderDetail(folder)) } }
         if (folders.size == 1) Spacer(Modifier.weight(1f))
     }
@@ -312,7 +343,7 @@ internal fun FolderGridRow(folders: List<Folder>, state: AppState) {
 
 @Composable
 private fun FolderTile(folder: Folder, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier.clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
+    Column(modifier.prefetchArtworkOnPress(folder.artwork()).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
         FolderCover(folder, Modifier.fillMaxWidth().aspectRatio(1f))
         Spacer(Modifier.height(6.dp))
         AppText(folder.name, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
@@ -347,12 +378,11 @@ private fun FolderCover(folder: Folder, modifier: Modifier) {
 
 @Composable
 fun ArtistRow(artist: Artist, onClick: () -> Unit) {
+    val art = artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
     ListRow(
         title = artistName(artist.name),
-        leading = {
-            val art = artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
-            if (art != null) ArtistAvatar(art, Modifier.size(48.dp))
-        },
+        modifier = Modifier.prefetchArtworkOnPress(art),
+        leading = { if (art != null) ArtistAvatar(art, Modifier.size(48.dp)) },
         onClick = onClick,
     )
 }
@@ -455,6 +485,7 @@ fun playlistSubtitle(playlist: Playlist): String {
 fun PlaylistRow(playlist: Playlist, onClick: () -> Unit) {
     ListRow(
         title = playlist.name,
+        modifier = Modifier.prefetchArtworkOnPress(playlist.artwork()),
         subtitle = playlistSubtitle(playlist),
         leading = { AlbumArt(playlist.artwork(), Modifier.size(56.dp), cornerRadius = 8.dp) },
         onClick = onClick,
@@ -483,6 +514,7 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
+        rowArtwork = false,
     ) { index, track ->
         ListRow(
             title = track.title,
@@ -562,11 +594,15 @@ internal fun ArtworkCollectionPage(
     extra: (LazyListScope.() -> Unit)? = null,
     /** Small action beside shuffle; pinning by default. */
     headerAction: @Composable () -> Unit = { PinButton(context, state) },
+    /** Whether [row] shows each song's cover, so it is loaded ahead while scrolling. */
+    rowArtwork: Boolean = true,
     row: @Composable (index: Int, track: Track) -> Unit,
 ) {
     val minutes = (durationMs / 60_000).toInt()
+    val listState = rememberLazyListState()
+    if (rowArtwork) PrefetchTrackRowArtwork(listState, rows)
     ArtworkTintedPage(artwork, Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
             item { ArtworkHeader(artwork) }
             item {
                 CollectionDetails(

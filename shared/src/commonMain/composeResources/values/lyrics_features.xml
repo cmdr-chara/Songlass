@@ -1,0 +1,18 @@
+<resources>
+    <string name="lyrics_word_synced">Word-synced lyrics</string>
+    <string name="lyrics_word_mixed">Word timing where available · other lines estimated</string>
+    <string name="lyrics_share">Share lyrics</string>
+    <string name="lyrics_share_select">Choose your lines</string>
+    <string name="lyrics_share_close">Close lyric sharing</string>
+    <string name="lyrics_share_hint">Choose up to %1$d lines and %2$d characters.</string>
+    <string name="lyrics_share_limit">This excerpt is full. Deselect a line or choose a shorter one.</string>
+    <string name="lyrics_share_preview_count">Preview (%1$d)</string>
+    <string name="lyrics_card_preview">Lyric card preview</string>
+    <string name="lyrics_card_label">Lyrics</string>
+    <string name="lyrics_card_rendering">Preparing your card…</string>
+    <string name="lyrics_card_fit">Choose a shorter excerpt to keep every word readable.</string>
+    <string name="lyrics_share_edit">Edit selection</string>
+    <string name="lyrics_share_image">Share image</string>
+    <string name="lyrics_share_failed">The image could not be shared. Try again.</string>
+    <string name="lyrics_share_unavailable">Image sharing is not available on this platform yet.</string>
+</resources>

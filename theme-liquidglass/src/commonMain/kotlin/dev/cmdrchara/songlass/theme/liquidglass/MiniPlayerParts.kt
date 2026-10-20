@@ -29,10 +29,19 @@ import kotlin.math.abs
 // sideways swipe that changes track (as on the iOS 26 mini player; Material players do the same).
 
 /** Marks the mini player's bounds, the shape Now Playing grows out of and returns into. */
-fun Modifier.miniPlayerFrame(): Modifier = onGloballyPositioned { PlayerMorph.source = it.boundsInWindow() }
+@Composable
+fun Modifier.miniPlayerFrame(): Modifier {
+    val morph = LocalPlayerMorph.current
+    return onGloballyPositioned { morph.source = it.boundsInWindow() }
+}
 
 /** Marks the mini player's cover, where the big cover flies from. */
-fun Modifier.miniPlayerCover(): Modifier = onGloballyPositioned { PlayerMorph.thumb = it.boundsInWindow() }
+@Composable
+fun Modifier.miniPlayerCover(): Modifier {
+    val morph = LocalPlayerMorph.current
+    return onGloballyPositioned { morph.thumb = it.boundsInWindow() }
+        .graphicsLayer { alpha = if (morph.artworkInFlight) 0f else 1f }
+}
 
 /** Horizontal offset of the mini player's content while it is swiped. */
 @Composable

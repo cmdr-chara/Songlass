@@ -41,6 +41,17 @@
             </intent-filter>
         </service>
 
+        <!-- Private lyric-card PNGs, readable only through temporary per-file grants. -->
+        <provider
+            android:name="dev.cmdrchara.songlass.ui.LyricsCardFileProvider"
+            android:authorities="${applicationId}.lyriccards"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/lyrics_share_paths" />
+        </provider>
+
         <!-- Covers for Android Auto and other media browsers; read access is granted per browser. -->
         <provider
             android:name=".artwork.ArtworkProvider"

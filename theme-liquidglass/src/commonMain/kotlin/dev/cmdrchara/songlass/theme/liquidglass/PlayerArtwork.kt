@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.foundation.GenerativeCover
 import dev.cmdrchara.songlass.designsystem.foundation.LARGE_ARTWORK_PX
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkHeaderScrimAlpha
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkImage
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
@@ -95,10 +96,13 @@ internal fun PlayerArtworkHero(
     onTap: () -> Unit,
     onExpand: () -> Unit,
     modifier: Modifier,
+    transitionProgress: () -> Float = { 1f },
+    interactive: Boolean = true,
 ) {
     val image = rememberArtworkImage(artwork, LARGE_ARTWORK_PX)
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val reduceTransparency = AppTheme.accessibility.reduceTransparency
+    val headerScrim = rememberArtworkHeaderScrimAlpha(artwork)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     var dragging by remember { mutableStateOf(false) }
@@ -144,6 +148,7 @@ internal fun PlayerArtworkHero(
             .clipToBounds()
             .background(Brush.verticalGradient(placeholder))
             .combinedClickable(
+                enabled = interactive,
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Button,
@@ -151,7 +156,8 @@ internal fun PlayerArtworkHero(
                 onLongClickLabel = expandLabel,
                 onLongClick = onExpand,
             )
-            .pointerInput(artwork, reduceMotion) {
+            .pointerInput(artwork, reduceMotion, interactive) {
+                if (!interactive) return@pointerInput
                 fun followFinger(position: Offset) {
                     if (size.width > 0 && size.height > 0 && !reduceMotion) {
                         fingerX = (position.x / size.width * 2f - 1f).coerceIn(-1f, 1f)
@@ -181,8 +187,25 @@ internal fun PlayerArtworkHero(
                 }
                 // Long eased fade: the cover dissolves over its lower half and the page color is
                 // solid well before the title, so text never sits on the artwork's details.
+                val p = transitionProgress().coerceIn(0f, 1f)
+                val fadeProgress = ((p - 0.2f) / 0.65f).coerceIn(0f, 1f).let { it * it * (3f - 2f * it) }
                 val fade = if (reduceTransparency) HeroFadeStopsOpaque else HeroFadeStops
-                drawRect(Brush.verticalGradient(*Array(fade.size) { i -> fade[i].first to surface.copy(alpha = fade[i].second) }))
+                drawRect(Brush.verticalGradient(*Array(fade.size) { i ->
+                    fade[i].first to surface.copy(alpha = fade[i].second * fadeProgress)
+                }))
+                // The same short black scrim in both appearances. Keep the status row protected,
+                // then ease out completely in the upper 15%; never wash a dark cover with white.
+                if (headerScrim > 0f) {
+                    val end = size.height * 0.15f
+                    val hold = minOf(32.dp.toPx(), end * 0.45f)
+                    drawRect(Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = headerScrim * fadeProgress),
+                        (hold / end.coerceAtLeast(1f)) to Color.Black.copy(alpha = headerScrim * fadeProgress),
+                        0.7f to Color.Black.copy(alpha = headerScrim * fadeProgress * 0.22f),
+                        1f to Color.Transparent,
+                        endY = end,
+                    ), size = androidx.compose.ui.geometry.Size(size.width, end))
+                }
             },
         contentAlignment = Alignment.Center,
     ) {
@@ -191,6 +214,17 @@ internal fun PlayerArtworkHero(
         } else {
             GenerativeCover(artwork, Modifier.fillMaxSize().then(imageMotion), showMonogram = false)
         }
+    }
+}
+
+/** Stable full-resolution image for the Square cover's flight; resting input stays in content. */
+@Composable
+internal fun PlayerSquareArtwork(artwork: Artwork, modifier: Modifier) {
+    val image = rememberArtworkImage(artwork, LARGE_ARTWORK_PX)
+    Box(modifier) {
+        if (image != null) Image(image, contentDescription = null,
+            contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+        else GenerativeCover(artwork, Modifier.fillMaxSize())
     }
 }
 
@@ -275,8 +309,8 @@ private fun smoothFade(from: Float, to: Float, samples: Int = 14): List<Pair<Flo
         (from + (to - from) * t) to (t * t * (3f - 2f * t))
     } + listOf(1f to 1f)
 
-/** The cover dissolves over most of its height and is solid just before its bottom edge. */
-private val HeroFadeStops = smoothFade(from = 0.28f, to = 0.94f)
+/** Keep the upper artwork clear; dissolve over the lower half, before the title. */
+private val HeroFadeStops = smoothFade(from = 0.44f, to = 0.94f)
 
 /** Reduce Transparency: the same curve, reaching the solid color sooner. */
-private val HeroFadeStopsOpaque = smoothFade(from = 0.2f, to = 0.75f)
+private val HeroFadeStopsOpaque = smoothFade(from = 0.34f, to = 0.75f)

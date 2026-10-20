@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_miuix_surface">#FFFFFF</color>
+    <color name="widget_miuix_fill">#EDEDF1</color>
+    <color name="widget_miuix_content">#151517</color>
+    <color name="widget_miuix_secondary">#63636A</color>
+    <color name="widget_miuix_accent">#7146D8</color>
+    <color name="widget_miuix_on_accent">#FFFFFF</color>
+</resources>

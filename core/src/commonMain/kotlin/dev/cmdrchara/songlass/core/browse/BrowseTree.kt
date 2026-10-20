@@ -57,6 +57,9 @@ class BrowseTree(
     private val userPlaylists: List<UserPlaylist>,
     private val recent: List<PlayContext>,
     private val labels: BrowseLabels,
+    private val smartPlaylists: List<dev.cmdrchara.songlass.core.playlists.SmartPlaylist> = emptyList(),
+    private val history: dev.cmdrchara.songlass.core.history.HistorySnapshot = dev.cmdrchara.songlass.core.history.HistorySnapshot(),
+    private val nowMs: Long = 0L,
 ) {
     fun children(parentId: String): List<BrowseNode>? = when (parentId) {
         ROOT -> listOf(
@@ -72,7 +75,7 @@ class BrowseTree(
             if (favorites.isNotEmpty()) add(contextNode(PlayContext.Favorites)!!)
             recent.filter { it != PlayContext.Favorites }.distinct().take(MAX_RECENT).forEach { context -> contextNode(context)?.let(::add) }
         }
-        PLAYLISTS -> userPlaylists.mapNotNull { contextNode(PlayContext.UserPlaylist(it.id)) } +
+        PLAYLISTS -> smartPlaylists.mapNotNull { contextNode(PlayContext.SmartPlaylist(it.id)) } + userPlaylists.mapNotNull { contextNode(PlayContext.UserPlaylist(it.id)) } +
             library.folders.mapNotNull { contextNode(PlayContext.Playlist(it.id)) }
         ALBUMS -> library.albums.sortedBy { it.title?.lowercase() }.mapNotNull { contextNode(PlayContext.Album(it.title.orEmpty(), it.artist)) }
         ARTISTS -> library.artists.mapNotNull { contextNode(PlayContext.Artist(it.name)) }
@@ -108,6 +111,12 @@ class BrowseTree(
         val results = library.search(query)
         results.artists.firstOrNull()?.let { return resolvePlay(CONTEXT + PlayContext.Artist(it.name).key) }
         results.albums.firstOrNull()?.let { return resolvePlay(CONTEXT + PlayContext.Album(it.title.orEmpty(), it.artist).key) }
+        smartPlaylists.firstOrNull { it.name.equals(query.trim(), ignoreCase = true) }?.let {
+            return resolvePlay(CONTEXT + PlayContext.SmartPlaylist(it.id).key)
+        }
+        userPlaylists.firstOrNull { it.name.equals(query.trim(), ignoreCase = true) }?.let {
+            return resolvePlay(CONTEXT + PlayContext.UserPlaylist(it.id).key)
+        }
         return search(query).firstOrNull { !it.browsable }?.let { resolvePlay(it.id) }
     }
 
@@ -141,6 +150,7 @@ class BrowseTree(
         is PlayContext.Artist -> library.artists.firstOrNull { it.name == context.name }?.tracks
         is PlayContext.Playlist -> library.folder(context.id)?.allTracks
         is PlayContext.UserPlaylist -> userPlaylists.firstOrNull { it.id == context.id }?.tracksIn(library)
+        is PlayContext.SmartPlaylist -> smartPlaylists.firstOrNull { it.id == context.id }?.rules?.resolve(library, history, favorites.map { it.id }.toSet(), nowMs)
         PlayContext.Favorites -> favorites
     }.orEmpty()
 
@@ -164,6 +174,11 @@ class BrowseTree(
                 val tracks = playlist.tracksIn(library)
                 if (tracks.isEmpty()) return null
                 BrowseNode(id, playlist.name, labels.songs(tracks.size), browsable = true, playable = true, artworkTrack = tracks.first())
+            }
+            is PlayContext.SmartPlaylist -> {
+                val playlist = smartPlaylists.firstOrNull { it.id == context.id } ?: return null
+                val tracks = tracksOf(context)
+                BrowseNode(id, playlist.name, labels.songs(tracks.size), browsable = true, playable = tracks.isNotEmpty(), artworkTrack = tracks.firstOrNull())
             }
             PlayContext.Favorites -> favorites.takeIf { it.isNotEmpty() }?.let {
                 BrowseNode(id, labels.favorites, labels.songs(it.size), browsable = true, playable = true, artworkTrack = it.first())

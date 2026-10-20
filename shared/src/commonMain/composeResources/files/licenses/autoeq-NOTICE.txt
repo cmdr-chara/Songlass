@@ -1,0 +1,6 @@
+AutoEQ recommended results, by Jaakko Pasanen.
+Source: https://github.com/jaakkopasanen/AutoEq/tree/7ae0f56d53074872b028649617a22bbb4232feb7/results
+Catalog derived from results/README.md; correction files downloaded on demand.
+Only model names, measurement-source names and result paths are bundled.
+Original raw frequency-response measurements and images are not redistributed.
+License: MIT; see autoeq-MIT.txt.

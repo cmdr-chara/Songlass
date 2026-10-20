@@ -1,0 +1,50 @@
+<resources>
+    <string name="homecfg_title">Customize Home</string>
+    <string name="homecfg_settings_hint">Choose, reorder and hide the sections of Home</string>
+    <string name="homecfg_intro">Choose which sections Home shows and in what order. Changes apply immediately and stay on this device.</string>
+
+    <string name="homecfg_show_title">Sections</string>
+    <string name="homecfg_order_title">Order</string>
+    <string name="homecfg_order_hint">Use the arrows to move a section up or down. Hidden sections keep their place.</string>
+    <string name="homecfg_hidden">Hidden</string>
+    <string name="homecfg_position">Position %1$d of %2$d</string>
+    <string name="homecfg_move_up">Move %1$s up</string>
+    <string name="homecfg_move_down">Move %1$s down</string>
+
+    <string name="homecfg_section_statistics">Listening statistics</string>
+    <string name="homecfg_section_on_this_day">On this day</string>
+    <string name="homecfg_section_shortcuts">Shortcuts</string>
+    <string name="homecfg_section_for_you">For you</string>
+    <string name="homecfg_section_recently_added">Recently added</string>
+    <string name="homecfg_section_change_of_pace">Change of pace</string>
+    <string name="homecfg_section_most_played">Most played</string>
+    <string name="homecfg_section_playlists">Your playlists</string>
+
+    <string name="homecfg_shortcuts_title">Shortcuts</string>
+    <string name="homecfg_shortcuts_hint">Choose up to %1$d albums, artists, folders, personal or smart playlists, or your favorites. They come first in the grid.</string>
+    <string name="homecfg_shortcuts_empty">No shortcuts chosen: the grid fills in automatically from what you played recently.</string>
+    <string name="homecfg_shortcut_unavailable">Not in the visible library right now</string>
+    <string name="homecfg_shortcut_position">Shortcut %1$d of %2$d</string>
+    <string name="homecfg_shortcut_move_up">Move %1$s earlier</string>
+    <string name="homecfg_shortcut_move_down">Move %1$s later</string>
+    <string name="homecfg_shortcut_remove">Remove %1$s from shortcuts</string>
+
+    <string name="homecfg_add_title">Add a shortcut</string>
+    <string name="homecfg_add_full">You chose the maximum of %1$d shortcuts. Remove one to add another.</string>
+    <string name="homecfg_search_placeholder">Albums, artists, folders, playlists</string>
+    <string name="homecfg_add">Add</string>
+    <string name="homecfg_added">Added</string>
+    <string name="homecfg_no_matches">Nothing matches your search</string>
+    <string name="homecfg_kind_favorites">Favorites</string>
+    <string name="homecfg_kind_album">Album</string>
+    <string name="homecfg_kind_artist">Artist</string>
+    <string name="homecfg_kind_folder">Folder</string>
+
+    <string name="homecfg_reset_title">Defaults</string>
+    <string name="homecfg_reset_hint">Restores the original order, shows every section and goes back to automatic shortcuts.</string>
+    <string name="homecfg_reset">Restore defaults</string>
+    <string name="homecfg_is_default">Home uses the default layout.</string>
+
+    <string name="homecfg_all_hidden">Every section of Home is hidden.</string>
+    <string name="homecfg_customize">Customize Home</string>
+</resources>

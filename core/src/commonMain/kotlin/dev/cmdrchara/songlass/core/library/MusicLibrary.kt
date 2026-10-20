@@ -93,22 +93,38 @@ class MusicLibrary(tracks: List<Track>) {
         .sortedWith(compareBy<Album, String?>(nullsLast()) { it.title?.sortKey() }
             .thenBy(nullsLast()) { it.artist?.sortKey() })
 
-    val artists: List<Artist> = tracks
-        .flatMap { track ->
-            (track.artistNames + listOfNotNull(track.albumArtist)).distinctBy { it.lowercase() }
-                .ifEmpty { listOf(null) }.map { name -> name to track }
+    private val albumsByKey: Map<Pair<String?, String?>, Album> =
+        albums.associateBy { it.title to it.artist }
+
+    val artists: List<Artist> = run {
+        // Build memberships once. Scanning every album's tracks for every artist made
+        // refreshes expensive, especially with compilations and many individual credits.
+        // Positions retain album order; matching IDs also preserves repeated-source semantics.
+        val albumPositionsByTrackId = mutableMapOf<String, MutableSet<Int>>()
+        albums.forEachIndexed { position, album ->
+            album.tracks.forEach { track ->
+                albumPositionsByTrackId.getOrPut(track.id) { mutableSetOf() }.add(position)
+            }
         }
-        .groupBy({ it.first?.lowercase() }, { it })
-        .map { (_, credits) ->
-            val name = credits.first().first
-            val artistTracks = credits.map { it.second }.distinctBy { it.id }
-            Artist(
-                name = name,
-                albums = albums.filter { album -> album.tracks.any { t -> artistTracks.any { it.id == t.id } } },
-                tracks = artistTracks.sortedWith(compareBy { it.title.sortKey() }),
-            )
-        }
-        .sortedWith(compareBy(nullsLast()) { it.name?.sortKey() })
+        tracks
+            .flatMap { track ->
+                (track.artistNames + listOfNotNull(track.albumArtist)).distinctBy { it.lowercase() }
+                    .ifEmpty { listOf(null) }.map { name -> name to track }
+            }
+            .groupBy({ it.first?.lowercase() }, { it })
+            .map { (_, credits) ->
+                val name = credits.first().first
+                val artistTracks = credits.map { it.second }.distinctBy { it.id }
+                Artist(
+                    name = name,
+                    albums = buildSet {
+                        artistTracks.forEach { addAll(albumPositionsByTrackId[it.id].orEmpty()) }
+                    }.sorted().map { albums[it] },
+                    tracks = artistTracks.sortedWith(compareBy { it.title.sortKey() }),
+                )
+            }
+            .sortedWith(compareBy(nullsLast()) { it.name?.sortKey() })
+    }
 
     /**
      * One playlist per folder that directly contains music. Names drop the root shared by all
@@ -168,7 +184,7 @@ class MusicLibrary(tracks: List<Track>) {
 
     /** The album [track] belongs to, or `null` if it is a lone song (see [albums]). */
     fun albumOf(track: Track): Album? =
-        albums.firstOrNull { it.title == track.album && it.artist == track.groupingArtist }
+        albumsByKey[track.album to track.groupingArtist]
 
     /** The artist [track] is listed under (album artist when tagged, as in [artists]). */
     fun artistOf(track: Track): Artist? = artists.firstOrNull { it.name == track.groupingArtist }
@@ -179,17 +195,56 @@ class MusicLibrary(tracks: List<Track>) {
         artists.firstOrNull { it.name.equals(name, ignoreCase = true) }
     }.distinct()
 
+    // Normalize once per immutable library snapshot. The temporary dictionary shares common
+    // artist/album strings; fields stay separate so a query cannot match across tag boundaries.
+    private val searchIndex = run {
+        val normalized = mutableMapOf<String, String>()
+        fun String.key(): String = normalized.getOrPut(this) { sortKey() }
+        SearchIndex(
+            tracks = this.tracks.map { track ->
+                SearchEntry(track, buildList {
+                    add(track.title.key())
+                    track.artist?.let { add(it.key()) }
+                    track.artistNames.forEach { add(it.key()) }
+                    track.album?.let { add(it.key()) }
+                })
+            },
+            albums = albums.map { SearchEntry(it, listOfNotNull(it.title?.key(), it.artist?.key())) },
+            artists = artists.map { SearchEntry(it, listOfNotNull(it.name?.key())) },
+            playlists = playlists.map { SearchEntry(it, listOf(it.name.key())) },
+        )
+    }
+
     /** Case-insensitive substring search over titles, artists and albums. A blank query matches nothing. */
     fun search(query: String): SearchResults {
         val needle = query.trim().sortKey()
         if (needle.isEmpty()) return SearchResults()
-        fun String?.matches() = this != null && sortKey().contains(needle)
         return SearchResults(
-            tracks = tracks.filter { it.title.matches() || it.artist.matches() || it.artistNames.any { name -> name.matches() } || it.album.matches() },
-            albums = albums.filter { it.title.matches() || it.artist.matches() },
-            artists = artists.filter { it.name.matches() },
-            playlists = playlists.filter { it.name.matches() },
+            tracks = searchIndex.tracks.matches(needle),
+            albums = searchIndex.albums.matches(needle),
+            artists = searchIndex.artists.matches(needle),
+            playlists = searchIndex.playlists.matches(needle),
         )
+    }
+
+    private class SearchEntry<T>(val value: T, private val fields: List<String>) {
+        fun matches(needle: String): Boolean {
+            // Indexed traversal avoids a field iterator for every entry on each keystroke.
+            for (i in fields.indices) if (fields[i].contains(needle)) return true
+            return false
+        }
+    }
+    private class SearchIndex(
+        val tracks: List<SearchEntry<Track>>,
+        val albums: List<SearchEntry<Album>>,
+        val artists: List<SearchEntry<Artist>>,
+        val playlists: List<SearchEntry<Playlist>>,
+    )
+
+    private fun <T> List<SearchEntry<T>>.matches(needle: String): List<T> = buildList {
+        for (entry in this@matches) {
+            if (entry.matches(needle)) add(entry.value)
+        }
     }
 
     companion object {

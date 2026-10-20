@@ -34,7 +34,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.lyrics.Lyrics
-import dev.cmdrchara.songlass.core.lyrics.LyricsOrigin
 import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
 import dev.cmdrchara.songlass.core.lyrics.LyricsResult
 import dev.cmdrchara.songlass.core.model.Track
@@ -42,6 +41,7 @@ import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.LyricsViewport
+import dev.cmdrchara.songlass.designsystem.LyricWordTiming
 import dev.cmdrchara.songlass.designsystem.LyricLine
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -62,6 +62,7 @@ internal fun LyricsPane(
     modifier: Modifier = Modifier,
 ) {
     var result by remember(track) { mutableStateOf<LyricsResult?>(null) }
+    var sharing by remember(track) { mutableStateOf(false) }
     var revision by remember(track) { mutableIntStateOf(0) }
     var importFailed by remember(track) { mutableStateOf(false) }
     val importFile = rememberLyricsFilePicker { requestedTrack, text ->
@@ -77,6 +78,11 @@ internal fun LyricsPane(
     }
     val lyrics = (result as? LyricsResult.Found)?.lyrics
     val secondary = LocalContentColor.current.copy(alpha = 0.65f)
+    if (sharing && lyrics != null && !lyrics.instrumental) {
+        androidx.compose.runtime.key(track, lyrics) {
+            LyricsShareDialog(track, lyrics, lyrics.activeLineAt(positionMs), { sharing = false })
+        }
+    }
     Column(modifier.padding(top = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             AlbumArt(track.artwork(), Modifier.size(44.dp), cornerRadius = 6.dp)
@@ -84,6 +90,9 @@ internal fun LyricsPane(
             Column(Modifier.weight(1f)) {
                 AppText(track.title, AppTheme.typography.headline, maxLines = 1)
                 AppText(artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
+            }
+            if (lyrics != null && !lyrics.instrumental && lyrics.lines.any { it.text.isNotBlank() }) {
+                IconButton(AppIcons.Share, stringResource(Res.string.lyrics_share), { sharing = true })
             }
         }
         if (lyrics != null && !lyrics.instrumental) {
@@ -133,22 +142,8 @@ internal fun LyricsPane(
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                if (lyrics != null) {
-                    AppText(
-                        stringResource(when (lyrics.source) {
-                            LyricsOrigin.Embedded -> Res.string.lyrics_source_embedded
-                            LyricsOrigin.File -> Res.string.lyrics_source_file
-                            LyricsOrigin.LrcLib -> Res.string.lyrics_source_online
-                        }), AppTheme.typography.caption1, color = secondary,
-                    )
-                    if (!lyrics.instrumental) {
-                        AppText(stringResource(if (lyrics.isSynced) Res.string.lyrics_estimated else Res.string.lyrics_plain), AppTheme.typography.caption2, color = secondary)
-                    }
-                }
-            }
-            if (importFile != null) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            if (importFile != null && !sharing) {
                 IconButton(AppIcons.ImportFile, stringResource(Res.string.lyrics_import), onClick = { importFile(track) })
             }
         }
@@ -188,7 +183,7 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(top = 32.dp, bottom = 120.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
             ) {
                 itemsIndexed(lyrics.lines) { index, line ->
                     LyricLine(
@@ -197,6 +192,8 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
                         subdued = lyrics.isSynced,
                         progress = if (index == active) lyrics.lineProgressAt(index, positionMs, durationMs) else null,
                         isPlaying = isPlaying,
+                        words = remember(line) { line.words.map { LyricWordTiming(it.start, it.end, it.startMs, it.endMs) } },
+                        positionMs = positionMs,
                         seekLabel = seekLabel,
                         onSeek = line.timeMs?.let { timestamp -> { following = true; onSeek(timestamp) } },
                         modifier = if (lyrics.isSynced && line.text.isBlank()) Modifier.semantics { contentDescription = breakLabel } else Modifier,

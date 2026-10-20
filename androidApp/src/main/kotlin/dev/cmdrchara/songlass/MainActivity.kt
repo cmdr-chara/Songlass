@@ -27,6 +27,27 @@ class MainActivity : ComponentActivity() {
     private val requestAudioPermission =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { app.musicSource.refreshAccess() }
 
+    private val recoveryConsent = registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) lifecycleScope.launch { recoverTagSave(requestConsent = false) }
+    }
+
+    private suspend fun recoverTagSave(requestConsent: Boolean) {
+        val editor = app.graph.tagEditor as? dev.cmdrchara.songlass.library.TagLibFileTagEditor ?: return
+        try {
+            if (editor.pendingRecoveryUri() == null) return
+            editor.recoverInterruptedSave()
+            app.graph.refreshLibrary()
+        } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled }
+        catch (denied: SecurityException) {
+            if (requestConsent) editor.pendingRecoveryUri()?.let { uri ->
+                try {
+                    val sender = MediaStore.createWriteRequest(contentResolver, listOf(uri)).intentSender
+                    recoveryConsent.launch(androidx.activity.result.IntentSenderRequest.Builder(sender).build())
+                } catch (failure: Exception) { android.util.Log.e("TagEditor", "Recovery permission unavailable", failure) }
+            }
+        } catch (failure: Exception) { android.util.Log.e("TagEditor", "Interrupted save recovery pending", failure) }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // Hand over from the launch splash: the icon swells and fades while the splash dissolves
@@ -36,6 +57,7 @@ class MainActivity : ComponentActivity() {
             view.iconView?.animate()?.scaleX(1.18f)?.scaleY(1.18f)?.alpha(0f)?.setDuration(SPLASH_EXIT_MS)?.start()
             view.animate().alpha(0f).setDuration(SPLASH_EXIT_MS).withEndAction(view::remove).start()
         }
+        lifecycleScope.launch { recoverTagSave(requestConsent = true) }
         handleVoiceRequest(intent)
         enableEdgeToEdge()
         setContent {

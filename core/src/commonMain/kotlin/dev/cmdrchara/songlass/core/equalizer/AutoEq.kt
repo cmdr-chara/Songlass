@@ -17,7 +17,7 @@ data class ParametricImport(val filters: List<EqFilter>, val skipped: Int)
 object AutoEq {
     const val MAX_FILTERS = 20
 
-    fun parse(text: String): ParametricImport {
+    fun parse(text: String, rejectOutOfRange: Boolean = false): ParametricImport {
         val filters = mutableListOf<EqFilter>()
         var skipped = 0
         for (raw in text.lineSequence()) {
@@ -32,7 +32,8 @@ object AutoEq {
             val frequency = match.groupValues[3].toDoubleOrNull()
             val gain = match.groupValues[4].toDoubleOrNull() ?: 0.0
             val q = match.groupValues[5].toDoubleOrNull() ?: DEFAULT_SHELF_Q
-            if (frequency == null || frequency <= 0.0) {
+            if (frequency == null || frequency <= 0.0 || !frequency.isFinite() || !gain.isFinite() || !q.isFinite() ||
+                (rejectOutOfRange && (frequency !in 10.0..22_000.0 || gain !in -MAX_GAIN_DB..MAX_GAIN_DB || q !in 0.1..10.0 || match.range.last != line.lastIndex))) {
                 skipped++
                 continue
             }

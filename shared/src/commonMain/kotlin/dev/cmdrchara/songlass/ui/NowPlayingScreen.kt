@@ -11,11 +11,9 @@ import dev.cmdrchara.songlass.core.playback.SleepTimerState
 import dev.cmdrchara.songlass.designsystem.VolumeSlider
 
 import androidx.compose.foundation.combinedClickable
+import dev.cmdrchara.songlass.designsystem.foundation.playerArtworkTarget
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.heightIn
@@ -83,6 +81,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState, favoriteIds: List<String>, labels: PlaybackLabels, onArtworkTap: () -> Unit) {
     val track = queue.current?.track ?: return
+    val trackArtwork = remember(track, state.library) { track.artwork(state.library) }
     val controller = state.controller
     val secondary = LocalContentColor.current.copy(alpha = 0.72f)
     val isFavorite = track.id in favoriteIds
@@ -105,7 +104,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             PlayerPage.Lyrics -> LyricsPane(track, player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, player.isPlaying, state.lyrics, controller::seekTo, Modifier.fillMaxSize())
                             PlayerPage.Queue -> {
                                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    AlbumArt(track.artwork(), Modifier.size(48.dp), cornerRadius = 8.dp)
+                                    AlbumArt(trackArtwork, Modifier.size(48.dp), cornerRadius = 8.dp)
                                     Spacer(Modifier.width(12.dp))
                                     Column(Modifier.weight(1f)) {
                                         AppText(track.title, AppTheme.typography.headline, maxLines = 1)
@@ -119,14 +118,15 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             }
                             PlayerPage.Artwork -> {
                                 if (LocalArtworkPresentation.current == ArtworkPresentation.Square) {
-                                    // Classic layout: a rounded cover card that shrinks a little while paused.
-                                    val reduceMotion = AppTheme.accessibility.reduceMotion
-                                    val artScale by animateFloatAsState(if (player.isPlaying || reduceMotion) 1f else 0.86f, label = "squareArtScale")
-                                    Box(Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                                    // A full-width rounded square, with the same resting size in pause/play.
+                                    BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(vertical = 8.dp), contentAlignment = Alignment.Center) {
+                                        // Fit both dimensions. Height-first aspectRatio could overflow
+                                        // the width and clip the rounded sides when the flight ended.
+                                        val artworkSide = minOf(maxWidth, maxHeight)
                                         AlbumArt(
-                                            track.artwork(),
-                                            Modifier.fillMaxHeight().aspectRatio(1f, matchHeightConstraintsFirst = true)
-                                                .graphicsLayer { scaleX = artScale; scaleY = artScale }
+                                            trackArtwork,
+                                            Modifier.size(artworkSide)
+                                                .playerArtworkTarget(cornerRadius = 12.dp)
                                                 .combinedClickable(
                                                     role = Role.Button,
                                                     onClick = {},
@@ -145,7 +145,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                     onLongClickLabel = expandArtworkLabel,
                                     onLongClick = { state.updateArtworkExpansion(true) },
                                 ).semantics { contentDescription = artworkLabel }) else Spacer(Modifier.weight(1f))
-                                Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         AppText(track.title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold), maxLines = 2)
                                         AppText(artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
@@ -155,7 +155,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                         contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                                         onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
                                     )
-                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.Checkmark, stringResource(Res.string.playback_on_device), onClick = state::showSongInfo, filled = true)
+                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.InfoCircle, stringResource(Res.string.playback_song_info), onClick = state::showSongInfo, filled = true)
                                 }
                             }
                         }
@@ -304,7 +304,7 @@ private fun ReorderableQueue(queue: PlaybackQueue, state: AppState, modifier: Mo
                 ListRow(
                     title = entry.track.title,
                     subtitle = artistName(entry.track.artist),
-                    leading = { AlbumArt(entry.track.artwork(), Modifier.size(40.dp), cornerRadius = 6.dp) },
+                    leading = { AlbumArt(rememberTrackArtwork(entry.track), Modifier.size(40.dp), cornerRadius = 6.dp) },
                     trailing = {
                         AppIcon(
                             icon = AppIcons.DragHandle,

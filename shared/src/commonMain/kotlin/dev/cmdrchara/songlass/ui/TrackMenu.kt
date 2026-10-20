@@ -10,6 +10,7 @@ import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.shared.resources.tags_edit
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.playlist_add_to
 import dev.cmdrchara.songlass.shared.resources.playlist_remove_song
@@ -50,6 +51,7 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
                 stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                 if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
             ) { state.favorites.toggle(track.id) },
+            if (state.tagEditor != null) SheetAction(stringResource(Res.string.tags_edit), AppIcons.Lyrics) { state.openTagEditor(track) } else null,
             // Lone songs are not albums, so there is nothing to go to.
             if (state.library.albumOf(track) != null) {
                 SheetAction(stringResource(Res.string.action_go_to_album), AppIcons.Library) { state.showAlbumOf(track) }

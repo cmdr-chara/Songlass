@@ -15,13 +15,14 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.audio.DefaultAudioSink
 import dev.cmdrchara.songlass.playback.EqualizerProcessor
-import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
+import dev.cmdrchara.songlass.playback.PlaybackAudioAttributes
+import dev.cmdrchara.songlass.playback.PlayerVoice
 import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.library.MediaStoreArtworkLoader
 import dev.cmdrchara.songlass.library.MediaStoreMusicSource
 import dev.cmdrchara.songlass.lyrics.EmbeddedLyricsSource
 import dev.cmdrchara.songlass.lyrics.LrcLibLyricsSource
+import dev.cmdrchara.songlass.lyrics.AmllLyricsSource
 import dev.cmdrchara.songlass.playback.Media3AudioPlayer
 import kotlinx.coroutines.MainScope
 
@@ -38,35 +39,44 @@ class SonglassApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         val scope = MainScope()
-        val equalizer = EqualizerProcessor()
         // The equalizer runs inside ExoPlayer's audio sink, so it works the same on every device
         // (android.media.audiofx.Equalizer bands and quality depend on the manufacturer).
-        val renderers = object : DefaultRenderersFactory(this) {
-            override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
-                DefaultAudioSink.Builder(context)
-                    .setEnableFloatOutput(enableFloatOutput)
-                    .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
-                    .setAudioProcessors(arrayOf(equalizer))
-                    .build()
+        // Crossfade overlaps two tracks on two players, each with its own equalizer instance and
+        // the same full-quality processing. Only the first player handles audio focus: two
+        // players asking for it would take it from one another in the middle of an overlap.
+        fun buildVoice(handleAudioFocus: Boolean): PlayerVoice {
+            val equalizer = EqualizerProcessor()
+            val renderers = object : DefaultRenderersFactory(this) {
+                override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
+                    DefaultAudioSink.Builder(context)
+                        .setEnableFloatOutput(enableFloatOutput)
+                        .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams)
+                        .setAudioProcessors(arrayOf(equalizer))
+                        .build()
+            }
+            val player = ExoPlayer.Builder(this, renderers)
+                .setAudioAttributes(PlaybackAudioAttributes, handleAudioFocus)
+                // Pause when headphones are unplugged (HIG "Playing audio", same rule on Android).
+                .setHandleAudioBecomingNoisy(true)
+                .build()
+            return PlayerVoice(player, equalizer, focusOwner = handleAudioFocus)
         }
-        val exoPlayer = ExoPlayer.Builder(this, renderers)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
-                    .build(),
-                /* handleAudioFocus = */ true,
-            )
-            // Pause when headphones are unplugged (HIG "Playing audio", same rule on Android).
-            .setHandleAudioBecomingNoisy(true)
-            .build()
+        val first = buildVoice(handleAudioFocus = true)
+        val exoPlayer = first.player
         musicSource = MediaStoreMusicSource(this)
         artworkLoader = MediaStoreArtworkLoader(this)
+        // The second player only exists while crossfade is on: Media3AudioPlayer builds it on demand.
+        val audioPlayer = Media3AudioPlayer(exoPlayer, scope, first.equalizer, standbyFactory = { buildVoice(handleAudioFocus = false) })
+        val tagEditor = dev.cmdrchara.songlass.library.TagLibFileTagEditor(this, audioPlayer::withFileWrite) { graph.refreshLibrary() }
         graph = AppGraph(
-            Media3AudioPlayer(exoPlayer, scope, equalizer), musicSource, SharedPreferencesStore(this), scope,
-            localLyrics = EmbeddedLyricsSource(exoPlayer),
+            audioPlayer, musicSource, SharedPreferencesStore(this), scope,
+            // Reads the ExoPlayer of the current track, which changes when crossfade swaps players.
+            localLyrics = EmbeddedLyricsSource { audioPlayer.exoPlayer },
             remoteLyrics = LrcLibLyricsSource(this),
+            amllLyrics = AmllLyricsSource(this),
+            tagEditor = tagEditor,
         )
+        dev.cmdrchara.songlass.playback.watchOutputEqualizer(this, graph.equalizer, graph.player, scope)
         watchAudioOutputs()
         NowPlayingWidgets.observe(this, scope)
     }

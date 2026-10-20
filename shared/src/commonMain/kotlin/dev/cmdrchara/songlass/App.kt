@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalSheetTint
-import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkHeaderIsDark
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
@@ -18,6 +17,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import dev.cmdrchara.songlass.core.settings.AppearanceMode
@@ -30,13 +31,16 @@ import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.NowPlayingSheet
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkImageLoader
+import dev.cmdrchara.songlass.designsystem.foundation.LARGE_ARTWORK_PX
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkImageLoader
+import dev.cmdrchara.songlass.designsystem.foundation.PrefetchArtwork
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.playback_close
 import dev.cmdrchara.songlass.shared.resources.playback_artwork
 import dev.cmdrchara.songlass.shared.resources.playback_expand_artwork
 import dev.cmdrchara.songlass.shared.resources.playback_close_artwork
+import dev.cmdrchara.songlass.ui.LocalMusicLibrary
 import dev.cmdrchara.songlass.ui.PlayerPage
 import dev.cmdrchara.songlass.ui.SongInformation
 import dev.cmdrchara.songlass.shared.resources.tab_home
@@ -111,8 +115,12 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
     // Navigation state outlives a change of interface style.
     val state = remember(graph) { AppState(graph) }
     val playingQueue by graph.controller.queue.collectAsState()
-    val ambientArtwork = playingQueue.current?.track?.artwork()
-    CompositionLocalProvider(LocalAmbientArtwork provides ambientArtwork) {
+    val visibleLibrary by graph.library.collectAsState()
+    val playingTrack = playingQueue.current?.track
+    val ambientArtwork = remember(playingTrack, visibleLibrary) { playingTrack?.artwork(visibleLibrary) }
+    // The player opens on the full-size cover: decode it while only the mini player shows.
+    PrefetchArtwork(ambientArtwork, LARGE_ARTWORK_PX)
+    CompositionLocalProvider(LocalAmbientArtwork provides ambientArtwork, LocalMusicLibrary provides visibleLibrary) {
     InterfaceTheme(preferences.interfaceStyle, darkTheme, accessibility) {
         val library by graph.library.collectAsState()
         val hasLibraryAccess by graph.source.hasAccess.collectAsState()
@@ -126,23 +134,22 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val labels = playbackLabels()
         val current = queue.current?.track
         val currentId = current?.id
+        val currentArtwork = remember(current, library) { current?.artwork(library) }
         LaunchedEffect(currentId) { state.updateArtworkExpansion(false); state.closeSongInfo() }
         val nowPlayingVisible = state.isNowPlayingOpen && current != null
         // Page tints may follow artwork; playback controls always keep the selected appearance.
         val followArtwork = preferences.artworkStyle == ArtworkStyle.FullBleed
         val tintedArtwork = when {
-            nowPlayingVisible -> current?.artwork()
+            nowPlayingVisible -> currentArtwork
             else -> state.currentRoute.pageArtwork(state)
         }
         val contextTint = rememberArtworkTint(tintedArtwork, darkTheme, followArtwork && !nowPlayingVisible)
         val tintIsDark = contextTint.isDark
         val routeArtwork = state.currentRoute.pageArtwork(state)
         val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
-        val artworkBehindStatusBar = nowPlayingVisible && followArtwork &&
-            state.playerPage == PlayerPage.Artwork && !state.isArtworkExpanded
-        val headerDark = rememberArtworkHeaderIsDark(current?.artwork(), darkTheme)
+        var playerStatusBarLightIcons by remember { mutableStateOf<Boolean?>(null) }
         SystemBarAppearance(
-            lightIcons = if (artworkBehindStatusBar) headerDark else if (tintedArtwork != null) tintIsDark else darkTheme,
+            lightIcons = playerStatusBarLightIcons ?: if (routeArtwork != null) routeTint.isDark else darkTheme,
             navigationLightIcons = if (tintedArtwork != null) tintIsDark else darkTheme,
         )
         val tabTitles = mapOf(
@@ -157,7 +164,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                     state = MiniPlayerState(
                         title = current.title,
                         subtitle = artistName(current.artist),
-                        artwork = current.artwork(),
+                        artwork = currentArtwork ?: current.artwork(),
                         isPlaying = player.isPlaying,
                         progress = if (player.durationMs > 0) player.positionMs.toFloat() / player.durationMs else 0f,
                     ),
@@ -198,19 +205,38 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                         val backLabel = tabTitles.getValue(destination.tab)
                         when (val route = destination.route) {
                             Route.Settings -> SettingsScreen(
+                                pane = state.settingsPane,
+                                onPaneChanged = state::selectSettingsPane,
+                                isActive = state.currentRoute == Route.Settings && !nowPlayingVisible && !state.hasOverlay,
                                 settings = graph.settings,
                                 preferences = preferences,
+                                supportsAmllLyrics = graph.supportsAmllLyrics,
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,
                                 onOpenEqualizer = { state.open(Route.Equalizer) },
                                 onOpenLibrary = { state.open(Route.LibrarySettings) },
+                                onOpenAbout = { state.open(Route.About) },
+                                onOpenHomeCustomization = { state.open(Route.HomeCustomization) },
+                                onOpenBackup = { state.open(Route.Backup) },
                                 backLabel = backLabel,
                                 onBack = state::goBack,
                                 contentPadding = padding,
                             )
+                            Route.HomeCustomization -> dev.cmdrchara.songlass.ui.HomeCustomizationScreen(
+                                state = state,
+                                backLabel = stringResource(Res.string.settings_title), onBack = state::goBack, contentPadding = padding,
+                            )
+                            Route.Backup -> dev.cmdrchara.songlass.ui.BackupScreen(graph, state::goBack, padding)
+                            Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(state::goBack, padding)
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
                             Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding)
-                            Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, padding)
+                            is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
+                            is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
+                            is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)
+                            Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding)
+                            Route.AutoEqCatalog -> dev.cmdrchara.songlass.ui.AutoEqCatalogScreen(graph.autoEq, state, padding)
+                            is Route.AutoEqDetail -> dev.cmdrchara.songlass.ui.AutoEqDetailScreen(route.entry, graph.autoEq, graph.equalizer,
+                                state::goBack, { state.goBack(); state.goBack() }, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                             is Route.FolderDetail -> FolderScreen(route.folder, state, currentId, backLabel, padding)
@@ -228,7 +254,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             Box(Modifier.fillMaxSize().then(if (state.hasOverlay) Modifier.clearAndSetSemantics {} else Modifier)) {
                 NowPlayingSheet(
                     visible = nowPlayingVisible,
-                    artwork = current?.artwork(),
+                    artwork = currentArtwork,
                     artworkVisible = state.playerPage == PlayerPage.Artwork,
                     artworkExpanded = state.isArtworkExpanded,
                     artworkLabel = stringResource(Res.string.playback_artwork),
@@ -237,6 +263,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                     onArtworkExpandedChange = state::updateArtworkExpansion,
                     dismissLabel = stringResource(Res.string.playback_close),
                     onDismiss = state::closeNowPlaying,
+                    onStatusBarAppearanceChange = { playerStatusBarLightIcons = it },
                 ) { onArtworkTap ->
                     NowPlayingContent(state, queue, player, favoriteIds, labels, onArtworkTap)
                 }
@@ -248,6 +275,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                 SleepTimerMenu(state)
                 dev.cmdrchara.songlass.ui.LibraryDurationMenu(state)
                 PlaylistSheets(state, rememberPlaylistExporter())
+                dev.cmdrchara.songlass.ui.SmartPlaylistDeleteSheet(state)
             }
         }
         }
@@ -260,15 +288,29 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
 private fun InterfaceTheme(style: InterfaceStyle, darkTheme: Boolean, accessibility: UiAccessibility, content: @Composable () -> Unit) {
     // One tree for every style: only the provided values change (see MaterialGlassLayer).
     LiquidGlassTheme(darkTheme = darkTheme, accessibility = accessibility) {
-        MaterialGlassLayer(enabled = style == InterfaceStyle.MaterialGlass, darkTheme = darkTheme, content = content)
+        dev.cmdrchara.songlass.theme.miuix.MiuixLayer(enabled = style == InterfaceStyle.Miuix, darkTheme = darkTheme) {
+            MaterialGlassLayer(enabled = style == InterfaceStyle.MaterialGlass, darkTheme = darkTheme, content = content)
+        }
     }
 }
 
 /** The cover a page is tinted with (album, folder, artist, playlist), so the bars match it. */
+@Composable
 private fun Route?.pageArtwork(state: AppState): Artwork? = when (this) {
     is Route.AlbumDetail -> album.artwork()
     is Route.FolderDetail -> folder.artwork()
     is Route.ArtistDetail -> artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
     is Route.UserPlaylistDetail -> state.userPlaylists.get(id)?.let { it.artwork(it.tracksIn(state.library)) }
+    is Route.SmartPlaylistDetail -> {
+        val playlists by state.smartPlaylists.playlists.collectAsState()
+        val history by state.history.state.collectAsState()
+        val favorites by state.favorites.ids.collectAsState()
+        val now = dev.cmdrchara.songlass.ui.rememberPlaylistTime()
+        // Playback position ticks must not repeatedly sort the smart playlist for its tint.
+        remember(id, playlists, state.library, history, favorites, now) {
+            playlists.firstOrNull { it.id == id }?.rules?.resolve(state.library, history, favorites.toSet(), now)
+                ?.firstOrNull()?.artwork()
+        }
+    }
     else -> null
 }

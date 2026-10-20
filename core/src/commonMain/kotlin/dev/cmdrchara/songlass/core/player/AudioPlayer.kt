@@ -53,11 +53,26 @@ interface AudioPlayer {
      */
     fun setNext(track: Track?)
 
+    /** Updates descriptive metadata without restarting playback. */
+    fun updateMetadata(track: Track) {}
+
     /** Player output volume, 0..1, on top of the device volume (used for ReplayGain). */
     fun setVolume(volume: Float)
 
     /** Equalizer applied to the output; players without one ignore it. */
     fun setEqualizer(chain: EqChain) {}
+
+    /**
+     * Length of the overlap between the end of a track and the start of the next one, 0 (off) to
+     * [Crossfade.MAX_DURATION_MS]. Players that cannot overlap decoded audio ignore it and keep
+     * playing gaplessly. Takes effect from the next transition; a running overlap finishes.
+     */
+    fun setCrossfade(durationMs: Long) {}
+
+    /** True when the platform applies loudness tags separately to each overlapping decoder. */
+    val handlesReplayGain: Boolean get() = false
+
+    fun setReplayGainMode(mode: ReplayGainMode) {}
     fun play()
     fun pause()
     fun seekTo(positionMs: Long)

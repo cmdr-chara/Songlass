@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -73,18 +74,18 @@ internal fun MaterialShortcutTile(title: String, artwork: Artwork, circular: Boo
     val palette = currentPalette()
     Row(
         modifier
-            .height(64.dp)
+            .heightIn(min = 64.dp)
             .clip(RoundedCornerShape(20.dp))
             .background(palette.container)
             .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick)
-            .padding(6.dp),
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(52.dp).clip(if (circular) ExpressiveShapes.Cookie else RoundedCornerShape(14.dp))) {
+        Box(Modifier.size(44.dp).clip(if (circular) ExpressiveShapes.Cookie else RoundedCornerShape(14.dp))) {
             AlbumArt(artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
         }
         Spacer(Modifier.width(10.dp))
-        AppText(title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Bold), maxLines = 2, modifier = Modifier.padding(end = 6.dp))
+        AppText(title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Bold), maxLines = 2, modifier = Modifier.weight(1f).padding(end = 4.dp))
     }
 }
 

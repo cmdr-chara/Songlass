@@ -22,6 +22,10 @@ sealed interface PlayContext {
         override val key: String get() = "userplaylist$FIELD$id"
     }
 
+    data class SmartPlaylist(val id: String) : PlayContext {
+        override val key: String get() = "smartplaylist$FIELD$id"
+    }
+
     data object Favorites : PlayContext {
         override val key: String get() = "favorites"
     }
@@ -37,6 +41,7 @@ sealed interface PlayContext {
                 "playlist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { Playlist(it) }
                 "artist" -> if (parts.size >= 2) Artist(parts[1].ifEmpty { null }) else null
                 "userplaylist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { UserPlaylist(it) }
+                "smartplaylist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { SmartPlaylist(it) }
                 "favorites" -> Favorites
                 else -> null
             }

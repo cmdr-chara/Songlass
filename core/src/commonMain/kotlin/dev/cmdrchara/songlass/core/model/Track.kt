@@ -27,9 +27,15 @@ data class Track(
     /** Individual ARTISTS / multi-value artist credits; the original display tag is preserved. */
     val artists: List<String> = emptyList(),
     val releaseDate: ReleaseDate? = null,
+    /** Changes when file metadata/artwork changes; never used as the playable URI. */
+    val artworkRevision: Long = 0,
+    /** Genre as tagged/indexed by the platform; null when unknown. */
+    val genre: String? = null,
 ) {
     /** `folder/fileName` relative to the storage root, as written in M3U playlists; null if unknown. */
     val path: String? get() = fileName?.let { name -> folder?.takeIf { it.isNotBlank() }?.let { "${it.trim('/')}/$name" } ?: name }
+
+    val artworkKey: String get() = if (artworkRevision == 0L) uri else "$uri#songlass:$artworkRevision"
 
     val artistNames: List<String> get() = ArtistTags.names(artist, artists)
 

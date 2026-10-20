@@ -7,6 +7,32 @@ package dev.cmdrchara.songlass.core.storage
 interface KeyValueStore {
     fun getString(key: String): String?
     fun putString(key: String, value: String?)
+
+    /**
+     * Every string entry currently stored, or null when this store cannot enumerate its keys.
+     * Used by backup; entries of other types and platform-owned keys may be left out or ignored.
+     */
+    fun snapshot(): Map<String, String>? = null
+
+    /**
+     * Removes the keys in [removing], then stores every entry of [writing], as one unit: when this
+     * throws, the store holds the values it had before the call. Keys in both are written.
+     *
+     * The default goes through [putString] and puts the previous values back on failure, which
+     * suits stores without a native transaction; platform stores override it where they have one.
+     */
+    fun replace(removing: Set<String>, writing: Map<String, String>) {
+        val touched = removing + writing.keys
+        val previous = touched.associateWith { getString(it) }
+        try {
+            removing.forEach { putString(it, null) }
+            writing.forEach { (key, value) -> putString(key, value) }
+        } catch (failure: Throwable) {
+            // Best effort: keep restoring even if one key cannot be put back.
+            previous.forEach { (key, value) -> runCatching { putString(key, value) } }
+            throw failure
+        }
+    }
 }
 
 /** Volatile store for tests and the demo setup. */
@@ -15,6 +41,16 @@ class InMemoryKeyValueStore : KeyValueStore {
     override fun getString(key: String): String? = values[key]
     override fun putString(key: String, value: String?) {
         if (value == null) values.remove(key) else values[key] = value
+    }
+
+    override fun snapshot(): Map<String, String> = values.toMap()
+
+    override fun replace(removing: Set<String>, writing: Map<String, String>) {
+        val next = values.toMutableMap()
+        removing.forEach { next.remove(it) }
+        next.putAll(writing)
+        values.clear()
+        values.putAll(next)
     }
 }
 

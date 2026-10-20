@@ -1,0 +1,5 @@
+Miuix 0.9.4
+Copyright 2025-2026 compose-miuix-ui contributors.
+License: Apache License 2.0 (miuix-APACHE-2.0.txt).
+https://github.com/compose-miuix-ui/miuix/tree/v0.9.4
+Songlass uses the official miuix-ui and miuix-blur libraries and their dependencies without modifying library sources.

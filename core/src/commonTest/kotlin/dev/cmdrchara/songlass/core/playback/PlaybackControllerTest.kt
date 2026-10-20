@@ -31,6 +31,25 @@ class PlaybackControllerTest {
     }
 
     @Test
+    fun savedTagsRefreshDuplicateAndUnshuffledSlotsWithoutRestarting() = test { controller ->
+        val first = track("1")
+        controller.playTracks(listOf(first, track("2"), first))
+        player.seekTo(1234)
+        controller.setShuffle(true)
+        val ids = controller.queue.value.entries.map { it.id }
+        val current = controller.queue.value.current?.id
+        val updated = first.copy(title = "Edited", artworkRevision = 42)
+        controller.refreshTracks(listOf(updated))
+        assertEquals(ids, controller.queue.value.entries.map { it.id })
+        assertEquals(current, controller.queue.value.current?.id)
+        assertEquals(1234, player.state.value.positionMs)
+        assertTrue(player.state.value.isPlaying)
+        assertTrue(controller.queue.value.entries.filter { it.track.id == "1" }.all { it.track == updated })
+        controller.setShuffle(false)
+        assertEquals(listOf(updated, track("2"), updated), controller.queue.value.entries.map { it.track })
+    }
+
+    @Test
     fun playTracksLoadsAndPlaysStartTrack() = test { controller ->
         controller.playTracks(tracks(3), startIndex = 1)
         assertEquals("2", player.loadedTrack?.id)

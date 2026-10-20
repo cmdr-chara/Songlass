@@ -31,11 +31,10 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
         else stringResource(Res.string.library_duration_seconds, (duration / 1000).toInt())
     }
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
-        item { BackLink(stringResource(Res.string.settings_title), onBack) }
-        item { AppText(stringResource(Res.string.library_settings), AppTheme.typography.largeTitle, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) }
+        item { BackPageTitle(stringResource(Res.string.library_settings), stringResource(Res.string.settings_title), onBack) }
         item { LibraryHint(stringResource(Res.string.library_filter_count, library.tracks.size, tracks.size)) }
         item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
                 ListRow(
                     title = stringResource(Res.string.library_minimum_duration),
                     subtitle = durationLabels[durations.indexOf(filter.minimumDurationMs)],
@@ -49,7 +48,7 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
         item { LibraryHint(stringResource(Res.string.library_exclusions_hint)) }
         if (folders.isEmpty()) item { LibraryHint(stringResource(Res.string.library_no_folders)) }
         else item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp)) {
+            SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                 @Composable fun folderRow(folder: LibraryFolderOption, depth: Int) {
                     val path = folder.path
                     val parentExcluded = filter.excludedFolders.any { path != it && path.startsWith("$it/") }

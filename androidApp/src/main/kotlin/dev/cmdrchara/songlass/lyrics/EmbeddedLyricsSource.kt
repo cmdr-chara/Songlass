@@ -20,20 +20,29 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
-/** Reads the already prepared track. It never opens another decoder or changes playback. */
+/**
+ * Reads the already prepared track. It never opens another decoder or changes playback.
+ * [currentPlayer] returns the ExoPlayer that plays the current track; with crossfade that is not
+ * always the same instance, so it is asked again at every step.
+ */
 @androidx.annotation.OptIn(UnstableApi::class)
-class EmbeddedLyricsSource(private val player: ExoPlayer) : LyricsSource {
-    private val dispatcher = Handler(player.applicationLooper).asCoroutineDispatcher("Lyrics metadata")
+class EmbeddedLyricsSource(private val currentPlayer: () -> ExoPlayer) : LyricsSource {
+    constructor(player: ExoPlayer) : this({ player })
+
+    // Both players are built on the main thread and share its looper.
+    private val dispatcher = Handler(currentPlayer().applicationLooper).asCoroutineDispatcher("Lyrics metadata")
 
     override suspend fun load(track: Track): Lyrics? = withContext(dispatcher) {
-        requireCurrentTrack(track)
-        readMetadata()?.let { return@withContext it }
-        if (player.playbackState == Player.STATE_BUFFERING) awaitPreparation(track)
-        requireCurrentTrack(track)
-        readMetadata()
+        requireCurrentTrack(currentPlayer(), track)
+        readMetadata(currentPlayer())?.let { return@withContext it }
+        if (currentPlayer().playbackState == Player.STATE_BUFFERING) awaitPreparation(currentPlayer(), track)
+        // The current track may have moved to the other player while waiting.
+        val player = currentPlayer()
+        requireCurrentTrack(player, track)
+        readMetadata(player)
     }
 
-    private suspend fun awaitPreparation(track: Track) {
+    private suspend fun awaitPreparation(player: ExoPlayer, track: Track) {
         withTimeoutOrNull(5_000L) {
             var listener: Player.Listener? = null
             try {
@@ -55,7 +64,7 @@ class EmbeddedLyricsSource(private val player: ExoPlayer) : LyricsSource {
         }
     }
 
-    private fun requireCurrentTrack(track: Track) {
+    private fun requireCurrentTrack(player: ExoPlayer, track: Track) {
         if (player.currentMediaItem?.mediaId != track.id ||
             player.currentMediaItem?.localConfiguration?.uri?.toString() != track.uri
         ) {
@@ -63,7 +72,7 @@ class EmbeddedLyricsSource(private val player: ExoPlayer) : LyricsSource {
         }
     }
 
-    private fun readMetadata(): Lyrics? {
+    private fun readMetadata(player: ExoPlayer): Lyrics? {
         var plain: Lyrics? = null
         for (group in player.currentTracks.groups) {
             for (index in 0 until group.length) {

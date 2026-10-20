@@ -49,10 +49,18 @@ class PlaybackService : MediaLibraryService() {
         super.onCreate()
         graph = (application as SonglassApplication).graph
         buttons = HeadsetButtons(graph.controller)
-        val player = (graph.player as Media3AudioPlayer).exoPlayer
-        session = MediaLibrarySession.Builder(this, QueueForwardingPlayer(player, graph.controller), LibraryCallback())
+        val audio = graph.player as Media3AudioPlayer
+        val forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio)
+        session = MediaLibrarySession.Builder(this, forwardingPlayer, LibraryCallback())
             .setBitmapLoader(EmbeddedArtworkBitmapLoader(this))
             .build()
+        // With crossfade the track that starts becomes the current one on the other ExoPlayer: the
+        // session (notification, lock screen, Android Auto) moves to it at that moment.
+        scope.launch {
+            audio.activePlayer.collect { active ->
+                forwardingPlayer.switchPlayer(active)
+            }
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
@@ -195,7 +203,7 @@ class PlaybackService : MediaLibraryService() {
             .setIsBrowsable(node.browsable)
             .setIsPlayable(node.playable)
             .setMediaType(if (node.browsable) MediaMetadata.MEDIA_TYPE_FOLDER_MIXED else MediaMetadata.MEDIA_TYPE_MUSIC)
-            .setArtworkUri(node.artworkTrack?.let { ArtworkProvider.uriFor(it.id) })
+            .setArtworkUri(node.artworkTrack?.let { ArtworkProvider.uriFor(it.id, it.artworkRevision) })
             .setExtras(extras)
             .build()
         return MediaItem.Builder().setMediaId(node.id).setMediaMetadata(metadata).build()
@@ -217,6 +225,9 @@ internal fun browseTree(context: android.content.Context, graph: AppGraph): Brow
             library = library,
             favorites = graph.favorites.tracksIn(library),
             userPlaylists = graph.userPlaylists.playlists.value,
+            smartPlaylists = graph.smartPlaylists.playlists.value,
+            history = graph.history.state.value,
+            nowMs = kotlin.time.Clock.System.now().toEpochMilliseconds(),
             recent = graph.history.state.value.recentContexts.map { it.context },
             labels = BrowseLabels(
                 home = getString(R.string.browse_home),

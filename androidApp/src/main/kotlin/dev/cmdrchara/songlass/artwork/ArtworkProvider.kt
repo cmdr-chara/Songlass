@@ -52,6 +52,8 @@ class ArtworkProvider : ContentProvider() {
         /** Every cover URI starts with this, so one prefix grant covers them all. */
         val baseUri: Uri = Uri.parse("content://$AUTHORITY/track/")
 
-        fun uriFor(trackId: String): Uri = Uri.withAppendedPath(baseUri, trackId)
+        fun uriFor(trackId: String, revision: Long = 0): Uri = Uri.withAppendedPath(baseUri, trackId).let { uri ->
+            if (revision == 0L) uri else uri.buildUpon().appendQueryParameter("revision", revision.toString()).build()
+        }
     }
 }

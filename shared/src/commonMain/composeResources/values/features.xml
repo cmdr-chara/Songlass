@@ -1,0 +1,35 @@
+<resources>
+    <string name="settings_crossfade">Crossfade</string>
+    <string name="settings_crossfade_off">Off</string>
+    <string name="settings_crossfade_seconds">%1$d seconds</string>
+    <string name="settings_crossfade_hint">Blend the end of a song into the next. Off keeps gapless playback. Short tracks use a shorter fade.</string>
+    <string name="settings_home_customization">Customize Home</string>
+    <string name="settings_backup">Backup and restore</string>
+    <string name="backup_title">Backup and restore</string>
+    <string name="backup_intro">Save favourites, playlists, listening history, Home layout, settings and equalizer profiles in a file you choose. Music files and cached downloads are not included.</string>
+    <string name="backup_export">Create backup</string>
+    <string name="backup_import">Open backup</string>
+    <string name="backup_unavailable">File access is not available on this platform yet.</string>
+    <string name="backup_busy">Working…</string>
+    <string name="backup_export_success">Backup saved.</string>
+    <string name="backup_restore_success">Backup restored. Your data is ready to use.</string>
+    <string name="backup_failed">The operation failed. Your existing data has been preserved.</string>
+    <string name="backup_invalid">This file is not a valid supported Songlass backup. Nothing has changed.</string>
+    <string name="backup_preview">Restore preview</string>
+    <string name="backup_preview_hint">Restoring replaces your current app data with this backup. Your music files stay unchanged.</string>
+    <string name="backup_entries">Saved entries</string>
+    <string name="backup_matched">Songs found in your library</string>
+    <string name="backup_missing">Songs currently unavailable</string>
+    <string name="backup_missing_hint">Unavailable songs cannot be played here. They are reported so you can check the library before restoring.</string>
+    <string name="backup_restore">Restore this backup</string>
+    <string name="backup_cancel">Cancel</string>
+    <string name="backup_confirm_title">Replace app data?</string>
+    <string name="backup_confirm_hint">Replace favourites, playlists, listening history, settings and Home layout with the data in this backup.</string>
+    <string name="backup_library_loading">Wait for the library scan to finish before creating or restoring a backup.</string>
+    <string name="backup_playlists">Playlists</string>
+    <string name="backup_history">Dated listens</string>
+    <string name="backup_profiles">Equalizer profiles</string>
+    <string name="backup_conflicting">Songs with uncertain matches</string>
+    <string name="backup_conflict_hint">Uncertain matches will be removed from restored lists and history to avoid assigning your data to a different song.</string>
+    <string name="backup_omitted_lyrics">Some imported lyrics could not fit in this backup. The other app data is included.</string>
+</resources>

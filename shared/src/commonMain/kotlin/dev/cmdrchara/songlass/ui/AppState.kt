@@ -30,8 +30,16 @@ sealed interface PlaylistPrompt {
 }
 
 sealed interface Route {
+    data object About : Route
     data object Settings : Route
+    data object HomeCustomization : Route
+    data object Backup : Route
+    data class TagEditor(val track: Track) : Route
     data object Equalizer : Route
+    data object AutoEqCatalog : Route
+    data class AutoEqDetail(val entry: dev.cmdrchara.songlass.core.equalizer.AutoEqEntry) : Route
+    data class SmartPlaylistDetail(val id: String) : Route
+    data class SmartPlaylistEditor(val id: String? = null) : Route
     data object LibrarySettings : Route
     data object ListeningStatistics : Route
     data class AlbumDetail(val album: Album) : Route
@@ -55,7 +63,10 @@ class AppState(graph: AppGraph) {
     val pins = graph.pins
     val searchHistory = graph.searchHistory
     val settings = graph.settings
+    val homeCustomization = graph.homeCustomization
+    val tagEditor = graph.tagEditor
     val equalizer = graph.equalizer
+    val smartPlaylists = graph.smartPlaylists
     val userPlaylists = graph.userPlaylists
     val sleepTimer = graph.sleepTimer
     val isLibraryLoading = graph.isLibraryLoading
@@ -65,9 +76,18 @@ class AppState(graph: AppGraph) {
     /** Latest library snapshot; updated by the UI from [AppGraph.library]. */
     var library by mutableStateOf(graph.library.value)
 
+    /** Settings keeps its pane while an external editor (for example EQ) is on top. */
+    var settingsPane by mutableStateOf(SettingsPane.Overview)
+        private set
+    fun selectSettingsPane(pane: SettingsPane) { settingsPane = pane }
+
     var tab by mutableStateOf(Tab.Home)
         private set
+    /** Changes on every Search activation, including a repeated tap on its button. */
+    var searchFocusRequest by mutableStateOf(0)
+        private set
     var searchQuery by mutableStateOf("")
+    var autoEqQuery by mutableStateOf("")
     var searchFilter by mutableStateOf(SearchFilter.All)
     var isNowPlayingOpen by mutableStateOf(false)
         private set
@@ -109,6 +129,7 @@ class AppState(graph: AppGraph) {
     val canGoBack: Boolean get() = hasOverlay || editingPlaylistId != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
+        if (newTab == Tab.Search) searchFocusRequest += 1
         // Tapping the current tab again returns to its root, as in iOS.
         if (newTab == tab) backStacks.getValue(tab).clear()
         tab = newTab
@@ -132,11 +153,13 @@ class AppState(graph: AppGraph) {
     }
 
     fun open(route: Route) {
+        if (route == Route.Settings) settingsPane = SettingsPane.Overview
         backStacks.getValue(tab).add(route)
     }
 
     fun goBack() {
         when {
+            deletingSmartPlaylistId != null -> closeDeleteSmartPlaylist()
             playlistPrompt != null -> closePlaylistPrompt()
             addToPlaylistTracks != null -> closeAddToPlaylist()
             playlistOptionsId != null -> closePlaylistOptions()
@@ -193,9 +216,19 @@ class AppState(graph: AppGraph) {
     /** User playlist whose songs show drag handles and remove buttons. */
     var editingPlaylistId by mutableStateOf<String?>(null)
 
+    var deletingSmartPlaylistId by mutableStateOf<String?>(null)
+        private set
+    fun askDeleteSmartPlaylist(id: String) { deletingSmartPlaylistId = id }
+    fun closeDeleteSmartPlaylist() { deletingSmartPlaylistId = null }
+
     val hasOverlay: Boolean
-        get() = isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
+        get() = deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
+
+    fun openTagEditor(track: Track) {
+        closeNowPlaying()
+        open(Route.TagEditor(track))
+    }
 
     fun closeMenu() {
         menuTrack = null

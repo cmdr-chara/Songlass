@@ -4,6 +4,8 @@ import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.ShelfItem
 import dev.cmdrchara.songlass.designsystem.EqBand
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListScope
+import dev.cmdrchara.songlass.designsystem.HomeHighlight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -19,6 +21,20 @@ import dev.cmdrchara.songlass.designsystem.UiStyle
 
 /** Apple-inspired style: iOS 26 Liquid Glass navigation layer over standard content. */
 object LiquidGlassStyle : UiStyle {
+    @Composable
+    override fun HomePage(title: String, trailing: @Composable () -> Unit, contentPadding: PaddingValues, modifier: Modifier, content: LazyListScope.() -> Unit) =
+        LocalGlassLook.current.HomePage(title, trailing, contentPadding, modifier, content)
+
+    @Composable
+    override fun HomeHighlights(items: List<HomeHighlight>, itemWidth: Dp, modifier: Modifier) = LocalGlassLook.current.HomeHighlights(items, itemWidth, modifier)
+
+    @Composable
+    override fun BackPageTitle(text: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
+        LocalGlassLook.current.BackPageTitle(text, backLabel, onBack, modifier)
+
+    @Composable
+    override fun PageTitle(text: String, trailing: (@Composable () -> Unit)?, modifier: Modifier) = LocalGlassLook.current.PageTitle(text, trailing, modifier)
+
 
     @Composable
     override fun <T> ScreenTransition(
@@ -84,7 +100,7 @@ object LiquidGlassStyle : UiStyle {
 
     @Composable
     override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassActionButton(text, icon, onClick, modifier)
+        LocalGlassLook.current.ActionButton(text, icon, onClick, modifier)
 
     @Composable
     override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) =
@@ -113,12 +129,16 @@ object LiquidGlassStyle : UiStyle {
     ) = LocalGlassLook.current.TransportControls(isPlaying, labels, onPrevious, onPlayPause, onNext, modifier)
 
     @Composable
-    override fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier) =
-        LiquidGlassLyricLine(text, active, subdued, progress, isPlaying, seekLabel, onSeek, modifier)
+    override fun LyricLine(text: String, active: Boolean, subdued: Boolean, progress: Float?, isPlaying: Boolean, seekLabel: String, onSeek: (() -> Unit)?, modifier: Modifier, words: List<dev.cmdrchara.songlass.designsystem.LyricWordTiming>, positionMs: Long) =
+        LiquidGlassLyricLine(text, active, subdued, progress, isPlaying, seekLabel, onSeek, modifier, words, positionMs)
 
     @Composable
     override fun LyricsViewport(modifier: Modifier, content: @Composable () -> Unit) =
         LiquidGlassLyricsViewport(modifier, content)
+
+    @Composable
+    override fun FormField(value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier) =
+        LocalGlassLook.current.FormField(value, onValueChange, label, enabled, modifier)
 
     @Composable
     override fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) =
@@ -136,12 +156,13 @@ object LiquidGlassStyle : UiStyle {
         onArtworkExpandedChange: (Boolean) -> Unit,
         dismissLabel: String,
         onDismiss: () -> Unit,
+        onStatusBarAppearanceChange: (Boolean?) -> Unit,
         content: @Composable (onArtworkTap: () -> Unit) -> Unit,
-    ) = LiquidGlassNowPlayingSheet(visible, artwork, artworkVisible, artworkExpanded, artworkLabel, expandArtworkLabel, closeArtworkLabel, onArtworkExpandedChange, dismissLabel, onDismiss, content)
+    ) = LiquidGlassNowPlayingSheet(visible, artwork, artworkVisible, artworkExpanded, artworkLabel, expandArtworkLabel, closeArtworkLabel, onArtworkExpandedChange, dismissLabel, onDismiss, onStatusBarAppearanceChange, content)
 
     @Composable
     override fun InfoSheet(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, onDismiss: () -> Unit) =
-        LiquidGlassActionSheet(visible, title, null, null, emptyList(), closeLabel, onDismiss, rows)
+        LocalGlassLook.current.InfoSheet(visible, title, rows, closeLabel, onDismiss)
 
     @Composable
     override fun ActionSheet(
@@ -152,26 +173,26 @@ object LiquidGlassStyle : UiStyle {
         actions: List<SheetAction>,
         cancelLabel: String,
         onDismiss: () -> Unit,
-    ) = LiquidGlassActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)
+    ) = LocalGlassLook.current.ActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)
 
     @Composable
     override fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) =
-        LiquidGlassArtworkTintedPage(artwork, modifier, content)
+        LocalGlassLook.current.ArtworkTintedPage(artwork, modifier, content)
 
     @Composable
     override fun ArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier) =
-        LiquidGlassArtworkHeader(artwork, contentDescription, modifier)
+        LocalGlassLook.current.ArtworkHeader(artwork, contentDescription, modifier)
 
     @Composable
     override fun Tag(text: String, modifier: Modifier) = LocalGlassLook.current.Tag(text, modifier)
 
     @Composable
     override fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassProminentButton(icon, contentDescription, onClick, modifier)
+        LocalGlassLook.current.ProminentButton(icon, contentDescription, onClick, modifier)
 
     @Composable
     override fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier) =
-        LiquidGlassFloatingBackButton(contentDescription, onClick, modifier)
+        LocalGlassLook.current.FloatingBackButton(contentDescription, onClick, modifier)
 
     @Composable
     override fun PosterCard(label: String, title: String, subtitle: String?, artwork: Artwork, onClick: () -> Unit, modifier: Modifier) =
@@ -187,7 +208,7 @@ object LiquidGlassStyle : UiStyle {
         cancelLabel: String,
         onConfirm: (String) -> Unit,
         onDismiss: () -> Unit,
-    ) = LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+    ) = LocalGlassLook.current.PromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
 
     @Composable
     override fun CollectionDetails(
@@ -224,8 +245,16 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.FolderChoiceRow(choice, onExpand, onExcludedChange, modifier)
 
     @Composable
-    override fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, modifier: Modifier) =
-        LocalGlassLook.current.ListeningChart(points, summary, modifier)
+    override fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, unrecordedLabel: String, modifier: Modifier) =
+        LocalGlassLook.current.ListeningChart(points, summary, unrecordedLabel, modifier)
+
+    @Composable
+    override fun StatSummary(figures: List<dev.cmdrchara.songlass.designsystem.StatFigure>, modifier: Modifier) =
+        LocalGlassLook.current.StatSummary(figures, modifier)
+
+    @Composable
+    override fun RankedRow(rank: Int, title: String, subtitle: String?, leading: (@Composable () -> Unit)?, value: String, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier) =
+        LocalGlassLook.current.RankedRow(rank, title, subtitle, leading, value, highlighted, onClick, modifier)
 
     @Composable
     override fun EqualizerEditor(

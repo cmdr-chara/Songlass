@@ -1,9 +1,18 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListScope
+import dev.cmdrchara.songlass.designsystem.HomeHighlight
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -11,6 +20,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -22,13 +34,82 @@ import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
+/** A parent shelf can own the page inset instead of applying it again inside each row. */
+val LocalGlassRowHorizontalInset = staticCompositionLocalOf<Dp?> { null }
+
 /**
- * How the shared glass components look. Structure, gestures and motion are the same for every
- * glass style; a look decides the materials and shapes. [LiquidLook] is Apple's Liquid Glass;
- * other styles (e.g. Material Glass) provide their own through [LocalGlassLook].
+ * Presentation of the shared component contracts. A look owns materials, shapes and the
+ * composition of style-specific sections while screens keep data and actions shared.
+ * [LiquidLook] is the default; other styles provide their own through [LocalGlassLook].
  */
 @Stable
 interface GlassLook {
+    /** Content rhythm and category navigation, independent of the glass navigation layer. */
+    val contentHorizontalInset: Dp get() = 20.dp
+    val sectionTitleBottomPadding: Dp get() = 8.dp
+    val libraryCategoriesAsRows: Boolean get() = true
+    /** Compact, inset iOS form for smart-playlist editing; other looks retain their own builder. */
+    val compactPlaylistForm: Boolean get() = true
+    /** Long shortcut categories use the look’s native menu rather than compressed tabs. */
+    val homeShortcutKindMenu: Boolean get() = false
+    val lyricsPresentation: dev.cmdrchara.songlass.designsystem.LyricsPresentation
+        get() = dev.cmdrchara.songlass.designsystem.LyricsPresentation()
+
+    val lyricsCardStyle: dev.cmdrchara.songlass.designsystem.LyricsCardStyle
+        get() = dev.cmdrchara.songlass.designsystem.LyricsCardStyle()
+
+    @Composable
+    fun HomePage(title: String, trailing: @Composable () -> Unit, contentPadding: PaddingValues, modifier: Modifier, content: LazyListScope.() -> Unit) =
+        GlassHomePage(title, trailing, contentPadding, modifier, content)
+
+    @Composable
+    fun HomeHighlights(items: List<HomeHighlight>, itemWidth: Dp, modifier: Modifier) = LiquidHomeHighlights(items, itemWidth, modifier)
+
+    /** Styles own the backdrop source and whether the background recedes under the player. */
+    val usesHazeBackdrop: Boolean get() = true
+    val recedesUnderPlayer: Boolean get() = true
+    val tintsNavigation: Boolean get() = true
+    @Composable
+    fun contentSource(modifier: Modifier): Modifier = modifier
+
+    @Composable
+    fun BackPageTitle(text: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
+        GlassBackPageTitle(text, backLabel, onBack, modifier)
+
+    @Composable
+    fun PageTitle(text: String, trailing: (@Composable () -> Unit)?, modifier: Modifier) = LiquidPageTitle(text, trailing, modifier)
+
+    @Composable
+    fun ActionSheet(visible: Boolean, title: String, subtitle: String?, artwork: Artwork?, actions: List<dev.cmdrchara.songlass.designsystem.SheetAction>, cancelLabel: String, onDismiss: () -> Unit) =
+        LiquidGlassActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss)
+
+    @Composable
+    fun InfoSheet(visible: Boolean, title: String, rows: List<dev.cmdrchara.songlass.designsystem.InfoRow>, closeLabel: String, onDismiss: () -> Unit) =
+        LiquidGlassActionSheet(visible, title, null, null, emptyList(), closeLabel, onDismiss, rows)
+
+    @Composable
+    fun PromptSheet(visible: Boolean, title: String, initialText: String, placeholder: String, confirmLabel: String, cancelLabel: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) =
+        LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
+
+    @Composable
+    fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) = LiquidGlassArtworkTintedPage(artwork, modifier, content)
+
+    @Composable
+    fun ArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier) = LiquidGlassArtworkHeader(artwork, contentDescription, modifier)
+
+    @Composable
+    fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier) = LiquidGlassFloatingBackButton(contentDescription, onClick, modifier)
+
+    @Composable
+    fun ProminentButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier) = LiquidGlassProminentButton(icon, contentDescription, onClick, modifier)
+
+    @Composable
+    fun PlayerContent(tint: dev.cmdrchara.songlass.designsystem.theme.ArtworkTint, content: @Composable () -> Unit) = ProvideArtworkTint(tint, content)
+
+    /** Music-specific artwork transition remains shared; each style supplies its palette. */
+    @Composable
+    fun playerTint(tint: dev.cmdrchara.songlass.designsystem.theme.ArtworkTint): dev.cmdrchara.songlass.designsystem.theme.ArtworkTint = tint
+
     /**
      * Glass of navigation-layer elements (tab bar, search, mini player), refracting the content
      * layer published in [LocalGlassSource]. [edges] is false for the bare material of the
@@ -41,6 +122,15 @@ interface GlassLook {
     @Composable
     fun navigationBarSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier =
         modifier.appleGlass(shape, interactionSource, edges, navigationBar = true)
+
+    /** Raised, refracting selection lens. Material overrides it with a tonal surface. */
+    @Composable
+    fun navigationSelectionSurface(modifier: Modifier, shape: RoundedCornerShape): Modifier =
+        modifier.navigationLens(shape)
+
+    /** Keep icon and label clear at larger system text sizes. */
+    @Composable
+    fun navigationBarHeight(): Dp = with(LocalDensity.current) { maxOf(64.dp, 40.dp + 14.sp.toDp()) }
 
     /**
      * A filled control inside the content layer (buttons, chips, fields, groups) in [color].
@@ -57,8 +147,15 @@ interface GlassLook {
     /** Corner radius of cards and grouped surfaces designed at [base] for Liquid Glass. */
     fun corner(base: Dp): Dp
 
-    /** Whether scrolling down folds the tab bar into one row with the mini player (iOS 26). */
+    /** Liquid folds the mini player inline on scroll; Material opts out. */
     val minimizesOnScroll: Boolean get() = true
+
+    /** One reversible motion drives both the sheet and its cover. */
+    val playerOpenMotion: FiniteAnimationSpec<Float> get() = spring(dampingRatio = 0.92f, stiffness = 300f, visibilityThreshold = 0.002f)
+    val playerCloseMotion: FiniteAnimationSpec<Float> get() = spring(dampingRatio = 1f, stiffness = 420f, visibilityThreshold = 0.002f)
+
+    /** Shape at the thumbnail end of the shared artwork transition. */
+    fun playerThumbnailShape(): RoundedCornerShape = RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50, topEndPercent = 20, bottomEndPercent = 20)
 
     /** Menus as a bottom sheet attached to the screen edge instead of iOS's floating card with Cancel. */
     val bottomSheets: Boolean get() = false
@@ -78,8 +175,18 @@ interface GlassLook {
         GlassFolderChoiceRow(choice, onExpand, onExcludedChange, material = false, modifier = modifier)
 
     @Composable
-    fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, modifier: Modifier) =
-        ListeningHistoryPlot(points, summary, bars = false, modifier = modifier)
+    fun ListeningChart(points: List<dev.cmdrchara.songlass.designsystem.ListeningChartPoint>, summary: String, unrecordedLabel: String, modifier: Modifier) =
+        ListeningHistoryPlot(points, summary, unrecordedLabel, ListeningPlotStyle.Liquid, modifier)
+
+    /** Liquid: one inset group with equal columns and hairline dividers, like grouped iOS summaries. */
+    @Composable
+    fun StatSummary(figures: List<dev.cmdrchara.songlass.designsystem.StatFigure>, modifier: Modifier) =
+        LiquidStatSummary(figures, modifier)
+
+    /** Liquid: the position in secondary text before the artwork, as in chart lists on iOS. */
+    @Composable
+    fun RankedRow(rank: Int, title: String, subtitle: String?, leading: (@Composable () -> Unit)?, value: String, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier) =
+        LiquidRankedRow(rank, title, subtitle, leading, value, highlighted, onClick, modifier)
 
     @Composable
     fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
@@ -99,6 +206,45 @@ interface GlassLook {
         onClick: (() -> Unit)?,
         modifier: Modifier,
     ) = LiquidGlassListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+
+    @Composable
+    fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) = LiquidGlassActionButton(text, icon, onClick, modifier)
+
+    /** The grouped preferences page has a different content plane from media browsing. */
+    val usesInsetSettingsForm: Boolean get() = true
+
+    @Composable
+    fun SettingsPage(content: @Composable () -> Unit) = LiquidSettingsPage(content)
+
+    @Composable
+    fun SettingsPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
+        LiquidSettingsPageTitle(title, backLabel, onBack, modifier)
+
+    @Composable
+    fun SettingsPageGroup(modifier: Modifier, content: @Composable () -> Unit) = LiquidSettingsPageGroup(modifier, content)
+
+    @Composable
+    fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =
+        GlassFormField(value, onValueChange, label, true, false, modifier,
+            KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), KeyboardActions(onDone = { onSubmit() }))
+
+    @Composable
+    fun SettingsDestinationGroup(modifier: Modifier, content: @Composable () -> Unit) = SettingsPageGroup(modifier, content)
+
+    @Composable
+    fun SettingsSectionTitle(title: String) = GlassPlaylistFormSection(title)
+
+    @Composable
+    fun SettingsDestination(title: String, summary: String, icon: ImageVector, summaryIsValue: Boolean, onClick: () -> Unit) =
+        LiquidSettingsDestination(title, summary, icon, summaryIsValue, onClick)
+
+    /** Decorative category badges and radio preview cards have distinct recipes in all three looks. */
+    @Composable
+    fun SettingsCategoryIcon(icon: ImageVector, modifier: Modifier) = LiquidSettingsCategoryIcon(icon, modifier)
+
+    @Composable
+    fun SettingsPreviewChoice(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier, preview: @Composable () -> Unit) =
+        LiquidSettingsPreviewChoice(title, selected, onClick, modifier, preview)
 
     @Composable
     fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = LiquidGlassSettingsGroup(content, modifier)
@@ -170,6 +316,10 @@ interface GlassLook {
 
     @Composable
     fun ArtistAvatar(artwork: Artwork, modifier: Modifier) = LiquidGlassArtistAvatar(artwork, modifier)
+
+    @Composable
+    fun FormField(value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier) =
+        GlassFormField(value, onValueChange, label, enabled, material = false, modifier = modifier)
 
     @Composable
     fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) =

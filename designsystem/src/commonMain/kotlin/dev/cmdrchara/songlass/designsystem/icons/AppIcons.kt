@@ -15,6 +15,13 @@ import androidx.compose.ui.unit.dp
  * Icons are drawn in black and tinted at use site.
  */
 object AppIcons {
+    val Share: ImageVector by lazy {
+        icon("Share") { stroke {
+            moveTo(8f, 9f); lineTo(5f, 9f); lineTo(5f, 21f); lineTo(19f, 21f); lineTo(19f, 9f); lineTo(16f, 9f)
+            moveTo(12f, 15f); lineTo(12f, 2.5f); moveTo(7.5f, 7f); lineTo(12f, 2.5f); lineTo(16.5f, 7f)
+        } }
+    }
+
     val Play: ImageVector by lazy {
         icon("Play") { fill { moveTo(7f, 4.5f); lineTo(20f, 12f); lineTo(7f, 19.5f); close() } }
     }
@@ -106,6 +113,18 @@ object AppIcons {
                 }
                 close()
                 circle(12f, 12f, 3.25f)
+            }
+        }
+    }
+
+    /** Track details and other informational actions, on the shared original icon grid. */
+    val InfoCircle: ImageVector by lazy {
+        icon("InfoCircle") {
+            stroke(width = 1.9f) { circle(12f, 12f, 9f) }
+            fill { circle(12f, 7.7f, 1.2f) }
+            stroke(width = 2.2f) {
+                moveTo(10.8f, 11f); lineTo(12f, 11f); lineTo(12f, 16.7f)
+                moveTo(10.5f, 16.7f); lineTo(13.5f, 16.7f)
             }
         }
     }
@@ -233,6 +252,17 @@ object AppIcons {
         }
     }
 
+    /** Listening statistics, drawn here rather than borrowed from a platform asset. */
+    val ChartBars: ImageVector by lazy {
+        icon("ChartBars") {
+            stroke(width = 3.5f) {
+                moveTo(5f, 19f); lineTo(5f, 12f)
+                moveTo(12f, 19f); lineTo(12f, 5f)
+                moveTo(19f, 19f); lineTo(19f, 9f)
+            }
+        }
+    }
+
     /** Three sliders at different heights. */
     val Equalizer: ImageVector by lazy {
         icon("Equalizer") {
@@ -314,6 +344,8 @@ object AppIcons {
             }
         }
     }
+
+    val Plus: ImageVector by lazy { icon("Plus") { stroke { moveTo(12f, 5f); lineTo(12f, 19f); moveTo(5f, 12f); lineTo(19f, 12f) } } }
 
     val Close: ImageVector by lazy {
         icon("Close") { stroke { moveTo(6f, 6f); lineTo(18f, 18f); moveTo(18f, 6f); lineTo(6f, 18f) } }

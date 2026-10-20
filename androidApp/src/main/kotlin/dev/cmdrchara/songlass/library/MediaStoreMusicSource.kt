@@ -33,6 +33,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.GENRE,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ARTIST,
             MediaStore.Audio.Media.DURATION,
@@ -45,6 +46,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             MediaStore.Audio.Media.YEAR,
             MediaStore.Audio.Media.DATE_MODIFIED,
             MediaStore.Audio.Media.SIZE,
+            MediaStore.Audio.Media.GENERATION_MODIFIED,
         )
         val tracks = mutableListOf<Track>()
         val extraTags = ExtraAudioTags(context)
@@ -58,6 +60,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             val id = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val title = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
             val artist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val genre = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.GENRE)
             val album = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val albumArtist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ARTIST)
             val duration = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
@@ -70,6 +73,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             val year = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
             val modified = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_MODIFIED)
             val size = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.SIZE)
+            val generation = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.GENERATION_MODIFIED)
             while (cursor.moveToNext()) {
                 val mediaId = cursor.getLong(id)
                 val (legacyDisc, legacyNumber) = TagNumbers.splitLegacyTrack(
@@ -83,14 +87,16 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                 val albumTag = cursor.getString(album).cleanTag()
                     ?.takeUnless { artistTag == null && it == folder }
                 val uri = ContentUris.withAppendedId(collection, mediaId)
-                val extra = extraTags.read(uri, "$mediaId:${cursor.getLong(modified)}:${cursor.getLong(size)}")
+                val extra = extraTags.read(uri, "$mediaId:${cursor.getLong(generation)}:${cursor.getLong(modified)}:${cursor.getLong(size)}")
                 tracks += Track(
                     id = mediaId.toString(),
+                    artworkRevision = cursor.getLong(generation),
                     title = cursor.getString(title)?.takeIf { it.isNotBlank() } ?: continue,
                     uri = uri.toString(),
                     artists = extra.artists,
                     releaseDate = extra.date ?: dev.cmdrchara.songlass.core.model.ReleaseDate.parse(cursor.getString(year)),
                     artist = artistTag,
+                    genre = cursor.getString(genre).cleanTag(),
                     album = albumTag,
                     albumArtist = cursor.getString(albumArtist).cleanTag(),
                     durationMs = cursor.getLong(duration),

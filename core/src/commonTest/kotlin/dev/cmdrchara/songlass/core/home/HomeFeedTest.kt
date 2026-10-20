@@ -52,6 +52,40 @@ class HomeFeedTest {
     }
 
     @Test
+    fun recentlyAddedPreservesLegacyOrderWithTiesCompilationsAndRepeatedIds() {
+        val tracks = (0 until 160).map { i ->
+            track("id-${i % 71}", title = "Song ${i % 13}", artist = "Guest ${i % 5}",
+                album = if (i % 7 == 0) null else "Album ${i % 17}").copy(
+                albumArtist = if (i % 7 == 0) null else "Album artist ${i % 3}",
+                dateAddedMs = if (i % 11 == 0) null else (i % 9).toLong(),
+                genre = "Genre $i",
+            )
+        }
+        for (input in listOf(emptyList(), tracks, tracks.reversed(), tracks + tracks.take(10))) {
+            val indexed = MusicLibrary(input)
+            val reference = indexed.tracks.filter { it.dateAddedMs != null }
+                .sortedByDescending { it.dateAddedMs }
+                .map { song -> indexed.albumOf(song)?.let(HomeItem::AlbumItem) ?: HomeItem.TrackItem(song) }
+                .distinct().take(HomeFeed.ROW_SIZE)
+            assertEquals(reference, HomeFeed.build(indexed, HistorySnapshot(), emptyList(), now).recentlyAdded)
+        }
+    }
+
+    @Test
+    fun recentlyAddedReachesTwelveCardsPastDenseAlbumsWithoutCollapsingDifferentArtists() {
+        val tracks = (0 until 400).map { i ->
+            track("dense-$i", artist = "A", album = "Shared title").copy(dateAddedMs = 1_000L)
+        } + (0 until 15).flatMap { i ->
+            listOf(track("pair-$i-a", artist = "Artist $i", album = "Shared title"),
+                track("pair-$i-b", artist = "Artist $i", album = "Shared title"))
+                .map { it.copy(dateAddedMs = 100L - i) }
+        }
+        val result = HomeFeed.build(MusicLibrary(tracks), HistorySnapshot(), emptyList(), now).recentlyAdded
+        assertEquals(HomeFeed.ROW_SIZE, result.size)
+        assertEquals(listOf("A") + (0 until 11).map { "Artist $it" }, result.map { (it as HomeItem.AlbumItem).album.artist })
+    }
+
+    @Test
     fun recentlyPlayedResolvesContextsAndSkipsMissingOnes() {
         val contexts = listOf(
             PlayContext.Playlist("Music/Gym"),

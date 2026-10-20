@@ -20,7 +20,8 @@ object CoverImages {
     fun load(context: Context, audioUri: Uri?, sizePx: Int, seed: Int): Bitmap {
         if (audioUri != null) {
             try {
-                return context.contentResolver.loadThumbnail(audioUri, Size(sizePx, sizePx), null)
+                return EmbeddedCover.load(context.contentResolver, audioUri, sizePx)
+                    ?: context.contentResolver.loadThumbnail(audioUri, Size(sizePx, sizePx), null)
             } catch (_: IOException) {
                 // No embedded picture: fall through to the generated one.
             } catch (_: SecurityException) {

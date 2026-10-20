@@ -24,7 +24,10 @@ import kotlinx.coroutines.launch
  * Debug builds only. `adb shell am broadcast -a dev.cmdrchara.songlass.debug.BROWSE_PROBE
  * [--es query jojo] [--ez play true]` connects a MediaBrowser to the library as Android Auto
  * would, logs the tabs, a few children of each, a search and a cover read (tag BrowseProbe),
- * and optionally plays the first song found.
+ * and optionally plays the first song found. `--ez performance true` instead benchmarks
+ * library indexing, album lookups and the Home feed, logging only counts/timings/a digest
+ * (tag LibraryPerf). `--ez homePerformance true` compares the Home recent-card calculation
+ * (tag HomePerf). Neither performance probe changes music or preferences.
  */
 class BrowseProbeReceiver : BroadcastReceiver() {
     override fun onReceive(receiverContext: Context, intent: Intent) {
@@ -35,6 +38,64 @@ class BrowseProbeReceiver : BroadcastReceiver() {
         val play = intent.getBooleanExtra("play", false)
         MainScope().launch {
             try {
+                intent.getStringExtra("wordLyricsProbe")?.let { mode ->
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        WordLyricsProbe.run(context, mode)
+                    }
+                    return@launch
+                }
+                if (intent.getBooleanExtra("tagEditorCurrent", false)) {
+                    val graph = (context as dev.cmdrchara.songlass.SonglassApplication).graph
+                    graph.refreshLibrary()
+                    val track = graph.library.value.tracks.single { it.folder == "Music/SonglassTagEditorQA-20261019" }
+                    graph.controller.playTracks(listOf(track))
+                    graph.controller.pause()
+                    graph.controller.seekTo(350)
+                    log("tag editor fixture ready, paused at 350 ms")
+                    return@launch
+                }
+                if (intent.getBooleanExtra("tagEditorState", false)) {
+                    val graph = (context as dev.cmdrchara.songlass.SonglassApplication).graph
+                    log("tag editor current=${graph.controller.queue.value.current?.track?.title} position=${graph.player.state.value.positionMs} playing=${graph.player.state.value.playWhenReady}")
+                    return@launch
+                }
+                if (intent.getBooleanExtra("tagEditor", false)) {
+                    TagEditorProbe.run(context)
+                    return@launch
+                }
+                intent.getStringExtra("performanceUiCase")?.let { specification ->
+                    PlayerPerformanceProbe.configure(context as dev.cmdrchara.songlass.SonglassApplication, specification)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("preparePlayerPerformance", false)) {
+                    PlayerPerformanceProbe.prepare(context as dev.cmdrchara.songlass.SonglassApplication)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("artworkConcurrencyChecks", false)) {
+                    PlayerPerformanceProbe.checks(context as dev.cmdrchara.songlass.SonglassApplication)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("artworkColorPerformance", false)) {
+                    ArtworkColorPerformanceProbe.run(context as dev.cmdrchara.songlass.SonglassApplication)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("artworkPerformance", false)) {
+                    PlayerPerformanceProbe.artwork(context as dev.cmdrchara.songlass.SonglassApplication)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("homePerformance", false)) {
+                    HomePerformanceProbe.run(context as dev.cmdrchara.songlass.SonglassApplication)
+                    return@launch
+                }
+                intent.getStringExtra("searchPerformance")?.let { dataset ->
+                    SearchPerformanceProbe.run(context as dev.cmdrchara.songlass.SonglassApplication, dataset)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("performance", false)) {
+                    LibraryPerformanceProbe.run(context as dev.cmdrchara.songlass.SonglassApplication)
+                    return@launch
+                }
+                if (intent.getBooleanExtra("refresh", false)) (context as dev.cmdrchara.songlass.SonglassApplication).graph.refreshLibrary()
                 val token = SessionToken(context, ComponentName(context, PlaybackService::class.java))
                 val browser = MediaBrowser.Builder(context, token).buildAsync().await()
                 val root = browser.getLibraryRoot(null).await().value!!

@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.AlbumArt
@@ -58,29 +60,21 @@ fun artistName(name: String?): String = name ?: stringResource(Res.string.unknow
 @Composable
 fun albumTitle(title: String?): String = title ?: stringResource(Res.string.unknown_album)
 
+/** The look owns the page edge; inner cell padding and content gaps are separate. */
+internal val pageInset: Dp
+    @Composable get() = dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook.current.contentHorizontalInset
+
 /** Large navigation title at the top of a root screen. */
 @Composable
-fun ScreenTitle(text: String, trailing: (@Composable () -> Unit)? = null) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AppText(
-            text = text,
-            style = AppTheme.typography.largeTitle,
-            modifier = Modifier.weight(1f).semantics { heading() },
-        )
-        trailing?.invoke()
-    }
-}
+fun ScreenTitle(text: String, trailing: (@Composable () -> Unit)? = null) =
+    dev.cmdrchara.songlass.designsystem.PageTitle(text, trailing)
 
 @Composable
 fun SectionTitle(text: String, action: (@Composable () -> Unit)? = null) {
+    val look = dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook.current
+    val inset = look.contentHorizontalInset
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 12.dp, top = 20.dp, bottom = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(start = inset, end = inset - 4.dp, top = 20.dp, bottom = look.sectionTitleBottomPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppText(
@@ -103,7 +97,7 @@ fun TrackRow(track: Track, highlighted: Boolean, onMore: () -> Unit, onClick: ()
     ListRow(
         title = track.title,
         subtitle = artistName(track.artist),
-        leading = { AlbumArt(track.artwork(), Modifier.size(48.dp), cornerRadius = 6.dp) },
+        leading = { AlbumArt(rememberTrackArtwork(track), Modifier.size(48.dp), cornerRadius = 6.dp) },
         trailing = { MoreButton(onMore) },
         highlighted = highlighted,
         onClick = onClick,
@@ -118,7 +112,7 @@ fun MoreButton(onClick: () -> Unit) {
 
 @Composable
 fun AlbumTile(album: Album, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
+    Column(modifier.prefetchArtworkOnPress(album.artwork()).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
         AlbumArt(album.artwork(), Modifier.fillMaxWidth().aspectRatio(1f), cornerRadius = 10.dp)
         Spacer(Modifier.size(6.dp))
         AppText(albumTitle(album.title), AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
@@ -129,7 +123,7 @@ fun AlbumTile(album: Album, onClick: () -> Unit, modifier: Modifier = Modifier) 
 /** Two-column album grid row. */
 @Composable
 fun AlbumGridRow(albums: List<Album>, onOpen: (Album) -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 8.dp)) {
         albums.forEachIndexed { index, album ->
             if (index > 0) Spacer(Modifier.width(16.dp))
             AlbumTile(album, onClick = { onOpen(album) }, modifier = Modifier.weight(1f))

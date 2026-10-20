@@ -29,7 +29,8 @@ class EmbeddedArtworkBitmapLoader(context: Context) : BitmapLoader {
     }
 
     override fun loadBitmap(uri: Uri): ListenableFuture<Bitmap> = executor.submit<Bitmap> {
-        resolver.loadThumbnail(uri, Size(SIZE_PX, SIZE_PX), null)
+        dev.cmdrchara.songlass.artwork.EmbeddedCover.load(resolver, uri, SIZE_PX)
+            ?: resolver.loadThumbnail(uri.buildUpon().fragment(null).build(), Size(SIZE_PX, SIZE_PX), null)
     }
 
     private companion object {

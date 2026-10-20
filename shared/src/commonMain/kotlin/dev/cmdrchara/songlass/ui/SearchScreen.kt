@@ -1,5 +1,10 @@
 package dev.cmdrchara.songlass.ui
 
+import androidx.compose.foundation.lazy.rememberLazyListState
+import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -7,10 +12,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.search.SearchItem
@@ -63,12 +75,18 @@ fun SearchScreen(
 ) {
     val loading by state.isLibraryLoading.collectAsState()
     val preferences by state.settings.state.collectAsState()
+    val searchFocus = remember { FocusRequester() }
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusOnEntry = preferences.interfaceStyle == InterfaceStyle.LiquidGlass && state.tab == Tab.Search && state.currentRoute == null
     val results = state.searchResults
     val targets by state.searchHistory.targets.collectAsState()
     val library = state.library
     val recent = remember(targets, library) { state.searchHistory.resolve(library) }
     val suggestions = remember(library) { SearchSuggestions.from(library) }
     fun open(item: SearchItem) {
+        focusManager.clearFocus()
+        keyboard?.hide()
         state.searchHistory.record(item.target)
         when (item) {
             is SearchItem.Song -> state.controller.playTracks(listOf(item.track), 0)
@@ -89,7 +107,9 @@ fun SearchScreen(
     fun shows(kind: SearchFilter) = filter == SearchFilter.All || filter == kind
     // "All" is a preview: a few of each kind; a chip shows a kind in full.
     fun <T> List<T>.preview(count: Int) = if (filter == SearchFilter.All) take(count) else this
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = contentPadding) {
+    val listState = rememberLazyListState()
+    PrefetchTrackRowArtwork(listState, if (shows(SearchFilter.Songs)) results.tracks.preview(8) else emptyList())
+    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), state = listState, contentPadding = contentPadding) {
         item { ScreenTitle(stringResource(Res.string.tab_search)) }
         item {
             SearchField(
@@ -97,8 +117,17 @@ fun SearchScreen(
                 onQueryChange = { state.searchQuery = it },
                 placeholder = stringResource(Res.string.search_placeholder),
                 clearLabel = stringResource(Res.string.search_clear),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp).focusRequester(searchFocus),
             )
+            // The separate Liquid search button enters editing immediately. Keep the
+            // Material tab's discovery landing page and keyboard behaviour unchanged.
+            LaunchedEffect(focusOnEntry, state.searchFocusRequest) {
+                if (focusOnEntry) {
+                    withFrameNanos { }
+                    searchFocus.requestFocus()
+                    keyboard?.show()
+                }
+            }
         }
         when {
             !hasAccess || library.tracks.isEmpty() -> item {
@@ -168,6 +197,7 @@ fun SearchScreen(
                     items(results.albums.preview(3)) { album ->
                         ListRow(
                             title = albumTitle(album.title),
+                            modifier = Modifier.prefetchArtworkOnPress(album.artwork()),
                             subtitle = artistName(album.artist),
                             leading = { AlbumArt(album.artwork(), Modifier.size(48.dp), cornerRadius = 6.dp) },
                             onClick = { open(SearchItem.AlbumItem(album)) },
@@ -208,7 +238,7 @@ private fun Message(text: String) {
         text = text,
         style = AppTheme.typography.subheadline,
         color = AppTheme.colors.secondaryLabel,
-        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.padding(horizontal = pageInset, vertical = 12.dp),
     )
 }
 
@@ -227,7 +257,7 @@ private fun RecentSearchRow(item: SearchItem, currentTrackId: String?, onRemove:
         is SearchItem.FolderItem -> stringResource(Res.string.tag_playlist)
     }
     val artwork = when (item) {
-        is SearchItem.Song -> item.track.artwork()
+        is SearchItem.Song -> rememberTrackArtwork(item.track)
         is SearchItem.AlbumItem -> item.album.artwork()
         is SearchItem.ArtistItem -> item.artist.tracks.first().artwork()
         is SearchItem.FolderItem -> item.playlist.artwork()

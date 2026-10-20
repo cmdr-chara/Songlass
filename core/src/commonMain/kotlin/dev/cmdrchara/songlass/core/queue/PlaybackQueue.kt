@@ -144,6 +144,12 @@ data class PlaybackQueue(
         return copy(entries = reordered, currentIndex = newIndex)
     }
 
+    /** Refreshes metadata in both orders without changing slots, membership or playback position. */
+    fun withUpdatedTracks(tracks: Map<String, Track>): PlaybackQueue {
+        fun List<QueueEntry>.updated() = map { entry -> tracks[entry.track.id]?.let { entry.copy(track = it) } ?: entry }
+        return copy(entries = entries.updated(), unshuffledEntries = unshuffledEntries?.updated())
+    }
+
     private fun insert(
         tracks: List<Track>,
         playOrderPosition: Int,

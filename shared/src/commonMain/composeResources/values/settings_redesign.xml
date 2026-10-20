@@ -1,0 +1,20 @@
+<resources>
+    <string name="settings_personalization">Personalization</string>
+    <string name="settings_music_section">Your music</string>
+    <string name="settings_app_section">App</string>
+    <string name="settings_playback">Playback</string>
+    <string name="settings_home_summary">Shortcuts and sections</string>
+    <string name="settings_playback_summary">Equalizer, volume and transitions</string>
+    <string name="settings_library_summary">Folders and music filters</string>
+    <string name="settings_lyrics_summary">Online lyrics and providers</string>
+    <string name="settings_accessibility_summary">Motion and transparency</string>
+    <string name="settings_backup_summary">Settings, favorites and playlists</string>
+    <string name="settings_about_summary">Version, privacy and licenses</string>
+    <string name="settings_replay_gain_track_short">Song</string>
+    <string name="settings_replay_gain_album_short">Album</string>
+    <string name="settings_crossfade_custom">Custom…</string>
+    <string name="settings_crossfade_custom_value">Custom · %1$d ms</string>
+    <string name="settings_crossfade_ms_label">Duration (ms)</string>
+    <string name="settings_crossfade_ms_hint">Enter %1$d–%2$d ms. Use 0 to turn crossfade off.</string>
+    <string name="settings_crossfade_ms_invalid">Enter a whole number from %1$d to %2$d ms, or 0 to turn it off.</string>
+</resources>

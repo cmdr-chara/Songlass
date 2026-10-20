@@ -34,6 +34,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import androidx.compose.runtime.withFrameNanos
+import dev.cmdrchara.songlass.designsystem.foundation.SpringFollower
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.abs
@@ -91,15 +94,41 @@ internal fun Modifier.liquidPress(
             touch = down.position
             scope.launch { body.press.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 600f)) }
             scope.launch { body.pull.animateTo(pullFor(down.position) * 0.5f, spring(dampingRatio = 0.85f, stiffness = 700f)) }
+            // The lean pursues the finger with one spring per axis; restarting animateTo on
+            // every move would stall it while the finger keeps moving.
+            val leanX = SpringFollower()
+            val leanY = SpringFollower()
+            var goal = Offset.Zero
+            var leaning: Job? = null
             while (true) {
                 val event = awaitPointerEvent(PointerEventPass.Initial)
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) break
                 touch = change.position
-                scope.launch { body.pull.animateTo(pullFor(change.position), spring(dampingRatio = 0.9f, stiffness = 900f)) }
+                goal = pullFor(change.position)
+                if (leaning?.isActive != true) {
+                    val start = body.pull.value
+                    val velocity = body.pull.velocity
+                    leanX.snapTo(start.x, velocity.x)
+                    leanY.snapTo(start.y, velocity.y)
+                    leaning = scope.launch {
+                        var last = withFrameNanos { it }
+                        while (true) {
+                            val now = withFrameNanos { it }
+                            val seconds = (now - last) / 1_000_000_000f
+                            val movingX = leanX.step(goal.x, seconds, dampingRatio = 0.9f, stiffness = 900f, threshold = 0.05f)
+                            val movingY = leanY.step(goal.y, seconds, dampingRatio = 0.9f, stiffness = 900f, threshold = 0.05f)
+                            body.pull.snapTo(Offset(leanX.value, leanY.value))
+                            if (!movingX && !movingY) break
+                            last = now
+                        }
+                    }
+                }
             }
+            val releaseVelocity = if (leaning != null) Offset(leanX.velocity, leanY.velocity) else body.pull.velocity
+            leaning?.cancel()
             scope.launch { body.press.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 380f)) }
-            scope.launch { body.pull.animateTo(Offset.Zero, spring(dampingRatio = 0.75f, stiffness = 380f)) }
+            scope.launch { body.pull.animateTo(Offset.Zero, spring(dampingRatio = 0.75f, stiffness = 380f), initialVelocity = releaseVelocity) }
         }
     }.graphicsLayer {
         val scale = body.scale()

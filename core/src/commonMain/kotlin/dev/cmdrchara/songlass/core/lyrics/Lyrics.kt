@@ -2,9 +2,18 @@ package dev.cmdrchara.songlass.core.lyrics
 
 import dev.cmdrchara.songlass.core.model.Track
 
-enum class LyricsOrigin { Embedded, File, LrcLib }
+enum class LyricsOrigin { Embedded, File, LrcLib, Amll }
 
-data class LyricsLine(val timeMs: Long?, val text: String)
+/** UTF-16 text range and original media timestamps, which may describe a word or syllable. */
+data class LyricsWord(val start: Int, val end: Int, val startMs: Long, val endMs: Long?) {
+    fun progressAt(positionMs: Long): Float = when {
+        positionMs < startMs -> 0f
+        endMs == null || endMs <= startMs || positionMs >= endMs -> 1f
+        else -> ((positionMs - startMs).toDouble() / (endMs - startMs).toDouble()).toFloat()
+    }
+}
+
+data class LyricsLine(val timeMs: Long?, val text: String, val words: List<LyricsWord> = emptyList())
 
 /** Timed lines are ordered by timestamp; untimed lyrics retain their paragraph breaks. */
 data class Lyrics(
@@ -12,6 +21,9 @@ data class Lyrics(
     val source: LyricsOrigin,
     val instrumental: Boolean = false,
 ) {
+    val hasWordTiming: Boolean = lines.any { it.words.isNotEmpty() }
+    val hasEstimatedTiming: Boolean = lines.any { it.timeMs != null && it.text.isNotBlank() && it.words.isEmpty() }
+
     val isSynced: Boolean = lines.isNotEmpty() && lines.all { it.timeMs != null }
 
     /** Returns the last line at or before playback, including blank lines marking a vocal gap. */
@@ -55,7 +67,8 @@ data class Lyrics(
     }
 
     /**
-     * Estimates a line's reveal, not word timing. Finish before the next distinct timestamp,
+     * Uses real word intervals when present. Otherwise estimates the line's reveal, finishing
+     * before the next distinct timestamp,
      * with a small lead and a phrase-length cap so instrumental gaps do not stretch the reveal.
      * The final line uses track duration when available, otherwise its phrase-length estimate.
      */
@@ -63,6 +76,11 @@ data class Lyrics(
         if (!isSynced || index !in lines.indices) return 0f
         val start = lines[index].timeMs ?: return 0f
         if (positionMs < start) return 0f
+        val timedWords = lines[index].words
+        if (timedWords.isNotEmpty()) {
+            val total = timedWords.sumOf { it.end - it.start }.coerceAtLeast(1)
+            return (timedWords.sumOf { (it.end - it.start) * it.progressAt(positionMs).toDouble() } / total).toFloat()
+        }
 
         var low = index + 1
         var high = lines.size

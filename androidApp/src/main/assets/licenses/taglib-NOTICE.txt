@@ -1,0 +1,14 @@
+TagLib Android 1.0.6
+Copyright Kyant0 and contributors
+https://github.com/Kyant0/taglib/tree/1.0.6
+Wrapper: Apache License 2.0 (taglib-android-APACHE-2.0.txt).
+
+Includes TagLib 2.2.1, Copyright Scott Wheeler and contributors.
+https://taglib.org/
+https://github.com/taglib/taglib/tree/v2.2.1
+TagLib is available under LGPL 2.1 or Mozilla Public License 1.1; both texts are included.
+The native adapter fileref_ext.cpp also carries the LGPL 2.1 / MPL 1.1 alternative.
+Corresponding unmodified source (including build files):
+https://github.com/Kyant0/taglib/archive/refs/tags/1.0.6.tar.gz
+https://github.com/taglib/taglib/archive/refs/tags/v2.2.1.tar.gz
+Songlass does not modify TagLib or the native wrapper.

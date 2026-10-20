@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -75,30 +76,30 @@ internal fun Modifier.appleGlass(
             optics(
                 GlassDefaults.optics.copy(
                     depth = OpticalSizeValue.Fixed(1f),
-                    blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 18.dp else 16.dp),
-                    refractionDisplacement = if (navigationBar) 30.dp else 24.dp,
-                    refractionStrength = if (navigationBar) 0.65f else GlassDefaults.optics.refractionStrength,
+                    blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 24.dp else 16.dp),
+                    refractionDisplacement = if (navigationBar) 10.dp else 24.dp,
+                    refractionStrength = if (navigationBar) 0.38f else GlassDefaults.optics.refractionStrength,
                 ),
             )
             // Apple's glass lets colors through: less milky white than Haze's defaults
             // (whitePoint 0.55 light / -0.22 dark). Dark glass is smoked, not black, so the
             // shape still reads over a black page. Chroma stays near neutral, otherwise glass
             // over a tinted page turns into a darker, more saturated slab than the page itself.
-            whitePoint(if (navigationBar) { if (colors.isDark) -0.05f else 0.32f } else { if (colors.isDark) -0.12f else 0.25f })
-            chromaMultiplier(1.2f)
+            whitePoint(if (navigationBar) { if (colors.isDark) -0.02f else 0.20f } else { if (colors.isDark) -0.12f else 0.25f })
+            chromaMultiplier(if (navigationBar) 1.04f else 1.2f)
             // Legibility over busy, colourful content (covers scrolling under the bars): pull the
             // material toward the page colour, enough that labels stay readable even over a dark
             // cover in light mode; colour still shows through.
-            tint(colors.background.copy(alpha = if (navigationBar) { if (colors.isDark) 0.58f else 0.8f } else { if (colors.isDark) 0.4f else 0.72f }))
+            tint(colors.background.copy(alpha = if (navigationBar) { if (colors.isDark) 0.52f else 0.66f } else { if (colors.isDark) 0.4f else 0.72f }))
             // Light the glass from its own shape only. Haze derives part of the normals from the
             // content underneath by default, which scatters highlights over text and covers.
             contentNormalBlend(0f)
             // A crisp rim highlight and a gentle Fresnel lift at the edges, not a broad glare.
-            specularIntensity(if (colors.isDark) 0.55f else 0.5f)
+            specularIntensity(if (navigationBar) 0.30f else if (colors.isDark) 0.55f else 0.5f)
             specularExponent(24f)
             ambientResponse(if (colors.isDark) 0.16f else 0.15f)
             fresnelExponent(2.2f)
-            chromaticAberrationStrength(0.15f)
+            chromaticAberrationStrength(if (navigationBar) 0.05f else 0.15f)
             // Press motion comes from liquidPress (whole element); the material only brightens a little.
             pressed {
                 lightingIntensity(0.4f)
@@ -110,7 +111,7 @@ internal fun Modifier.appleGlass(
                 optics(
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
-                        blurRadius = OpticalSizeValue.Fixed(16.dp),
+                        blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 24.dp else 16.dp),
                         refractionStrength = 0f,
                         refractionDisplacement = 0.dp,
                     ),
@@ -124,7 +125,8 @@ internal fun Modifier.appleGlass(
     }
     // Hairline inner rim, lit from above, that defines the edge like on iOS.
     val rimBrush = Brush.verticalGradient(
-        listOf(Color.White.copy(alpha = if (colors.isDark) 0.28f else 0.6f), Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.15f)),
+        listOf(Color.White.copy(alpha = if (navigationBar) { if (colors.isDark) 0.24f else 0.48f } else { if (colors.isDark) 0.28f else 0.6f }),
+            Color.White.copy(alpha = if (navigationBar) { if (colors.isDark) 0.05f else 0.12f } else { if (colors.isDark) 0.06f else 0.15f })),
     )
     // Soft light from above inside the body gives the curved, raised look of iOS glass.
     val sheen = Brush.verticalGradient(
@@ -133,5 +135,56 @@ internal fun Modifier.appleGlass(
     )
     val glass = hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
         .background(sheen, shape)
-    return if (edges) glass.border(0.75.dp, rimBrush, shape) else glass
+    return if (edges) glass.border(if (navigationBar) 0.65.dp else 0.75.dp, rimBrush, shape) else glass
+}
+
+/** Independent lens over the same page source, never a blur of the bar or its labels. */
+@OptIn(ExperimentalHazeApi::class)
+@Composable
+internal fun Modifier.navigationLens(shape: RoundedCornerShape): Modifier {
+    val colors = AppTheme.colors
+    val source = LocalGlassSource.current
+    if (AppTheme.accessibility.reduceTransparency || source == null) {
+        return clip(shape).background(
+            androidx.compose.ui.graphics.lerp(colors.secondaryBackground, colors.label, 0.10f),
+        ).border(0.75.dp, colors.label.copy(alpha = 0.14f), shape)
+    }
+    // A fixed optical recipe: movement transforms the lens, never animates its blur.
+    val style = remember(shape, colors) {
+        GlassStyle.regular.then {
+            shape(shape)
+            backgroundColor(colors.background)
+            optics(GlassDefaults.optics.copy(
+                depth = OpticalSizeValue.Fixed(1f),
+                blurRadius = OpticalSizeValue.Fixed(12.dp),
+                refractionDisplacement = 26.dp,
+                refractionStrength = 0.64f,
+            ))
+            tint(colors.secondaryBackground.copy(alpha = if (colors.isDark) 0.50f else 0.58f))
+            whitePoint(if (colors.isDark) -0.02f else 0.24f)
+            chromaMultiplier(1.05f)
+            contentNormalBlend(0f)
+            specularIntensity(0.62f)
+            specularExponent(20f)
+            ambientResponse(0.18f)
+            fresnelExponent(2.5f)
+            chromaticAberrationStrength(0.08f)
+        }
+    }
+    val rim = Brush.linearGradient(listOf(
+        Color.White.copy(alpha = if (colors.isDark) 0.52f else 0.78f),
+        colors.label.copy(alpha = 0.10f),
+        Color.White.copy(alpha = if (colors.isDark) 0.26f else 0.48f),
+    ))
+    val sheen = Brush.verticalGradient(listOf(
+        Color.White.copy(alpha = if (colors.isDark) 0.09f else 0.18f),
+        Color.Transparent,
+        Color.Black.copy(alpha = if (colors.isDark) 0.10f else 0.035f),
+    ))
+    return shadow(6.dp, shape, clip = false,
+        ambientColor = Color.Black.copy(alpha = 0.10f),
+        spotColor = Color.Black.copy(alpha = 0.16f))
+        .hazeGlass(input = HazeInput.Sources(source), style = style)
+        .background(sheen, shape)
+        .border(0.75.dp, rim, shape)
 }

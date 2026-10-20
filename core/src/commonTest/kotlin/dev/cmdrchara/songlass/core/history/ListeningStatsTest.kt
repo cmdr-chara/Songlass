@@ -50,4 +50,40 @@ class ListeningStatsTest {
         assertEquals(2, stats.differentArtists)
         assertEquals(listOf(2, 2), stats.artists.map { it.plays })
     }
+    @Test fun equalPlayCountsShareACompetitionRank() {
+        val library = MusicLibrary(listOf(track("a"), track("b"), track("c"), track("d")))
+        val snapshot = HistorySnapshot(playCounts = mapOf("a" to 5, "b" to 3, "c" to 3, "d" to 1))
+        val stats = ListeningStats.build(library, snapshot, StatsPeriod.AllTime, now)
+        assertEquals(listOf(1, 2, 2, 4), stats.tracks.map { it.rank })
+        assertEquals(listOf("a", "b", "c", "d"), stats.tracks.map { it.track.id })
+    }
+    @Test fun periodStartingBeforeTrackingIsPartial() {
+        val library = MusicLibrary(listOf(track("a")))
+        val snapshot = HistorySnapshot(trackingStartedMs = now - 2 * day, datedPlays = listOf(DatedPlay("a", now)))
+        assertFalse(ListeningStats.build(library, snapshot, StatsPeriod.Week, now, now - 7 * day).coversWholePeriod)
+        assertTrue(ListeningStats.build(library, snapshot, StatsPeriod.Week, now, now - day).coversWholePeriod)
+        assertTrue(ListeningStats.build(library, snapshot, StatsPeriod.AllTime, now).coversWholePeriod)
+    }
+    @Test fun comparisonUsesTheEarlierHalfOpenPeriod() {
+        val library = MusicLibrary(listOf(track("a"), track("b")))
+        val snapshot = HistorySnapshot(trackingStartedMs = 0, datedPlays = listOf(
+            DatedPlay("a", now - 14 * day), DatedPlay("b", now - 8 * day), DatedPlay("a", now - 7 * day), DatedPlay("a", now)))
+        val current = ListeningStats.build(library, snapshot, StatsPeriod.Week, now, now - 7 * day)
+        val comparison = assertNotNull(ListeningStats.compare(library, snapshot, StatsPeriod.Week, current, now - 14 * day, now - 7 * day))
+        assertEquals(StatChange(previous = 2, current = 2), comparison.plays)
+        assertEquals(0, comparison.plays.difference)
+        assertEquals(StatChange(previous = 2, current = 1), comparison.tracks)
+        assertEquals(-1, comparison.tracks.difference)
+    }
+    @Test fun comparisonIsWithheldWhenTheEarlierPeriodIsNotFullyRecorded() {
+        val library = MusicLibrary(listOf(track("a")))
+        val current = ListeningStats.build(library, HistorySnapshot(), StatsPeriod.Week, now, now - 7 * day)
+        val lateStart = HistorySnapshot(trackingStartedMs = now - 10 * day, datedPlays = listOf(DatedPlay("a", now)))
+        assertNull(ListeningStats.compare(library, lateStart, StatsPeriod.Week, current, now - 14 * day, now - 7 * day))
+        assertNull(ListeningStats.compare(library, HistorySnapshot(trackingStartedMs = 0), StatsPeriod.AllTime, current, 0, now))
+        val pruned = HistorySnapshot(trackingStartedMs = 0, datedPlays = List(50_000) { DatedPlay("a", now - it) })
+        assertNull(ListeningStats.compare(library, pruned, StatsPeriod.Week, current, now - 14 * day, now - 7 * day))
+        val quiet = HistorySnapshot(trackingStartedMs = 0)
+        assertEquals(StatChange(0, 0), ListeningStats.compare(library, quiet, StatsPeriod.Week, current, now - 14 * day, now - 7 * day)?.plays)
+    }
 }

@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.theme.liquidglass
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -75,12 +76,14 @@ fun LiquidGlassTheme(
     content: @Composable () -> Unit,
 ) {
     val colors = if (darkTheme) DarkColors else LightColors
+    val playerMorph = remember { PlayerMorph() }
     CompositionLocalProvider(
         LocalAppColors provides colors,
         LocalAppTypography provides Typography,
         LocalContentColor provides colors.label,
         LocalUiAccessibility provides accessibility,
         LocalUiStyle provides LiquidGlassStyle,
+        LocalPlayerMorph provides playerMorph,
         content = content,
     )
 }

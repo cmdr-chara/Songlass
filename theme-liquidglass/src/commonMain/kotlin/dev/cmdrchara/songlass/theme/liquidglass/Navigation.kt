@@ -17,7 +17,10 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import dev.cmdrchara.songlass.designsystem.foundation.SpringFollower
 import kotlin.math.abs
 import kotlin.math.roundToInt
 import androidx.compose.animation.SizeTransform
@@ -48,6 +51,10 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,7 +79,11 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -99,16 +110,14 @@ import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
 private val Capsule = RoundedCornerShape(percent = 50)
 private val BarHorizontalMargin = 16.dp
 private val BarSpacing = 8.dp
-private val TabBarHeight = 62.dp
 private val MinimizedHeight = 56.dp
 private val MiniArtInset = 4.dp
 private val MinimizeScrollThreshold = 24.dp
 
 /**
  * Content fills the screen and is the glass source; the navigation layer floats above it at
- * the bottom, as in iOS 26: a pill with the tabs, a separate circle for search, and the
- * accessory (mini player) above them. Scrolling down minimizes the tab bar and moves the
- * accessory inline; scrolling back to the top or tapping a tab restores it.
+ * the bottom. Liquid keeps search in its own bubble and folds the mini player inline on
+ * scroll; Material uses its unified navigation bar and keeps the mini player above it.
  */
 @Composable
 internal fun LiquidGlassScaffold(
@@ -118,8 +127,10 @@ internal fun LiquidGlassScaffold(
     accessory: (@Composable () -> Unit)?,
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    val morph = LocalPlayerMorph.current
     val accessibility = AppTheme.accessibility
-    val hazeState = if (accessibility.reduceTransparency) null else rememberHazeState()
+    val look = LocalGlassLook.current
+    val hazeState = if (accessibility.reduceTransparency || !look.usesHazeBackdrop) null else rememberHazeState()
     val density = LocalDensity.current
     val navigationBarInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     var expandedBarsHeightPx by remember { mutableIntStateOf(0) }
@@ -149,18 +160,16 @@ internal fun LiquidGlassScaffold(
             .fillMaxSize()
             .graphicsLayer {
                 // Like a card stacked under a sheet: smaller, rounded and darker as the player opens.
-                val r = PlayerMorph.recede
-                if (r <= 0f) return@graphicsLayer
-                if (!accessibility.reduceMotion) {
-                    scaleX = 1f - 0.08f * r
-                    scaleY = 1f - 0.08f * r
-                    shape = RoundedCornerShape(28.dp * r)
-                    clip = true
-                }
+                val r = if (look.recedesUnderPlayer) morph.recede else 0f
+                val transform = if (accessibility.reduceMotion) 0f else r
+                scaleX = 1f - 0.08f * transform
+                scaleY = 1f - 0.08f * transform
+                shape = RoundedCornerShape(28.dp * transform)
+                clip = transform > 0f
             }
             .drawWithContent {
                 drawContent()
-                drawRect(Color.Black.copy(alpha = 0.35f * PlayerMorph.recede))
+                if (look.recedesUnderPlayer) drawRect(Color.Black.copy(alpha = 0.35f * morph.recede))
             }
             .background(colors.background),
     ) {
@@ -169,6 +178,7 @@ internal fun LiquidGlassScaffold(
             Modifier
                 .fillMaxSize()
                 .then(if (accessibility.reduceMotion) Modifier else Modifier.nestedScroll(scrollConnection))
+                .then(look.contentSource(Modifier))
                 .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier)
                 .background(colors.background),
         ) {
@@ -187,7 +197,7 @@ internal fun LiquidGlassScaffold(
                 content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
             }
         }
-        val navigationTint = LocalNavigationTint.current
+        val navigationTint = if (look.tintsNavigation) LocalNavigationTint.current else null
         CompositionLocalProvider(LocalGlassSource provides hazeState) {
             NavigationTintScope(navigationTint) {
             Box(
@@ -229,7 +239,7 @@ private fun NavigationTintScope(tint: ArtworkTint?, content: @Composable () -> U
     if (tint == null) content() else ProvideArtworkTint(animateArtworkTint(tint), content)
 }
 
-/** Minimizes on downward scrolling; expands when an upward scroll or fling hits the top. */
+/** Directional hysteresis: down minimizes, up expands without requiring the list's top. */
 private class MinimizeOnScroll(
     private val thresholdPx: Float,
     private val onMinimizedChange: (Boolean) -> Unit,
@@ -239,15 +249,24 @@ private class MinimizeOnScroll(
     override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset {
         when {
             consumed.y < 0f -> {
-                travelled += consumed.y
+                travelled = minOf(travelled, 0f) + consumed.y
                 if (travelled < -thresholdPx) {
                     onMinimizedChange(true)
                     travelled = 0f
                 }
             }
-            consumed.y > 0f -> travelled = 0f
+            consumed.y > 0f -> {
+                travelled = maxOf(travelled, 0f) + consumed.y
+                if (travelled > thresholdPx) {
+                    onMinimizedChange(false)
+                    travelled = 0f
+                }
+            }
         }
-        if (available.y > 0f) onMinimizedChange(false)
+        if (available.y > 0f) {
+            travelled = 0f
+            onMinimizedChange(false)
+        }
         return Offset.Zero
     }
 
@@ -315,14 +334,18 @@ private fun NavigationLayer(
 @Composable
 internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) {
     val searchIndex = tabs.indexOfFirst { it.isSearch }
+    val barHeight = LocalGlassLook.current.navigationBarHeight()
     val link = remember { LiquidLink() }
-    Box(modifier, contentAlignment = Alignment.CenterEnd) {
+    Box(
+        modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 360.dp).fillMaxWidth(),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
         if (searchIndex >= 0) LiquidBridge(link)
-        Row(horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
             TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link)
             if (searchIndex >= 0) {
                 val search = tabs[searchIndex]
-                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = TabBarHeight, link = link) {
+                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = barHeight, link = link) {
                     onTabSelected(searchIndex)
                 }
             }
@@ -338,9 +361,10 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
 @Composable
 private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null) {
     val slots = remember(tabs) { tabs.indices.filterNot { tabs[it].isSearch } }
+    val barHeight = LocalGlassLook.current.navigationBarHeight()
     val selectedSlot = slots.indexOf(selectedTab)
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    val colors = AppTheme.colors
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     var slotWidth by remember { mutableFloatStateOf(0f) }
@@ -349,42 +373,73 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     val bubbleX = remember { Animatable(0f) }
     // 0 at rest, 1 while the bubble is held and lifted off the bar.
     val lift = remember { Animatable(0f) }
+    val travelLift = remember { Animatable(0f) }
     val currentSelected by rememberUpdatedState(selectedTab)
     val currentOnSelected by rememberUpdatedState(onTabSelected)
 
     fun slotAt(x: Float): Int = if (slotWidth <= 0f) 0 else ((x + slotWidth / 2f) / slotWidth).toInt().coerceIn(slots.indices)
 
-    LaunchedEffect(selectedSlot, slotWidth) {
+    LaunchedEffect(selectedSlot, slotWidth, reduceMotion) {
+        // A quick switch to Search can interrupt the previous hop midway.
+        travelLift.snapTo(0f)
+        if (reduceMotion) lift.snapTo(0f)
         if (slotWidth <= 0f || selectedSlot < 0 || dragging) return@LaunchedEffect
         val target = selectedSlot * slotWidth
-        if (!placed || reduceMotion) bubbleX.snapTo(target) else bubbleX.animateTo(target, spring(dampingRatio = 0.7f, stiffness = 500f))
+        if (!placed || reduceMotion) {
+            bubbleX.snapTo(target)
+            travelLift.snapTo(0f)
+        } else if (abs(target - bubbleX.value) > 1f) {
+            launch {
+                travelLift.animateTo(0.65f, tween(80))
+                travelLift.animateTo(0f, spring(dampingRatio = 0.72f, stiffness = 500f))
+            }
+            bubbleX.animateTo(target, spring(dampingRatio = 0.76f, stiffness = 480f))
+        }
         placed = true
     }
-    // Hidden while Search (outside the pill) is selected.
-    val bubbleAlpha by animateFloatAsState(
+    // Search owns the separate circle, so hide this lens while that destination is selected.
+    val bubbleAlphaState = animateFloatAsState(
         targetValue = if (selectedSlot >= 0 || dragging) 1f else 0f,
         animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "tabBubbleAlpha",
     )
-    val shownSlot = if (dragging) slotAt(bubbleX.value) else selectedSlot
-    val inset = 4.dp
+    val bubbleAlpha by bubbleAlphaState
+    val bubbleShown by remember { derivedStateOf { bubbleAlphaState.value > 0f } }
+    // Ink changes at slot boundaries; the lens still follows every spring frame in
+    // layout/drawing without recomposing the full glass capsule while dragged.
+    val shownSlot by remember(slots, selectedSlot) {
+        derivedStateOf { if (dragging) slotAt(bubbleX.value) else selectedSlot }
+    }
+    val inset = 5.dp
 
     Box(
         modifier = modifier
-            .height(TabBarHeight)
+            .height(barHeight)
             .liquidPress(grow = 0.015f, reach = 2.dp, link = link, side = LinkSide.Start)
-            .navigationBarGlass(Capsule)
-            .pointerInput(slots) {
+            .pointerInput(slots, reduceMotion, rtl) {
                 val insetPx = inset.toPx()
+                fun dragTargetAt(x: Float): Float {
+                    val logicalX = if (rtl) size.width - x else x
+                    return (logicalX - insetPx - slotWidth / 2f).coerceIn(0f, slotWidth * (slots.size - 1))
+                }
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (!reduceMotion) scope.launch { lift.animateTo(0.45f, spring(dampingRatio = 0.85f, stiffness = 900f)) }
                     var dragged = false
+                    var lastDragX = bubbleX.value
+                    // One pursuit spring per gesture: the finger moves its goal, never restarts it.
+                    val pursuit = SpringFollower()
+                    var pursuitGoal = bubbleX.value
+                    var pursuing: Job? = null
                     while (true) {
                         val event = awaitPointerEvent(PointerEventPass.Initial)
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed) {
                             // Consuming the release keeps the tab under the finger from also clicking.
-                            if (dragged) change.consume()
+                            if (dragged) {
+                                lastDragX = dragTargetAt(change.position.x)
+                                change.consume()
+                            }
                             break
                         }
                         if (!dragged && abs(change.position.x - down.position.x) > viewConfiguration.touchSlop) {
@@ -394,62 +449,79 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                         }
                         if (dragged) {
                             change.consume()
-                            val x = (change.position.x - insetPx - slotWidth / 2f).coerceIn(0f, slotWidth * (slots.size - 1))
-                            scope.launch { bubbleX.animateTo(x, spring(dampingRatio = 0.85f, stiffness = 2200f)) }
+                            // Row and offset use logical order; pointer coordinates are physical.
+                            val x = dragTargetAt(change.position.x)
+                            lastDragX = x
+                            pursuitGoal = x
+                            if (reduceMotion) {
+                                scope.launch { bubbleX.snapTo(x) }
+                            } else if (pursuing?.isActive != true) {
+                                pursuit.snapTo(bubbleX.value, bubbleX.velocity)
+                                pursuing = scope.launch {
+                                    pursuit.follow({ pursuitGoal }, dampingRatio = 0.85f, stiffness = 2200f, threshold = 0.5f) { bubbleX.snapTo(it) }
+                                }
+                            }
                         }
                     }
+                    scope.launch { lift.animateTo(0f, if (reduceMotion) snap() else spring(dampingRatio = 0.65f, stiffness = 500f)) }
                     if (dragged) {
-                        val slot = slotAt(bubbleX.value)
+                        // Commit the finger's destination; the pursuit spring may still lag
+                        // behind it when rendering is busy. Keep the same settling animation.
+                        val slot = slotAt(lastDragX)
                         dragging = false
-                        scope.launch { lift.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 450f)) }
+                        val releaseVelocity = if (pursuing != null) pursuit.velocity else bubbleX.velocity
+                        pursuing?.cancel()
                         scope.launch {
                             val target = slot * slotWidth
-                            if (reduceMotion) bubbleX.snapTo(target) else bubbleX.animateTo(target, spring(dampingRatio = 0.6f, stiffness = 450f))
+                            if (reduceMotion) bubbleX.snapTo(target)
+                            else bubbleX.animateTo(target, spring(dampingRatio = 0.6f, stiffness = 450f), initialVelocity = releaseVelocity)
                         }
                         if (slots[slot] != currentSelected) currentOnSelected(slots[slot])
                     }
                 }
-            }
-            .padding(inset)
-            .onSizeChanged { slotWidth = it.width / slots.size.coerceAtLeast(1).toFloat() },
+            },
     ) {
-        Box(
-            Modifier
-                .offset { IntOffset(bubbleX.value.roundToInt(), 0) }
-                .width(with(density) { slotWidth.toDp() })
-                .fillMaxHeight()
-                .graphicsLayer {
-                    val l = lift.value
-                    alpha = bubbleAlpha
-                    // Lifted, the bubble swells slightly past the bar.
-                    scaleX = 1f + 0.05f * l
-                    scaleY = 1f + 0.12f * l
-                }
-                .clip(Capsule)
-                .background(lerp(LocalGlassLook.current.selection().copy(alpha = if (colors.isDark) 0.22f else 0.10f), colors.label.copy(alpha = 0.08f), lift.value))
-                .border(0.75.dp, Color.White.copy(alpha = (if (colors.isDark) 0.22f else 0.55f) + 0.15f * lift.value), Capsule),
-        )
-        Row(Modifier.fillMaxSize()) {
-            slots.forEachIndexed { slot, index ->
-                val tab = tabs[index]
-                val selected = index == selectedTab
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { onTabSelected(index) }
-                        .semantics { role = Role.Tab; this.selected = selected },
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                ) {
-                    val tint = tabTint(slot == shownSlot)
-                    AppIcon(tab.icon, contentDescription = null, size = 26.dp, tint = tint)
-                    AppText(
-                        text = tab.label,
-                        style = AppTheme.typography.caption2.copy(fontSize = 10.sp, fontWeight = FontWeight.SemiBold),
-                        color = tint,
-                        maxLines = 1,
-                    )
+        // Separate siblings: the bar never clips or filters the lens that lifts above it.
+        Box(Modifier.matchParentSize().navigationBarGlass(Capsule))
+        Box(Modifier.fillMaxSize().padding(inset).onSizeChanged {
+            slotWidth = it.width / slots.size.coerceAtLeast(1).toFloat()
+        }) {
+            Box(
+                Modifier
+                    .offset { IntOffset(bubbleX.value.roundToInt(), 0) }
+                    .width(with(density) { slotWidth.toDp() })
+                    .fillMaxHeight()
+                    .graphicsLayer {
+                        val l = if (reduceMotion) 0f else maxOf(lift.value, travelLift.value).coerceIn(0f, 1f)
+                        alpha = bubbleAlpha
+                        // More volume while held, with the rim free to rise above the capsule.
+                        scaleX = 1f + 0.10f * l
+                        scaleY = 1f + 0.42f * l
+                        translationY = -2.dp.toPx() * l
+                    }
+                    .then(if (bubbleShown) LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule) else Modifier),
+            )
+            Row(Modifier.fillMaxSize()) {
+                slots.forEachIndexed { slot, index ->
+                    val tab = tabs[index]
+                    val selected = index == selectedTab
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .graphicsLayer {
+                                val magnification = if (slot == shownSlot && !reduceMotion) {
+                                    1f + 0.08f * maxOf(lift.value, travelLift.value).coerceIn(0f, 1f)
+                                } else 1f
+                                scaleX = magnification
+                                scaleY = magnification
+                            }
+                            .selectable(selected, interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { onTabSelected(index) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                    ) {
+                        TabLabel(tab) { slot == shownSlot }
+                    }
                 }
             }
         }
@@ -467,14 +539,15 @@ private fun LiquidBridge(link: LiquidLink) {
     if (!merging) return
     val density = LocalDensity.current
     val dark = AppTheme.colors.isDark
-    val width = TabBarHeight / 2 + BarSpacing + TabBarHeight + 8.dp
+    val barHeight = LocalGlassLook.current.navigationBarHeight()
+    val width = barHeight / 2 + BarSpacing + barHeight + 8.dp
     val neck by remember(link, density) {
         derivedStateOf {
             with(density) {
                 val start = link.bodies[LinkSide.Start] ?: return@derivedStateOf null
                 val end = link.bodies[LinkSide.End] ?: return@derivedStateOf null
                 val w = width.toPx()
-                val h = TabBarHeight.toPx()
+                val h = barHeight.toPx()
                 val r = h / 2f
                 // The pill scales around its own centre, which moves its end cap outwards.
                 val s1 = start.scale()
@@ -493,6 +566,22 @@ private fun LiquidBridge(link: LiquidLink) {
             }
         }
     }
+    // Keep a fixed capture around the gap: changing its size/position with the path would
+    // invalidate Haze's retained blur on every move, even over a stationary page. The slot
+    // and vertical gradient stay unchanged; Haze still samples its normal blur margins.
+    val viewport by remember(link, density, width, barHeight) {
+        derivedStateOf {
+            val bounds = neck?.fill?.getBounds()
+            val fullWidth = with(density) { width.roundToPx() }
+            val height = with(density) { barHeight.roundToPx() }
+            val left = with(density) { (barHeight / 4).roundToPx() }
+            val right = fullWidth - height / 2
+            // Keep an AA pixel of padding. Unusual geometry always gets the complete slot.
+            if (bounds != null && bounds.left >= left + 1 && bounds.right <= right - 1) {
+                IntRect(left, 0, right, height)
+            } else IntRect(0, 0, fullWidth, height)
+        }
+    }
     // Both edges of the waist need a rim as visible as the outlines of the two shapes, otherwise
     // only the upper curve shows and reads as two spikes.
     val rimTop = Color.White.copy(alpha = if (dark) 0.42f else 0.65f)
@@ -502,22 +591,52 @@ private fun LiquidBridge(link: LiquidLink) {
     Box(
         Modifier
             .width(width)
-            .height(TabBarHeight)
+            .height(barHeight)
+            .layout { measurable, constraints ->
+                val crop = viewport
+                val child = measurable.measure(constraints.copy(minWidth = crop.width, maxWidth = crop.width))
+                layout(constraints.maxWidth, child.height) { child.place(crop.left, 0) }
+            }
             .graphicsLayer {
                 val fill = neck?.fill
+                val shift = Offset(-viewport.left.toFloat(), 0f)
                 clip = true
-                shape = GenericShape { _, _ -> if (fill != null) addPath(fill) }
+                shape = GenericShape { _, _ -> if (fill != null) addPath(fill, shift) }
             }
             .navigationBarGlass(RoundedCornerShape(0), edges = false)
             .drawWithContent {
                 drawContent()
                 val n = neck ?: return@drawWithContent
-                drawPath(n.fill, lift)
-                // Continue the rim of the two shapes along the waist.
-                drawPath(n.top, rimTop, style = Stroke(1.dp.toPx()))
-                drawPath(n.bottom, rimBottom, style = Stroke(1.dp.toPx()))
+                translate(left = -viewport.left.toFloat()) {
+                    drawPath(n.fill, lift)
+                    // Continue the rim of the two shapes along the waist.
+                    drawPath(n.top, rimTop, style = Stroke(1.dp.toPx()))
+                    drawPath(n.bottom, rimBottom, style = Stroke(1.dp.toPx()))
+                }
             },
     )
+}
+
+/**
+ * Icon and label of one tab. Its own scope: the tint animation after the bubble crosses a slot
+ * recomposes only this item, never the capsule with its glass modifiers.
+ */
+@Composable
+private fun TabLabel(tab: TabItem, highlighted: () -> Boolean) {
+    val tint = tabTint(highlighted())
+    AppIcon(tab.icon, contentDescription = null, size = 26.dp, tint = tint)
+    AppText(
+        text = tab.label,
+        style = AppTheme.typography.caption2.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold),
+        color = tint,
+        maxLines = 1,
+    )
+}
+
+/** The search icon, in its own scope for the same reason as [TabLabel]. */
+@Composable
+private fun TabIcon(icon: ImageVector, selected: Boolean) {
+    AppIcon(icon, contentDescription = null, size = 26.dp, tint = tabTint(selected))
 }
 
 /** Selected tabs use the accent; others the label colour, full strength for legibility on glass. */
@@ -534,6 +653,14 @@ private fun tabTint(selected: Boolean): Color {
 @Composable
 private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, link: LiquidLink? = null, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
+    val selectionAlphaState = animateFloatAsState(
+        if (selected) 1f else 0f,
+        if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
+        label = "circleSelection",
+    )
+    val selectionAlpha by selectionAlphaState
+    // A fully transparent lens still costs a glass pass every frame the circle moves.
+    val lensShown by remember { derivedStateOf { selectionAlphaState.value > 0f } }
     Box(
         modifier = Modifier
             .size(size)
@@ -547,7 +674,13 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
             },
         contentAlignment = Alignment.Center,
     ) {
-        AppIcon(icon, contentDescription = null, size = 26.dp, tint = tabTint(selected))
+        if (lensShown) {
+            Box(
+                Modifier.matchParentSize().padding(4.dp).graphicsLayer { alpha = selectionAlpha }
+                    .then(LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule)),
+            )
+        }
+        TabIcon(icon, selected)
     }
 }
 

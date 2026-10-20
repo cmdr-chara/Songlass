@@ -28,6 +28,23 @@ class BrowseTreeTest {
     )
 
     @Test
+    fun smartPlaylistsResolveAndResumeTheirCurrentMembership() {
+        val context = PlayContext.SmartPlaylist("smart")
+        assertEquals(context, PlayContext.fromKey(context.key))
+        val smart = dev.cmdrchara.songlass.core.playlists.SmartPlaylist("smart", "Unplayed",
+            dev.cmdrchara.songlass.core.playlists.SmartRules(playStatus = dev.cmdrchara.songlass.core.playlists.SmartPlayStatus.Never))
+        val tree = BrowseTree(library, emptyList(), emptyList(), listOf(context), labels,
+            smartPlaylists = listOf(smart), history = dev.cmdrchara.songlass.core.history.HistorySnapshot(playCounts = mapOf("a1" to 1)))
+        val node = tree.children(BrowseTree.PLAYLISTS)!!.first()
+        assertEquals("Unplayed", node.title)
+        assertEquals(context, tree.resolveQuery("unplayed")?.context)
+        assertEquals(listOf("a2", "b1"), tree.resolvePlay(node.id)!!.tracks.map { it.id })
+        val resumed = tree.resume("b1")!!
+        assertEquals(context, resumed.context)
+        assertEquals(1, resumed.startIndex)
+    }
+
+    @Test
     fun rootHasFourTabs() {
         assertEquals(listOf("home", "playlists", "albums", "artists"), tree().children(BrowseTree.ROOT)!!.map { it.id })
     }

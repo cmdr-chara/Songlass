@@ -41,6 +41,13 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
         store.putString(STARTED_KEY, _state.value.trackingStartedMs.toString())
     }
 
+    /** Re-reads everything from [store], after something else (a backup restore) replaced it. */
+    fun reload() {
+        val loaded = load()
+        _state.value = loaded
+        store.putString(STARTED_KEY, loaded.trackingStartedMs.toString())
+    }
+
     /** Records one counted play of [trackId], started from [context] (null: no specific source). */
     fun recordPlay(trackId: String, context: PlayContext?) {
         val now = clock()
@@ -98,7 +105,7 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
         store.putStringList(DATED_KEY, snapshot.datedPlays.map { "${it.trackId}$RECORD${it.atMs}" })
     }
 
-    private companion object {
+    internal companion object {
         const val DATED_KEY = "history.dated_plays"
         const val STARTED_KEY = "history.tracking_started_ms"
         const val MAX_DATED_PLAYS = 50_000

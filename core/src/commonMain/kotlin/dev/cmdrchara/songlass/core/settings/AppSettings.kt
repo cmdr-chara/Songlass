@@ -13,44 +13,56 @@ import kotlinx.coroutines.flow.update
 
 /** Persistent preferences shared by all interfaces and platforms. */
 class AppSettings(private val store: KeyValueStore) {
-    private val _state = MutableStateFlow(
-        AppPreferences(
-            appearance = when (store.getString(APPEARANCE_KEY)) {
-                "light" -> AppearanceMode.Light
-                "dark" -> AppearanceMode.Dark
-                else -> AppearanceMode.System
-            },
-            reduceMotion = store.getString(REDUCE_MOTION_KEY)?.toBooleanStrictOrNull() ?: false,
-            reduceTransparency = store.getString(REDUCE_TRANSPARENCY_KEY)?.toBooleanStrictOrNull() ?: false,
-            artworkStyle = when (store.getString(ARTWORK_STYLE_KEY)) {
-                "square" -> ArtworkStyle.Square
-                else -> ArtworkStyle.FullBleed
-            },
-            interfaceStyle = when (store.getString(INTERFACE_STYLE_KEY)) {
-                "material_glass" -> InterfaceStyle.MaterialGlass
-                else -> InterfaceStyle.LiquidGlass
-            },
-            replayGain = when (store.getString(REPLAY_GAIN_KEY)) {
-                "track" -> ReplayGainMode.Track
-                "album" -> ReplayGainMode.Album
-                else -> ReplayGainMode.Off
-            },
-            folderSort = when (store.getString(FOLDER_SORT_KEY)) {
-                "recent" -> FolderSort.RecentlyAdded
-                "most_played" -> FolderSort.MostPlayed
-                else -> FolderSort.Name
-            },
-            resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
-            libraryFilter = LibraryFilter(
-                excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
-                    .filter { it.isNotBlank() }.toSet(),
-                minimumDurationMs = store.getString(MIN_DURATION_KEY)?.toLongOrNull()
-                    ?.takeIf { it in LibraryFilter.durationChoicesMs } ?: 0,
-            ),
+    private val _state = MutableStateFlow(readPreferences())
+
+    private fun readPreferences(): AppPreferences = AppPreferences(
+        appearance = when (store.getString(APPEARANCE_KEY)) {
+            "light" -> AppearanceMode.Light
+            "dark" -> AppearanceMode.Dark
+            else -> AppearanceMode.System
+        },
+        reduceMotion = store.getString(REDUCE_MOTION_KEY)?.toBooleanStrictOrNull() ?: false,
+        reduceTransparency = store.getString(REDUCE_TRANSPARENCY_KEY)?.toBooleanStrictOrNull() ?: false,
+        artworkStyle = when (store.getString(ARTWORK_STYLE_KEY)) {
+            "square" -> ArtworkStyle.Square
+            else -> ArtworkStyle.FullBleed
+        },
+        interfaceStyle = when (store.getString(INTERFACE_STYLE_KEY)) {
+            "material_glass" -> InterfaceStyle.MaterialGlass
+            "miuix" -> InterfaceStyle.Miuix
+            else -> InterfaceStyle.LiquidGlass
+        },
+        replayGain = when (store.getString(REPLAY_GAIN_KEY)) {
+            "track" -> ReplayGainMode.Track
+            "album" -> ReplayGainMode.Album
+            else -> ReplayGainMode.Off
+        },
+        folderSort = when (store.getString(FOLDER_SORT_KEY)) {
+            "recent" -> FolderSort.RecentlyAdded
+            "most_played" -> FolderSort.MostPlayed
+            else -> FolderSort.Name
+        },
+        resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
+        crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
+        amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
+        libraryFilter = LibraryFilter(
+            excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
+                .filter { it.isNotBlank() }.toSet(),
+            minimumDurationMs = store.getString(MIN_DURATION_KEY)?.toLongOrNull()
+                ?.takeIf { it in LibraryFilter.durationChoicesMs } ?: 0,
         ),
     )
 
     val state: StateFlow<AppPreferences> = _state.asStateFlow()
+
+    /** Refreshes the existing observable preferences after a validated backup restore. */
+    fun reload() { _state.value = readPreferences() }
+
+    fun setCrossfadeDuration(durationMs: Long) {
+        require(durationMs in 0L..12_000L)
+        store.putString(CROSSFADE_KEY, durationMs.toString())
+        _state.update { it.copy(crossfadeDurationMs = durationMs) }
+    }
 
     fun setAppearance(appearance: AppearanceMode) {
         val storedValue = when (appearance) {
@@ -89,6 +101,7 @@ class AppSettings(private val store: KeyValueStore) {
             when (style) {
                 InterfaceStyle.LiquidGlass -> "liquid_glass"
                 InterfaceStyle.MaterialGlass -> "material_glass"
+                InterfaceStyle.Miuix -> "miuix"
             },
         )
         _state.update { it.copy(interfaceStyle = style) }
@@ -123,6 +136,11 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(resumeOnReconnect = enabled) }
     }
 
+    fun setAmllEnabled(enabled: Boolean) {
+        store.putString(AMLL_KEY, enabled.toString())
+        _state.update { it.copy(amllEnabled = enabled) }
+    }
+
     fun setMinimumDuration(durationMs: Long) {
         require(durationMs in LibraryFilter.durationChoicesMs)
         store.putString(MIN_DURATION_KEY, durationMs.toString())
@@ -149,5 +167,7 @@ class AppSettings(private val store: KeyValueStore) {
         const val REPLAY_GAIN_KEY = "settings.replay_gain"
         const val FOLDER_SORT_KEY = "library.folder_sort"
         const val RESUME_KEY = "settings.resume_on_reconnect"
+        const val CROSSFADE_KEY = "settings.crossfade_duration_ms"
+        const val AMLL_KEY = "settings.amll_enabled"
     }
 }

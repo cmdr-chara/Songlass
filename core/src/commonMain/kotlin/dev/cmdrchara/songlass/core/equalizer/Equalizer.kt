@@ -46,12 +46,21 @@ enum class EqPreset(val gains: List<Double>) {
 /** A correction for one pair of headphones, usually imported from AutoEQ. */
 data class HeadphoneProfile(val id: String, val name: String, val filters: List<EqFilter>)
 
+/** Stable platform output identity; never a connection-session id. */
+data class EqOutput(val id: String, val name: String)
+data class OutputEqProfile(val output: EqOutput, val enabled: Boolean, val gains: List<Double>, val profileId: String?)
+
 data class EqualizerState(
     val enabled: Boolean = false,
     val gains: List<Double> = GraphicEq.flat,
     val profiles: List<HeadphoneProfile> = emptyList(),
     val profileId: String? = null,
+    val automaticOutputs: Boolean = false,
+    val output: EqOutput? = null,
+    val outputProfiles: List<OutputEqProfile> = emptyList(),
 ) {
+    val outputProfile: OutputEqProfile? get() = outputProfiles.firstOrNull { it.output.id == output?.id }
+    val usesOutputProfile: Boolean get() = automaticOutputs && outputProfile != null
     val profile: HeadphoneProfile? get() = profiles.firstOrNull { it.id == profileId }
 
     /** The preset the bands match, or null for a custom curve. */
@@ -71,9 +80,17 @@ class Equalizer(
     private val _state = MutableStateFlow(load())
     val state: StateFlow<EqualizerState> = _state.asStateFlow()
 
+    /**
+     * Re-reads the curve, profiles and output bindings from [store], after something else (a
+     * backup restore) replaced them. The output currently playing is a fact about the device,
+     * not stored data, so it stays and picks its bound curve again.
+     */
+    fun reload() {
+        selectOutputCurve(load().copy(output = _state.value.output))
+    }
+
     fun setEnabled(enabled: Boolean) {
-        store.putString(ENABLED_KEY, enabled.toString())
-        _state.update { it.copy(enabled = enabled) }
+        saveCurve(_state.value.copy(enabled = enabled))
     }
 
     fun setGain(band: Int, gainDb: Double) {
@@ -106,11 +123,39 @@ class Equalizer(
         return profile
     }
 
+    fun catalogCorrection(entry: AutoEqEntry): AutoEqCorrection? =
+        _state.value.profiles.firstOrNull { it.id == "autoeq:${entry.id}" }?.let { AutoEqCorrection(entry, it.filters) }
+
+    /** Catalog identity is stable: applying again updates one saved profile instead of duplicating it. */
+    fun applyCatalogProfile(correction: AutoEqCorrection, forOutput: EqOutput? = null): Boolean {
+        val state = _state.value
+        if (forOutput != null && state.output != forOutput) return false
+        if (correction.filters.isEmpty() || correction.filters.size > AutoEq.MAX_FILTERS || correction.filters.any {
+            !it.frequencyHz.isFinite() || it.frequencyHz !in 10.0..22_000.0 ||
+                !it.gainDb.isFinite() || it.gainDb !in -24.0..24.0 || !it.q.isFinite() || it.q !in 0.1..10.0
+        }) return false
+        val profile = HeadphoneProfile("autoeq:${correction.entry.id}", correction.entry.name, correction.filters)
+        val profiles = state.profiles.filterNot { it.id == profile.id } + profile
+        store.putString("$PROFILE_PREFIX${profile.id}.name", profile.name)
+        store.putString("$PROFILE_PREFIX${profile.id}.filters", encode(profile.filters))
+        store.putStringList(PROFILES_KEY, profiles.map { it.id })
+        val changed = state.copy(profiles = profiles, profileId = profile.id, enabled = true)
+        if (forOutput == null) saveCurve(changed)
+        else {
+            // Binding is atomic with selection: the manual curve is not overwritten on the way.
+            val binding = OutputEqProfile(forOutput, true, state.gains, profile.id)
+            val outputs = state.outputProfiles.filterNot { it.output.id == forOutput.id } + binding
+            saveOutputs(outputs)
+            store.putString("equalizer.outputs.enabled", "true")
+            _state.value = changed.copy(automaticOutputs = true, outputProfiles = outputs)
+        }
+        return true
+    }
+
     /** Uses the headphone profile [id], or none. */
     fun selectProfile(id: String?) {
         val valid = id?.takeIf { wanted -> _state.value.profiles.any { it.id == wanted } }
-        store.putString(SELECTED_KEY, valid)
-        _state.update { it.copy(profileId = valid) }
+        saveCurve(_state.value.copy(profileId = valid))
     }
 
     fun deleteProfile(id: String) {
@@ -118,13 +163,79 @@ class Equalizer(
         store.putStringList(PROFILES_KEY, profiles.map { it.id })
         store.putString("$PROFILE_PREFIX$id.name", null)
         store.putString("$PROFILE_PREFIX$id.filters", null)
-        if (_state.value.profileId == id) store.putString(SELECTED_KEY, null)
-        _state.update { state -> state.copy(profiles = profiles, profileId = state.profileId.takeIf { it != id }) }
+        if (store.getString(SELECTED_KEY) == id) store.putString(SELECTED_KEY, null)
+        val outputs = _state.value.outputProfiles.map { it.copy(profileId = it.profileId.takeIf { selected -> selected != id }) }
+        saveOutputs(outputs)
+        _state.update { state -> state.copy(profiles = profiles, outputProfiles = outputs, profileId = state.profileId.takeIf { it != id }) }
     }
 
     private fun saveGains(gains: List<Double>) {
-        store.putString(GAINS_KEY, gains.joinToString(","))
-        _state.update { it.copy(gains = gains) }
+        saveCurve(_state.value.copy(gains = gains))
+    }
+
+    /** Route changes select an existing curve, without writing over the manual settings. */
+    fun setOutput(output: EqOutput?) {
+        if (_state.value.output == output) return
+        selectOutputCurve(_state.value.copy(output = output))
+    }
+
+    fun setAutomaticOutputs(enabled: Boolean) {
+        store.putString("equalizer.outputs.enabled", enabled.toString())
+        selectOutputCurve(_state.value.copy(automaticOutputs = enabled))
+    }
+
+    /** Bind the currently audible curve to this output. Further edits update this binding. */
+    fun saveForCurrentOutput() {
+        val state = _state.value
+        val output = state.output ?: return
+        val binding = OutputEqProfile(output, state.enabled, state.gains, state.profileId)
+        val outputs = state.outputProfiles.filterNot { it.output.id == output.id } + binding
+        saveOutputs(outputs)
+        _state.value = state.copy(outputProfiles = outputs)
+    }
+
+    fun removeOutputProfile(id: String) {
+        val outputs = _state.value.outputProfiles.filterNot { it.output.id == id }
+        listOf("name", "enabled", "gains", "profile").forEach { store.putString("equalizer.outputs.$id.$it", null) }
+        saveOutputs(outputs)
+        selectOutputCurve(_state.value.copy(outputProfiles = outputs))
+    }
+
+    private fun selectOutputCurve(state: EqualizerState) {
+        val bound = state.outputProfile.takeIf { state.automaticOutputs }
+        val manual = load()
+        _state.value = state.copy(
+            enabled = bound?.enabled ?: manual.enabled,
+            gains = bound?.gains ?: manual.gains,
+            profileId = (bound?.profileId ?: if (bound == null) manual.profileId else null)
+                ?.takeIf { id -> state.profiles.any { it.id == id } },
+        )
+    }
+
+    private fun saveCurve(state: EqualizerState) {
+        if (state.usesOutputProfile) {
+            val output = state.output!!
+            val outputs = state.outputProfiles.map { if (it.output.id == output.id)
+                OutputEqProfile(output, state.enabled, state.gains, state.profileId) else it }
+            saveOutputs(outputs)
+            _state.value = state.copy(outputProfiles = outputs)
+        } else {
+            store.putString(ENABLED_KEY, state.enabled.toString())
+            store.putString(GAINS_KEY, state.gains.joinToString(","))
+            store.putString(SELECTED_KEY, state.profileId)
+            _state.value = state
+        }
+    }
+
+    private fun saveOutputs(outputs: List<OutputEqProfile>) {
+        store.putStringList("equalizer.outputs.index", outputs.map { it.output.id })
+        outputs.forEach { binding ->
+            val key = "equalizer.outputs.${binding.output.id}"
+            store.putString("$key.name", binding.output.name)
+            store.putString("$key.enabled", binding.enabled.toString())
+            store.putString("$key.gains", binding.gains.joinToString(","))
+            store.putString("$key.profile", binding.profileId)
+        }
     }
 
     private fun load(): EqualizerState {
@@ -143,6 +254,15 @@ class Equalizer(
             gains = gains,
             profiles = profiles,
             profileId = store.getString(SELECTED_KEY)?.takeIf { id -> profiles.any { it.id == id } },
+            automaticOutputs = store.getString("equalizer.outputs.enabled") == "true",
+            outputProfiles = store.getStringList("equalizer.outputs.index").distinct().mapNotNull { id ->
+                val key = "equalizer.outputs.$id"
+                val name = store.getString("$key.name") ?: return@mapNotNull null
+                val bands = store.getString("$key.gains")?.split(',')?.mapNotNull { it.toDoubleOrNull()?.takeIf(Double::isFinite)?.let(GraphicEq::snap) }
+                    ?.takeIf { it.size == GraphicEq.frequencies.size } ?: return@mapNotNull null
+                OutputEqProfile(EqOutput(id, name), store.getString("$key.enabled") == "true", bands,
+                    store.getString("$key.profile")?.takeIf { wanted -> profiles.any { it.id == wanted } })
+            },
         )
     }
 

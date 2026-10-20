@@ -14,6 +14,9 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.mutableLongStateOf
+import dev.cmdrchara.songlass.designsystem.LyricWordTiming
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,10 +58,26 @@ internal fun LiquidGlassLyricLine(
     seekLabel: String,
     onSeek: (() -> Unit)?,
     modifier: Modifier,
+    words: List<LyricWordTiming>,
+    positionMs: Long,
 ) {
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    val tint = LocalLyricsTint.current.takeIf { it.isSpecified } ?: LocalContentColor.current
-    val sweeping = active && progress != null && !reduceMotion
+    val presentation = LocalGlassLook.current.lyricsPresentation
+    val tint = if (AppTheme.colors.isDark) Color.White else Color(0xFF19191D)
+    val wordTimed = words.isNotEmpty()
+    val sweeping = active && (wordTimed || progress != null) && !reduceMotion
+    // Read only during drawing. Re-anchor every sample/seek; never predict the next word.
+    var wordPosition by remember(text) { mutableLongStateOf(positionMs) }
+    LaunchedEffect(positionMs, isPlaying, sweeping, wordTimed) {
+        wordPosition = positionMs
+        if (wordTimed && sweeping && isPlaying && words.any { it.progressAt(positionMs) < 1f }) {
+            val anchor = withFrameNanos { it }
+            while (true) withFrameNanos { now ->
+                val elapsed = ((now - anchor) / 1_000_000L).coerceIn(0, 300)
+                wordPosition = if (positionMs > Long.MAX_VALUE - elapsed) Long.MAX_VALUE else positionMs + elapsed
+            }
+        }
+    }
     val targetProgress = progress?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
     val sweep = remember(text) { Animatable(targetProgress) }
     var previousProgress by remember(text) { mutableFloatStateOf(targetProgress) }
@@ -67,7 +86,7 @@ internal fun LiquidGlassLyricLine(
         previousProgress = targetProgress
         // Each sample is already the current playback position. Start there and
         // predict the next 250 ms instead of spending a tick catching up to it.
-        if (!sweeping || !isPlaying || targetProgress <= 0f || delta <= 0f || delta > 0.2f) {
+        if (wordTimed || !sweeping || !isPlaying || targetProgress <= 0f || delta <= 0f || delta > 0.2f) {
             sweep.snapTo(targetProgress)
         } else {
             // Small sampling jitter must not pull an ordinary forward sweep backwards.
@@ -78,24 +97,30 @@ internal fun LiquidGlassLyricLine(
         }
     }
     val baseColor by animateColorAsState(
-        targetValue = tint.copy(alpha = if (subdued && (!active || sweeping)) 0.64f else 1f),
+        targetValue = tint.copy(alpha = if (subdued && (!active || sweeping)) 0.48f else 1f),
         animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FadeMillis),
         label = "lyric emphasis",
     )
     var layout by remember(text) { mutableStateOf<TextLayoutResult?>(null) }
     val glyphs = remember(layout) { layout?.sweepGlyphs().orEmpty() }
+    val wordGlyphs = remember(glyphs, words) {
+        words.map { word ->
+            glyphs.filter { it.offset >= word.start && it.offset < word.end && !text[it.offset].isWhitespace() }
+                .distinctBy { it.bounds }
+        }
+    }
     Box(
         modifier.fillMaxWidth().heightIn(min = 44.dp)
             .semantics { selected = active }
             .then(if (onSeek == null) Modifier else Modifier.clickable(role = Role.Button, onClickLabel = seekLabel, onClick = onSeek))
-            .padding(vertical = 18.dp),
+            .padding(vertical = presentation.verticalPadding.dp),
     ) {
         BasicText(
             text = text,
             style = AppTheme.typography.title1.copy(
-                fontSize = 32.sp,
-                lineHeight = 39.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = presentation.fontSize.sp,
+                lineHeight = presentation.lineHeight.sp,
+                fontWeight = FontWeight(presentation.weight),
                 color = baseColor,
             ),
             onTextLayout = { layout = it },
@@ -103,18 +128,24 @@ internal fun LiquidGlassLyricLine(
                 drawContent()
                 val measured = layout
                 if (sweeping && measured != null && glyphs.isNotEmpty()) {
-                    val consumed = sweep.value * glyphs.size
                     val mask = Path()
-                    glyphs.forEachIndexed { index, glyph ->
-                        val fraction = (consumed - index).coerceIn(0f, 1f)
-                        if (fraction > 0f) {
-                            val box = glyph.bounds
-                            mask.addRect(if (glyph.rtl) {
-                                Rect(box.right - box.width * fraction, box.top, box.right, box.bottom)
-                            } else {
-                                Rect(box.left, box.top, box.left + box.width * fraction, box.bottom)
-                            })
+                    fun reveal(glyph: SweepGlyph, fraction: Float) {
+                        if (fraction <= 0f) return
+                        val box = glyph.bounds
+                        mask.addRect(if (glyph.rtl) {
+                            Rect(box.right - box.width * fraction, box.top, box.right, box.bottom)
+                        } else {
+                            Rect(box.left, box.top, box.left + box.width * fraction, box.bottom)
+                        })
+                    }
+                    if (wordTimed) {
+                        wordGlyphs.forEachIndexed { wordIndex, range ->
+                            val consumed = words[wordIndex].progressAt(wordPosition) * range.size
+                            range.forEachIndexed { index, glyph -> reveal(glyph, (consumed - index).coerceIn(0f, 1f)) }
                         }
+                    } else {
+                        val consumed = sweep.value * glyphs.size
+                        glyphs.forEachIndexed { index, glyph -> reveal(glyph, (consumed - index).coerceIn(0f, 1f)) }
                     }
                     // Drawing from the same layout keeps wrapping and glyph positions exact,
                     // and adds no second text node for screen readers to announce.
@@ -125,7 +156,7 @@ internal fun LiquidGlassLyricLine(
     }
 }
 
-private data class SweepGlyph(val bounds: Rect, val rtl: Boolean)
+private data class SweepGlyph(val bounds: Rect, val rtl: Boolean, val offset: Int)
 
 /** Use actual character boxes, so proportional fonts, wrapped lines and bidi runs sweep correctly. */
 private fun TextLayoutResult.sweepGlyphs(): List<SweepGlyph> {
@@ -135,7 +166,7 @@ private fun TextLayoutResult.sweepGlyphs(): List<SweepGlyph> {
     while (offset < text.length) {
         val character = text[offset]
         if (character != '\n' && character != '\r') {
-            glyphs += SweepGlyph(getBoundingBox(offset), getBidiRunDirection(offset) == ResolvedTextDirection.Rtl)
+            glyphs += SweepGlyph(getBoundingBox(offset), getBidiRunDirection(offset) == ResolvedTextDirection.Rtl, offset)
         }
         // A supplementary Unicode character is one visual unit, not two UTF-16 halves.
         offset += if (character.isHighSurrogate() && offset + 1 < text.length && text[offset + 1].isLowSurrogate()) 2 else 1

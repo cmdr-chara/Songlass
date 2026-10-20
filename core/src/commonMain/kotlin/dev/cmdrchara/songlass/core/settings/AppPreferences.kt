@@ -21,6 +21,9 @@ enum class InterfaceStyle {
 
     /** Pastel coloured glass after the "Google Sea Glass" Figma file. */
     MaterialGlass,
+
+    /** HyperOS-style components, powered by the official Miuix library. */
+    Miuix,
 }
 
 data class AppPreferences(
@@ -31,8 +34,12 @@ data class AppPreferences(
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
+    /** Optional decoded-audio overlap between tracks; zero preserves gapless playback. */
+    val crossfadeDurationMs: Long = 0,
     val folderSort: FolderSort = FolderSort.Name,
     /** Play again when headphones or a car reconnect after cutting playback off. Off by default. */
     val resumeOnReconnect: Boolean = false,
+    /** Additional word-timed lyrics provider; users may disable it without disabling LRCLIB. */
+    val amllEnabled: Boolean = true,
     val libraryFilter: dev.cmdrchara.songlass.core.library.LibraryFilter = dev.cmdrchara.songlass.core.library.LibraryFilter(),
 )

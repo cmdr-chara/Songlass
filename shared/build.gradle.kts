@@ -40,6 +40,7 @@ kotlin {
             implementation(projects.designsystem)
             implementation(projects.themeLiquidglass)
             implementation(projects.themeMaterialglass)
+            implementation(projects.themeMiuix)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

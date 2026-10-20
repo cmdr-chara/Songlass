@@ -18,6 +18,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.graphics.vector.ImageVector
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
@@ -33,14 +38,15 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalDensity
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 /**
- * Apple Music collection details: type tag, bold title, then the artist and details beside
- * Shuffle and a large round Play, so the actions don't need a row of their own.
+ * Music collection hierarchy: quiet type/action line, centred metadata, then labelled transport.
+ * Independent Compose layout, informed by visual references rather than imported UI code.
  */
 @Composable
 internal fun LiquidGlassCollectionDetails(
@@ -56,32 +62,46 @@ internal fun LiquidGlassCollectionDetails(
     action: @Composable () -> Unit,
     modifier: Modifier,
 ) {
-    val look = LocalGlassLook.current
-    Column(modifier.fillMaxWidth().padding(horizontal = 24.dp)) {
-        look.Tag(kind, Modifier)
-        Spacer(Modifier.height(8.dp))
-        AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
-        Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                if (subtitle != null) {
-                    AppText(
-                        subtitle,
-                        AppTheme.typography.headline,
-                        color = AppTheme.colors.secondaryLabel,
-                        maxLines = 1,
-                        modifier = if (onSubtitleClick != null) {
-                            Modifier.clickable(role = Role.Button, onClick = onSubtitleClick).padding(vertical = 4.dp)
-                        } else Modifier.padding(vertical = 4.dp),
-                    )
-                }
-                AppText(meta, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-            }
-            Spacer(Modifier.width(8.dp))
+    val colors = AppTheme.colors
+    Column(modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            AppText(kind, AppTheme.typography.footnote, color = colors.secondaryLabel, modifier = Modifier.weight(1f))
             action()
-            look.IconButton(AppIcons.Shuffle, shuffleLabel, onShuffle, false, true, Modifier)
-            Spacer(Modifier.width(12.dp))
-            LiquidGlassProminentButton(AppIcons.Play, playLabel, onPlay, Modifier)
         }
+        AppText(title, AppTheme.typography.title2, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp), maxLines = 4)
+        if (subtitle != null) AppText(subtitle, AppTheme.typography.body,
+            color = if (onSubtitleClick != null) colors.accent else colors.secondaryLabel,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+                .then(if (onSubtitleClick != null) Modifier.heightIn(min = 44.dp)
+                    .clickable(role = Role.Button, onClick = onSubtitleClick) else Modifier)
+                .padding(vertical = 8.dp))
+        AppText(meta, AppTheme.typography.footnote, color = colors.secondaryLabel,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp))
+        Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            LiquidCollectionAction(playLabel, AppIcons.Play, true, onPlay, Modifier.weight(1f))
+            LiquidCollectionAction(shuffleLabel, AppIcons.Shuffle, false, onShuffle, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Two labelled actions stay readable without competing with collection metadata. */
+@Composable
+private fun LiquidCollectionAction(text: String, icon: ImageVector, prominent: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val colors = AppTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale = pressScale(interaction)
+    val surface = if (prominent) colors.accent else colors.fill
+    val foreground = if (prominent) colors.background else colors.accent
+    Row(modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+        .clip(RoundedCornerShape(16.dp)).background(surface.copy(alpha = if (pressed) .7f else surface.alpha))
+        .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+        .padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        AppIcon(icon, null, size = 19.dp, tint = foreground)
+        Spacer(Modifier.width(8.dp))
+        AppText(text, AppTheme.typography.headline, color = foreground, modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.Center)
     }
 }
 
@@ -95,7 +115,7 @@ internal fun LiquidGlassFilterChips(options: List<String>, selectedIndex: Int, o
     val reduceMotion = AppTheme.accessibility.reduceMotion
     LazyRow(
         modifier.selectableGroup(),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = LocalGlassLook.current.contentHorizontalInset),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         itemsIndexed(options) { index, option ->
@@ -105,7 +125,7 @@ internal fun LiquidGlassFilterChips(options: List<String>, selectedIndex: Int, o
             val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.95f else 1f, if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f), label = "chipPress")
             Box(
                 Modifier
-                    .height(34.dp)
+                    .height(with(LocalDensity.current) { maxOf(34.dp, AppTheme.typography.subheadline.lineHeight.toDp() + 14.dp) })
                     .graphicsLayer { scaleX = scale; scaleY = scale }
                     .clip(CircleShape)
                     .background(if (selected) colors.accent else colors.fill)

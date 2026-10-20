@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.theme.materialglass
 
+import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animateTo
 import androidx.compose.animation.core.calculateTargetValue
@@ -94,6 +95,7 @@ private fun TonalButton(item: ShelfItem) {
             .height(40.dp)
             .clip(CircleShape)
             .background(palette.primaryContainer)
+            .prefetchArtworkOnPress(item.artwork)
             .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = item.onClick)
             .padding(start = 16.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -112,7 +114,7 @@ private fun ShapedPins(items: List<ShelfItem>, itemSize: Dp, modifier: Modifier)
             val shape = if (item.circular) ExpressiveShapes.Cookie else ExpressiveShapes.sequence[index % ExpressiveShapes.sequence.size]
             val interaction = remember { MutableInteractionSource() }
             Column(
-                Modifier.width(itemSize).clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick),
+                Modifier.width(itemSize).prefetchArtworkOnPress(item.artwork).clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 // The ripple follows the shape, not the whole tile.
@@ -189,6 +191,7 @@ private fun CarouselItem(item: ShelfItem, largePx: Float, scroll: () -> Float) {
         Modifier
             .clip(ItemShape)
             .background(if (item.icon != null) palette.primaryContainer else palette.container)
+            .prefetchArtworkOnPress(item.artwork)
             .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClick = item.onClick),
         contentAlignment = Alignment.Center,
     ) {

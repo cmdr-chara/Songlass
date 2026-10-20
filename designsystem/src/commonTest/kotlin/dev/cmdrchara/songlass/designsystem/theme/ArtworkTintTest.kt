@@ -129,4 +129,31 @@ class ArtworkTintTest {
         }
     }
 
+    @Test
+    fun headerScrimKeepsWhiteIconsLegibleAcrossAllGrayCovers() {
+        for (channel in 0..255) {
+            val gray = channel / 255f
+            val alpha = ArtworkTint.headerScrimAlpha(listOf(Color(gray, gray, gray)))
+            val protected = Color(gray * (1f - alpha), gray * (1f - alpha), gray * (1f - alpha))
+            assertTrue(alpha in 0f..0.56f)
+            assertTrue(ArtworkTint.contrast(Color.White, protected) >= 4.5f, "gray=$channel alpha=$alpha")
+        }
+    }
+
+    @Test
+    fun headerScrimLeavesDarkCoversClear() {
+        assertEquals(0f, ArtworkTint.headerScrimAlpha(emptyList()))
+        assertEquals(0f, ArtworkTint.headerScrimAlpha(listOf(Color.Black, Color(0xFF180034))))
+        assertTrue(ArtworkTint.headerScrimAlpha(listOf(Color.White)) > 0.5f)
+    }
+
+    @Test
+    fun headerScrimProtectsBrightColoredCovers() {
+        for (seed in seeds) {
+            val alpha = ArtworkTint.headerScrimAlpha(listOf(seed))
+            val protected = Color(seed.red * (1f - alpha), seed.green * (1f - alpha), seed.blue * (1f - alpha))
+            assertTrue(ArtworkTint.contrast(Color.White, protected) >= 4.5f, "seed=$seed alpha=$alpha")
+        }
+    }
+
 }

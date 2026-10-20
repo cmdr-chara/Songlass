@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.ShelfItem
 import androidx.compose.ui.unit.Dp
@@ -24,6 +25,9 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -50,7 +54,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 /** Slight shrink while pressed, the HIG's feedback for tappable content. */
 @Composable
-private fun pressScale(interaction: MutableInteractionSource): Float {
+internal fun pressScale(interaction: MutableInteractionSource): Float {
     val pressed by interaction.collectIsPressedAsState()
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val scale by animateFloatAsState(
@@ -90,7 +94,7 @@ internal fun LiquidGlassPosterCard(label: String, title: String, subtitle: Strin
                         Modifier
                             .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(56.dp)
+                            .height(32.dp)
                             .background(Brush.verticalGradient(listOf(Color.Transparent, tint.background))),
                     )
                 }
@@ -98,7 +102,7 @@ internal fun LiquidGlassPosterCard(label: String, title: String, subtitle: Strin
                     Modifier.fillMaxWidth().height(68.dp).padding(horizontal = 14.dp),
                     verticalArrangement = Arrangement.Center,
                 ) {
-                    AppText(title, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), maxLines = 1)
+                    AppText(title, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), maxLines = 2)
                     if (subtitle != null) {
                         AppText(subtitle, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 1)
                     }
@@ -115,27 +119,23 @@ internal fun LiquidGlassShortcutTile(title: String, artwork: Artwork, circular: 
     val scale = pressScale(interaction)
     Row(
         modifier
-            .height(ShortcutHeight)
+            .heightIn(min = 64.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
-            .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(LocalGlassLook.current.corner(10.dp)), AppTheme.colors.secondaryBackground, prominent = false) }
-            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+            .padding(end = 6.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (circular) {
-            LiquidGlassAlbumArt(artwork, cornerRadius = 22.dp, modifier = Modifier.padding(6.dp).size(44.dp))
-        } else {
-            LiquidGlassAlbumArt(artwork, cornerRadius = 0.dp, modifier = Modifier.size(ShortcutHeight))
-        }
+        LiquidGlassAlbumArt(artwork, cornerRadius = if (circular) 24.dp else 8.dp, modifier = Modifier.size(48.dp))
+        Spacer(Modifier.width(10.dp))
         AppText(
             title,
-            AppTheme.typography.footnote.copy(fontWeight = FontWeight.SemiBold),
+            AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium),
             maxLines = 2,
-            modifier = Modifier.padding(horizontal = 10.dp),
+            modifier = Modifier.weight(1f),
         )
     }
 }
 
-private val ShortcutHeight = 56.dp
 
 /**
  * Library category tile: title, count and icon over a tonal card, with up to three covers fanned
@@ -191,46 +191,67 @@ private val CollectionTileHeight = 132.dp
 
 /**
  * Apple Music shelf: covers in a row with the next one peeking, title and subtitle below.
- * Pins are smaller with a centred title; artists are round; actions show their icon on a tile.
+ * Pins are smaller with a centred title; artists are round; creation actions live below the covers.
  */
 @Composable
 internal fun LiquidGlassArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) {
     val pins = style == ShelfStyle.Pins
     val small = itemSize < 130.dp
-    LazyRow(modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(if (small) 12.dp else 14.dp)) {
-        items(items, key = { it.key }) { item ->
-            val interaction = remember { MutableInteractionSource() }
-            val scale = pressScale(interaction)
-            val corner = when {
-                item.circular -> itemSize / 2
-                pins -> 14.dp
-                small -> 12.dp
-                else -> 10.dp
-            }
-            Column(
-                Modifier
-                    .width(itemSize)
-                    .graphicsLayer { scaleX = scale; scaleY = scale }
-                    .clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick),
-                horizontalAlignment = if (pins || item.icon != null) Alignment.CenterHorizontally else Alignment.Start,
-            ) {
-                val artwork = item.artwork
-                val subtitle = item.subtitle
-                if (item.icon != null || artwork == null) {
-                    Box(
-                        Modifier.size(itemSize).clip(RoundedCornerShape(corner)).background(AppTheme.colors.secondaryBackground),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        item.icon?.let { AppIcon(it, contentDescription = null, size = 32.dp, tint = AppTheme.colors.accent) }
-                    }
-                } else {
-                    LiquidGlassAlbumArt(artwork, cornerRadius = corner, modifier = Modifier.size(itemSize))
+    val actions = items.filter { it.isAction }
+    val covers = items.filterNot { it.isAction }
+    Column(modifier) {
+        if (covers.isNotEmpty()) LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(if (small) 12.dp else 14.dp)) {
+            items(covers, key = { it.key }) { item ->
+                val interaction = remember { MutableInteractionSource() }
+                val scale = pressScale(interaction)
+                val corner = when {
+                    item.circular -> itemSize / 2
+                    pins -> 14.dp
+                    small -> 8.dp
+                    else -> 10.dp
                 }
-                Spacer(Modifier.height(6.dp))
-                val titleStyle = if (pins || small) AppTheme.typography.footnote else AppTheme.typography.subheadline
-                AppText(item.title, titleStyle.copy(fontWeight = FontWeight.Medium), maxLines = 1, textAlign = if (pins || item.icon != null) TextAlign.Center else TextAlign.Start)
-                if (!pins && subtitle != null) {
-                    AppText(subtitle, if (small) AppTheme.typography.caption1 else AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                Column(
+                    Modifier
+                        .width(itemSize)
+                        .graphicsLayer { scaleX = scale; scaleY = scale }
+                        .prefetchArtworkOnPress(item.artwork)
+                        .clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick),
+                    horizontalAlignment = if (pins || item.icon != null) Alignment.CenterHorizontally else Alignment.Start,
+                ) {
+                    val artwork = item.artwork
+                    val subtitle = item.subtitle
+                    if (item.icon != null || artwork == null) {
+                        Box(
+                            Modifier.size(itemSize).clip(RoundedCornerShape(corner)).background(AppTheme.colors.secondaryBackground),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            item.icon?.let { AppIcon(it, contentDescription = null, size = 32.dp, tint = AppTheme.colors.accent) }
+                        }
+                    } else {
+                        LiquidGlassAlbumArt(artwork, cornerRadius = corner, modifier = Modifier.size(itemSize))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    val titleStyle = if (pins || small) AppTheme.typography.footnote else AppTheme.typography.subheadline
+                    AppText(item.title, titleStyle.copy(fontWeight = FontWeight.Medium), maxLines = if (pins) 1 else 2, textAlign = if (pins || item.icon != null) TextAlign.Center else TextAlign.Start)
+                    if (!pins && subtitle != null) {
+                        AppText(subtitle, if (small) AppTheme.typography.caption1 else AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                    }
+                }
+            }
+        }
+        if (actions.isNotEmpty()) Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal = 20.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            actions.forEach { item ->
+                val interaction = remember { MutableInteractionSource() }
+                val scale = pressScale(interaction)
+                Column(Modifier.weight(1f).fillMaxHeight().heightIn(min = 68.dp)
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .clip(RoundedCornerShape(14.dp)).background(AppTheme.colors.secondaryBackground)
+                    .prefetchArtworkOnPress(item.artwork)
+                        .clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick)
+                    .padding(horizontal = 8.dp, vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    item.icon?.let { AppIcon(it, null, size = 21.dp, tint = AppTheme.colors.accent) }
+                    Spacer(Modifier.height(5.dp))
+                    AppText(item.title, AppTheme.typography.footnote, textAlign = TextAlign.Center)
                 }
             }
         }

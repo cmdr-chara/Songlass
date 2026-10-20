@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.designsystem.BackPageTitle
+
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
@@ -32,6 +34,7 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.shared.resources.*
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.eq_custom
 import dev.cmdrchara.songlass.shared.resources.eq_decimal_separator
@@ -58,7 +61,7 @@ import kotlin.math.roundToInt
 
 /** Graphic equalizer, presets and headphone corrections; values and persistence live in core. */
 @Composable
-fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, contentPadding: PaddingValues) {
+fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues) {
     val state by equalizer.state.collectAsState()
     var importFailed by remember { mutableStateOf(false) }
     val importer = rememberTextFileImporter(TextFileKind.EqualizerProfile) { fileName, text ->
@@ -74,19 +77,29 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
     }
 
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
-        item { BackLink(backLabel, onBack) }
+        item { BackPageTitle(stringResource(Res.string.eq_title), backLabel, onBack) }
         item {
-            AppText(
-                stringResource(Res.string.eq_title),
-                AppTheme.typography.largeTitle,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp).semantics { heading() },
-            )
-        }
-        item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp)) {
+            SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                 SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, equalizer::setEnabled)
             }
         }
+        item { SectionTitle(stringResource(Res.string.eq_outputs)) }
+        item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, equalizer::setAutomaticOutputs)
+            state.output?.let { output ->
+                val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
+                ListRow(title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
+                ListRow(title = stringResource(Res.string.eq_outputs_save), onClick = equalizer::saveForCurrentOutput)
+            }
+        } }
+        if (state.outputProfiles.isNotEmpty()) item { SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 8.dp)) {
+            state.outputProfiles.forEach { binding ->
+                ListRow(title = binding.output.name, trailing = {
+                    dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { equalizer.removeOutputProfile(binding.output.id) })
+                }, onClick = null)
+            }
+        } }
+        item { FeatureHint(stringResource(Res.string.eq_outputs_hint)) }
         item {
             EqualizerEditor(
                 bands = bands,
@@ -99,13 +112,13 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                     if (!state.enabled) equalizer.setEnabled(true)
                     equalizer.setGain(band, gain.toDouble())
                 },
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp),
+                modifier = Modifier.padding(start = pageInset, end = pageInset, top = 20.dp),
             )
         }
         item { Hint(stringResource(Res.string.eq_hint)) }
         item { SectionTitle(stringResource(Res.string.eq_presets)) }
         item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+            SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
                 EqPreset.entries.forEach { preset ->
                     SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
                         equalizer.applyPreset(preset)
@@ -117,7 +130,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         }
         item { SectionTitle(stringResource(Res.string.eq_headphones)) }
         item {
-            SettingsGroup(Modifier.padding(horizontal = 16.dp).selectableGroup()) {
+            SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
                 SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { equalizer.selectProfile(null) })
                 state.profiles.forEach { profile ->
                     SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { equalizer.selectProfile(profile.id) })
@@ -125,7 +138,13 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
             }
         }
         item {
-            SettingsGroup(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp)) {
+            SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 12.dp)) {
+                ListRow(
+                    title = stringResource(Res.string.autoeq_browse),
+                    leading = { AppIcon(AppIcons.Search, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                    trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
+                    onClick = onOpenAutoEq,
+                )
                 if (importer != null) {
                     ListRow(
                         title = stringResource(Res.string.eq_headphones_import),

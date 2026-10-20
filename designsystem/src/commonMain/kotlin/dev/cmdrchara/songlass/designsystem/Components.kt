@@ -1,6 +1,8 @@
 package dev.cmdrchara.songlass.designsystem
 
+import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -8,6 +10,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 // Entry points used by screens. Each one delegates to the active UiStyle.
+
+@Composable
+fun HomePage(title: String, trailing: @Composable () -> Unit, contentPadding: PaddingValues, modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) =
+    LocalUiStyle.current.HomePage(title, trailing, contentPadding, modifier, content)
+
+@Composable
+fun HomeHighlights(items: List<HomeHighlight>, itemWidth: Dp, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.HomeHighlights(items, itemWidth, modifier)
+
 
 @Composable
 fun <T> ScreenTransition(
@@ -135,11 +146,17 @@ fun LyricLine(
     seekLabel: String,
     onSeek: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
-) = LocalUiStyle.current.LyricLine(text, active, subdued, progress, isPlaying, seekLabel, onSeek, modifier)
+    words: List<LyricWordTiming> = emptyList(),
+    positionMs: Long = 0L,
+) = LocalUiStyle.current.LyricLine(text, active, subdued, progress, isPlaying, seekLabel, onSeek, modifier, words, positionMs)
 
 @Composable
 fun LyricsViewport(modifier: Modifier = Modifier, content: @Composable () -> Unit) =
     LocalUiStyle.current.LyricsViewport(modifier, content)
+
+@Composable
+fun FormField(value: String, onValueChange: (String) -> Unit, label: String, modifier: Modifier = Modifier, enabled: Boolean = true) =
+    LocalUiStyle.current.FormField(value, onValueChange, label, enabled, modifier)
 
 @Composable
 fun SearchField(
@@ -162,8 +179,9 @@ fun NowPlayingSheet(
     onArtworkExpandedChange: (Boolean) -> Unit,
     dismissLabel: String,
     onDismiss: () -> Unit,
+    onStatusBarAppearanceChange: (Boolean?) -> Unit,
     content: @Composable (onArtworkTap: () -> Unit) -> Unit,
-) = LocalUiStyle.current.NowPlayingSheet(visible, artwork, artworkVisible, artworkExpanded, artworkLabel, expandArtworkLabel, closeArtworkLabel, onArtworkExpandedChange, dismissLabel, onDismiss, content)
+) = LocalUiStyle.current.NowPlayingSheet(visible, artwork, artworkVisible, artworkExpanded, artworkLabel, expandArtworkLabel, closeArtworkLabel, onArtworkExpandedChange, dismissLabel, onDismiss, onStatusBarAppearanceChange, content)
 
 @Composable
 fun ActionSheet(
@@ -201,11 +219,11 @@ fun FloatingBackButton(contentDescription: String, onClick: () -> Unit, modifier
 
 @Composable
 fun PosterCard(label: String, title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, subtitle: String? = null) =
-    LocalUiStyle.current.PosterCard(label, title, subtitle, artwork, onClick, modifier)
+    LocalUiStyle.current.PosterCard(label, title, subtitle, artwork, onClick, modifier.prefetchArtworkOnPress(artwork))
 
 @Composable
 fun ShortcutTile(title: String, artwork: Artwork, onClick: () -> Unit, modifier: Modifier = Modifier, circular: Boolean = false) =
-    LocalUiStyle.current.ShortcutTile(title, artwork, circular, onClick, modifier)
+    LocalUiStyle.current.ShortcutTile(title, artwork, circular, onClick, modifier.prefetchArtworkOnPress(artwork))
 
 @Composable
 fun CollectionTile(
@@ -276,9 +294,32 @@ fun PromptSheet(
 ) = LocalUiStyle.current.PromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
 
 @Composable
-fun ListeningChart(points: List<ListeningChartPoint>, summary: String, modifier: Modifier = Modifier) =
-    LocalUiStyle.current.ListeningChart(points, summary, modifier)
+fun ListeningChart(points: List<ListeningChartPoint>, summary: String, unrecordedLabel: String, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.ListeningChart(points, summary, unrecordedLabel, modifier)
+
+@Composable
+fun StatSummary(figures: List<StatFigure>, modifier: Modifier = Modifier) = LocalUiStyle.current.StatSummary(figures, modifier)
+
+@Composable
+fun RankedRow(
+    rank: Int,
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    highlighted: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) = LocalUiStyle.current.RankedRow(rank, title, subtitle, leading, value, highlighted, onClick, modifier)
 
 @Composable
 fun FolderChoiceRow(choice: FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier = Modifier) =
     LocalUiStyle.current.FolderChoiceRow(choice, onExpand, onExcludedChange, modifier)
+
+@Composable
+fun BackPageTitle(text: String, backLabel: String, onBack: () -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.BackPageTitle(text, backLabel, onBack, modifier)
+
+@Composable
+fun PageTitle(text: String, trailing: (@Composable () -> Unit)? = null, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.PageTitle(text, trailing, modifier)

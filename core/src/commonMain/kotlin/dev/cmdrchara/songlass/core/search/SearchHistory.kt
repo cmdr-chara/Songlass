@@ -38,6 +38,11 @@ class SearchHistory(private val store: KeyValueStore) {
     private val _targets = MutableStateFlow(decode(store.getString(KEY)).distinct().take(MAX))
     val targets = _targets.asStateFlow()
 
+    /** Re-reads the list from [store], after something else (a backup restore) replaced it. */
+    fun reload() {
+        _targets.value = decode(store.getString(KEY)).distinct().take(MAX)
+    }
+
     fun record(target: SearchTarget) = save((listOf(target) + _targets.value.filterNot { it == target }).take(MAX))
     fun remove(target: SearchTarget) = save(_targets.value - target)
     fun clear() = save(emptyList())

@@ -1,39 +1,138 @@
 package dev.cmdrchara.songlass.designsystem.foundation
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.produceState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
+import kotlinx.coroutines.Job
 
 /** Loads cover images; provided by the platform. Implementations should cache. */
 fun interface ArtworkImageLoader {
     /** Returns the image for [key] at roughly [sizePx] square, or `null` if there is none. */
     suspend fun load(key: String, sizePx: Int): ImageBitmap?
+
+    /**
+     * What [load] would return from memory, without suspending: `null` when not loaded yet.
+     * Lets a cover already in the cache be drawn on the first frame instead of the placeholder.
+     */
+    fun cached(key: String, sizePx: Int): CachedArtworkImage? = null
+
+    /**
+     * Starts [load] in the loader's own scope, so it outlives the element that asked (a card
+     * that navigates away); the returned job cancels it. `null` where prefetching is unsupported.
+     */
+    fun prefetch(key: String, sizePx: Int): Job? = null
+}
+
+/** A loader's cached result; [image] is `null` for a file known to have no cover. */
+class CachedArtworkImage(val image: ImageBitmap?) {
+    /** Shared by all views of this immutable decode; released with the loader's cache entry. */
+    val colors: ArtworkColors? by lazy { image?.let { ArtworkColors(it.samplePixels(SAMPLE_GRID)) } }
+}
+
+/** Original color samples and calculations, evaluated once per decoded cover as needed. */
+class ArtworkColors internal constructor(private val samples: List<Color>) {
+    val seed: Color by lazy { ArtworkTint.seedOf(samples) }
+    val bottom: Color by lazy {
+        ArtworkTint.averageOf(samples.filterIndexed { index, _ -> index % SAMPLE_GRID >= SAMPLE_GRID * 3 / 4 })
+    }
+    private val headerSamples: List<Color> by lazy {
+        samples.filterIndexed { index, _ -> index % SAMPLE_GRID < SAMPLE_GRID / 4 }
+    }
+    val header: Color by lazy { ArtworkTint.averageOf(headerSamples) }
+    val headerScrimAlpha: Float by lazy { ArtworkTint.headerScrimAlpha(headerSamples) }
 }
 
 /** `null` where no real artwork is available: placeholders are shown. */
 val LocalArtworkImageLoader = staticCompositionLocalOf<ArtworkImageLoader?> { null }
 
 /** Sizes the loader is asked for, so nearby sizes share a cache entry. */
-private fun sizeBucket(sizePx: Int): Int = if (sizePx <= SMALL_ARTWORK_PX) SMALL_ARTWORK_PX else LARGE_ARTWORK_PX
+internal fun sizeBucket(sizePx: Int): Int = ARTWORK_SIZE_BUCKETS.firstOrNull { sizePx <= it } ?: LARGE_ARTWORK_PX
 
 const val SMALL_ARTWORK_PX = 256
+/** Mid-size views (carousels, cards): never decoded below the size they are drawn at. */
+const val MEDIUM_ARTWORK_PX = 512
 const val LARGE_ARTWORK_PX = 1024
 
-/** The real image for [artwork], or `null` while loading or when there is none. */
+/** Every decoded size, smallest first; a view gets the first one at least as large as itself. */
+val ARTWORK_SIZE_BUCKETS = listOf(SMALL_ARTWORK_PX, MEDIUM_ARTWORK_PX, LARGE_ARTWORK_PX)
+
+/**
+ * The real image for [artwork], or `null` while loading or when there is none.
+ * A cover already in memory is returned on the first composition; while one decodes, a
+ * cached stand-in is drawn (its small size, else the [Artwork.fallbackImageKey] cover),
+ * so neither flashes the placeholder.
+ */
 @Composable
 fun rememberArtworkImage(artwork: Artwork, sizePx: Int): ImageBitmap? {
     val loader = LocalArtworkImageLoader.current
     val key = artwork.imageKey
     val bucket = sizeBucket(sizePx)
-    return produceState<ImageBitmap?>(null, loader, key, bucket) {
-        value = if (loader != null && key != null) loader.load(key, bucket) else null
-    }.value
+    val request = if (loader != null && key != null) ArtworkRequest(loader, key, bucket) else null
+    val cached = remember(request) { request?.let { it.loader.cached(it.key, it.bucket) } }
+    val fallbackKey = artwork.fallbackImageKey
+    val standIn = remember(request, cached, fallbackKey) {
+        if (request == null || cached != null) return@remember null
+        // The requested size, else the largest smaller size already decoded.
+        fun cachedImage(key: String) = ARTWORK_SIZE_BUCKETS.filter { it <= request.bucket }.asReversed()
+            .firstNotNullOfOrNull { request.loader.cached(key, it)?.image }
+        cachedImage(request.key) ?: fallbackKey?.takeIf { it != request.key }?.let(::cachedImage)
+    }
+    var loaded by remember { mutableStateOf<LoadedArtwork?>(null) }
+    LaunchedEffect(request) {
+        if (request != null) loaded = LoadedArtwork(request, cached?.image ?: request.loader.load(request.key, request.bucket))
+    }
+    return artworkToShow(
+        hasRequest = request != null,
+        loadedForRequest = loaded?.request == request,
+        loaded = loaded?.image,
+        cachedKnown = cached != null,
+        cached = cached?.image,
+        standIn = standIn,
+    )
+}
+
+/** Starts loading [artwork] at [sizePx] (e.g. the playing cover, before the player opens). */
+@Composable
+fun PrefetchArtwork(artwork: Artwork?, sizePx: Int) {
+    val loader = LocalArtworkImageLoader.current
+    val key = artwork?.imageKey
+    val bucket = sizeBucket(sizePx)
+    LaunchedEffect(loader, key, bucket) {
+        if (loader != null && key != null && loader.cached(key, bucket) == null) loader.load(key, bucket)
+    }
+}
+
+private data class ArtworkRequest(val loader: ArtworkImageLoader, val key: String, val bucket: Int)
+
+private class LoadedArtwork(val request: ArtworkRequest, val image: ImageBitmap?)
+
+/**
+ * The image to draw now. In order: the result loaded for this request, the synchronously
+ * cached one, a cached stand-in (smaller size or fallback cover), otherwise the last loaded image
+ * (a different cover keeps showing until its replacement decodes, as before).
+ */
+internal fun <T : Any> artworkToShow(
+    hasRequest: Boolean,
+    loadedForRequest: Boolean,
+    loaded: T?,
+    cachedKnown: Boolean,
+    cached: T?,
+    standIn: T?,
+): T? = when {
+    !hasRequest -> null
+    loadedForRequest -> loaded
+    cachedKnown -> cached
+    standIn != null -> standIn
+    else -> loaded
 }
 
 /**
@@ -74,17 +173,10 @@ fun ImageBitmap.samplePixels(grid: Int = 16): List<Color> {
 @Composable
 fun rememberArtworkTint(artwork: Artwork?, dark: Boolean, followArtwork: Boolean = false): ArtworkTint {
     val image = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
-    val (seed, edge) = remember(image, artwork) {
-        val samples = image?.samplePixels(SAMPLE_GRID) ?: artwork?.colors
-        val seed = samples?.let { ArtworkTint.seedOf(it) } ?: Color.Gray
-        // samplePixels is column-major: the last rows of each column are the bottom edge.
-        val edge = when {
-            image != null && samples != null -> ArtworkTint.averageOf(
-                samples.filterIndexed { index, _ -> index % SAMPLE_GRID >= SAMPLE_GRID * 3 / 4 },
-            )
-            else -> artwork?.colors?.lastOrNull()
-        }
-        seed to edge
+    val colors = rememberArtworkColors(artwork, image)
+    val (seed, edge) = remember(colors, artwork) {
+        val seed = colors?.seed ?: artwork?.colors?.let(ArtworkTint::seedOf) ?: Color.Gray
+        seed to (colors?.bottom ?: artwork?.colors?.lastOrNull())
     }
     return remember(seed, edge, dark, followArtwork) {
         ArtworkTint.from(seed, dark, edge.takeIf { followArtwork })
@@ -102,13 +194,34 @@ val LocalArtworkPresentation = staticCompositionLocalOf { ArtworkPresentation.Fu
 @Composable
 fun rememberArtworkHeaderIsDark(artwork: Artwork?, fallbackDark: Boolean): Boolean {
     val image = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
-    return remember(image, artwork, fallbackDark) {
-        val header = if (image != null) {
-            // samplePixels is column-major; use the upper quarter, behind status icons.
-            ArtworkTint.averageOf(image.samplePixels(SAMPLE_GRID).filterIndexed { index, _ ->
-                index % SAMPLE_GRID < SAMPLE_GRID / 4
-            })
-        } else artwork?.colors?.firstOrNull()
+    val colors = rememberArtworkColors(artwork, image)
+    return remember(colors, artwork, fallbackDark) {
+        val header = colors?.header ?: artwork?.colors?.firstOrNull()
         header?.let(ArtworkTint::prefersLightContent) ?: fallbackDark
+    }
+}
+
+/** Black protection for white status icons, sampled independently of the app appearance. */
+@Composable
+fun rememberArtworkHeaderScrimAlpha(artwork: Artwork?): Float {
+    val image = artwork?.let { rememberArtworkImage(it, SMALL_ARTWORK_PX) }
+    val colors = rememberArtworkColors(artwork, image)
+    return remember(colors, artwork) {
+        colors?.headerScrimAlpha ?: ArtworkTint.headerScrimAlpha(artwork?.colors.orEmpty())
+    }
+}
+
+@Composable
+private fun rememberArtworkColors(artwork: Artwork?, image: ImageBitmap?): ArtworkColors? {
+    val loader = LocalArtworkImageLoader.current
+    return remember(loader, image, artwork?.imageKey, artwork?.fallbackImageKey) {
+        if (image == null) return@remember null
+        // A loading view can show the previous cover or an album fallback. Only share an
+        // analysis when it belongs to the exact bitmap being drawn, never merely its URI.
+        val cached = artwork?.imageKey?.let { loader?.cached(it, SMALL_ARTWORK_PX) }
+            ?.takeIf { it.image === image }
+            ?: artwork?.fallbackImageKey?.let { loader?.cached(it, SMALL_ARTWORK_PX) }
+                ?.takeIf { it.image === image }
+        (cached ?: CachedArtworkImage(image)).colors
     }
 }

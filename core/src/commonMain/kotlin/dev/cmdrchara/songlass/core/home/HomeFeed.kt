@@ -7,6 +7,8 @@ import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.playlists.UserPlaylist
+import dev.cmdrchara.songlass.core.playlists.SmartPlaylist
 import kotlin.random.Random
 
 /** Something the Home can show as a tile. */
@@ -16,6 +18,8 @@ sealed interface HomeItem {
     data class ArtistItem(val artist: Artist) : HomeItem
     data class TrackItem(val track: Track) : HomeItem
     data class FavoritesItem(val tracks: List<Track>) : HomeItem
+    data class UserPlaylistItem(val playlist: UserPlaylist, val tracks: List<Track>) : HomeItem
+    data class SmartPlaylistItem(val playlist: SmartPlaylist, val tracks: List<Track>) : HomeItem
 }
 
 /** Why "Change of pace" suggests these songs; the UI turns it into a specific sentence. */
@@ -39,8 +43,9 @@ data class Rediscover(val album: Album, val idleDays: Int?)
 data class HomeFeed(
     val favorites: List<Track> = emptyList(),
     /**
-     * Quick way back in at the top of the Home: the latest places playback started from, then
-     * favorites and playlists to fill the grid. Empty when there are fewer than two.
+     * Quick way back in at the top of the Home: the shortcuts the user chose, then the latest
+     * places playback started from, then favorites and playlists to fill the grid. Empty when
+     * there are fewer than two, unless the user chose at least one that is available.
      */
     val shortcuts: List<HomeItem> = emptyList(),
     /** An album not heard for a while, picked once per day. */
@@ -69,10 +74,20 @@ data class HomeFeed(
          * involve chance use a seed derived from the day of [nowMs], so the Home stays the same
          * throughout a day and changes the next.
          */
-        fun build(library: MusicLibrary, history: HistorySnapshot, favoriteIds: List<String>, nowMs: Long): HomeFeed {
+        fun build(
+            library: MusicLibrary,
+            history: HistorySnapshot,
+            favoriteIds: List<String>,
+            nowMs: Long,
+            /** Shortcuts the user chose (see [HomeCustomization]); they come before the automatic ones. */
+            selectedShortcuts: List<PlayContext> = emptyList(),
+            userPlaylists: List<UserPlaylist> = emptyList(),
+            smartPlaylists: List<SmartPlaylist> = emptyList(),
+        ): HomeFeed {
             val day = nowMs / DAY_MS
             val byId = library.tracks.associateBy { it.id }
             val favorites = favoriteIds.asReversed().mapNotNull { byId[it] }
+            val savedPlaylists = HomeShortcuts.savedPlaylists(library, userPlaylists, smartPlaylists, history, favoriteIds.toSet(), nowMs)
 
             fun lastPlayedOf(tracks: List<Track>): Long? = tracks.mapNotNull { history.lastPlayedMs[it.id] }.maxOrNull()
             val stale = library.albums.filter { album ->
@@ -84,34 +99,35 @@ data class HomeFeed(
             }
 
             val recentlyPlayed = history.recentContexts.mapNotNull { recent ->
-                when (val c = recent.context) {
-                    is PlayContext.Album -> library.albums.firstOrNull { it.title == c.title && it.artist == c.artist }?.let(HomeItem::AlbumItem)
-                    is PlayContext.Playlist -> library.playlists.firstOrNull { it.id == c.id }?.let(HomeItem::PlaylistItem)
-                    is PlayContext.Artist -> library.artists.firstOrNull { it.name == c.name }?.let(HomeItem::ArtistItem)
-                    PlayContext.Favorites -> favorites.takeIf { it.isNotEmpty() }?.let(HomeItem::FavoritesItem)
-                    // Shown in the Library, not on the Home yet.
-                    is PlayContext.UserPlaylist -> null
-                }
+                HomeShortcuts.resolve(library, recent.context, favorites, savedPlaylists)
             }.take(ROW_SIZE)
 
             // Newest files first; songs that belong to an album show as that album, once.
-            val recentlyAdded = library.tracks.filter { it.dateAddedMs != null }
+            val recentlyAdded = library.tracks.asSequence().filter { it.dateAddedMs != null }
                 .sortedByDescending { it.dateAddedMs }
                 .map { track -> library.albumOf(track)?.let(HomeItem::AlbumItem) ?: HomeItem.TrackItem(track) }
-                .distinct()
-                .take(ROW_SIZE)
+                // Albums are unique by title/artist in MusicLibrary. Hashing the full Album
+                // also hashes every track, once per song; stop after the visible cards instead.
+                // Lone tracks keep full value equality, including repeated IDs with different tags.
+                .distinctBy { if (it is HomeItem.AlbumItem) it.album.title to it.album.artist else it }
+                .take(ROW_SIZE).toList()
 
             val mostPlayed = library.tracks.filter { (history.playCounts[it.id] ?: 0) > 0 }
                 .sortedWith(compareByDescending<Track> { history.playCounts[it.id] ?: 0 }.thenByDescending { history.lastPlayedMs[it.id] ?: 0 })
                 .take(SHELF_SIZE)
 
+            // Chosen shortcuts that the visible library still has, in the user's order. The rest of
+            // the grid is the automatic suggestion, without repeating a chosen item.
+            val chosen = HomeShortcuts.resolveAll(library, selectedShortcuts, favorites, savedPlaylists).take(SHORTCUTS)
+            val chosenContexts = chosen.mapNotNull(HomeShortcuts::contextOf).toSet()
             val shortcuts = buildList {
-                addAll(recentlyPlayed.take(SHORTCUTS))
+                addAll(chosen)
+                addAll(recentlyPlayed.filter { HomeShortcuts.contextOf(it) !in chosenContexts }.take(SHORTCUTS))
                 if (favorites.isNotEmpty() && none { it is HomeItem.FavoritesItem }) add(HomeItem.FavoritesItem(favorites))
                 library.playlists.forEach { playlist ->
                     if (none { it is HomeItem.PlaylistItem && it.playlist.id == playlist.id }) add(HomeItem.PlaylistItem(playlist))
                 }
-            }.take(SHORTCUTS).takeIf { it.size >= 2 }.orEmpty()
+            }.take(SHORTCUTS).takeIf { it.size >= if (chosen.isEmpty()) 2 else 1 }.orEmpty()
 
             return HomeFeed(
                 favorites = favorites,

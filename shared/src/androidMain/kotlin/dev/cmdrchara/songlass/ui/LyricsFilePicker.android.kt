@@ -35,7 +35,7 @@ actual fun rememberLyricsFilePicker(onResult: (Track, String?) -> Unit): ((Track
                         if (cursor.moveToFirst()) cursor.getString(0) else null
                     }
                     val extension = name?.substringAfterLast('.', "")?.lowercase()
-                    if (extension != "lrc" && extension != "txt") return@withContext null
+                    if (extension !in setOf("lrc", "txt", "ttml", "xml")) return@withContext null
                     context.contentResolver.openInputStream(uri)?.use { stream ->
                         val bytes = stream.readNBytes(MAX_FILE_BYTES + 1)
                         if (bytes.size > MAX_FILE_BYTES) null else {

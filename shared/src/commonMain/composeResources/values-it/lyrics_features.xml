@@ -1,0 +1,18 @@
+<resources>
+    <string name="lyrics_word_synced">Testo sincronizzato parola per parola</string>
+    <string name="lyrics_word_mixed">Tempi di parola dove disponibili · altre righe stimate</string>
+    <string name="lyrics_share">Condividi testo</string>
+    <string name="lyrics_share_select">Scegli le righe</string>
+    <string name="lyrics_share_close">Chiudi condivisione testo</string>
+    <string name="lyrics_share_hint">Scegli fino a %1$d righe e %2$d caratteri.</string>
+    <string name="lyrics_share_limit">Questo estratto è pieno. Deseleziona una riga o scegline una più breve.</string>
+    <string name="lyrics_share_preview_count">Anteprima (%1$d)</string>
+    <string name="lyrics_card_preview">Anteprima della card</string>
+    <string name="lyrics_card_label">Testo</string>
+    <string name="lyrics_card_rendering">Preparazione della card…</string>
+    <string name="lyrics_card_fit">Scegli un estratto più breve per mantenere leggibile ogni parola.</string>
+    <string name="lyrics_share_edit">Modifica selezione</string>
+    <string name="lyrics_share_image">Condividi immagine</string>
+    <string name="lyrics_share_failed">Impossibile condividere l’immagine. Riprova.</string>
+    <string name="lyrics_share_unavailable">La condivisione di immagini non è ancora disponibile su questa piattaforma.</string>
+</resources>

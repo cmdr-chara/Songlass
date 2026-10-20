@@ -1,0 +1,50 @@
+<resources>
+    <string name="homecfg_title">Personalizza Home</string>
+    <string name="homecfg_settings_hint">Scegli, riordina e nascondi le sezioni della Home</string>
+    <string name="homecfg_intro">Scegli quali sezioni mostra la Home e in che ordine. Le modifiche si applicano subito e restano su questo dispositivo.</string>
+
+    <string name="homecfg_show_title">Sezioni</string>
+    <string name="homecfg_order_title">Ordine</string>
+    <string name="homecfg_order_hint">Usa le frecce per spostare una sezione in alto o in basso. Le sezioni nascoste mantengono il loro posto.</string>
+    <string name="homecfg_hidden">Nascosta</string>
+    <string name="homecfg_position">Posizione %1$d di %2$d</string>
+    <string name="homecfg_move_up">Sposta %1$s in alto</string>
+    <string name="homecfg_move_down">Sposta %1$s in basso</string>
+
+    <string name="homecfg_section_statistics">Statistiche di ascolto</string>
+    <string name="homecfg_section_on_this_day">In questo giorno</string>
+    <string name="homecfg_section_shortcuts">Scorciatoie</string>
+    <string name="homecfg_section_for_you">Per te</string>
+    <string name="homecfg_section_recently_added">Aggiunti di recente</string>
+    <string name="homecfg_section_change_of_pace">Cambia ritmo</string>
+    <string name="homecfg_section_most_played">Più ascoltati</string>
+    <string name="homecfg_section_playlists">Le tue playlist</string>
+
+    <string name="homecfg_shortcuts_title">Scorciatoie</string>
+    <string name="homecfg_shortcuts_hint">Scegli fino a %1$d album, artisti, cartelle, playlist personali o intelligenti, oppure i preferiti. Vengono prima nella griglia.</string>
+    <string name="homecfg_shortcuts_empty">Nessuna scorciatoia scelta: la griglia si completa da sola in base a ciò che hai ascoltato di recente.</string>
+    <string name="homecfg_shortcut_unavailable">Al momento non è nella libreria visibile</string>
+    <string name="homecfg_shortcut_position">Scorciatoia %1$d di %2$d</string>
+    <string name="homecfg_shortcut_move_up">Sposta %1$s prima</string>
+    <string name="homecfg_shortcut_move_down">Sposta %1$s dopo</string>
+    <string name="homecfg_shortcut_remove">Rimuovi %1$s dalle scorciatoie</string>
+
+    <string name="homecfg_add_title">Aggiungi una scorciatoia</string>
+    <string name="homecfg_add_full">Hai scelto il massimo di %1$d scorciatoie. Rimuovine una per aggiungerne un’altra.</string>
+    <string name="homecfg_search_placeholder">Album, artisti, cartelle, playlist</string>
+    <string name="homecfg_add">Aggiungi</string>
+    <string name="homecfg_added">Aggiunta</string>
+    <string name="homecfg_no_matches">Nessun risultato per la ricerca</string>
+    <string name="homecfg_kind_favorites">Preferiti</string>
+    <string name="homecfg_kind_album">Album</string>
+    <string name="homecfg_kind_artist">Artista</string>
+    <string name="homecfg_kind_folder">Cartella</string>
+
+    <string name="homecfg_reset_title">Predefiniti</string>
+    <string name="homecfg_reset_hint">Ripristina l’ordine originale, mostra tutte le sezioni e torna alle scorciatoie automatiche.</string>
+    <string name="homecfg_reset">Ripristina predefiniti</string>
+    <string name="homecfg_is_default">La Home usa la disposizione predefinita.</string>
+
+    <string name="homecfg_all_hidden">Tutte le sezioni della Home sono nascoste.</string>
+    <string name="homecfg_customize">Personalizza Home</string>
+</resources>

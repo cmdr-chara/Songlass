@@ -1,11 +1,8 @@
 package dev.cmdrchara.songlass.theme.materialglass
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -13,10 +10,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
-import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.AppColors
 import dev.cmdrchara.songlass.designsystem.theme.AppTypography
-import dev.cmdrchara.songlass.designsystem.theme.LocalAmbientArtwork
 import dev.cmdrchara.songlass.designsystem.theme.LocalAppColors
 import dev.cmdrchara.songlass.designsystem.theme.LocalAppTypography
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
@@ -31,8 +26,8 @@ import kotlin.math.abs
 /**
  * Material Glass, after the "Google Sea Glass" Figma file (tokens in docs/design/material-glass.md):
  * pastel coloured glass with a glow beneath, light from inside, grain and pill shapes, in Google Sans
- * Flex with full roundness. Every colour comes from one hue taken from the cover of what is playing,
- * so the whole interface follows the music; violet (the file's tab bar) when nothing plays.
+ * Flex with full roundness. Android follows the phone's native dynamic color roles; other
+ * platforms use the original violet palette. The glass keeps its own restrained optical treatment.
  */
 @Composable
 fun MaterialGlassTheme(
@@ -52,8 +47,8 @@ fun MaterialGlassTheme(
  */
 @Composable
 fun MaterialGlassLayer(enabled: Boolean, darkTheme: Boolean, content: @Composable () -> Unit) {
-    val hue = animatedHue(LocalAmbientArtwork.current, darkTheme)
-    val palette = SeaPalette(hue, darkTheme)
+    val system = if (enabled) platformMaterialColors(darkTheme) else null
+    val palette = remember(system, darkTheme) { SeaPalette(system?.let { Hsl.of(it.primary).h } ?: DEFAULT_HUE, darkTheme, system) }
     // Loaded even while Liquid Glass is shown, so the font is ready the moment the style changes.
     val typography = rememberTypography()
     val colors = if (enabled) palette.appColors() else LocalAppColors.current
@@ -66,48 +61,31 @@ fun MaterialGlassLayer(enabled: Boolean, darkTheme: Boolean, content: @Composabl
     )
 }
 
-/** The cover's hue, animated along the shorter way round the colour wheel. */
-@Composable
-private fun animatedHue(artwork: dev.cmdrchara.songlass.designsystem.Artwork?, dark: Boolean): Float {
-    val tint = rememberArtworkTint(artwork, dark)
-    val target = Hsl.of(tint.content).let { if (artwork == null || it.s < 0.08f) DEFAULT_HUE else it.h }
-    val hue = remember { Animatable(target) }
-    LaunchedEffect(target) {
-        val current = hue.value
-        var delta = target - current
-        if (abs(delta) > 180f) delta -= 360f * kotlin.math.sign(delta)
-        hue.animateTo(current + delta, tween(HUE_CHANGE_MILLIS))
-        hue.snapTo(((hue.value % 360f) + 360f) % 360f)
-    }
-    return hue.value
-}
-
-private const val HUE_CHANGE_MILLIS = 360
-
 /** The violet of the file's tab bar (#9500FF). */
 private const val DEFAULT_HUE = 275f
 
 /**
- * Tonal roles from one hue, after Material 3: a near-neutral background, cards a step below, a
+ * Native Material roles on Android, with a tonal fallback on other platforms: a near-neutral background, cards a step below, a
  * saturated primary for the main action, a soft primary container for secondary actions and
  * strong text. The glass of the navigation layer keeps the Figma file's vivid colour (`C`) and
  * pale glow (`C'`). Only distinct tones keep the layers apart; one pastel everywhere looked washed out.
  */
-internal class SeaPalette(val hue: Float, val dark: Boolean) {
+internal class SeaPalette(val hue: Float, val dark: Boolean, private val system: SystemMaterialColors? = null) {
+    val usesSystemColors: Boolean get() = system != null
     private fun tone(s: Float, l: Float) = Hsl(hue, s, l).toColor()
 
-    val vivid: Color = tone(1f, 0.5f)
-    val glow: Color = tone(1f, if (dark) 0.62f else 0.89f)
+    val vivid: Color = system?.primary ?: tone(1f, 0.5f)
+    val glow: Color = system?.primaryContainer ?: tone(1f, if (dark) 0.62f else 0.89f)
 
-    val background: Color = if (dark) tone(0.18f, 0.07f) else tone(0.35f, 0.975f)
-    val container: Color = if (dark) tone(0.2f, 0.13f) else tone(0.42f, 0.925f)
-    val containerHigh: Color = if (dark) tone(0.2f, 0.18f) else tone(0.45f, 0.885f)
-    val primary: Color = if (dark) tone(0.85f, 0.78f) else tone(0.62f, 0.4f)
-    val onPrimary: Color = if (dark) tone(0.7f, 0.16f) else Color.White
-    val primaryContainer: Color = if (dark) tone(0.45f, 0.28f) else tone(0.85f, 0.86f)
-    val onPrimaryContainer: Color = if (dark) tone(0.85f, 0.9f) else tone(0.65f, 0.17f)
-    val label: Color = if (dark) tone(0.25f, 0.94f) else tone(0.3f, 0.1f)
-    val secondaryLabel: Color = if (dark) tone(0.15f, 0.74f) else tone(0.15f, 0.36f)
+    val background: Color = system?.background ?: if (dark) tone(0.18f, 0.07f) else tone(0.35f, 0.975f)
+    val container: Color = system?.container ?: if (dark) tone(0.2f, 0.13f) else tone(0.42f, 0.925f)
+    val containerHigh: Color = system?.containerHigh ?: if (dark) tone(0.2f, 0.18f) else tone(0.45f, 0.885f)
+    val primary: Color = system?.primary ?: if (dark) tone(0.85f, 0.78f) else tone(0.62f, 0.4f)
+    val onPrimary: Color = system?.onPrimary ?: if (dark) tone(0.7f, 0.16f) else Color.White
+    val primaryContainer: Color = system?.primaryContainer ?: if (dark) tone(0.45f, 0.28f) else tone(0.85f, 0.86f)
+    val onPrimaryContainer: Color = system?.onPrimaryContainer ?: if (dark) tone(0.85f, 0.9f) else tone(0.65f, 0.17f)
+    val label: Color = system?.label ?: if (dark) tone(0.25f, 0.94f) else tone(0.3f, 0.1f)
+    val secondaryLabel: Color = system?.secondaryLabel ?: if (dark) tone(0.15f, 0.74f) else tone(0.15f, 0.36f)
 
     fun appColors(): AppColors = AppColors(
         isDark = dark,
