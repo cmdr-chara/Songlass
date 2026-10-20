@@ -54,6 +54,24 @@ internal fun MaterialSettingsDestination(title: String, summary: String, icon: I
 }
 
 @Composable
+internal fun MaterialSettingsSearchResult(title: String, path: String, value: String?, onClick: () -> Unit, modifier: Modifier) {
+    val palette = currentPalette()
+    val interaction = remember { MutableInteractionSource() }
+    Row(modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(palette.container)
+        .semantics(mergeDescendants = true) { }
+        .clickable(interaction, MaterialRipple, role = Role.Button, onClick = onClick)
+        .heightIn(min = 72.dp).padding(horizontal = 20.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            AppText(title, AppTheme.typography.body, color = palette.label)
+            AppText(path, AppTheme.typography.subheadline, color = palette.secondaryLabel)
+            value?.let { AppText(it, AppTheme.typography.subheadline, color = palette.primary) }
+        }
+        AppIcon(AppIcons.ChevronRight, null, size = 18.dp, tint = palette.secondaryLabel)
+    }
+}
+
+@Composable
 internal fun MaterialSettingsCategoryIcon(icon: ImageVector, modifier: Modifier) {
     val palette = currentPalette()
     Box(modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(palette.primaryContainer), contentAlignment = Alignment.Center) {

@@ -2,11 +2,13 @@ package dev.cmdrchara.songlass.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.backup.BackupPreview
+import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
@@ -21,8 +23,10 @@ private enum class BackupNotice { None, Saved, Restored, Failed, Invalid }
 
 /** The file is validated and previewed before an explicit replacement of app data. */
 @Composable
-fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingValues) {
+fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
     val scope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
+    val searchReveal = SettingsSearchScroll(searchFocus, listState, if (searchFocus?.target == SettingsTarget.Backup) 0 else null)
     val restoring by graph.isRestoringBackup.collectAsState()
     val scanning by graph.isLibraryLoading.collectAsState()
     var busy by remember { mutableStateOf(false) }
@@ -57,8 +61,13 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
         }
     }
     val working = busy || restoring
-    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
-        item { BackPageTitle(stringResource(Res.string.backup_title), stringResource(Res.string.settings_title), { if (!working) onBack() }) }
+    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
+        item {
+            SettingsSearchAnchor(SettingsTarget.Backup, searchFocus) {
+                BackPageTitle(stringResource(Res.string.backup_title),
+                    stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), { if (!working) onBack() })
+            }
+        }
         item { FeatureHint(stringResource(Res.string.backup_intro)) }
         if (scanning) item { FeatureHint(stringResource(Res.string.backup_library_loading)) }
         if (working) item { FeatureHint(stringResource(Res.string.backup_busy)) }

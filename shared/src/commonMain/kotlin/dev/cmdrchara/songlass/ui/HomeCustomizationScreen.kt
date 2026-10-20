@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.home.*
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -29,7 +31,7 @@ import org.jetbrains.compose.resources.stringResource
 
 /** Overview, section ordering and a focused picker each have their own reading hierarchy. */
 @Composable
-fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Unit, contentPadding: PaddingValues) {
+fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
     val customization = state.homeCustomization
     val library = state.library
     val layout by customization.state.collectAsState()
@@ -42,6 +44,7 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
         HomeShortcuts.savedPlaylists(library, personal, smart, history, favorites.toSet(), now)
     }
     var pane by rememberSaveable { mutableStateOf("overview") }
+    val overviewListState = rememberLazyListState()
     var query by rememberSaveable { mutableStateOf("") }
     var kindIndex by rememberSaveable { mutableIntStateOf(0) }
     var menuContext by remember { mutableStateOf<PlayContext?>(null) }
@@ -108,8 +111,14 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
                 } }
             }
         } else {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 12.dp)) {
-                item { BackPageTitle(stringResource(Res.string.homecfg_title), backLabel, onBack) }
+            val searchReveal = SettingsSearchScroll(searchFocus, overviewListState, if (searchFocus?.target == SettingsTarget.HomeCustomization) 0 else null)
+            LazyColumn(Modifier.weight(1f).fillMaxWidth().then(searchReveal), state = overviewListState, contentPadding = PaddingValues(bottom = 12.dp)) {
+                item {
+                    SettingsSearchAnchor(SettingsTarget.HomeCustomization, searchFocus) {
+                        BackPageTitle(stringResource(Res.string.homecfg_title),
+                            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack)
+                    }
+                }
                 item { SectionTitle(stringResource(Res.string.homecfg_shortcuts_title)) }
                 if (chosen.isEmpty()) item { HomeHint(stringResource(Res.string.homecfg_builder_empty)) }
                 item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {

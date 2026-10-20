@@ -150,6 +150,10 @@ object MiuixLook : GlassLook {
         MiuixSettingsDestination(title, summary, icon, summaryIsValue, onClick)
 
     @Composable
+    override fun SettingsSearchResult(title: String, path: String, value: String?, onClick: () -> Unit, modifier: Modifier) =
+        MiuixSettingsSearchResult(title, path, value, onClick, modifier)
+
+    @Composable
     override fun SettingsCategoryIcon(icon: ImageVector, modifier: Modifier) = MiuixSettingsCategoryIcon(icon, modifier)
 
     @Composable

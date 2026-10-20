@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -24,6 +25,7 @@ import dev.cmdrchara.songlass.core.equalizer.EqChain
 import dev.cmdrchara.songlass.core.equalizer.EqPreset
 import dev.cmdrchara.songlass.core.equalizer.Equalizer
 import dev.cmdrchara.songlass.core.equalizer.GraphicEq
+import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.EqBand
 import dev.cmdrchara.songlass.designsystem.EqualizerEditor
 import dev.cmdrchara.songlass.designsystem.ListRow
@@ -61,8 +63,18 @@ import kotlin.math.roundToInt
 
 /** Graphic equalizer, presets and headphone corrections; values and persistence live in core. */
 @Composable
-fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues) {
+fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
     val state by equalizer.state.collectAsState()
+    val listState = rememberLazyListState()
+    val outputProfilesOffset = if (state.outputProfiles.isNotEmpty()) 1 else 0
+    val targetIndex = when (searchFocus?.target) {
+        SettingsTarget.Equalizer -> 1
+        SettingsTarget.OutputProfiles -> 3
+        SettingsTarget.EqualizerPresets -> 8 + outputProfilesOffset
+        SettingsTarget.HeadphoneCorrection -> 10 + outputProfilesOffset
+        else -> null
+    }
+    val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
     var importFailed by remember { mutableStateOf(false) }
     val importer = rememberTextFileImporter(TextFileKind.EqualizerProfile) { fileName, text ->
         importFailed = text == null || equalizer.importProfile(fileName ?: "AutoEQ", text) == null
@@ -76,16 +88,21 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         EqChain(state.profile?.filters.orEmpty() + GraphicEq.filters(state.gains), 0.0).curve(CURVE_POINTS).map { it.toFloat() }
     }
 
-    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
-        item { BackPageTitle(stringResource(Res.string.eq_title), backLabel, onBack) }
+    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
+        item { BackPageTitle(stringResource(Res.string.eq_title),
+            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-                SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, equalizer::setEnabled)
+                SettingsSearchAnchor(SettingsTarget.Equalizer, searchFocus) {
+                    SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, equalizer::setEnabled)
+                }
             }
         }
         item { SectionTitle(stringResource(Res.string.eq_outputs)) }
         item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-            SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, equalizer::setAutomaticOutputs)
+            SettingsSearchAnchor(SettingsTarget.OutputProfiles, searchFocus) {
+                SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, equalizer::setAutomaticOutputs)
+            }
             state.output?.let { output ->
                 val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
                 ListRow(title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
@@ -118,22 +135,26 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         item { Hint(stringResource(Res.string.eq_hint)) }
         item { SectionTitle(stringResource(Res.string.eq_presets)) }
         item {
-            SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                EqPreset.entries.forEach { preset ->
-                    SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
-                        equalizer.applyPreset(preset)
-                        if (preset != EqPreset.Flat) equalizer.setEnabled(true)
-                    })
+            SettingsSearchAnchor(SettingsTarget.EqualizerPresets, searchFocus) {
+                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                    EqPreset.entries.forEach { preset ->
+                        SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
+                            equalizer.applyPreset(preset)
+                            if (preset != EqPreset.Flat) equalizer.setEnabled(true)
+                        })
+                    }
+                    if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
                 }
-                if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
             }
         }
         item { SectionTitle(stringResource(Res.string.eq_headphones)) }
         item {
-            SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { equalizer.selectProfile(null) })
-                state.profiles.forEach { profile ->
-                    SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { equalizer.selectProfile(profile.id) })
+            SettingsSearchAnchor(SettingsTarget.HeadphoneCorrection, searchFocus) {
+                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                    SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { equalizer.selectProfile(null) })
+                    state.profiles.forEach { profile ->
+                        SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { equalizer.selectProfile(profile.id) })
+                    }
                 }
             }
         }
@@ -168,7 +189,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
 
 private const val CURVE_POINTS = 96
 
-private val EqPreset.label: StringResource
+internal val EqPreset.label: StringResource
     get() = when (this) {
         EqPreset.Flat -> Res.string.eq_preset_flat
         EqPreset.MoreBass -> Res.string.eq_preset_more_bass

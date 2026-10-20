@@ -117,6 +117,28 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
     }
 }
 
+@Composable
+internal fun LiquidSettingsSearchResult(title: String, path: String, value: String?, onClick: () -> Unit, modifier: Modifier) {
+    val colors = AppTheme.colors
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    LiquidSettingsPageGroup(modifier) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp)
+            .background(if (pressed) colors.fill else Color.Transparent)
+            .semantics(mergeDescendants = true) { }
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AppText(title, AppTheme.typography.body, color = colors.label)
+                AppText(path, AppTheme.typography.footnote, color = colors.secondaryLabel)
+                value?.let { AppText(it, AppTheme.typography.subheadline, color = colors.accent) }
+            }
+            AppIcon(AppIcons.ChevronRight, null, size = 13.dp, tint = colors.tertiaryLabel)
+        }
+    }
+}
+
 /** The other looks keep their existing subtitle rows, shapes, padding and indication. */
 @Composable
 fun StandardSettingsDestination(title: String, summary: String, icon: ImageVector, onClick: () -> Unit) {

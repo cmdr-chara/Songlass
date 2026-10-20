@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
@@ -48,6 +47,8 @@ fun SettingsScreen(
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
     pane: SettingsPane,
+    search: SettingsSearchSession,
+    onSearchResult: (SettingsTarget) -> Unit,
     onPaneChanged: (SettingsPane) -> Unit,
     isActive: Boolean,
     onOpenEqualizer: () -> Unit,
@@ -62,18 +63,30 @@ fun SettingsScreen(
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     fun backFrom(page: SettingsPane) {
-        if (page == SettingsPane.CrossfadeDuration) { focus.clearFocus(); keyboard?.hide() }
-        onPaneChanged(if (page == SettingsPane.CrossfadeDuration) SettingsPane.Playback else SettingsPane.Overview)
+        focus.clearFocus(); keyboard?.hide()
+        when {
+            page == SettingsPane.Overview -> { search.updateQuery(""); search.returnToResults() }
+            search.resultPane == page -> { search.returnToResults(); onPaneChanged(SettingsPane.Overview) }
+            page == SettingsPane.CrossfadeDuration -> onPaneChanged(SettingsPane.Playback)
+            else -> onPaneChanged(SettingsPane.Overview)
+        }
     }
-    PlatformBackHandler(isActive && pane != SettingsPane.Overview) { backFrom(pane) }
-    val scroll = remember { SettingsPane.entries.associateWith { LazyListState() } }
+    PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
+    val documents = settingsSearchDocuments()
+    val index = remember(documents) { SettingsSearchIndex(documents) }
+    val results = remember(index, search.query, supportsAmllLyrics) { index.search(search.query, supportsAmllLyrics) }
+    val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
         ScreenTransition(pane, direction = { from, to ->
             if (to == SettingsPane.Overview || (from == SettingsPane.CrossfadeDuration && to == SettingsPane.Playback)) NavigationDirection.Backward else NavigationDirection.Forward
         }) { page ->
+            val searching = page == SettingsPane.Overview && search.query.isNotBlank()
+            val scroll = if (searching) search.resultsScroll else search.paneScroll.getValue(page)
+            val request = search.focus?.takeIf { isActive && page == pane && it.target.settingsPane == page }
+            val reveal = SettingsSearchScroll(request, scroll, request?.target?.settingsItemIndex)
             LazyColumn(
-                Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding(),
-                state = scroll.getValue(page),
+                Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding().then(reveal),
+                state = scroll,
                 contentPadding = contentPadding,
             ) {
                 item(key = "title") {
@@ -87,32 +100,46 @@ fun SettingsScreen(
                     }
                     LocalGlassLook.current.SettingsPageTitle(stringResource(title),
                         when (page) {
-                            SettingsPane.Overview -> backLabel
-                            SettingsPane.CrossfadeDuration -> stringResource(Res.string.settings_playback)
-                            else -> stringResource(Res.string.settings_title)
+                            SettingsPane.Overview -> if (search.query.isNotEmpty()) stringResource(Res.string.settings_title) else backLabel
+                            SettingsPane.CrossfadeDuration -> stringResource(if (search.resultPane == page) Res.string.settings_search_results else Res.string.settings_playback)
+                            else -> if (search.resultPane == page) stringResource(Res.string.settings_search_results) else stringResource(Res.string.settings_title)
                         },
-                        if (page == SettingsPane.Overview) onBack else ({ backFrom(page) }), Modifier)
+                        if (page == SettingsPane.Overview && search.query.isEmpty()) onBack else ({ backFrom(page) }), Modifier)
                 }
                 when (page) {
-                    SettingsPane.Overview -> overviewSettings(preferences, supportsAmllLyrics, onPaneChanged,
-                        onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
-                    SettingsPane.Appearance -> appearanceSettings(settings, preferences)
-                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, onOpenEqualizer) { onPaneChanged(SettingsPane.CrossfadeDuration) }
+                    SettingsPane.Overview -> {
+                        item(key = "settings-search") {
+                            SearchField(search.query, search::updateQuery, stringResource(Res.string.settings_search_placeholder),
+                                stringResource(Res.string.search_clear), Modifier.padding(horizontal = pageInset, vertical = 8.dp))
+                        }
+                        if (searching) settingsSearchResults(results, documents, preferences, eqState, systemAccessibility) {
+                            focus.clearFocus(); keyboard?.hide(); onSearchResult(it)
+                        } else {
+                            item(key = "search-hint") { SettingsHint(stringResource(Res.string.settings_search_hint)) }
+                            overviewSettings(preferences, supportsAmllLyrics, onPaneChanged,
+                                onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
+                        }
+                    }
+                    SettingsPane.Appearance -> appearanceSettings(settings, preferences, request)
+                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, onOpenEqualizer, request) { onPaneChanged(SettingsPane.CrossfadeDuration) }
                     SettingsPane.Lyrics -> if (supportsAmllLyrics) {
                         item {
                             SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
-                                SettingsToggleRow(stringResource(Res.string.settings_amll), preferences.amllEnabled,
-                                    settings::setAmllEnabled)
+                                SettingsSearchAnchor(SettingsTarget.AmllLyrics, request) {
+                                    SettingsToggleRow(stringResource(Res.string.settings_amll), preferences.amllEnabled,
+                                        settings::setAmllEnabled)
+                                }
                             }
                         }
                         item { SettingsHint(stringResource(Res.string.settings_amll_hint)) }
                     }
-                    SettingsPane.Accessibility -> accessibilitySettings(settings, preferences, systemAccessibility)
+                    SettingsPane.Accessibility -> accessibilitySettings(settings, preferences, systemAccessibility, request)
                     SettingsPane.CrossfadeDuration -> item {
-                        CrossfadeDurationEditor(preferences.crossfadeDurationMs) { duration ->
-                            settings.setCrossfadeDuration(duration)
-                            focus.clearFocus(); keyboard?.hide()
-                            onPaneChanged(SettingsPane.Playback)
+                        SettingsSearchAnchor(SettingsTarget.CrossfadeDuration, request) {
+                            CrossfadeDurationEditor(preferences.crossfadeDurationMs) { duration ->
+                                settings.setCrossfadeDuration(duration)
+                                backFrom(SettingsPane.CrossfadeDuration)
+                            }
                         }
                     }
                 }
@@ -181,30 +208,36 @@ private fun SettingsDestinations(modifier: Modifier, content: @Composable () -> 
 @Composable
 private fun SettingsSection(title: String) = LocalGlassLook.current.SettingsSectionTitle(title)
 
-private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences) {
+private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?) {
     item { SettingsSection(stringResource(Res.string.settings_ui_style)) }
     item {
-        PreviewChoices(InterfaceStyle.entries.size) { index, modifier ->
-            val style = InterfaceStyle.entries[index]
-            LocalGlassLook.current.SettingsPreviewChoice(styleName(style), preferences.interfaceStyle == style,
-                { settings.setInterfaceStyle(style) }, modifier) { StylePreview(style) }
+        SettingsSearchAnchor(SettingsTarget.InterfaceStyle, request) {
+            PreviewChoices(InterfaceStyle.entries.size) { index, modifier ->
+                val style = InterfaceStyle.entries[index]
+                LocalGlassLook.current.SettingsPreviewChoice(styleName(style), preferences.interfaceStyle == style,
+                    { settings.setInterfaceStyle(style) }, modifier) { StylePreview(style) }
+            }
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_ui_style_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_appearance)) }
     item {
-        SettingsOptions(AppearanceMode.entries.map { appearanceName(it) }, preferences.appearance.ordinal) {
-            settings.setAppearance(AppearanceMode.entries[it])
+        SettingsSearchAnchor(SettingsTarget.Appearance, request) {
+            SettingsOptions(AppearanceMode.entries.map { appearanceName(it) }, preferences.appearance.ordinal) {
+                settings.setAppearance(AppearanceMode.entries[it])
+            }
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_appearance_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_artwork)) }
     item {
-        PreviewChoices(ArtworkStyle.entries.size) { index, modifier ->
-            val style = ArtworkStyle.entries[index]
-            val title = stringResource(if (style == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
-            LocalGlassLook.current.SettingsPreviewChoice(title, preferences.artworkStyle == style,
-                { settings.setArtworkStyle(style) }, modifier) { ArtworkPreview(style) }
+        SettingsSearchAnchor(SettingsTarget.ArtworkStyle, request) {
+            PreviewChoices(ArtworkStyle.entries.size) { index, modifier ->
+                val style = ArtworkStyle.entries[index]
+                val title = stringResource(if (style == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
+                LocalGlassLook.current.SettingsPreviewChoice(title, preferences.artworkStyle == style,
+                    { settings.setArtworkStyle(style) }, modifier) { ArtworkPreview(style) }
+            }
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
@@ -284,7 +317,7 @@ private fun ArtworkPreview(style: ArtworkStyle) {
 
 private val crossfadePresets = listOf(0L, 2_000L, 4_000L, 6_000L, 8_000L, 12_000L)
 
-private fun LazyListScope.playbackSettings(settings: AppSettings, preferences: AppPreferences, equalizer: Equalizer, openEq: () -> Unit, openCustom: () -> Unit) {
+private fun LazyListScope.playbackSettings(settings: AppSettings, preferences: AppPreferences, equalizer: Equalizer, openEq: () -> Unit, request: SettingsFocusRequest?, openCustom: () -> Unit) {
     item { SettingsSection(stringResource(Res.string.settings_sound)) }
     item {
         val eq by equalizer.state.collectAsState()
@@ -292,8 +325,10 @@ private fun LazyListScope.playbackSettings(settings: AppSettings, preferences: A
             SettingsLink(stringResource(Res.string.eq_title),
                 if (!eq.enabled) stringResource(Res.string.eq_off) else listOfNotNull(stringResource(Res.string.eq_on), eq.profile?.name).joinToString(" · "),
                 AppIcons.Equalizer, summaryIsValue = true, onClick = openEq)
-            SettingsToggleRow(stringResource(Res.string.settings_resume_reconnect), preferences.resumeOnReconnect,
-                settings::setResumeOnReconnect, subtitle = stringResource(Res.string.settings_resume_reconnect_hint))
+            SettingsSearchAnchor(SettingsTarget.ResumeOnReconnect, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_resume_reconnect), preferences.resumeOnReconnect,
+                    settings::setResumeOnReconnect, subtitle = stringResource(Res.string.settings_resume_reconnect_hint))
+            }
         }
     }
     item { SettingsSection(stringResource(Res.string.settings_replay_gain)) }
@@ -307,23 +342,27 @@ private fun LazyListScope.playbackSettings(settings: AppSettings, preferences: A
         }
         val shortLabels = listOf(stringResource(Res.string.settings_replay_gain_off),
             stringResource(Res.string.settings_replay_gain_track_short), stringResource(Res.string.settings_replay_gain_album_short))
-        SettingsOptions(shortLabels, preferences.replayGain.ordinal, labels) { settings.setReplayGain(ReplayGainMode.entries[it]) }
+        SettingsSearchAnchor(SettingsTarget.ReplayGain, request) {
+            SettingsOptions(shortLabels, preferences.replayGain.ordinal, labels) { settings.setReplayGain(ReplayGainMode.entries[it]) }
+        }
     }
     item { SettingsHint(stringResource(Res.string.settings_replay_gain_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_crossfade)) }
     item {
-        SettingsFormGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-            crossfadePresets.forEach { duration ->
-                SettingsChoiceRow(if (duration == 0L) stringResource(Res.string.settings_crossfade_off)
-                    else stringResource(Res.string.settings_crossfade_seconds, duration / 1_000L),
-                    preferences.crossfadeDurationMs == duration, { settings.setCrossfadeDuration(duration) })
+        SettingsSearchAnchor(SettingsTarget.Crossfade, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                crossfadePresets.forEach { duration ->
+                    SettingsChoiceRow(if (duration == 0L) stringResource(Res.string.settings_crossfade_off)
+                        else stringResource(Res.string.settings_crossfade_seconds, duration / 1_000L),
+                        preferences.crossfadeDurationMs == duration, { settings.setCrossfadeDuration(duration) })
+                }
+                val custom = preferences.crossfadeDurationMs !in crossfadePresets
+                SettingsChoiceRow(
+                    if (custom) stringResource(Res.string.settings_crossfade_custom_value, preferences.crossfadeDurationMs)
+                    else stringResource(Res.string.settings_crossfade_custom),
+                    custom, openCustom,
+                )
             }
-            val custom = preferences.crossfadeDurationMs !in crossfadePresets
-            SettingsChoiceRow(
-                if (custom) stringResource(Res.string.settings_crossfade_custom_value, preferences.crossfadeDurationMs)
-                else stringResource(Res.string.settings_crossfade_custom),
-                custom, openCustom,
-            )
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_crossfade_hint)) }
@@ -353,16 +392,20 @@ private fun CrossfadeDurationEditor(initialMs: Long, onSave: (Long) -> Unit) {
     }
 }
 
-private fun LazyListScope.accessibilitySettings(settings: AppSettings, preferences: AppPreferences, system: UiAccessibility) {
+private fun LazyListScope.accessibilitySettings(settings: AppSettings, preferences: AppPreferences, system: UiAccessibility, request: SettingsFocusRequest?) {
     item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
     item {
         SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-            SettingsToggleRow(stringResource(Res.string.settings_reduce_motion), preferences.reduceMotion || system.reduceMotion,
-                settings::setReduceMotion, enabled = !system.reduceMotion,
-                subtitle = stringResource(if (system.reduceMotion) Res.string.settings_device_enabled else Res.string.settings_reduce_motion_hint))
-            SettingsToggleRow(stringResource(Res.string.settings_reduce_transparency), preferences.reduceTransparency || system.reduceTransparency,
-                settings::setReduceTransparency, enabled = !system.reduceTransparency,
-                subtitle = stringResource(if (system.reduceTransparency) Res.string.settings_device_enabled else Res.string.settings_reduce_transparency_hint))
+            SettingsSearchAnchor(SettingsTarget.ReduceMotion, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_reduce_motion), preferences.reduceMotion || system.reduceMotion,
+                    settings::setReduceMotion, enabled = !system.reduceMotion,
+                    subtitle = stringResource(if (system.reduceMotion) Res.string.settings_device_enabled else Res.string.settings_reduce_motion_hint))
+            }
+            SettingsSearchAnchor(SettingsTarget.ReduceTransparency, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_reduce_transparency), preferences.reduceTransparency || system.reduceTransparency,
+                    settings::setReduceTransparency, enabled = !system.reduceTransparency,
+                    subtitle = stringResource(if (system.reduceTransparency) Res.string.settings_device_enabled else Res.string.settings_reduce_transparency_hint))
+            }
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_accessibility_hint)) }

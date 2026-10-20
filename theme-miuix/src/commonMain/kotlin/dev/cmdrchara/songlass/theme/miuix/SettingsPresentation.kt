@@ -20,12 +20,14 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.RadioButton
@@ -57,6 +59,26 @@ internal fun MiuixSettingsDestination(title: String, summary: String, icon: Imag
                     AppIcon(AppIcons.ChevronRight, null, size = 16.dp, tint = colors.tertiaryLabel)
                 }
             }, highlighted = false, onClick = onClick, modifier = Modifier)
+    }
+}
+
+@Composable
+internal fun MiuixSettingsSearchResult(title: String, path: String, value: String?, onClick: () -> Unit, modifier: Modifier) {
+    val colors = AppTheme.colors
+    Card(modifier.fillMaxWidth(), cornerRadius = 20.dp, insideMargin = PaddingValues(0.dp),
+        colors = CardDefaults.defaultColors(color = colors.secondaryBackground)) {
+        BasicComponent(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 64.dp).semantics(mergeDescendants = true) { role = Role.Button },
+            insideMargin = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+            endActions = { AppIcon(AppIcons.ChevronRight, null, modifier = Modifier.padding(start = 12.dp), size = 16.dp, tint = colors.tertiaryLabel) },
+            onClick = onClick,
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AppText(title, AppTheme.typography.body, color = colors.label)
+                AppText(path, AppTheme.typography.subheadline, color = colors.secondaryLabel)
+                value?.let { AppText(it, AppTheme.typography.subheadline, color = colors.accent) }
+            }
+        }
     }
 }
 

@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -12,6 +13,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.SettingsGroup
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -22,14 +24,17 @@ import org.jetbrains.compose.resources.stringResource
 
 /** Identity and a plain-language description of the app's current data use. */
 @Composable
-fun AboutScreen(onBack: () -> Unit, contentPadding: PaddingValues) {
+fun AboutScreen(onBack: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
     val uriHandler = LocalUriHandler.current
+    val listState = rememberLazyListState()
+    val searchReveal = SettingsSearchScroll(searchFocus, listState, if (searchFocus?.target == SettingsTarget.About) 1 else null)
     LazyColumn(
-        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
+        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal),
+        state = listState,
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { BackLink(stringResource(Res.string.settings_title), onBack) }
+        item { BackLink(stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), onBack) }
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
@@ -38,7 +43,11 @@ fun AboutScreen(onBack: () -> Unit, contentPadding: PaddingValues) {
                     modifier = Modifier.size(96.dp).clip(RoundedCornerShape(24.dp)),
                 )
                 Spacer(Modifier.height(16.dp))
-                AppText("Songlass", AppTheme.typography.largeTitle, modifier = Modifier.semantics { heading() })
+                SettingsSearchAnchor(SettingsTarget.About, searchFocus) {
+                    AppText("Songlass", AppTheme.typography.largeTitle,
+                        modifier = Modifier.fillMaxWidth().semantics { heading() },
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
                 AppText(stringResource(Res.string.about_tagline), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }

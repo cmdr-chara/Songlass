@@ -238,6 +238,11 @@ interface GlassLook {
     fun SettingsDestination(title: String, summary: String, icon: ImageVector, summaryIsValue: Boolean, onClick: () -> Unit) =
         LiquidSettingsDestination(title, summary, icon, summaryIsValue, onClick)
 
+    /** Search results retain their full breadcrumb and current value at every text size. */
+    @Composable
+    fun SettingsSearchResult(title: String, path: String, value: String?, onClick: () -> Unit, modifier: Modifier) =
+        LiquidSettingsSearchResult(title, path, value, onClick, modifier)
+
     /** Decorative category badges and radio preview cards have distinct recipes in all three looks. */
     @Composable
     fun SettingsCategoryIcon(icon: ImageVector, modifier: Modifier) = LiquidSettingsCategoryIcon(icon, modifier)

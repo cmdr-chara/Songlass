@@ -206,6 +206,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                         when (val route = destination.route) {
                             Route.Settings -> SettingsScreen(
                                 pane = state.settingsPane,
+                                search = state.settingsSearch,
+                                onSearchResult = state::openSettingsResult,
                                 onPaneChanged = state::selectSettingsPane,
                                 isActive = state.currentRoute == Route.Settings && !nowPlayingVisible && !state.hasOverlay,
                                 settings = graph.settings,
@@ -225,15 +227,16 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             Route.HomeCustomization -> dev.cmdrchara.songlass.ui.HomeCustomizationScreen(
                                 state = state,
                                 backLabel = stringResource(Res.string.settings_title), onBack = state::goBack, contentPadding = padding,
+                                searchFocus = state.settingsFocusFor(Route.HomeCustomization),
                             )
-                            Route.Backup -> dev.cmdrchara.songlass.ui.BackupScreen(graph, state::goBack, padding)
-                            Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(state::goBack, padding)
+                            Route.Backup -> dev.cmdrchara.songlass.ui.BackupScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.Backup))
+                            Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(state::goBack, padding, state.settingsFocusFor(Route.About))
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
-                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding)
+                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding, state.settingsFocusFor(Route.LibrarySettings))
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
                             is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)
-                            Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding)
+                            Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding, state.settingsFocusFor(Route.Equalizer))
                             Route.AutoEqCatalog -> dev.cmdrchara.songlass.ui.AutoEqCatalogScreen(graph.autoEq, state, padding)
                             is Route.AutoEqDetail -> dev.cmdrchara.songlass.ui.AutoEqDetailScreen(route.entry, graph.autoEq, graph.equalizer,
                                 state::goBack, { state.goBack(); state.goBack() }, padding)

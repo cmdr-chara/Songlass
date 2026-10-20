@@ -15,6 +15,7 @@ import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.AppGraph
+import dev.cmdrchara.songlass.core.settings.SettingsTarget
 
 enum class Tab { Home, Library, Search }
 
@@ -80,6 +81,18 @@ class AppState(graph: AppGraph) {
     var settingsPane by mutableStateOf(SettingsPane.Overview)
         private set
     fun selectSettingsPane(pane: SettingsPane) { settingsPane = pane }
+    var settingsSearch by mutableStateOf(SettingsSearchSession())
+        private set
+
+    fun openSettingsResult(target: SettingsTarget) {
+        settingsSearch.select(target)
+        val pane = target.settingsPane
+        if (pane != null) settingsPane = pane else open(target.settingsRoute)
+    }
+
+    fun settingsFocusFor(route: Route): SettingsFocusRequest? = settingsSearch.focus?.takeIf {
+        currentRoute == route && it.target.settingsRoute == route && !isNowPlayingOpen && !hasOverlay
+    }
 
     var tab by mutableStateOf(Tab.Home)
         private set
@@ -153,7 +166,10 @@ class AppState(graph: AppGraph) {
     }
 
     fun open(route: Route) {
-        if (route == Route.Settings) settingsPane = SettingsPane.Overview
+        if (route == Route.Settings) {
+            settingsPane = SettingsPane.Overview
+            settingsSearch = SettingsSearchSession()
+        }
         backStacks.getValue(tab).add(route)
     }
 
@@ -170,7 +186,13 @@ class AppState(graph: AppGraph) {
             isArtworkExpanded -> updateArtworkExpansion(false)
             isNowPlayingOpen -> closeNowPlaying()
             editingPlaylistId != null -> editingPlaylistId = null
-            else -> backStacks.getValue(tab).removeLastOrNull()
+            else -> {
+                val removed = backStacks.getValue(tab).removeLastOrNull()
+                if (currentRoute == Route.Settings && removed == settingsSearch.focus?.target?.settingsRoute) {
+                    // Back can interrupt a reveal before its scroll finishes. Do not replay it later.
+                    settingsSearch.returnToResults()
+                }
+            }
         }
     }
 

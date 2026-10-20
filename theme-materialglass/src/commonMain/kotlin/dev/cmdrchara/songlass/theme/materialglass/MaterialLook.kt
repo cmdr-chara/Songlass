@@ -268,6 +268,10 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         MaterialSettingsDestination(title, summary, icon, summaryIsValue, onClick)
 
     @Composable
+    override fun SettingsSearchResult(title: String, path: String, value: String?, onClick: () -> Unit, modifier: Modifier) =
+        MaterialSettingsSearchResult(title, path, value, onClick, modifier)
+
+    @Composable
     override fun SettingsCategoryIcon(icon: ImageVector, modifier: Modifier) = MaterialSettingsCategoryIcon(icon, modifier)
 
     @Composable
