@@ -109,6 +109,7 @@ class Media3AudioPlayer(
 
     private var positionJob: Job? = null
     private var nextTrack: Track? = null
+    private var nextEntryId: Long? = null
     private var nextPlacement = NextPlacement.None
     private var crossfadeMs = 0L
     private var manualCrossfadeMs = 0L
@@ -333,8 +334,11 @@ class Media3AudioPlayer(
         scheduleManualStart()
     }
 
-    override fun setNext(track: Track?) {
+    override fun setNext(track: Track?) = setNext(track, null)
+
+    override fun setNext(track: Track?, entryId: Long?) {
         nextTrack = track
+        nextEntryId = entryId
         if (track?.id != noOverlapFor) {
             noOverlapFor = null
             noOverlapReason = null
@@ -792,6 +796,8 @@ class Media3AudioPlayer(
     private fun startTransition(overlap: CrossfadePlan?): Boolean {
         val incoming = spareVoice(create = false) ?: return false
         val next = nextTrack ?: return false
+        val consumedId = nextEntryId
+        val consumedGeneration = eventGeneration
         if (nextPlacement != NextPlacement.Standby || incoming.track?.id != next.id ||
             incoming.player.playbackState != Player.STATE_READY || incoming.player.playerError != null
         ) return false
@@ -804,6 +810,7 @@ class Media3AudioPlayer(
         // From here on the incoming track is the current one for every listener.
         active = incoming
         nextTrack = null
+        nextEntryId = null
         nextPlacement = NextPlacement.None
         if (overlap != null) {
             fading = outgoing
@@ -822,7 +829,7 @@ class Media3AudioPlayer(
         _activePlayer.value = incoming.player
         updatePositionPolling()
         publishState()
-        _events.tryEmit(PlayerEvent.AdvancedToNext(eventGeneration))
+        _events.tryEmit(PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next))
         if (overlap != null) {
             handler.removeCallbacks(tick)
             handler.post(tick)
@@ -898,6 +905,8 @@ class Media3AudioPlayer(
 
     private fun onGaplessTransition(mediaItem: MediaItem?, reason: Int) {
         val next = nextTrack ?: return
+        val consumedId = nextEntryId
+        val consumedGeneration = eventGeneration
         if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || mediaItem?.mediaId != next.id) return
         lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Automatic, crossfadeMs,
             skipReason = nextSkipReason ?: CrossfadeSkipReason.NotReady)
@@ -905,15 +914,17 @@ class Media3AudioPlayer(
         val voice = active
         voice.track = next
         nextTrack = null
+        nextEntryId = null
         nextPlacement = NextPlacement.None
         voice.replayGain = null
         val index = voice.player.currentMediaItemIndex
         if (index > 0) voice.player.removeMediaItems(0, index)
         publishState()
-        _events.tryEmit(PlayerEvent.AdvancedToNext(eventGeneration))
+        _events.tryEmit(PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next))
     }
 
     private fun onActiveEnded() {
+        val endedGeneration = eventGeneration
         // The track ran out before an overlap could start (a seek to the end, a duration that was
         // too long): hand over to the prepared track right away instead of loading it from scratch.
         if (nextPlacement == NextPlacement.Standby && startTransition(null)) return
@@ -922,7 +933,7 @@ class Media3AudioPlayer(
                 skipReason = nextSkipReason ?: CrossfadeSkipReason.NotReady)
             publishState()
         }
-        _events.tryEmit(PlayerEvent.TrackEnded(eventGeneration))
+        _events.tryEmit(PlayerEvent.TrackEnded(endedGeneration))
     }
 
     private fun updatePositionPolling() {

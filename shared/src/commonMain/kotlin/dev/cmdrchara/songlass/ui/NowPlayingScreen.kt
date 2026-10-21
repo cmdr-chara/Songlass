@@ -38,6 +38,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +48,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -59,8 +63,10 @@ import dev.cmdrchara.songlass.core.player.AudioFormatInfo
 import dev.cmdrchara.songlass.core.player.PlayerState
 import dev.cmdrchara.songlass.core.queue.PlaybackQueue
 import dev.cmdrchara.songlass.core.queue.RepeatMode
-import dev.cmdrchara.songlass.designsystem.InfoSheet
 import dev.cmdrchara.songlass.designsystem.ActionButton
+import dev.cmdrchara.songlass.designsystem.ActionSheet
+import dev.cmdrchara.songlass.designsystem.SheetAction
+import dev.cmdrchara.songlass.designsystem.InfoSheet
 import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
@@ -112,10 +118,12 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                     Spacer(Modifier.width(12.dp))
                                     Column(Modifier.weight(1f)) {
                                         AppText(track.title, AppTheme.typography.headline, maxLines = 1)
-                                        AppText(artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
+                                        AppText(if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
+                                            else if (queue.current?.isTemporary == true) stringResource(Res.string.queue_temporary_track)
+                                            else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
                                     }
                                 }
-                                AppText(stringResource(Res.string.up_next), AppTheme.typography.headline, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
+                                QueueHeading(queue, state)
                                 if (queue.upNext.isEmpty()) {
                                     AppText(stringResource(Res.string.up_next_empty), AppTheme.typography.subheadline, color = secondary, modifier = Modifier.weight(1f))
                                 } else ReorderableQueue(queue, state, Modifier.weight(1f))
@@ -152,7 +160,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                 Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                                     Column(Modifier.weight(1f)) {
                                         AppText(track.title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold), maxLines = 2)
-                                        AppText(artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
+                                        AppText(if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
+                                            else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 2)
                                     }
                                     IconButton(
                                         icon = if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
@@ -288,27 +297,77 @@ fun SongInformation(state: AppState, track: Track, player: PlayerState) {
     )
 }
 
-private val QueueRowHeight = 60.dp
+/** Shared controls keep each style's own sheet, typography, surfaces and touch targets. */
+@Composable
+private fun QueueHeading(queue: PlaybackQueue, state: AppState) {
+    var options by remember { mutableStateOf(false) }
+    val temporaryCount = remember(queue) { queue.temporaryEntries.size }
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            AppText(stringResource(Res.string.up_next), AppTheme.typography.headline)
+            if (temporaryCount > 0) AppText(
+                stringResource(if (queue.hasSource) Res.string.queue_return_hint else Res.string.queue_standalone_hint, temporaryCount),
+                AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
+            )
+        }
+        if (temporaryCount > 0) IconButton(AppIcons.More, stringResource(Res.string.queue_options), { options = true })
+    }
+    ActionSheet(
+        visible = options && temporaryCount > 0,
+        title = stringResource(Res.string.queue_options),
+        cancelLabel = stringResource(Res.string.action_cancel),
+        onDismiss = { options = false },
+        actions = listOfNotNull(
+            if (queue.pendingTemporaryCount > 0) SheetAction(stringResource(Res.string.queue_clear_pending), AppIcons.Close) {
+                state.controller.clearTemporaryQueue()
+            } else null,
+            if (queue.current?.isTemporary == true) SheetAction(
+                stringResource(if (queue.hasSource) Res.string.queue_return_source else Res.string.queue_finish_temporary), AppIcons.Library,
+            ) { state.controller.returnToSource() } else null,
+        ),
+    )
+}
 
-/**
- * Up Next list: tap a row to play it, drag the handle to reorder. Rows have a fixed height,
- * so the drag offset maps directly to positions.
- */
+/** Up Next supports touch dragging and the same move/remove actions through a tap or TalkBack. */
 @Composable
 private fun ReorderableQueue(queue: PlaybackQueue, state: AppState, modifier: Modifier) {
-    val rowHeightPx = with(LocalDensity.current) { QueueRowHeight.toPx() }
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val currentQueue by rememberUpdatedState(queue)
+    val upcoming = remember(queue) { queue.upNext }
     var draggedId by remember { mutableStateOf<Long?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
-    val reorderLabel = stringResource(Res.string.action_reorder)
+    var editId by remember { mutableStateOf<Long?>(null) }
+    val editLabel = stringResource(Res.string.queue_edit_entry)
+    val upLabel = stringResource(Res.string.queue_move_up)
+    val downLabel = stringResource(Res.string.queue_move_down)
+    val removeLabel = stringResource(Res.string.queue_remove_entry)
+
+    fun canMove(id: Long, direction: Int): Boolean {
+        val q = currentQueue
+        val index = q.indexOf(id)
+        val target = index + direction
+        return index > q.currentIndex && target > q.currentIndex && target in q.entries.indices &&
+            q.entries[index].isTemporary == q.entries[target].isTemporary
+    }
+    fun move(id: Long, direction: Int): Boolean {
+        return state.controller.moveQueueEntry(id, direction)
+    }
 
     LazyColumn(modifier) {
-        itemsIndexed(queue.upNext, key = { _, entry -> entry.id }) { _, entry ->
+        itemsIndexed(upcoming, key = { _, entry -> entry.id }) { _, entry ->
             val dragging = entry.id == draggedId
+            var rowHeightPx by remember(entry.id) { mutableIntStateOf(0) }
             Box(
                 Modifier
-                    .height(QueueRowHeight)
+                    .heightIn(min = 60.dp)
+                    .onSizeChanged { rowHeightPx = it.height }
+                    .semantics {
+                        customActions = buildList {
+                            if (canMove(entry.id, -1)) add(CustomAccessibilityAction(upLabel) { move(entry.id, -1) })
+                            if (canMove(entry.id, 1)) add(CustomAccessibilityAction(downLabel) { move(entry.id, 1) })
+                            add(CustomAccessibilityAction(removeLabel) { state.controller.removeFromQueue(entry.id); true })
+                        }
+                    }
                     .zIndex(if (dragging) 1f else 0f)
                     .graphicsLayer {
                         translationY = if (dragging) dragOffset else 0f
@@ -318,40 +377,47 @@ private fun ReorderableQueue(queue: PlaybackQueue, state: AppState, modifier: Mo
             ) {
                 ListRow(
                     title = entry.track.title,
-                    subtitle = artistName(entry.track.artist),
+                    subtitle = if (!entry.isAvailable) stringResource(Res.string.queue_file_unavailable)
+                        else if (entry.isTemporary) stringResource(Res.string.queue_temporary_subtitle, artistName(entry.track.artist))
+                        else artistName(entry.track.artist),
                     leading = { AlbumArt(rememberTrackArtwork(entry.track), Modifier.size(40.dp), cornerRadius = 6.dp) },
                     trailing = {
-                        AppIcon(
+                        IconButton(
                             icon = AppIcons.DragHandle,
-                            contentDescription = null,
-                            tint = LocalContentColor.current.copy(alpha = 0.6f),
-                            modifier = Modifier
-                                .semantics { contentDescription = reorderLabel }
-                                .pointerInput(entry.id) {
-                                    detectDragGestures(
-                                        onDragStart = { draggedId = entry.id; dragOffset = 0f },
-                                        onDragEnd = { draggedId = null; dragOffset = 0f },
-                                        onDragCancel = { draggedId = null; dragOffset = 0f },
-                                    ) { change, amount ->
-                                        change.consume()
-                                        dragOffset += amount.y
-                                        val q = currentQueue
-                                        val index = q.upNext.indexOfFirst { it.id == entry.id }
-                                        val base = q.currentIndex + 1
-                                        if (dragOffset > rowHeightPx / 2 && index < q.upNext.lastIndex) {
-                                            state.controller.moveInQueue(base + index, base + index + 1)
-                                            dragOffset -= rowHeightPx
-                                        } else if (dragOffset < -rowHeightPx / 2 && index > 0) {
-                                            state.controller.moveInQueue(base + index, base + index - 1)
-                                            dragOffset += rowHeightPx
-                                        }
+                            contentDescription = editLabel,
+                            onClick = { editId = entry.id },
+                            modifier = Modifier.pointerInput(entry.id, rowHeightPx) {
+                                detectDragGestures(
+                                    onDragStart = { draggedId = entry.id; dragOffset = 0f },
+                                    onDragEnd = { draggedId = null; dragOffset = 0f },
+                                    onDragCancel = { draggedId = null; dragOffset = 0f },
+                                ) { change, amount ->
+                                    change.consume()
+                                    dragOffset += amount.y
+                                    if (rowHeightPx > 0) {
+                                        if (dragOffset > rowHeightPx / 2 && move(entry.id, 1)) dragOffset -= rowHeightPx
+                                        else if (dragOffset < -rowHeightPx / 2 && move(entry.id, -1)) dragOffset += rowHeightPx
+                                        else dragOffset = dragOffset.coerceIn(-rowHeightPx.toFloat(), rowHeightPx.toFloat())
                                     }
-                                },
+                                }
+                            },
                         )
                     },
-                    onClick = { state.controller.skipTo(entry.id) },
+                    onClick = if (entry.isAvailable) ({ state.controller.skipTo(entry.id) }) else null,
                 )
             }
         }
     }
+    val editing = editId?.let { id -> queue.entries.firstOrNull { it.id == id } }
+    ActionSheet(
+        visible = editing != null,
+        title = editing?.track?.title.orEmpty(),
+        cancelLabel = stringResource(Res.string.action_cancel),
+        onDismiss = { editId = null },
+        actions = listOfNotNull(
+            editing?.takeIf { canMove(it.id, -1) }?.let { entry -> SheetAction(upLabel, null) { move(entry.id, -1) } },
+            editing?.takeIf { canMove(it.id, 1) }?.let { entry -> SheetAction(downLabel, null) { move(entry.id, 1) } },
+            editing?.let { entry -> SheetAction(removeLabel, AppIcons.Close) { state.controller.removeFromQueue(entry.id) } },
+        ),
+    )
 }

@@ -96,6 +96,7 @@ class AppGraph(
     private val _isLibraryLoading = MutableStateFlow(false)
     val isLibraryLoading: StateFlow<Boolean> = _isLibraryLoading.asStateFlow()
     private val refreshMutex = kotlinx.coroutines.sync.Mutex()
+    private var libraryAccessGeneration = 0L
 
     private val _allTracks = MutableStateFlow<List<Track>>(emptyList())
     val allTracks: StateFlow<List<Track>> = _allTracks.asStateFlow()
@@ -104,7 +105,11 @@ class AppGraph(
 
     init {
         scope.launch {
-            source.hasAccess.collect { access -> if (!access) trackMarkers.setLibrary(emptyList()) }
+            source.hasAccess.collect { access -> if (!access) {
+                libraryAccessGeneration++
+                trackMarkers.setLibrary(emptyList())
+                controller.refreshTracks(emptyList())
+            } }
         }
         scope.launch {
             combine(allTracks, settings.state.map { it.libraryFilter }.distinctUntilChanged()) { _, _ ->
@@ -207,9 +212,14 @@ class AppGraph(
     suspend fun refreshLibrary() {
         if (!source.hasAccess.value) return
         refreshMutex.withLock {
+            if (!source.hasAccess.value) return@withLock
+            val accessGeneration = libraryAccessGeneration
             _isLibraryLoading.value = true
             try {
                 val tracks = source.loadTracks()
+                // A completed scan from before a revoke (even a revoke/grant cycle) must not
+                // re-enable stale file handles or bookmark actions after access was cleared.
+                if (!source.hasAccess.value || accessGeneration != libraryAccessGeneration) return@withLock
                 trackMarkers.setLibrary(tracks)
                 _allTracks.value = tracks
                 controller.refreshTracks(tracks)

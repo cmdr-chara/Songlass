@@ -31,7 +31,12 @@ sealed interface PlayerEvent {
     data class TrackEnded(val generation: Long = 0) : PlayerEvent
 
     /** The track set with [AudioPlayer.setNext] started right after the previous one, without a gap. */
-    data class AdvancedToNext(val generation: Long = 0) : PlayerEvent
+    data class AdvancedToNext(
+        val generation: Long = 0,
+        /** The consumed queue slot, captured before a later queue edit can replace "next". */
+        val entryId: Long? = null,
+        val track: Track? = null,
+    ) : PlayerEvent
 
     /** Playback paused because the audio output went away (headphones unplugged, Bluetooth lost). */
     data object PausedByDisconnect : PlayerEvent
@@ -73,6 +78,9 @@ interface AudioPlayer {
      * player emits [PlayerEvent.AdvancedToNext] and it becomes the current track.
      */
     fun setNext(track: Track?)
+
+    /** Slot-aware preparation; platform implementations echo this identity when it starts. */
+    fun setNext(track: Track?, entryId: Long?) = setNext(track)
 
     /** Updates descriptive metadata without restarting playback. */
     fun updateMetadata(track: Track) {}

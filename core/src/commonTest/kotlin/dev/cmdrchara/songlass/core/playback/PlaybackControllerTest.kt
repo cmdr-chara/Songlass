@@ -254,9 +254,17 @@ class PlaybackControllerTest {
     fun nextTrackIsPreparedAndFollowsQueueChanges() = test { controller ->
         controller.playTracks(tracks(3))
         assertEquals("2", player.nextTrack?.id)
+        controller.skipTo(controller.queue.value.entries.last().id)
+        assertNull(player.nextTrack)
+        controller.playTracks(tracks(3))
         controller.playNext(listOf(track("x")))
         assertEquals("x", player.nextTrack?.id)
         controller.skipTo(controller.queue.value.entries.last().id)
+        // Pending one-shot additions follow a deliberate collection selection. They
+        // remain pending until consumed, cleared, or the whole collection is replaced.
+        assertEquals("3", player.loadedTrack?.id)
+        assertEquals("x", player.nextTrack?.id)
+        controller.clearTemporaryQueue()
         assertNull(player.nextTrack)
     }
 

@@ -28,12 +28,16 @@ class FakeAudioPlayer : AudioPlayer {
     /** What [setNext] queued after the current track. */
     var nextTrack: Track? = null
         private set
+    private var nextEntryId: Long? = null
 
     var volume: Float = 1f
         private set
 
-    override fun setNext(track: Track?) {
+    override fun setNext(track: Track?) = setNext(track, null)
+
+    override fun setNext(track: Track?, entryId: Long?) {
         nextTrack = track
+        nextEntryId = entryId
     }
 
     override fun setVolume(volume: Float) {
@@ -104,15 +108,18 @@ class FakeAudioPlayer : AudioPlayer {
     /** Simulates the track playing to its end: the next one starts gaplessly if one was set. */
     fun finishTrack() {
         val next = nextTrack
+        val consumedGeneration = eventGeneration
         if (next != null) {
+            val consumedId = nextEntryId
             loadedTrack = next
             nextTrack = null
+            nextEntryId = null
             _state.update { it.copy(status = PlayerStatus.Ready, positionMs = 0, durationMs = next.durationMs, replayGain = null) }
-            _events.tryEmit(PlayerEvent.AdvancedToNext(eventGeneration))
+            _events.tryEmit(PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next))
             return
         }
         _state.update { it.copy(status = PlayerStatus.Ended, positionMs = it.durationMs) }
-        _events.tryEmit(PlayerEvent.TrackEnded(eventGeneration))
+        _events.tryEmit(PlayerEvent.TrackEnded(consumedGeneration))
     }
 
     fun fail(message: String) {

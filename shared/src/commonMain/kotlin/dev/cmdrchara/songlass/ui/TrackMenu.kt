@@ -16,7 +16,7 @@ import dev.cmdrchara.songlass.shared.resources.bookmark_from_start
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.playlist_add_to
 import dev.cmdrchara.songlass.shared.resources.playlist_remove_song
-import dev.cmdrchara.songlass.shared.resources.action_add_to_queue
+import dev.cmdrchara.songlass.shared.resources.queue_add_temporary
 import dev.cmdrchara.songlass.shared.resources.action_cancel
 import dev.cmdrchara.songlass.shared.resources.action_favorite
 import dev.cmdrchara.songlass.shared.resources.action_go_to_album
@@ -44,7 +44,7 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
         onDismiss = state::closeMenu,
         actions = listOfNotNull(
             SheetAction(stringResource(Res.string.action_play_next), AppIcons.PlayNext) { state.controller.playNext(listOf(track)) },
-            SheetAction(stringResource(Res.string.action_add_to_queue), AppIcons.AddToQueue) { state.controller.addToQueue(listOf(track)) },
+            SheetAction(stringResource(Res.string.queue_add_temporary), AppIcons.AddToQueue) { state.controller.addToQueue(listOf(track)) },
             SheetAction(stringResource(Res.string.playlist_add_to), AppIcons.Library) { state.openAddToPlaylist(listOf(track)) },
             SheetAction(stringResource(Res.string.bookmark_open), AppIcons.Bookmark) { state.openBookmarks(track) },
             SheetAction(stringResource(Res.string.bookmark_from_start), AppIcons.Previous) { state.controller.playFromBeginning(track) },

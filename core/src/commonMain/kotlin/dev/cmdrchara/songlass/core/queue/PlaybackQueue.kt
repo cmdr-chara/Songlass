@@ -16,7 +16,11 @@ enum class RepeatMode {
 }
 
 /** One slot in the queue. The same track can appear more than once, so entries have their own id. */
-data class QueueEntry(val id: Long, val track: Track)
+data class QueueEntry(
+    val id: Long, val track: Track, val isTemporary: Boolean = false,
+    /** The slot remains visible when a full library scan no longer resolves its file safely. */
+    val isAvailable: Boolean = true,
+)
 
 /**
  * Immutable play queue. Every operation returns a new queue.
@@ -30,9 +34,14 @@ data class PlaybackQueue(
     val repeatMode: RepeatMode = RepeatMode.Off,
     internal val unshuffledEntries: List<QueueEntry>? = null,
     internal val nextEntryId: Long = 0,
+    /** Collection slot after which the temporary segment is played. Never a track/media id. */
+    internal val temporaryAnchorId: Long? = null,
 ) {
     val current: QueueEntry? get() = entries.getOrNull(currentIndex)
     val isShuffled: Boolean get() = unshuffledEntries != null
+    val temporaryEntries: List<QueueEntry> get() = entries.filter { it.isTemporary }
+    val pendingTemporaryCount: Int get() = entries.count { it.isTemporary && it.id != current?.id }
+    val hasSource: Boolean get() = entries.any { !it.isTemporary }
 
     /** Entries after the current one, as shown in an "Up Next" list. */
     val upNext: List<QueueEntry> get() = entries.drop(currentIndex + 1)
@@ -47,11 +56,14 @@ data class PlaybackQueue(
      */
     fun nextIndex(userInitiated: Boolean): Int? {
         if (entries.isEmpty()) return null
-        if (repeatMode == RepeatMode.One && !userInitiated) return currentIndex
-        val next = currentIndex + 1
+        if (current == null) return entries.indexOfFirst { it.isAvailable }.takeIf { it >= 0 }
+        if (repeatMode == RepeatMode.One && !userInitiated && current?.isAvailable == true) return currentIndex
+        val next = entries.indices.firstOrNull { it > currentIndex && entries[it].isAvailable }
         return when {
-            next < entries.size -> next
-            repeatMode != RepeatMode.Off -> 0
+            next != null -> next
+            // Temporary additions are consumed once, including in Repeat all. Repeat one
+            // above deliberately keeps the active addition until the listener skips it.
+            repeatMode != RepeatMode.Off -> entries.indexOfFirst { !it.isTemporary && it.isAvailable }.takeIf { it >= 0 }
             else -> null
         }
     }
@@ -59,17 +71,25 @@ data class PlaybackQueue(
     /** Index of the previous entry, wrapping to the end only when repeat is on. */
     fun previousIndex(): Int? {
         if (entries.isEmpty()) return null
-        val previous = currentIndex - 1
+        val previous = entries.indices.lastOrNull { it < currentIndex && entries[it].isAvailable }
         return when {
-            previous >= 0 -> previous
-            repeatMode != RepeatMode.Off -> entries.lastIndex
+            previous != null -> previous
+            repeatMode != RepeatMode.Off -> entries.indexOfLast { !it.isTemporary && it.isAvailable }.takeIf { it >= 0 }
             else -> null
         }
     }
 
     fun withCurrentIndex(index: Int): PlaybackQueue {
         require(index in entries.indices) { "Index $index out of bounds for queue of ${entries.size}" }
-        return copy(currentIndex = index)
+        val selected = entries[index]
+        if (selected.id == current?.id || entries.none { it.isTemporary }) return copy(currentIndex = index)
+        val source = entries.filterNot { it.isTemporary }
+        val temporary = temporaryEntries
+        val remaining = if (selected.isTemporary) {
+            // Selecting a later addition deliberately skips the earlier additions.
+            temporary.dropWhile { it.id != selected.id }
+        } else temporary.filterNot { it.id == current?.id }
+        return withSegment(source, remaining, if (selected.isTemporary) temporaryAnchorId else selected.id, selected.id)
     }
 
     fun withRepeatMode(mode: RepeatMode): PlaybackQueue = copy(repeatMode = mode)
@@ -80,6 +100,17 @@ data class PlaybackQueue(
      */
     fun withShuffle(enabled: Boolean, random: Random = Random): PlaybackQueue {
         if (enabled == isShuffled) return this
+        if (entries.any { it.isTemporary }) {
+            val source = entries.filterNot { it.isTemporary }
+            val anchor = if (current?.isTemporary == true) temporaryAnchorId else current?.id
+            val ordered = if (enabled) {
+                val first = source.firstOrNull { it.id == anchor }
+                listOfNotNull(first) + source.filterNot { it.id == anchor }.shuffled(random)
+            } else unshuffledEntries.orEmpty().filterNot { it.isTemporary }
+            return withSegment(ordered, temporaryEntries, anchor, current?.id).copy(
+                unshuffledEntries = if (enabled) source else null,
+            )
+        }
         val current = current
         return if (enabled) {
             val others = entries.filter { it.id != current?.id }.shuffled(random)
@@ -109,12 +140,65 @@ data class PlaybackQueue(
         insert(tracks, playOrderPosition = entries.size, unshuffledPosition = { it.size })
 
     /**
+     * Adds a one-shot segment before the collection continues. Play next inserts immediately
+     * after the active entry; ordinary additions append to the pending segment. The source
+     * order (including its hidden unshuffled order) is never modified by this operation.
+     */
+    fun enqueueTemporary(tracks: List<Track>, playNext: Boolean = false): PlaybackQueue {
+        if (tracks.isEmpty()) return this
+        val added = tracks.mapIndexed { i, track -> QueueEntry(nextEntryId + i, track, isTemporary = true) }
+        val temporary = temporaryEntries
+        val active = current?.takeIf { it.isTemporary }
+        val pending = temporary.filterNot { it.id == active?.id }
+        val ordered = listOfNotNull(active) + if (playNext) added + pending else pending + added
+        val anchor = if (active != null) temporaryAnchorId else current?.id
+        return withSegment(entries.filterNot { it.isTemporary }, ordered, anchor, current?.id ?: ordered.first().id)
+            .copy(nextEntryId = nextEntryId + added.size)
+    }
+
+    /** Clears pending additions without interrupting the one already playing. */
+    fun clearTemporary(): PlaybackQueue = withSegment(
+        entries.filterNot { it.isTemporary }, listOfNotNull(current?.takeIf { it.isTemporary }),
+        temporaryAnchorId, current?.id,
+    )
+
+    /**
+     * Leaves the temporary segment and continues after its source anchor. At the end of a
+     * non-repeating collection it stops, keeping the source order available for selection.
+     */
+    fun returnToSource(): PlaybackQueue {
+        val source = entries.filterNot { it.isTemporary }
+        val selected = if (current?.isTemporary != true) current?.id else {
+            val after = source.indexOfFirst { it.id == temporaryAnchorId } + 1
+            source.drop(after).firstOrNull { it.isAvailable }?.id
+                ?: source.firstOrNull { it.isAvailable }?.takeIf { repeatMode != RepeatMode.Off }?.id
+        }
+        return withSegment(source, emptyList(), null, selected)
+    }
+
+    /**
      * Removes an entry. Removing the current entry makes the following one current
      * (or the new last one, if the removed entry was last).
      */
     fun remove(entryId: Long): PlaybackQueue {
         val index = indexOf(entryId)
         if (index < 0) return this
+        if (entries.any { it.isTemporary }) {
+            val source = entries.filterNot { it.isTemporary || it.id == entryId }
+            val temporary = temporaryEntries.filterNot { it.id == entryId }
+            val selected = if (current?.id != entryId) current?.id else
+                entries.drop(index + 1).firstOrNull { it.isAvailable }?.id ?: if (current?.isTemporary == true) {
+                    source.firstOrNull { it.isAvailable }?.takeIf { repeatMode != RepeatMode.Off }?.id
+                } else source.lastOrNull()?.id ?: temporary.firstOrNull()?.id
+            val anchor = when {
+                source.any { it.id == selected } -> selected
+                temporaryAnchorId == entryId -> source.lastOrNull { indexOf(it.id) < index }?.id
+                else -> temporaryAnchorId
+            }
+            return withSegment(source, temporary, anchor, selected).copy(
+                unshuffledEntries = unshuffledEntries?.filterNot { it.id == entryId },
+            )
+        }
         val remaining = entries.filterNot { it.id == entryId }
         val newIndex = when {
             remaining.isEmpty() -> NO_INDEX
@@ -135,6 +219,20 @@ data class PlaybackQueue(
             "Cannot move $fromIndex to $toIndex in queue of ${entries.size}"
         }
         if (fromIndex == toIndex) return this
+        if (entries.any { it.isTemporary }) {
+            val moving = entries[fromIndex]
+            val target = entries[toIndex]
+            // Keep the collection and the one-shot segment distinct. The active addition
+            // is not draggable: moving it behind pending entries would replay consumed work.
+            if (moving.isTemporary != target.isTemporary ||
+                (moving.isTemporary && (moving.id == current?.id || target.id == current?.id))) return this
+            val segment = entries.filter { it.isTemporary == moving.isTemporary }.toMutableList()
+            val from = segment.indexOfFirst { it.id == moving.id }
+            val to = segment.indexOfFirst { it.id == target.id }
+            segment.add(to, segment.removeAt(from))
+            return if (moving.isTemporary) withSegment(entries.filterNot { it.isTemporary }, segment, temporaryAnchorId, current?.id)
+            else withSegment(segment, temporaryEntries, temporaryAnchorId, current?.id)
+        }
         val reordered = entries.toMutableList().apply { add(toIndex, removeAt(fromIndex)) }
         val newIndex = when {
             currentIndex == fromIndex -> toIndex
@@ -152,6 +250,29 @@ data class PlaybackQueue(
                 ?.let { entry.copy(track = it) } ?: entry
         }
         return copy(entries = entries.updated(), unshuffledEntries = unshuffledEntries?.updated())
+    }
+
+    /** A full scan changes availability, not membership, slot ids or original collection order. */
+    fun withResolvedTracks(resolve: (Track) -> Track?): PlaybackQueue {
+        fun List<QueueEntry>.resolved() = map { entry ->
+            val available = resolve(entry.track)
+            if (available == null) entry.copy(isAvailable = false)
+            else entry.copy(track = available, isAvailable = true)
+        }
+        return copy(entries = entries.resolved(), unshuffledEntries = unshuffledEntries?.resolved())
+    }
+
+    private fun withSegment(
+        source: List<QueueEntry>, temporary: List<QueueEntry>, anchorId: Long?, selectedId: Long?,
+    ): PlaybackQueue {
+        val anchor = anchorId?.takeIf { id -> source.any { it.id == id } }
+        val at = source.indexOfFirst { it.id == anchor } + 1
+        val ordered = if (temporary.isEmpty()) source else source.toMutableList().apply { addAll(at, temporary) }
+        return copy(
+            entries = ordered,
+            currentIndex = ordered.indexOfFirst { it.id == selectedId },
+            temporaryAnchorId = anchor.takeIf { temporary.isNotEmpty() },
+        )
     }
 
     private fun insert(

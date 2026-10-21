@@ -1,0 +1,16 @@
+<resources>
+    <string name="queue_add_temporary">Add to temporary queue</string>
+    <string name="queue_temporary_track">Playing from the temporary queue</string>
+    <string name="queue_temporary_subtitle">%1$s · Temporary</string>
+    <string name="queue_return_hint">%1$d temporary tracks, then back to the collection</string>
+    <string name="queue_standalone_hint">%1$d temporary tracks · played once</string>
+    <string name="queue_options">Temporary queue</string>
+    <string name="queue_clear_pending">Clear pending additions</string>
+    <string name="queue_return_source">Return to the collection</string>
+    <string name="queue_finish_temporary">End temporary playback</string>
+    <string name="queue_edit_entry">Move or remove this track</string>
+    <string name="queue_move_up">Move earlier</string>
+    <string name="queue_move_down">Move later</string>
+    <string name="queue_remove_entry">Remove from queue</string>
+    <string name="queue_file_unavailable">File unavailable · rescan the library or choose another track</string>
+</resources>

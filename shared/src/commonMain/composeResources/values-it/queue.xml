@@ -1,0 +1,16 @@
+<resources>
+    <string name="queue_add_temporary">Aggiungi alla coda temporanea</string>
+    <string name="queue_temporary_track">In riproduzione dalla coda temporanea</string>
+    <string name="queue_temporary_subtitle">%1$s · Temporaneo</string>
+    <string name="queue_return_hint">%1$d brani temporanei, poi si torna alla raccolta</string>
+    <string name="queue_standalone_hint">%1$d brani temporanei · riprodotti una volta</string>
+    <string name="queue_options">Coda temporanea</string>
+    <string name="queue_clear_pending">Svuota le aggiunte in attesa</string>
+    <string name="queue_return_source">Torna alla raccolta</string>
+    <string name="queue_finish_temporary">Termina la riproduzione temporanea</string>
+    <string name="queue_edit_entry">Sposta o rimuovi questo brano</string>
+    <string name="queue_move_up">Sposta prima</string>
+    <string name="queue_move_down">Sposta dopo</string>
+    <string name="queue_remove_entry">Rimuovi dalla coda</string>
+    <string name="queue_file_unavailable">File non disponibile · aggiorna la libreria o scegli un altro brano</string>
+</resources>

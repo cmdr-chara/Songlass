@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.core.playback
 
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.model.TrackAvailability
 import dev.cmdrchara.songlass.core.model.isSameFileAs
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.PlayerEvent
@@ -43,6 +44,7 @@ class PlaybackController(
     private val _stopAfterCurrent = MutableStateFlow(false)
     /** The decoder identity, deliberately independent of refreshed queue metadata. */
     private var loadedTrack: Track? = null
+    private var libraryAvailability: TrackAvailability? = null
 
     /** Playback pauses when the current track ends (sleep timer "end of track"). */
     val stopAfterCurrent: StateFlow<Boolean> = _stopAfterCurrent.asStateFlow()
@@ -52,7 +54,7 @@ class PlaybackController(
             player.events.collect { event ->
                 when (event) {
                     is PlayerEvent.TrackEnded -> if (event.generation == player.eventGeneration) onTrackEnded()
-                    is PlayerEvent.AdvancedToNext -> if (event.generation == player.eventGeneration) onAdvancedToNext()
+                    is PlayerEvent.AdvancedToNext -> if (event.generation == player.eventGeneration) onAdvancedToNext(event)
                     // Remembered by the app graph for resuming on reconnect.
                     PlayerEvent.PausedByDisconnect -> Unit
                 }
@@ -82,14 +84,13 @@ class PlaybackController(
         }
         // Keep the track that follows ready in the player, for gapless playback.
         scope.launch {
-            combine(_queue, _stopAfterCurrent) { queue, stop -> if (stop) null else queue.upcomingTrack() }
+            combine(_queue, _stopAfterCurrent) { queue, stop ->
+                if (stop) null else queue.nextIndex(userInitiated = false)?.let { queue.entries[it] }
+            }
                 .distinctUntilChanged()
-                .collect { player.setNext(it) }
+                .collect { player.setNext(it?.track, it?.id) }
         }
     }
-
-    /** What plays after the current entry when it ends by itself, honouring repeat. */
-    private fun PlaybackQueue.upcomingTrack(): Track? = nextIndex(userInitiated = false)?.let { entries[it].track }
 
     fun setStopAfterCurrent(enabled: Boolean) {
         _stopAfterCurrent.value = enabled
@@ -124,9 +125,15 @@ class PlaybackController(
     var context: PlayContext? = null
         private set
 
+    /** A one-shot addition is not attributed to the album/playlist it temporarily interrupts. */
+    val listeningContext: PlayContext? get() = context.takeUnless { _queue.value.current?.isTemporary == true }
+
     /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
     fun playTracks(tracks: List<Track>, startIndex: Int = 0, context: PlayContext? = null) {
         onUserTransport()
+        val availability = libraryAvailability
+        if (tracks.isNotEmpty() && availability != null &&
+            availability.resolve(tracks.getOrNull(startIndex) ?: return) == null) return
         this.context = context
         replaceQueue(PlaybackQueue.of(tracks, startIndex, shuffle = false, _queue.value.repeatMode, random))
     }
@@ -135,8 +142,11 @@ class PlaybackController(
     fun shuffleTracks(tracks: List<Track>, context: PlayContext? = null) {
         if (tracks.isEmpty()) return clearQueue()
         onUserTransport()
+        val availability = libraryAvailability
+        val candidates = tracks.indices.filter { availability == null || availability.resolve(tracks[it]) != null }
+        if (candidates.isEmpty()) return
+        val start = candidates[random.nextInt(candidates.size)]
         this.context = context
-        val start = random.nextInt(tracks.size)
         replaceQueue(PlaybackQueue.of(tracks, start, shuffle = true, _queue.value.repeatMode, random))
     }
 
@@ -182,18 +192,24 @@ class PlaybackController(
     /** For chapters and bookmarks. Does not change the queue when the track is already active. */
     fun playBookmark(track: Track, positionMs: Long) {
         onUserTransport()
-        val at = positionMs.coerceIn(0L, track.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
+        val target = if (libraryAvailability == null) track else libraryAvailability?.resolve(track) ?: return
+        val at = positionMs.coerceIn(0L, target.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
         val status = player.state.value.status
-        if (loadedTrack?.isSameFileAs(track) == true && status != PlayerStatus.Idle && status != PlayerStatus.Error) {
+        // A scan may safely remap a queue slot to a new URI, but the open decoder still
+        // owns the old identity. Explicit playback must adopt the resolved URI instead
+        // of pretending a seek refreshed the decoder and its metadata.
+        val sameOpenedFile = loadedTrack?.isSameFileAs(target) == true
+        if (sameOpenedFile && status != PlayerStatus.Idle && status != PlayerStatus.Error) {
             seekCurrent(at)
             if (!player.state.value.playWhenReady) player.play()
             return
         }
-        val index = _queue.value.entries.indexOfFirst { it.track.isSameFileAs(track) }
-        if (index >= 0) moveTo(index, playWhenReady = true, manual = true, positionOverrideMs = at)
+        val index = _queue.value.entries.indexOfFirst { it.track.isSameFileAs(target) }
+        if (index >= 0 && _queue.value.entries[index].isAvailable) moveTo(index, playWhenReady = true, manual = true, positionOverrideMs = at)
+        else if (index >= 0) return
         else {
             context = null
-            replaceQueue(PlaybackQueue.of(listOf(track), repeatMode = _queue.value.repeatMode, random = random), at)
+            replaceQueue(PlaybackQueue.of(listOf(target), repeatMode = _queue.value.repeatMode, random = random), at)
         }
     }
 
@@ -215,7 +231,10 @@ class PlaybackController(
     /** Goes to the next entry, keeping the play/pause state. Does nothing at the end of a non-repeating queue. */
     fun skipToNext() {
         onUserTransport()
-        val index = _queue.value.nextIndex(userInitiated = true) ?: return
+        val index = _queue.value.nextIndex(userInitiated = true) ?: run {
+            if (_queue.value.current?.isTemporary == true) leaveTemporarySegment(manual = true)
+            return
+        }
         moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
@@ -244,16 +263,30 @@ class PlaybackController(
     fun skipTo(entryId: Long) {
         onUserTransport()
         val index = _queue.value.indexOf(entryId)
-        if (index >= 0) moveTo(index, playWhenReady = true, manual = true)
+        if (index >= 0 && _queue.value.entries[index].isAvailable) moveTo(index, playWhenReady = true, manual = true)
     }
 
     fun setShuffle(enabled: Boolean) = _queue.update { it.withShuffle(enabled, random) }
 
     fun cycleRepeatMode() = _queue.update { it.withRepeatMode(it.repeatMode.next()) }
 
-    fun playNext(tracks: List<Track>) = addTracks { it.playNext(tracks) }
+    fun playNext(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks, playNext = true) }
 
-    fun addToQueue(tracks: List<Track>) = addTracks { it.addToEnd(tracks) }
+    fun addToQueue(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks) }
+
+    fun clearTemporaryQueue() = _queue.update { it.clearTemporary() }
+
+    fun returnToSource() {
+        onUserTransport()
+        leaveTemporarySegment(manual = true)
+    }
+
+    private fun leaveTemporarySegment(manual: Boolean) {
+        val before = _queue.value.current
+        val playing = player.state.value.playWhenReady
+        _queue.update { it.returnToSource() }
+        if (_queue.value.current?.id != before?.id) loadCurrent(playing, manual = manual)
+    }
 
     fun removeFromQueue(entryId: Long) {
         val before = _queue.value.current
@@ -268,12 +301,25 @@ class PlaybackController(
 
     fun moveInQueue(fromIndex: Int, toIndex: Int) = _queue.update { it.move(fromIndex, toIndex) }
 
+    /** Accessible/drag actions can outlive their composed row; resolve its slot at execution. */
+    fun moveQueueEntry(entryId: Long, direction: Int): Boolean {
+        if (direction != -1 && direction != 1) return false
+        var moved = false
+        _queue.update { queue ->
+            val from = queue.indexOf(entryId)
+            val to = from + direction
+            if (from <= queue.currentIndex || to <= queue.currentIndex || to !in queue.entries.indices ||
+                queue.entries[from].isTemporary != queue.entries[to].isTemporary) queue
+            else queue.move(from, to).also { moved = true }
+        }
+        return moved
+    }
+
     /** Saved file tags must reach every duplicate slot and the hidden unshuffled order. */
     fun refreshTracks(tracks: List<Track>) {
-        val byId = tracks.groupBy { it.id }.mapNotNull { (id, matches) ->
-            matches.singleOrNull()?.let { id to it }
-        }.toMap()
-        _queue.update { it.withUpdatedTracks(byId) }
+        val availability = TrackAvailability(tracks)
+        libraryAvailability = availability
+        _queue.update { it.withResolvedTracks(availability::resolve) }
         _queue.value.current?.track?.takeIf { loadedTrack?.isSameFileAs(it) == true }?.let {
             loadedTrack = it
             player.updateMetadata(it)
@@ -290,7 +336,10 @@ class PlaybackController(
 
     private fun addTracks(change: (PlaybackQueue) -> PlaybackQueue) {
         val wasEmpty = _queue.value.current == null
-        _queue.update(change)
+        _queue.update { before ->
+            val changed = change(before)
+            libraryAvailability?.let { changed.withResolvedTracks(it::resolve) } ?: changed
+        }
         if (wasEmpty && _queue.value.current != null) {
             onUserTransport()
             loadCurrent(playWhenReady = true, explicitSelection = true)
@@ -299,7 +348,7 @@ class PlaybackController(
 
     private fun replaceQueue(queue: PlaybackQueue, positionOverrideMs: Long? = null) {
         val replacing = _queue.value.current != null
-        _queue.value = queue
+        _queue.value = libraryAvailability?.let { queue.withResolvedTracks(it::resolve) } ?: queue
         loadCurrent(playWhenReady = true, manual = replacing, explicitSelection = true, positionOverrideMs = positionOverrideMs)
     }
 
@@ -315,7 +364,8 @@ class PlaybackController(
         positionOverrideMs: Long? = null,
     ) {
         checkpointCurrent(force = true)
-        val entry = _queue.value.current ?: run { loadedTrack = null; return player.stop() }
+        val entry = _queue.value.current?.takeIf { it.isAvailable }
+            ?: run { loadedTrack = null; return player.stop() }
         // Clear after checkpointing the outgoing decoder: reindexing can resolve both identities
         // to this same file, and an outgoing flush must not reintroduce a deliberate restart.
         if (positionOverrideMs == 0L) safeMarkers { markers?.restart(entry.track) }
@@ -349,7 +399,11 @@ class PlaybackController(
     private fun onTrackEnded() {
         loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
         val queue = _queue.value
-        val index = queue.nextIndex(userInitiated = false) ?: return
+        val index = queue.nextIndex(userInitiated = false) ?: run {
+            _stopAfterCurrent.value = false
+            if (queue.current?.isTemporary == true) leaveTemporarySegment(manual = false)
+            return
+        }
         if (_stopAfterCurrent.value) {
             // Ready on the next track, paused, as when a sleep timer ends a song.
             _stopAfterCurrent.value = false
@@ -364,12 +418,43 @@ class PlaybackController(
     }
 
     /** The player already started the next track: only the queue position moves. */
-    private fun onAdvancedToNext() {
+    private fun onAdvancedToNext(event: PlayerEvent.AdvancedToNext) {
         loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
-        val index = _queue.value.nextIndex(userInitiated = false) ?: return
+        val before = _queue.value
+        val previousEntryId = before.current?.id
+        val consumed = event.entryId?.let(before::indexOf)
+        val exact = consumed?.takeIf { it >= 0 && (event.track == null || before.entries[it].track.isSameFileAs(event.track)) }
+        if (event.entryId != null && exact == null) {
+            // The decoder already advanced, but this slot was removed/remapped while its
+            // event waited for the controller. Do not label a different track as that decoder.
+            // Adopt the edited continuation with an explicit load (or stop at its end).
+            loadedTrack = null
+            val next = before.nextIndex(userInitiated = false)
+            val playing = player.state.value.playWhenReady && !_stopAfterCurrent.value
+            _stopAfterCurrent.value = false
+            if (next != null) moveTo(next, playing)
+            else {
+                if (before.current?.isTemporary == true) _queue.update { it.returnToSource() }
+                player.stop()
+            }
+            return
+        }
+        val index = exact ?: before.nextIndex(userInitiated = false) ?: return
         _timeline.update { it.copy(occurrenceId = it.occurrenceId + 1) }
         _queue.update { it.withCurrentIndex(index) }
         loadedTrack = _queue.value.current?.track
+        if (_stopAfterCurrent.value) {
+            // The end-of-track request raced with an already-started native join.
+            _stopAfterCurrent.value = false
+            player.pause()
+        }
+        // Repeat one (or a one-slot Repeat all) keeps an equal queue state. The native player
+        // consumed its prepared item, so StateFlow/distinct cannot re-arm it for us.
+        if (_queue.value.current?.id == previousEntryId) {
+            val queue = _queue.value
+            val next = queue.nextIndex(userInitiated = false)?.let { queue.entries[it] }
+            player.setNext(next?.track, next?.id)
+        }
     }
 
     companion object {
