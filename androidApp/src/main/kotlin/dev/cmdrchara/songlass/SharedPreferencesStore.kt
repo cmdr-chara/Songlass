@@ -14,6 +14,13 @@ class SharedPreferencesStore(context: Context, name: String = "songlass") : KeyV
         prefs.edit().apply { if (value == null) remove(key) else putString(key, value) }.apply()
     }
 
+    /** One in-memory publication for related keys; disk persistence stays asynchronous. */
+    override fun putStrings(writing: Map<String, String>) {
+        prefs.edit().apply {
+            writing.forEach { (key, value) -> putString(key, value) }
+        }.apply()
+    }
+
     /** Only string values: the app writes nothing else, and anything foreign stays out of backups. */
     override fun snapshot(): Map<String, String> =
         prefs.all.mapNotNull { (key, value) -> (value as? String)?.let { key to it } }.toMap()

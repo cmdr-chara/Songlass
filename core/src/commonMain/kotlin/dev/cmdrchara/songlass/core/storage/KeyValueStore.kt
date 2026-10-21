@@ -9,6 +9,15 @@ interface KeyValueStore {
     fun putString(key: String, value: String?)
 
     /**
+     * A related set of ordinary preference writes. Native stores can publish the whole map
+     * together while scheduling disk persistence asynchronously; this is not a durability
+     * barrier. Use [replace] off the UI thread for explicit replacement (Android commits it
+     * synchronously; platforms without native transactions retain their rollback contract).
+     * The fallback retains [replace]'s rollback behavior for stores without a native batch.
+     */
+    fun putStrings(writing: Map<String, String>) = replace(emptySet(), writing)
+
+    /**
      * Every string entry currently stored, or null when this store cannot enumerate its keys.
      * Used by backup; entries of other types and platform-owned keys may be left out or ignored.
      */

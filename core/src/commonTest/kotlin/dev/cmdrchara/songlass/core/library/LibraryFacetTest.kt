@@ -86,4 +86,18 @@ class LibraryFacetTest {
             AlphabeticalIndex.build(listOf(null, "🎵 theme", " Alpha", "alpine", "Beta", "雪")))
         assertTrue(AlphabeticalIndex.build(emptyList()).isEmpty())
     }
+
+    @Test fun scalarAndMultipleCreditsKeepFirstSortedIdentityDespiteDuplicateSourceRows() {
+        val first = track("same", title = "Alpha", albumArtist = "  Ensemble ").copy(
+            releaseDate = ReleaseDate(2024), composers = listOf("Writer;Guest", "WRITER", "Guest"))
+        val duplicate = first.copy(title = "Zulu", albumArtist = "ensemble", composers = listOf("writer"))
+        val invalid = track("empty", title = "Empty", albumArtist = " ").copy(releaseDate = ReleaseDate(0))
+        val library = MusicLibrary(listOf(duplicate, invalid, first))
+        assertEquals(listOf("Ensemble"), library.facets(LibraryFacetKind.AlbumArtist).map { it.value })
+        assertEquals(listOf("2024"), library.facets(LibraryFacetKind.Year).map { it.value })
+        assertEquals(listOf("Guest", "Writer"), library.facets(LibraryFacetKind.Composer).map { it.value })
+        LibraryFacetKind.entries.flatMap { library.facets(it) }.forEach { facet ->
+            assertEquals(listOf(first), facet.tracks)
+        }
+    }
 }

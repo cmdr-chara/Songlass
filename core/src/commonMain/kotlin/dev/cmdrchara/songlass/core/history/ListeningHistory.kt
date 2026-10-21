@@ -1,8 +1,6 @@
 package dev.cmdrchara.songlass.core.history
 
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
-import dev.cmdrchara.songlass.core.storage.getStringList
-import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,8 +42,8 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
     /** Re-reads everything from [store], after something else (a backup restore) replaced it. */
     fun reload() {
         val loaded = load()
-        _state.value = loaded
         store.putString(STARTED_KEY, loaded.trackingStartedMs.toString())
+        _state.value = loaded
     }
 
     /** Records one counted play of [trackId], started from [context] (null: no specific source). */
@@ -61,23 +59,34 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
             playCounts = current.playCounts + (trackId to (current.playCounts[trackId] ?: 0) + 1),
             lastPlayedMs = current.lastPlayedMs + (trackId to now),
             recentPlays = (listOf(trackId) + current.recentPlays).take(MAX_RECENT_PLAYS),
-            datedPlays = (listOf(DatedPlay(trackId, now)) + current.datedPlays)
-                .filter { it.atMs >= now - RETENTION_MS }.take(MAX_DATED_PLAYS),
+            datedPlays = buildList(minOf(MAX_DATED_PLAYS, current.datedPlays.size + 1)) {
+                add(DatedPlay(trackId, now))
+                val cutoff = now - RETENTION_MS
+                for (play in current.datedPlays) {
+                    if (size == MAX_DATED_PLAYS) break
+                    if (play.atMs >= cutoff) add(play)
+                }
+            },
             trackingStartedMs = current.trackingStartedMs,
         )
-        _state.value = next
         save(next)
+        _state.value = next
     }
 
     private fun load(): HistorySnapshot {
-        val contexts = store.getStringList(CONTEXTS_KEY).mapNotNull { entry ->
+        // Native stores expose a coherent snapshot. The fallback supports older/custom
+        // stores, but cannot provide a multi-key concurrent-read guarantee on its own.
+        val values = store.snapshot()
+        fun value(key: String): String? = if (values != null) values[key] else store.getString(key)
+        fun list(key: String): List<String> = value(key)?.split(SEPARATOR)?.filter { it.isNotEmpty() }.orEmpty()
+        val contexts = list(CONTEXTS_KEY).mapNotNull { entry ->
             val key = entry.substringBeforeLast(RECORD, "")
             val at = entry.substringAfterLast(RECORD, "").toLongOrNull() ?: return@mapNotNull null
             PlayContext.fromKey(key)?.let { RecentContext(it, at) }
         }
         val counts = mutableMapOf<String, Int>()
         val last = mutableMapOf<String, Long>()
-        for (entry in store.getStringList(COUNTS_KEY)) {
+        for (entry in list(COUNTS_KEY)) {
             val parts = entry.split(RECORD)
             val id = parts.getOrNull(0)?.takeIf { it.isNotEmpty() } ?: continue
             val count = parts.getOrNull(1)?.toIntOrNull()?.takeIf { it > 0 } ?: continue
@@ -85,24 +94,44 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
             parts.getOrNull(2)?.toLongOrNull()?.let { last[id] = it }
         }
         val now = clock()
-        val dated = store.getStringList(DATED_KEY).take(MAX_DATED_PLAYS).mapNotNull { entry ->
+        val dated = list(DATED_KEY).take(MAX_DATED_PLAYS).mapNotNull { entry ->
             val id = entry.substringBeforeLast(RECORD, "").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             val at = entry.substringAfterLast(RECORD, "").toLongOrNull()
                 ?.takeIf { it in (now - RETENTION_MS)..now } ?: return@mapNotNull null
             DatedPlay(id, at)
         }.sortedByDescending { it.atMs }
-        return HistorySnapshot(contexts, counts, last, store.getStringList(RECENT_KEY), dated,
-            store.getString(STARTED_KEY)?.toLongOrNull()?.takeIf { it <= now } ?: now)
+        return HistorySnapshot(contexts, counts, last, list(RECENT_KEY), dated,
+            value(STARTED_KEY)?.toLongOrNull()?.takeIf { it <= now } ?: now)
     }
 
     private fun save(snapshot: HistorySnapshot) {
-        store.putStringList(CONTEXTS_KEY, snapshot.recentContexts.map { "${it.context.key}$RECORD${it.atMs}" })
-        store.putStringList(
-            COUNTS_KEY,
-            snapshot.playCounts.map { (id, count) -> "$id$RECORD$count$RECORD${snapshot.lastPlayedMs[id] ?: 0}" },
-        )
-        store.putStringList(RECENT_KEY, snapshot.recentPlays)
-        store.putStringList(DATED_KEY, snapshot.datedPlays.map { "${it.trackId}$RECORD${it.atMs}" })
+        // Preserve the existing backup wire format without allocating a temporary String
+        // for every retained play. Android applies these related keys with one editor, so
+        // a concurrent backup snapshot cannot see new totals with the previous dated list.
+        val contexts = buildString {
+            snapshot.recentContexts.forEachIndexed { index, recent ->
+                if (index != 0) append(SEPARATOR)
+                append(recent.context.key).append(RECORD).append(recent.atMs)
+            }
+        }
+        val counts = buildString {
+            snapshot.playCounts.entries.forEachIndexed { index, (id, count) ->
+                if (index != 0) append(SEPARATOR)
+                append(id).append(RECORD).append(count).append(RECORD).append(snapshot.lastPlayedMs[id] ?: 0)
+            }
+        }
+        val dated = buildString {
+            snapshot.datedPlays.forEachIndexed { index, play ->
+                if (index != 0) append(SEPARATOR)
+                append(play.trackId).append(RECORD).append(play.atMs)
+            }
+        }
+        store.putStrings(mapOf(
+            CONTEXTS_KEY to contexts,
+            COUNTS_KEY to counts,
+            RECENT_KEY to snapshot.recentPlays.joinToString(SEPARATOR.toString()),
+            DATED_KEY to dated,
+        ))
     }
 
     internal companion object {
@@ -111,6 +140,7 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
         const val MAX_DATED_PLAYS = 50_000
         const val RETENTION_MS = 731L * 86_400_000
         const val RECORD = '\u001E'
+        private const val SEPARATOR = '\u001F'
         const val CONTEXTS_KEY = "history.contexts"
         const val COUNTS_KEY = "history.counts"
         const val RECENT_KEY = "history.recent"

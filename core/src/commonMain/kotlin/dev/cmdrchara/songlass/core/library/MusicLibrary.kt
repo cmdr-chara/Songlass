@@ -91,16 +91,22 @@ class MusicLibrary(tracks: List<Track>) {
     private val facetsByKind: Map<LibraryFacetKind, List<LibraryFacet>> = LibraryFacetKind.entries.associateWith { kind ->
         val names = mutableMapOf<String, String>()
         val members = linkedMapOf<String, MutableList<Track>>()
+        fun add(value: String, track: Track) {
+            val key = value.lowercase()
+            names.getOrPut(key) { value }
+            members.getOrPut(key) { mutableListOf() }.add(track)
+        }
         this.tracks.forEach { track ->
-            val values = when (kind) {
-                LibraryFacetKind.AlbumArtist -> listOfNotNull(track.albumArtist?.trim()?.takeIf { it.isNotEmpty() })
-                LibraryFacetKind.Year -> listOfNotNull(track.releaseDate?.year?.takeIf { it in 1..9999 }?.toString())
-                LibraryFacetKind.Composer -> ComposerTags.names(track.composers)
-            }
-            values.distinctBy { it.lowercase() }.forEach { value ->
-                val key = value.lowercase()
-                names.getOrPut(key) { value }
-                members.getOrPut(key) { mutableListOf() }.add(track)
+            // Scalar tags need no temporary list or distinct set per track. ComposerTags
+            // already deduplicates multi-value credits; an absent tag needs no parsing.
+            when (kind) {
+                LibraryFacetKind.AlbumArtist -> track.albumArtist?.trim()?.takeIf { it.isNotEmpty() }
+                    ?.let { add(it, track) }
+                LibraryFacetKind.Year -> track.releaseDate?.year?.takeIf { it in 1..9999 }
+                    ?.let { add(it.toString(), track) }
+                LibraryFacetKind.Composer -> if (track.composers.isNotEmpty()) {
+                    ComposerTags.names(track.composers).forEach { add(it, track) }
+                }
             }
         }
         val result = members.map { (key, songs) -> LibraryFacet(kind, names.getValue(key), songs.distinctBy { it.id }) }
