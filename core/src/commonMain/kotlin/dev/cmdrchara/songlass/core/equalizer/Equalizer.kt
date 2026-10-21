@@ -5,7 +5,6 @@ import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.core.storage.MutationTicket
 import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import dev.cmdrchara.songlass.core.storage.getStringList
-import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -132,13 +131,13 @@ class Equalizer(
         saveCurve(_state.value.copy(enabled = enabled))
     }
 
-    fun setGain(band: Int, gainDb: Double) {
+    fun setGain(band: Int, gainDb: Double, enable: Boolean = false) {
         val gains = _state.value.gains
         if (band !in gains.indices || !gainDb.isFinite()) return
-        saveGains(gains.toMutableList().also { it[band] = GraphicEq.snap(gainDb) })
+        saveGains(gains.toMutableList().also { it[band] = GraphicEq.snap(gainDb) }, enable)
     }
 
-    fun applyPreset(preset: EqPreset) = saveGains(preset.gains)
+    fun applyPreset(preset: EqPreset, enable: Boolean = false) = saveGains(preset.gains, enable)
 
     /** Compatibility entry point; UI uses prepare/confirm so file parsing never runs on Main. */
     fun importProfile(fileName: String, text: String): HeadphoneProfile? {
@@ -225,19 +224,22 @@ class Equalizer(
             correction.filters.any { !it.isSupported }) return false
         val profile = HeadphoneProfile("autoeq:${correction.entry.id}", correction.entry.name, correction.filters)
         val profiles = state.profiles.filterNot { it.id == profile.id } + profile
-        store.putString("$PROFILE_PREFIX${profile.id}.name", profile.name)
-        store.putString("$PROFILE_PREFIX${profile.id}.filters", encode(profile.filters))
-        store.putStringList(PROFILES_KEY, profiles.map { it.id })
+        val values = mutableMapOf<String, String?>(
+            "$PROFILE_PREFIX${profile.id}.name" to profile.name,
+            "$PROFILE_PREFIX${profile.id}.filters" to encode(profile.filters),
+            PROFILES_KEY to profiles.joinToString("\u001F") { it.id },
+        )
         val changed = state.copy(profiles = profiles, profileId = profile.id, enabled = true)
-        if (forOutput == null) saveCurve(changed)
+        val next = if (forOutput == null) prepareCurve(changed, values)
         else {
-            // Binding is atomic with selection: the manual curve is not overwritten on the way.
+            // Profile, selection and binding belong to one accepted preference batch.
             val binding = OutputEqProfile(forOutput, true, state.gains, profile.id)
             val outputs = state.outputProfiles.filterNot { it.output.id == forOutput.id } + binding
-            saveOutputs(outputs)
-            store.putString("equalizer.outputs.enabled", "true")
-            _state.value = changed.copy(automaticOutputs = true, outputProfiles = outputs)
+            values.putAll(outputValues(outputs))
+            values["equalizer.outputs.enabled"] = "true"
+            changed.copy(automaticOutputs = true, outputProfiles = outputs)
         }
+        saveState(values, next)
         return true
     }
 
@@ -249,21 +251,24 @@ class Equalizer(
 
     fun deleteProfile(id: String) {
         if (!mutations.canMutate) return
-        val profiles = _state.value.profiles.filterNot { it.id == id }
-        store.putStringList(PROFILES_KEY, profiles.map { it.id })
-        store.putString("$PROFILE_PREFIX$id.name", null)
-        store.putString("$PROFILE_PREFIX$id.filters", null)
-        if (store.getString(SELECTED_KEY) == id) store.putString(SELECTED_KEY, null)
-        val outputs = _state.value.outputProfiles.map { it.copy(profileId = it.profileId.takeIf { selected -> selected != id }) }
-        saveOutputs(outputs)
-        _state.update { state -> state.copy(
+        val state = _state.value
+        val profiles = state.profiles.filterNot { it.id == id }
+        val outputs = state.outputProfiles.map { it.copy(profileId = it.profileId.takeIf { selected -> selected != id }) }
+        val values = outputValues(outputs).toMutableMap().apply {
+            put(PROFILES_KEY, profiles.joinToString("\u001F") { it.id })
+            put("$PROFILE_PREFIX$id.name", null)
+            put("$PROFILE_PREFIX$id.filters", null)
+            if (store.getString(SELECTED_KEY) == id) put(SELECTED_KEY, null)
+        }
+        saveState(values, state.copy(
             profiles = profiles, outputProfiles = outputs, profileId = state.profileId.takeIf { it != id },
             manualCurve = state.manualCurve.copy(profileId = state.manualCurve.profileId.takeIf { it != id }),
-        ) }
+        ))
     }
 
-    private fun saveGains(gains: List<Double>) {
-        saveCurve(_state.value.copy(gains = gains))
+    private fun saveGains(gains: List<Double>, enable: Boolean) {
+        val current = _state.value
+        saveCurve(current.copy(gains = gains, enabled = enable || current.enabled))
     }
 
     /** Route changes select an existing curve, without writing over the manual settings. */
@@ -287,8 +292,8 @@ class Equalizer(
 
     fun setAutomaticOutputs(enabled: Boolean) {
         if (!mutations.canMutate) return
-        store.putString("equalizer.outputs.enabled", enabled.toString())
-        selectOutputCurve(_state.value.copy(automaticOutputs = enabled))
+        val next = outputCurve(_state.value.copy(automaticOutputs = enabled))
+        saveState(mapOf("equalizer.outputs.enabled" to enabled.toString()), next)
     }
 
     /** Bind the currently audible curve to this output. Further edits update this binding. */
@@ -298,54 +303,74 @@ class Equalizer(
         val output = state.output ?: return
         val binding = OutputEqProfile(output, state.enabled, state.gains, state.profileId)
         val outputs = state.outputProfiles.filterNot { it.output.id == output.id } + binding
-        saveOutputs(outputs)
-        _state.value = state.copy(outputProfiles = outputs)
+        saveState(outputValues(outputs), state.copy(outputProfiles = outputs))
     }
 
     fun removeOutputProfile(id: String) {
         if (!mutations.canMutate) return
-        val outputs = _state.value.outputProfiles.filterNot { it.output.id == id }
-        listOf("name", "enabled", "gains", "profile").forEach { store.putString("equalizer.outputs.$id.$it", null) }
-        saveOutputs(outputs)
-        selectOutputCurve(_state.value.copy(outputProfiles = outputs))
+        val state = _state.value
+        val outputs = state.outputProfiles.filterNot { it.output.id == id }
+        val values = outputValues(outputs).toMutableMap().apply {
+            listOf("name", "enabled", "gains", "profile").forEach { put("equalizer.outputs.$id.$it", null) }
+        }
+        saveState(values, outputCurve(state.copy(outputProfiles = outputs)))
     }
 
-    private fun selectOutputCurve(state: EqualizerState, manual: EqualizerState = load()) {
+    private fun selectOutputCurve(state: EqualizerState, manual: EqualizerState = state) {
+        _state.value = outputCurve(state, manual.manualCurve)
+    }
+
+    /** A route or accepted write selects from already decoded state, with no fallible read after it. */
+    private fun outputCurve(state: EqualizerState, manual: ManualEqCurve = state.manualCurve): EqualizerState {
         val bound = state.outputProfile.takeIf { state.automaticOutputs }
-        _state.value = state.copy(
+        return state.copy(
             enabled = bound?.enabled ?: manual.enabled,
             gains = bound?.gains ?: manual.gains,
             profileId = (bound?.profileId ?: if (bound == null) manual.profileId else null)
                 ?.takeIf { id -> state.profiles.any { it.id == id } },
-            manualCurve = manual.manualCurve,
+            manualCurve = manual,
         )
     }
 
     private fun saveCurve(state: EqualizerState) {
         if (!mutations.canMutate) return
+        val values = mutableMapOf<String, String?>()
+        val next = prepareCurve(state, values)
+        saveState(values, next)
+    }
+
+    /** Adds curve writes to the same batch as an optional new correction profile. */
+    private fun prepareCurve(state: EqualizerState, values: MutableMap<String, String?>): EqualizerState =
         if (state.usesOutputProfile) {
             val output = state.output!!
             val outputs = state.outputProfiles.map { if (it.output.id == output.id)
                 OutputEqProfile(output, state.enabled, state.gains, state.profileId) else it }
-            saveOutputs(outputs)
-            _state.value = state.copy(outputProfiles = outputs)
+            values.putAll(outputValues(outputs))
+            state.copy(outputProfiles = outputs)
         } else {
-            store.putString(ENABLED_KEY, state.enabled.toString())
-            store.putString(GAINS_KEY, state.gains.joinToString(","))
-            store.putString(SELECTED_KEY, state.profileId)
-            _state.value = state.copy(manualCurve = ManualEqCurve(state.enabled, state.gains, state.profileId))
+            values[ENABLED_KEY] = state.enabled.toString()
+            values[GAINS_KEY] = state.gains.joinToString(",")
+            values[SELECTED_KEY] = state.profileId
+            state.copy(manualCurve = ManualEqCurve(state.enabled, state.gains, state.profileId))
+        }
+
+    private fun outputValues(outputs: List<OutputEqProfile>): Map<String, String?> = buildMap {
+        put("equalizer.outputs.index", outputs.joinToString("\u001F") { it.output.id })
+        outputs.forEach { binding ->
+            val key = "equalizer.outputs.${binding.output.id}"
+            put("$key.name", binding.output.name)
+            put("$key.enabled", binding.enabled.toString())
+            put("$key.gains", binding.gains.joinToString(","))
+            put("$key.profile", binding.profileId)
         }
     }
 
-    private fun saveOutputs(outputs: List<OutputEqProfile>) {
-        store.putStringList("equalizer.outputs.index", outputs.map { it.output.id })
-        outputs.forEach { binding ->
-            val key = "equalizer.outputs.${binding.output.id}"
-            store.putString("$key.name", binding.output.name)
-            store.putString("$key.enabled", binding.enabled.toString())
-            store.putString("$key.gains", binding.gains.joinToString(","))
-            store.putString("$key.profile", binding.profileId)
-        }
+    private fun saveState(values: Map<String, String?>, next: EqualizerState) {
+        store.updateStrings(
+            removing = values.filterValues { it == null }.keys,
+            writing = values.mapNotNull { (key, value) -> value?.let { key to it } }.toMap(),
+        )
+        _state.value = next
     }
 
     private fun load(store: KeyValueStore = this.store): EqualizerState {

@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.equalizer.*
@@ -104,6 +106,7 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
     val outputName = output?.let { if (it.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else it.name }
     var bind by rememberSaveable(entry.id, output?.id) { mutableStateOf(false) }
     var applyFailed by remember(entry.id) { mutableStateOf(false) }
+    var saveFailed by remember(entry.id) { mutableStateOf(false) }
     val reviewed = (correction as? AutoEqLoad.Ready)?.value
     val current = reviewed?.correction
     val preview = remember(current) { current?.let { EqChain(it.filters, 0.0).curve(96).map(Double::toFloat) }.orEmpty() }
@@ -133,11 +136,22 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
                 }
                 item { ActionButton(stringResource(Res.string.autoeq_apply), {
                     current?.let {
-                        if (equalizer.applyCatalogProfile(it, if (bind || eq.usesOutputProfile) output else null, reviewed?.ticket)) onApplied()
-                        else applyFailed = true
+                        applyFailed = false
+                        saveFailed = false
+                        val applied = try {
+                            equalizer.applyCatalogProfile(it, if (bind || eq.usesOutputProfile) output else null, reviewed.ticket)
+                        } catch (cancelled: CancellationException) { throw cancelled }
+                        catch (_: Exception) { saveFailed = true; false }
+                        if (applied) onApplied()
+                        else if (!saveFailed) applyFailed = true
                     }
                 }, Modifier.fillMaxWidth().padding(16.dp)) }
                 if (applyFailed) item { FeatureHint(stringResource(Res.string.autoeq_apply_failed)) }
+                if (saveFailed) item {
+                    Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) {
+                        FeatureHint(stringResource(Res.string.ordinary_eq_save_failed))
+                    }
+                }
                 item { FeatureHint(stringResource(Res.string.autoeq_attribution)) }
             }
         }

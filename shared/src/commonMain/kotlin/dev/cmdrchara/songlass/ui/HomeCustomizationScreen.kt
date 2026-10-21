@@ -27,6 +27,7 @@ import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
+import kotlinx.coroutines.CancellationException
 import org.jetbrains.compose.resources.stringResource
 
 /** Overview, section ordering and a focused picker each have their own reading hierarchy. */
@@ -50,6 +51,12 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
     var menuContext by remember { mutableStateOf<PlayContext?>(null) }
     var menuVisible by remember { mutableStateOf(false) }
     var kindsVisible by remember { mutableStateOf(false) }
+    var saveFailed by remember { mutableStateOf(false) }
+    fun saveChange(change: () -> Unit) {
+        try { change(); saveFailed = false }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { saveFailed = true }
+    }
     val kindLabels = listOf(stringResource(Res.string.search_all), stringResource(Res.string.homecfg_kind_user_playlist),
         stringResource(Res.string.homecfg_kind_smart_playlist), stringResource(Res.string.library_albums),
         stringResource(Res.string.library_artists), stringResource(Res.string.library_folders), stringResource(Res.string.library_metadata))
@@ -62,7 +69,9 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
     val showFavorites = kindIndex == 0 && favoritesLabel.contains(query.trim(), ignoreCase = true)
     PlatformBackHandler(pane != "overview") { pane = "overview" }
     fun toggle(context: PlayContext) {
-        if (context in chosen) customization.removeShortcut(context) else customization.addShortcut(context)
+        saveChange {
+            if (context in chosen) customization.removeShortcut(context) else customization.addShortcut(context)
+        }
     }
     fun resolveShortcut(context: PlayContext) = HomeShortcuts.resolve(library, context, emptyList(), saved)
     Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()) {
@@ -100,11 +109,11 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
                     layout.order.forEachIndexed { index, section ->
                         val name = sectionName(section)
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            SettingsToggleRow(name, layout.isVisible(section), { customization.setSectionVisible(section, it) }, Modifier.weight(1f),
+                            SettingsToggleRow(name, layout.isVisible(section), { saveChange { customization.setSectionVisible(section, it) } }, Modifier.weight(1f),
                                 subtitle = stringResource(Res.string.homecfg_position, index + 1, layout.order.size))
-                            if (index > 0) IconButton(ChevronUp, stringResource(Res.string.homecfg_move_up, name), { customization.moveSection(section, -1) }, Modifier.size(44.dp))
+                            if (index > 0) IconButton(ChevronUp, stringResource(Res.string.homecfg_move_up, name), { saveChange { customization.moveSection(section, -1) } }, Modifier.size(44.dp))
                             else Spacer(Modifier.size(44.dp))
-                            if (index < layout.order.lastIndex) IconButton(AppIcons.ChevronDown, stringResource(Res.string.homecfg_move_down, name), { customization.moveSection(section, 1) }, Modifier.size(44.dp))
+                            if (index < layout.order.lastIndex) IconButton(AppIcons.ChevronDown, stringResource(Res.string.homecfg_move_down, name), { saveChange { customization.moveSection(section, 1) } }, Modifier.size(44.dp))
                             else Spacer(Modifier.size(44.dp))
                         }
                     }
@@ -140,7 +149,7 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
                         trailing = { AppIcon(AppIcons.ChevronRight, null, tint = AppTheme.colors.tertiaryLabel) }, onClick = { pane = "sections" })
                 } }
                 if (!layout.isDefault) item {
-                    ActionButton(stringResource(Res.string.homecfg_reset), customization::reset, Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 20.dp))
+                    ActionButton(stringResource(Res.string.homecfg_reset), { saveChange(customization::reset) }, Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 20.dp))
                 }
             }
         }
@@ -154,13 +163,16 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
     val position = chosen.indexOf(context)
     val actions = buildList {
         if (context != null) {
-            if (position > 0) add(SheetAction(stringResource(Res.string.homecfg_builder_earlier), ChevronUp) { customization.moveShortcut(context, -1); menuVisible = false })
-            if (position >= 0 && position < chosen.lastIndex) add(SheetAction(stringResource(Res.string.homecfg_builder_later), AppIcons.ChevronDown) { customization.moveShortcut(context, 1); menuVisible = false })
-            add(SheetAction(stringResource(Res.string.homecfg_builder_remove), AppIcons.Close) { customization.removeShortcut(context); menuVisible = false })
+            if (position > 0) add(SheetAction(stringResource(Res.string.homecfg_builder_earlier), ChevronUp) { saveChange { customization.moveShortcut(context, -1) }; menuVisible = false })
+            if (position >= 0 && position < chosen.lastIndex) add(SheetAction(stringResource(Res.string.homecfg_builder_later), AppIcons.ChevronDown) { saveChange { customization.moveShortcut(context, 1) }; menuVisible = false })
+            add(SheetAction(stringResource(Res.string.homecfg_builder_remove), AppIcons.Close) { saveChange { customization.removeShortcut(context) }; menuVisible = false })
         }
     }
     ActionSheet(visible = menuVisible, title = context?.let { chosenTitle(it, resolved) }.orEmpty(), actions = actions,
         cancelLabel = stringResource(Res.string.action_cancel), onDismiss = { menuVisible = false })
+    InfoSheet(visible = saveFailed, title = stringResource(Res.string.ordinary_save_failed_title),
+        rows = listOf(InfoRow(stringResource(Res.string.homecfg_title), stringResource(Res.string.ordinary_home_save_failed))),
+        closeLabel = stringResource(Res.string.action_close), onDismiss = { saveFailed = false })
 }
 
 @Composable

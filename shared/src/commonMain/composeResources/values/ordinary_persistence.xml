@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ordinary_save_failed_title">Could not save this change</string>
+    <string name="ordinary_home_save_failed">Your previous Home layout is still displayed. Try the change again.</string>
+    <string name="ordinary_eq_save_failed">Your previous audio settings are still displayed. Try applying the change again.</string>
+</resources>

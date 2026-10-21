@@ -47,6 +47,8 @@ import dev.cmdrchara.songlass.designsystem.EqBand
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.EqualizerEditor
 import dev.cmdrchara.songlass.designsystem.ListRow
+import dev.cmdrchara.songlass.designsystem.InfoRow
+import dev.cmdrchara.songlass.designsystem.InfoSheet
 import dev.cmdrchara.songlass.designsystem.SettingsChoiceRow
 import dev.cmdrchara.songlass.designsystem.SettingsGroup
 import dev.cmdrchara.songlass.designsystem.SettingsToggleRow
@@ -101,6 +103,12 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
     var importing by remember { mutableStateOf(false) }
     var importFailure by remember { mutableStateOf<ProfileImportFailure?>(null) }
     var importPreview by remember { mutableStateOf<EqualizerProfileImport?>(null) }
+    var saveFailed by remember { mutableStateOf(false) }
+    fun saveChange(change: () -> Unit) {
+        try { change(); saveFailed = false }
+        catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { saveFailed = true }
+    }
     val restoration by equalizer.mutations.state.collectAsState()
     val importTicket = remember(restoration) { equalizer.mutations.ticket() }
     LaunchedEffect(restoration.revision) {
@@ -144,14 +152,14 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                 SettingsSearchAnchor(SettingsTarget.Equalizer, searchFocus) {
-                    SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, equalizer::setEnabled)
+                    SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, { saveChange { equalizer.setEnabled(it) } })
                 }
             }
         }
         item { SectionTitle(stringResource(Res.string.eq_outputs)) }
         item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
             SettingsSearchAnchor(SettingsTarget.OutputProfiles, searchFocus) {
-                SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, equalizer::setAutomaticOutputs)
+                SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, { saveChange { equalizer.setAutomaticOutputs(it) } })
             }
             state.output?.let { output ->
                 val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
@@ -159,7 +167,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                 ListRow(
                     title = stringResource(if (state.outputProfile == null) Res.string.eq_outputs_save else Res.string.audio_eq_update_binding),
                     subtitle = if (state.automaticOutputs) null else stringResource(Res.string.audio_eq_saved_auto_off),
-                    onClick = equalizer::saveForCurrentOutput,
+                    onClick = { saveChange(equalizer::saveForCurrentOutput) },
                 )
             } ?: ListRow(title = stringResource(Res.string.audio_eq_unknown_route), onClick = null)
             ListRow(
@@ -183,7 +191,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                 val description = equalizerCurveLabel(binding.enabled, preset, state.profiles.firstOrNull { it.id == binding.profileId }?.name)
                 ListRow(title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
                     subtitle = "$status · $description", trailing = {
-                    dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { equalizer.removeOutputProfile(binding.output.id) })
+                    dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { saveChange { equalizer.removeOutputProfile(binding.output.id) } })
                 }, onClick = null)
             }
         } }
@@ -197,8 +205,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                 formatGain = { formatGain(it, separator) },
                 onBandChange = { band, gain ->
                     // Shaping the sound means wanting to hear it.
-                    if (!state.enabled) equalizer.setEnabled(true)
-                    equalizer.setGain(band, gain.toDouble())
+                    saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
                 },
                 modifier = Modifier.padding(start = pageInset, end = pageInset, top = 20.dp),
             )
@@ -210,8 +217,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                 SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
                     EqPreset.entries.forEach { preset ->
                         SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
-                            equalizer.applyPreset(preset)
-                            if (preset != EqPreset.Flat) equalizer.setEnabled(true)
+                            saveChange { equalizer.applyPreset(preset, enable = preset != EqPreset.Flat) }
                         })
                     }
                     if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
@@ -222,9 +228,9 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         item {
             SettingsSearchAnchor(SettingsTarget.HeadphoneCorrection, searchFocus) {
                 SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                    SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { equalizer.selectProfile(null) })
+                    SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { saveChange { equalizer.selectProfile(null) } })
                     state.profiles.forEach { profile ->
-                        SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { equalizer.selectProfile(profile.id) })
+                        SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { saveChange { equalizer.selectProfile(profile.id) } })
                     }
                 }
             }
@@ -251,7 +257,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                     ListRow(
                         title = stringResource(Res.string.eq_headphones_delete, profile.name),
                         leading = { AppIcon(AppIcons.Close, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
-                        onClick = { equalizer.deleteProfile(profile.id) },
+                        onClick = { saveChange { equalizer.deleteProfile(profile.id) } },
                     )
                 }
             }
@@ -275,6 +281,9 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
             importPreview = null
         })
     }
+    InfoSheet(visible = saveFailed, title = stringResource(Res.string.ordinary_save_failed_title),
+        rows = listOf(InfoRow(stringResource(Res.string.eq_title), stringResource(Res.string.ordinary_eq_save_failed))),
+        closeLabel = stringResource(Res.string.action_close), onDismiss = { saveFailed = false })
 }
 
 private enum class ProfileImportFailure { Invalid, Changed, Failed }

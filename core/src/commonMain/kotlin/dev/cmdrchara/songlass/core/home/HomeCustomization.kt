@@ -5,7 +5,6 @@ import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import dev.cmdrchara.songlass.core.storage.getStringList
-import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -148,13 +147,20 @@ class HomeCustomization(
     )
 
     private fun save(snapshot: HomeCustomizationSnapshot) {
-        // Defaults are removed instead of written, so the store only holds real choices.
-        if (snapshot.order == HomeSection.DEFAULT_ORDER) store.putString(SECTIONS_KEY, null)
-        else store.putStringList(SECTIONS_KEY, snapshot.order.map { it.id })
-        if (snapshot.hidden.isEmpty()) store.putString(HIDDEN_KEY, null)
-        else store.putStringList(HIDDEN_KEY, HomeSection.DEFAULT_ORDER.filter { it in snapshot.hidden }.map { it.id })
-        if (snapshot.shortcuts.isEmpty()) store.putString(SHORTCUTS_KEY, null)
-        else store.putStringList(SHORTCUTS_KEY, snapshot.shortcuts.map { it.key })
+        // One ordinary batch: a reset must not remove only some of the user's choices.
+        // Defaults stay absent, preserving both the original Home and the backup format.
+        val writing = buildMap {
+            if (snapshot.order != HomeSection.DEFAULT_ORDER) {
+                put(SECTIONS_KEY, snapshot.order.joinToString("\u001F") { it.id })
+            }
+            if (snapshot.hidden.isNotEmpty()) {
+                put(HIDDEN_KEY, HomeSection.DEFAULT_ORDER.filter { it in snapshot.hidden }.joinToString("\u001F") { it.id })
+            }
+            if (snapshot.shortcuts.isNotEmpty()) {
+                put(SHORTCUTS_KEY, snapshot.shortcuts.joinToString("\u001F") { it.key })
+            }
+        }
+        store.updateStrings(setOf(SECTIONS_KEY, HIDDEN_KEY, SHORTCUTS_KEY) - writing.keys, writing)
     }
 
     companion object {

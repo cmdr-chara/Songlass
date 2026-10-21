@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ordinary_save_failed_title">Impossibile salvare la modifica</string>
+    <string name="ordinary_home_save_failed">La disposizione precedente della Home è ancora visibile. Riprova la modifica.</string>
+    <string name="ordinary_eq_save_failed">Le impostazioni audio precedenti sono ancora visibili. Riprova ad applicare la modifica.</string>
+</resources>

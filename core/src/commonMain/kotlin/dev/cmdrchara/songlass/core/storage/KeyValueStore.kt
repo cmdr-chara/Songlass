@@ -15,7 +15,14 @@ interface KeyValueStore {
      * synchronously; platforms without native transactions retain their rollback contract).
      * The fallback retains [replace]'s rollback behavior for stores without a native batch.
      */
-    fun putStrings(writing: Map<String, String>) = replace(emptySet(), writing)
+    fun putStrings(writing: Map<String, String>) = updateStrings(emptySet(), writing)
+
+    /**
+     * An ordinary preference batch that also removes obsolete values. Keys in both sets are
+     * written. Like [putStrings], native implementations may persist asynchronously; accepting
+     * the batch is not a disk durability guarantee. The fallback uses [replace]'s rollback.
+     */
+    fun updateStrings(removing: Set<String>, writing: Map<String, String>) = replace(removing, writing)
 
     /**
      * Every string entry currently stored, or null when this store cannot enumerate its keys.
@@ -24,11 +31,13 @@ interface KeyValueStore {
     fun snapshot(): Map<String, String>? = null
 
     /**
-     * Removes the keys in [removing], then stores every entry of [writing], as one unit: when this
-     * throws, the store holds the values it had before the call. Keys in both are written.
+     * Removes the keys in [removing], then stores every entry of [writing]. Keys in both are
+     * written. Native implementations use their transaction where available.
      *
      * The default goes through [putString] and puts the previous values back on failure, which
-     * suits stores without a native transaction; platform stores override it where they have one.
+     * suits stores without a native transaction. This rollback is best effort if the underlying
+     * store keeps failing; neither the fallback nor asynchronous native preferences promise a
+     * crash-atomic disk transaction.
      */
     fun replace(removing: Set<String>, writing: Map<String, String>) {
         val touched = removing + writing.keys

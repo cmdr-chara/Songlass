@@ -15,8 +15,9 @@ class SharedPreferencesStore(context: Context, name: String = "songlass") : KeyV
     }
 
     /** One in-memory publication for related keys; disk persistence stays asynchronous. */
-    override fun putStrings(writing: Map<String, String>) {
+    override fun updateStrings(removing: Set<String>, writing: Map<String, String>) {
         prefs.edit().apply {
+            removing.forEach { remove(it) }
             writing.forEach { (key, value) -> putString(key, value) }
         }.apply()
     }
