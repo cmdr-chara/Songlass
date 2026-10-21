@@ -10,6 +10,9 @@ import android.util.LruCache
 import android.util.Size
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import dev.cmdrchara.songlass.SonglassApplication
+import dev.cmdrchara.songlass.core.artwork.ArtworkAvailability
+import dev.cmdrchara.songlass.core.artwork.ArtworkKeys
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkImageLoader
 import dev.cmdrchara.songlass.designsystem.foundation.CachedArtworkImage
 import dev.cmdrchara.songlass.designsystem.foundation.ARTWORK_SIZE_BUCKETS
@@ -17,6 +20,7 @@ import dev.cmdrchara.songlass.designsystem.foundation.SMALL_ARTWORK_PX
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -27,11 +31,30 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 
 /**
- * Loads the cover embedded in an audio file through MediaStore thumbnails. Keys are the
- * tracks' content URIs. Results, including "no cover", are kept in a memory-bounded cache.
+ * One bounded cover cache for Compose, widgets, media browsers and notifications. Track keys
+ * include canonical identity; opening a file requires a current successful library snapshot.
+ * Verified positive entries remain drawable from memory without reopening an unavailable file.
  */
-class MediaStoreArtworkLoader(context: Context) : ArtworkImageLoader {
+class MediaStoreArtworkLoader(
+    context: Context,
+    private val availability: ArtworkAvailability = (context.applicationContext as SonglassApplication).graph.artworkAvailability,
+    canReadLibrary: (() -> Boolean)? = null,
+) : ArtworkImageLoader {
     private val resolver = context.contentResolver
+    private val canReadLibrary: () -> Boolean = canReadLibrary ?: run {
+        val app = context.applicationContext as SonglassApplication
+        val check: () -> Boolean = {
+            val graph = app.graph
+            graph.source.hasAccess.value && graph.hasCompleteLibraryScan.value &&
+                !graph.isLibraryLoading.value && graph.libraryRefreshFailure.value == null
+        }
+        check
+    }
+
+    override val revision: StateFlow<Long> get() = availability.revision
+
+    /** Current permission for new track IO; a positive memory hit needs no such permission. */
+    fun canRead(key: String): Boolean = canReadLibrary() && availability.permitForKey(key) != null
 
     // Thumbnails (lists, shortcuts) and larger covers have separate budgets, so a few big covers
     // scrolled past on the Home cannot push out the small ones the screen returns to.
@@ -60,6 +83,9 @@ class MediaStoreArtworkLoader(context: Context) : ArtworkImageLoader {
     override fun cached(key: String, sizePx: Int): CachedArtworkImage? =
         cachedEntry(key, sizePx)?.cachedImage
 
+    /** Memory only: safe even when a scan failed or permission has gone away. */
+    fun cachedBitmap(key: String, sizePx: Int): Bitmap? = cachedEntry(key, sizePx)?.bitmap
+
     /**
      * The entry for [key] at [sizePx]; a smaller size missing from the cache is derived from a
      * larger decode of the same cover (one filtered downscale, never upscaled), so views that
@@ -67,41 +93,55 @@ class MediaStoreArtworkLoader(context: Context) : ArtworkImageLoader {
      */
     private fun cachedEntry(key: String, sizePx: Int): CachedArtwork? {
         val cacheKey = "$key@$sizePx"
-        cacheFor(sizePx).get(cacheKey)?.let { return it }
+        freshEntry(cacheKey, sizePx)?.let { return it }
         val larger = ARTWORK_SIZE_BUCKETS.filter { it > sizePx }
-            .firstNotNullOfOrNull { cacheFor(it).get("$key@$it") } ?: return null
+            .firstNotNullOfOrNull { freshEntry("$key@$it", it) } ?: return null
         val source = larger.bitmap
         val scale = if (source == null) 1f else minOf(1f, sizePx.toFloat() / maxOf(source.width, source.height))
         val entry = when {
-            source == null -> CachedArtwork(null)
+            source == null -> larger
             scale >= 1f -> larger
             else -> CachedArtwork(
                 Bitmap.createScaledBitmap(source, maxOf(1, (source.width * scale).toInt()), maxOf(1, (source.height * scale).toInt()), true),
+                larger.checkedRevision,
             )
         }
         cacheFor(sizePx).put(cacheKey, entry)
         return entry
     }
 
-    override suspend fun load(key: String, sizePx: Int): ImageBitmap? {
+    private fun freshEntry(cacheKey: String, sizePx: Int): CachedArtwork? {
+        val cache = cacheFor(sizePx)
+        val entry = cache.get(cacheKey) ?: return null
+        if (entry.bitmap != null || entry.checkedRevision == revision.value) return entry
+        // A failed/no-cover read is never a permanent verdict across permission/scan recovery.
+        cache.remove(cacheKey)
+        return null
+    }
+
+    override suspend fun load(key: String, sizePx: Int): ImageBitmap? = loadEntry(key, sizePx)?.image
+
+    suspend fun loadBitmap(key: String, sizePx: Int): Bitmap? = loadEntry(key, sizePx)?.bitmap
+
+    private suspend fun loadEntry(key: String, sizePx: Int): CachedArtwork? {
         val cacheKey = "$key@$sizePx"
-        cachedEntry(key, sizePx)?.let { return it.image }
+        cachedEntry(key, sizePx)?.let { return it }
         val pending = synchronized(pendingLoads) {
             pendingLoads.getOrPut(cacheKey) { PendingLoad() }.also { it.users++ }
         }
         try {
             return pending.mutex.withLock {
                 // Another caller may have completed while this one waited.
-                cachedEntry(key, sizePx)?.let { return@withLock it.image }
+                cachedEntry(key, sizePx)?.let { return@withLock it }
                 // Few decodes at a time, so the rows a fling stops on are not queued behind
                 // rows it already passed: a request still waiting here is cancelled freely.
                 decodePermits.withPermit {
                     // A decode that has started is finished and cached even if its row left
                     // the screen meanwhile, instead of throwing the work away.
                     withContext(NonCancellable + Dispatchers.IO) {
-                        cachedEntry(key, sizePx) ?: decodeEntry(key, sizePx).also { cacheFor(sizePx).put(cacheKey, it) }
+                        cachedEntry(key, sizePx) ?: decodeAuthorized(key, sizePx)?.also { cacheFor(sizePx).put(cacheKey, it) }
                     }
-                }.image
+                }
             }
         } finally {
             // Cancellation while waiting or decoding must release the key too.
@@ -111,31 +151,43 @@ class MediaStoreArtworkLoader(context: Context) : ArtworkImageLoader {
         }
     }
 
-    /**
-     * Files without embedded art (or unreadable ones) simply have no cover. Tracks embedding the
-     * same picture (usually a whole album) share one decoded bitmap: identical bytes, same size.
-     */
-    private fun decodeEntry(key: String, sizePx: Int): CachedArtwork {
-        val uri = Uri.parse(key).buildUpon().fragment(null).build()
-        // Track keys are MediaStore audio items; asking their type would be one more IPC per cover.
-        val isAudio = uri.authority == MediaStore.AUTHORITY && uri.pathSegments.getOrNull(1) == "audio"
-        if (!isAudio && runCatching { resolver.getType(uri) }.getOrNull()?.startsWith("image/") == true) {
-            return CachedArtwork(runCatching {
-                val source = android.graphics.ImageDecoder.createSource(resolver, uri)
-                android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-                    val scale = minOf(1f, sizePx.toFloat() / maxOf(info.size.width, info.size.height))
-                    decoder.setTargetSize(maxOf(1, (info.size.width * scale).toInt()), maxOf(1, (info.size.height * scale).toInt()))
-                    decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+    private suspend fun decodeAuthorized(key: String, sizePx: Int): CachedArtwork? {
+        val permit = availability.permitForKey(key)
+        if (permit != null) {
+            return availability.readIfCurrent(permit, canReadLibrary) { track ->
+                decodeAudio(Uri.parse(track.uri), sizePx, revision.value) {
+                    availability.isCurrent(permit) && canReadLibrary()
                 }
-            }.getOrNull())
+            }
         }
+        val uri = Uri.parse(key).buildUpon().fragment(null).build()
+        val isAudio = uri.authority == MediaStore.AUTHORITY && uri.pathSegments.getOrNull(1) == "audio"
+        if (ArtworkKeys.isTrackKey(key) || isAudio) return null
+        // The tag editor can preview an explicitly picked image URI under its separate picker
+        // grant. It is not an alternative route for unverified audio files or invented track keys.
+        if (runCatching { resolver.getType(uri) }.getOrNull()?.startsWith("image/") != true) return null
+        val bitmap = runCatching {
+            val source = android.graphics.ImageDecoder.createSource(resolver, uri)
+            android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+                val scale = minOf(1f, sizePx.toFloat() / maxOf(info.size.width, info.size.height))
+                decoder.setTargetSize(maxOf(1, (info.size.width * scale).toInt()), maxOf(1, (info.size.height * scale).toInt()))
+                decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
+            }
+        }.getOrNull() ?: return null
+        return CachedArtwork(bitmap, revision.value)
+    }
+
+    /** Identical embedded picture bytes at the same size share the existing decoded bitmap. */
+    private fun decodeAudio(uri: Uri, sizePx: Int, checkedRevision: Long, stillAllowed: () -> Boolean): CachedArtwork? {
+        if (!stillAllowed()) return null
         val picture = dev.cmdrchara.songlass.artwork.EmbeddedCover.frontCover(resolver, uri)
+        if (!stillAllowed()) return null
         if (picture != null) {
             val identity = "${digest(picture)}@$sizePx"
             synchronized(sharedCovers) { sharedCovers[identity]?.get() }?.let { return it }
             val bitmap = dev.cmdrchara.songlass.artwork.EmbeddedCover.decode(picture, sizePx)
             if (bitmap != null) {
-                val entry = CachedArtwork(bitmap)
+                val entry = CachedArtwork(bitmap, checkedRevision)
                 synchronized(sharedCovers) {
                     if (sharedCovers.size >= SHARED_COVERS_PRUNE_AT) sharedCovers.values.removeAll { it.get() == null }
                     sharedCovers[identity] = WeakReference(entry)
@@ -143,13 +195,15 @@ class MediaStoreArtworkLoader(context: Context) : ArtworkImageLoader {
                 return entry
             }
         }
-        return CachedArtwork(runCatching { resolver.loadThumbnail(uri, Size(sizePx, sizePx), null) }.getOrNull())
+        // Thumbnail fallback is another source read, so recheck after the embedded-cover read.
+        if (!stillAllowed()) return null
+        return CachedArtwork(runCatching { resolver.loadThumbnail(uri, Size(sizePx, sizePx), null) }.getOrNull(), checkedRevision)
     }
 
     private fun digest(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
-    class CachedArtwork(val bitmap: Bitmap?) {
+    class CachedArtwork(val bitmap: Bitmap?, val checkedRevision: Long) {
         val cachedImage = CachedArtworkImage(bitmap?.asImageBitmap())
         val image: ImageBitmap? get() = cachedImage.image
     }

@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.net.Uri
 import android.util.SizeF
 import android.view.KeyEvent
 import android.widget.RemoteViews
@@ -20,13 +19,15 @@ import dev.cmdrchara.songlass.MainActivity
 import dev.cmdrchara.songlass.R
 import dev.cmdrchara.songlass.SonglassApplication
 import dev.cmdrchara.songlass.artwork.CoverImages
+import dev.cmdrchara.songlass.core.artwork.LatestWidgetRenderer
+import dev.cmdrchara.songlass.core.artwork.WidgetPlaybackSnapshot
 import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import dev.cmdrchara.songlass.playback.PlaybackService
 import dev.cmdrchara.songlass.ui.artwork
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -52,8 +53,9 @@ object NowPlayingWidgets {
     private data class Content(
         val title: String?,
         val subtitle: String?,
-        val trackUri: String?,
-        val artworkRevision: Long,
+        val artworkKey: String?,
+        val canReadArtwork: Boolean,
+        val availabilityRevision: Long,
         val seed: Int,
         val playing: Boolean,
         val material: Boolean,
@@ -62,55 +64,76 @@ object NowPlayingWidgets {
     )
 
     private lateinit var scope: CoroutineScope
+    private lateinit var renderer: LatestWidgetRenderer<Content, Rendered?>
+
+    private data class Rendered(val ids: IntArray, val views: RemoteViews)
 
     /** Starts following playback; called once by the application. */
     fun observe(app: SonglassApplication, scope: CoroutineScope) {
         this.scope = scope
         val graph = app.graph
+        renderer = LatestWidgetRenderer(scope,
+            render = { render(app, it) },
+            publish = { captured, rendered ->
+                // State can change before its Flow observer runs. Recheck the current snapshot
+                // as well as the renderer generation before sending metadata/actions to Android.
+                if (rendered != null && captured == content(app)) {
+                    AppWidgetManager.getInstance(app).updateAppWidget(rendered.ids, rendered.views)
+                }
+            },
+        )
         scope.launch {
             combine(
-                graph.controller.queue.map { it.current?.track }.distinctUntilChanged(),
-                graph.player.state.map { it.playWhenReady }.distinctUntilChanged(),
+                graph.controller.queue.map { it.current }.distinctUntilChanged(),
+                graph.player.state.map { it.isPlaying }.distinctUntilChanged(),
                 graph.settings.state.map { it.interfaceStyle }.distinctUntilChanged(),
-            ) { _, _, _ -> content(app) }
+                graph.artworkAvailability.revision,
+            ) { _, _, _, _ -> content(app) }
                 .distinctUntilChanged()
-                .collectLatest { render(app, it) }
+                .collect { renderer.submit(it) }
         }
     }
 
     /** Draws the widgets again (added to the home screen, or the system's light/dark mode changed). */
     fun refresh(app: SonglassApplication) {
         if (!::scope.isInitialized) return
-        scope.launch { render(app, content(app)) }
+        scope.launch { renderer.submit(content(app)) }
     }
 
     private fun content(app: SonglassApplication): Content {
         val graph = app.graph
-        val track = graph.controller.queue.value.current?.track
+        val entry = graph.controller.queue.value.current
+        val playback = WidgetPlaybackSnapshot.from(entry, graph.player.state.value,
+            artworkAvailable = entry?.track?.artworkKey?.let(app.artworkLoader::canRead) == true)
+        val track = playback.track
         return Content(
             title = track?.title,
             subtitle = track?.artist,
-            trackUri = track?.uri,
-            artworkRevision = track?.artworkRevision ?: 0,
+            artworkKey = track?.artworkKey,
+            canReadArtwork = playback.canReadArtwork,
+            availabilityRevision = graph.artworkAvailability.revision.value,
             seed = track?.artwork()?.seed ?: 0,
-            playing = graph.player.state.value.playWhenReady,
+            playing = playback.playing,
             material = graph.settings.state.value.interfaceStyle == InterfaceStyle.MaterialGlass,
             miuix = graph.settings.state.value.interfaceStyle == InterfaceStyle.Miuix,
             dark = (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
     }
 
-    private suspend fun render(context: Context, content: Content) {
-        val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(ComponentName(context, NowPlayingWidget::class.java))
-        if (ids.isEmpty()) return
+    private suspend fun render(app: SonglassApplication, content: Content): Rendered? {
+        val manager = AppWidgetManager.getInstance(app)
+        val ids = manager.getAppWidgetIds(ComponentName(app, NowPlayingWidget::class.java))
+        if (ids.isEmpty()) return null
         val cover = withContext(Dispatchers.IO) {
-            content.trackUri?.let { CoverImages.load(context, Uri.parse(it), COVER_PX, content.seed) }
+            content.artworkKey?.let { key ->
+                (if (content.canReadArtwork) app.artworkLoader.loadBitmap(key, COVER_PX)
+                else app.artworkLoader.cachedBitmap(key, COVER_PX)) ?: CoverImages.generative(content.seed, COVER_PX)
+            }
         }
         val tint = if (content.material || content.miuix) null else liquidTint(cover, content.dark)
-        val small = build(context, content, cover, tint, wide = false)
-        val wide = build(context, content, cover, tint, wide = true)
-        manager.updateAppWidget(ids, RemoteViews(mapOf(SizeF(110f, 110f) to small, SizeF(220f, 100f) to wide)))
+        val small = build(app, content, cover, tint, wide = false)
+        val wide = build(app, content, cover, tint, wide = true)
+        return Rendered(ids, RemoteViews(mapOf(SizeF(110f, 110f) to small, SizeF(220f, 100f) to wide)))
     }
 
     private fun build(context: Context, content: Content, cover: Bitmap?, tint: ArtworkTint?, wide: Boolean): RemoteViews {

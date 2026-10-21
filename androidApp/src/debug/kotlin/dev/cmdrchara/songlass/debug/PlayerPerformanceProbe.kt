@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import dev.cmdrchara.songlass.SonglassApplication
+import dev.cmdrchara.songlass.core.artwork.ArtworkAvailability
 import dev.cmdrchara.songlass.library.MediaStoreArtworkLoader
 import kotlinx.coroutines.*
 import org.json.JSONArray
@@ -86,7 +87,7 @@ internal object PlayerPerformanceProbe {
         app.graph.refreshLibrary()
         val key = app.graph.library.value.tracks.first { it.title == TITLE }.artworkKey
         withContext(Dispatchers.Default) { cacheChecks(app, key) }
-        Log.i("PlayerPerf", "cache checks PASS: size revision missing cancellation pendingKeys=0")
+        Log.i("PlayerPerf", "cache checks PASS: real decode sizes identity availability recovery cancellation pendingKeys=0")
     }
 
     // Debug assertion only: verify that active-key bookkeeping retains no completed requests.
@@ -96,12 +97,14 @@ internal object PlayerPerformanceProbe {
     }
 
     private suspend fun cacheChecks(app: SonglassApplication, key: String) {
-        // Dimensions and artwork revisions must remain independent cache entries.
+        // Decode actual resolved artwork at both sizes; this remains a real decode/cache probe.
         val loader = MediaStoreArtworkLoader(app)
         val small = loader.load(key, 256)!!
         val large = loader.load(key, 1024)!!
         check(small !== large && small.width <= 256 && large.width <= 1024)
-        check(loader.load(key + "#songlass:probe", 256) !== small)
+        // A fabricated revision/key is not authority to open the same platform URI.
+        check(loader.load(key + "#songlass:probe", 256) == null)
+        check(loader.cached(key + "#songlass:probe", 256) == null)
         check(loader.load("content://media/external/audio/media/-1", 256) == null)
         check(loader.load("content://media/external/audio/media/-1", 256) == null)
         // Cancelling callers must leave later requests usable, without stranded key locks.
@@ -115,6 +118,44 @@ internal object PlayerPerformanceProbe {
             check(fresh.load(key, 1024) != null)
             check(pendingCount(fresh) == 0)
         }
+        check(pendingCount(loader) == 0)
+        availabilityChecks(app, key)
+    }
+
+    private suspend fun availabilityChecks(app: SonglassApplication, key: String) {
+        val track = app.graph.allTracks.value.single { it.artworkKey == key }
+        val missing = track.copy(id = "debug-artwork-missing", uri = "content://media/external/audio/media/-1")
+        val availability = ArtworkAvailability()
+        val index = ArtworkAvailability.Index.build(listOf(track, missing))
+        var permission = true
+        // Local probe state only: never invalidate the running graph or change media files.
+        val loader = MediaStoreArtworkLoader(app, availability) { permission }
+        check(loader.load(key, 256) == null)
+        check(loader.cached(key, 256) == null) // A blocked read must not install a negative cache entry.
+        availability.publish(index)
+        val small = loader.load(key, 256)!!
+        check(loader.load(track.uri, 256) == null) // Raw audio URI is not a canonical cache key.
+        permission = false // Direct check, before any observer/availability revision can run.
+        check(loader.load(key, 1024) == null)
+        check(loader.cached(key, 1024) == null)
+        check(loader.load(key, 256) === small) // Verified memory needs no new source open.
+        permission = true
+        check(loader.load(key, 1024) != null)
+
+        check(loader.load(missing.artworkKey, 256) == null)
+        val absent = loader.cached(missing.artworkKey, 256)
+        check(absent != null && absent.image == null)
+        check(loader.load(missing.artworkKey, 256) == null)
+        check(loader.cached(missing.artworkKey, 256) === absent)
+        availability.invalidate()
+        check(loader.cached(missing.artworkKey, 256) == null)
+        check(loader.load(missing.artworkKey, 256) == null)
+        check(loader.cached(missing.artworkKey, 256) == null)
+        check(loader.load(key, 256) === small)
+        availability.publish(index) // Identical metadata still permits a fresh negative-cache retry.
+        check(loader.cached(missing.artworkKey, 256) == null)
+        check(loader.load(missing.artworkKey, 256) == null)
+        check(loader.cached(missing.artworkKey, 256) != null)
         check(pendingCount(loader) == 0)
     }
 }

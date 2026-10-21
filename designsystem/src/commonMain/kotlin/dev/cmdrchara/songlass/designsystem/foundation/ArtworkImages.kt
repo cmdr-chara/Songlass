@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.designsystem.foundation
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,11 +14,15 @@ import androidx.compose.ui.graphics.toPixelMap
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.StateFlow
 
 /** Loads cover images; provided by the platform. Implementations should cache. */
 fun interface ArtworkImageLoader {
     /** Returns the image for [key] at roughly [sizePx] square, or `null` if there is none. */
     suspend fun load(key: String, sizePx: Int): ImageBitmap?
+
+    /** Retry unresolved images after access/library recovery, even when their key is unchanged. */
+    val revision: StateFlow<Long>? get() = null
 
     /**
      * What [load] would return from memory, without suspending: `null` when not loaded yet.
@@ -76,7 +81,8 @@ fun rememberArtworkImage(artwork: Artwork, sizePx: Int): ImageBitmap? {
     val loader = LocalArtworkImageLoader.current
     val key = artwork.imageKey
     val bucket = sizeBucket(sizePx)
-    val request = if (loader != null && key != null) ArtworkRequest(loader, key, bucket) else null
+    val revision = loader?.revision?.collectAsState()?.value ?: 0L
+    val request = if (loader != null && key != null) ArtworkRequest(loader, key, bucket, revision) else null
     val cached = remember(request) { request?.let { it.loader.cached(it.key, it.bucket) } }
     val fallbackKey = artwork.fallbackImageKey
     val standIn = remember(request, cached, fallbackKey) {
@@ -106,12 +112,13 @@ fun PrefetchArtwork(artwork: Artwork?, sizePx: Int) {
     val loader = LocalArtworkImageLoader.current
     val key = artwork?.imageKey
     val bucket = sizeBucket(sizePx)
-    LaunchedEffect(loader, key, bucket) {
+    val revision = loader?.revision?.collectAsState()?.value ?: 0L
+    LaunchedEffect(loader, key, bucket, revision) {
         if (loader != null && key != null && loader.cached(key, bucket) == null) loader.load(key, bucket)
     }
 }
 
-private data class ArtworkRequest(val loader: ArtworkImageLoader, val key: String, val bucket: Int)
+private data class ArtworkRequest(val loader: ArtworkImageLoader, val key: String, val bucket: Int, val revision: Long)
 
 private class LoadedArtwork(val request: ArtworkRequest, val image: ImageBitmap?)
 

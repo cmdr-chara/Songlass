@@ -331,6 +331,17 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
         _state.value = if (stableIds) migrateLegacy(loaded, byId) else loaded
     }
 
+    /**
+     * Validate/persist old bindings before a new displayed scan is published, without opening
+     * its file addresses yet. Availability stays invalid until the caller finishes indexing
+     * and invokes [setLibrary]. A write failure leaves both state and displayed scan unchanged.
+     */
+    fun reconcileStoredIdentities(tracks: List<Track>, stableIds: Boolean) {
+        if (!stableIds || (state.value.progress.none { it.track.binding == MarkerBinding.Legacy } &&
+            state.value.bookmarks.none { it.track.binding == MarkerBinding.Legacy })) return
+        _state.value = migrateLegacy(state.value, tracks.groupBy { it.id })
+    }
+
     /** [stableIds] is only for scans already validated by the persistent identity registry. */
     fun setLibrary(tracks: List<Track>, stableIds: Boolean = false) {
         // Build once per MediaStore refresh. Bookmark lists never scan the full library per row.

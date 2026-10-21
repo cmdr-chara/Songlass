@@ -38,7 +38,8 @@ data class Track(
     /** `folder/fileName` relative to the storage root, as written in M3U playlists; null if unknown. */
     val path: String? get() = fileName?.let { name -> folder?.takeIf { it.isNotBlank() }?.let { "${it.trim('/')}/$name" } ?: name }
 
-    val artworkKey: String get() = if (artworkRevision == 0L) uri else "$uri#songlass:$artworkRevision"
+    /** A cache address, never a playable URI. Reused platform rows cannot inherit another file's cover. */
+    val artworkKey: String = dev.cmdrchara.songlass.core.artwork.ArtworkKeys.forTrack(this)
 
     val artistNames: List<String> get() = ArtistTags.names(artist, artists)
 

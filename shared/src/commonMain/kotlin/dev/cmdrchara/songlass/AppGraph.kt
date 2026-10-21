@@ -75,6 +75,7 @@ class AppGraph(
 ) {
     val settings = AppSettings(store)
     val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
+    val artworkAvailability = dev.cmdrchara.songlass.core.artwork.ArtworkAvailability()
     val controller = PlaybackController(player, scope, markers = trackMarkers,
         onUserTransport = { outputResume.cancel() }, preferences = { settings.state.value })
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
@@ -287,6 +288,7 @@ class AppGraph(
 
     /** Keep the displayed snapshot and open decoder, but never reopen unverified file addresses. */
     private fun invalidateLibraryAvailability() {
+        artworkAvailability.invalidate()
         trackMarkers.setLibrary(emptyList(), stableIds = source.hasStableTrackIds)
         controller.refreshTracks(emptyList(), stableIds = source.hasStableTrackIds)
     }
@@ -299,19 +301,29 @@ class AppGraph(
             val accessGeneration = libraryAccessGeneration
             _isLibraryLoading.value = true
             _hasCompleteLibraryScan.value = false
+            // Keep the current decoder and displayed collection, but stop new opens and
+            // prefetch while the previous scan is being replaced by verified file identities.
+            invalidateLibraryAvailability()
             _libraryRefreshFailure.value = null
             try {
                 val tracks = source.loadTracks()
+                val artworkIndex = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    dev.cmdrchara.songlass.core.artwork.ArtworkAvailability.Index.build(tracks)
+                }
                 // A completed scan from before a revoke (even a revoke/grant cycle) must not
                 // re-enable stale file handles or bookmark actions after access was cleared.
                 if (!source.hasAccess.value || accessGeneration != libraryAccessGeneration) return@withLock
-                trackMarkers.setLibrary(tracks, stableIds = source.hasStableTrackIds)
+                trackMarkers.reconcileStoredIdentities(tracks, stableIds = source.hasStableTrackIds)
                 _allTracks.value = tracks
-                controller.refreshTracks(tracks, stableIds = source.hasStableTrackIds)
                 libraryIndex.refresh()
                 // Indexing dispatches too: a revoke during its build is not a complete scan.
                 if (source.hasAccess.value && accessGeneration == libraryAccessGeneration) {
+                    trackMarkers.setLibrary(tracks, stableIds = source.hasStableTrackIds)
+                    controller.refreshTracks(tracks, stableIds = source.hasStableTrackIds)
                     _hasCompleteLibraryScan.value = true
+                    // Notify artwork observers only after direct readiness checks can succeed.
+                    _isLibraryLoading.value = false
+                    artworkAvailability.publish(artworkIndex)
                 }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 invalidateLibraryAvailability()

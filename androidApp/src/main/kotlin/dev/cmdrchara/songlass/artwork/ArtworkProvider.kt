@@ -6,10 +6,12 @@ import android.database.Cursor
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.ParcelFileDescriptor
-import androidx.core.net.toUri
 import dev.cmdrchara.songlass.SonglassApplication
 import dev.cmdrchara.songlass.ui.artwork
 import java.io.FileNotFoundException
+import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 import kotlin.concurrent.thread
 
 /**
@@ -24,17 +26,29 @@ class ArtworkProvider : ContentProvider() {
 
     override fun openFile(uri: Uri, mode: String): ParcelFileDescriptor {
         val context = context ?: throw FileNotFoundException(uri.toString())
+        if (mode != "r" || uri.authority != AUTHORITY || uri.pathSegments.size != 2 || uri.pathSegments.first() != "track") {
+            throw FileNotFoundException(uri.toString())
+        }
         val id = uri.lastPathSegment ?: throw FileNotFoundException(uri.toString())
-        val graph = (context.applicationContext as SonglassApplication).graph
+        val app = context.applicationContext as SonglassApplication
+        val availability = app.graph.artworkAvailability
         // Application IDs survive platform reindexing. Never reinterpret a historical ID as
         // a raw MediaStore row, which may now belong to an unrelated file.
-        val track = graph.allTracks.value.firstOrNull { it.id == id }
-            ?: throw FileNotFoundException(uri.toString())
-        val audioUri = track.uri.toUri()
-        val bitmap = CoverImages.load(context, audioUri, SIZE_PX, track.artwork().seed)
+        val permit = availability.permitForId(id) ?: throw FileNotFoundException(uri.toString())
+        if (!app.artworkLoader.canRead(permit.key)) throw FileNotFoundException(uri.toString())
+        val revision = uri.getQueryParameter("revision")
+        if (revision != null && revision.toLongOrNull() != permit.track.artworkRevision) throw FileNotFoundException(uri.toString())
+        val bitmap = runBlocking(Dispatchers.IO) {
+            app.artworkLoader.loadBitmap(permit.key, SIZE_PX) ?: CoverImages.generative(permit.track.artwork().seed, SIZE_PX)
+        }
+        if (!availability.isCurrent(permit) || !app.artworkLoader.canRead(permit.key)) throw FileNotFoundException(uri.toString())
         val (read, write) = ParcelFileDescriptor.createPipe()
         thread(name = "artwork-pipe") {
-            ParcelFileDescriptor.AutoCloseOutputStream(write).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+            try {
+                ParcelFileDescriptor.AutoCloseOutputStream(write).use { bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it) }
+            } catch (_: IOException) {
+                // A media browser can close a pipe when it scrolls away; that is not an app crash.
+            }
         }
         return read
     }
@@ -51,7 +65,7 @@ class ArtworkProvider : ContentProvider() {
         /** Every cover URI starts with this, so one prefix grant covers them all. */
         val baseUri: Uri = Uri.parse("content://$AUTHORITY/track/")
 
-        fun uriFor(trackId: String, revision: Long = 0): Uri = Uri.withAppendedPath(baseUri, trackId).let { uri ->
+        fun uriFor(trackId: String, revision: Long = 0): Uri = baseUri.buildUpon().appendPath(trackId).build().let { uri ->
             if (revision == 0L) uri else uri.buildUpon().appendQueryParameter("revision", revision.toString()).build()
         }
     }

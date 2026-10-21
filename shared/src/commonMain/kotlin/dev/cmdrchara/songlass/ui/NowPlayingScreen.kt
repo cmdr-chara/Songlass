@@ -139,7 +139,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                                 .playerArtworkTarget(cornerRadius = 12.dp)
                                                 .combinedClickable(
                                                     role = Role.Button,
-                                                    onClick = {},
+                                                    onClickLabel = expandArtworkLabel,
+                                                    onClick = { state.updateArtworkExpansion(true) },
                                                     onLongClickLabel = expandArtworkLabel,
                                                     onLongClick = { state.updateArtworkExpansion(true) },
                                                 )

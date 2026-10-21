@@ -65,7 +65,6 @@ class SonglassApplication : Application() {
         val exoPlayer = first.player
         val store = SharedPreferencesStore(this)
         musicSource = MediaStoreMusicSource(this, dev.cmdrchara.songlass.core.library.TrackIdentityRegistry(store))
-        artworkLoader = MediaStoreArtworkLoader(this)
         // The second player only exists while crossfade is on: Media3AudioPlayer builds it on demand.
         val audioPlayer = Media3AudioPlayer(exoPlayer, scope, first.equalizer, standbyFactory = { buildVoice(handleAudioFocus = false) })
         val tagEditor = dev.cmdrchara.songlass.library.TagLibFileTagEditor(this,
@@ -106,6 +105,8 @@ class SonglassApplication : Application() {
             amllLyrics = AmllLyricsSource(this),
             tagEditor = tagEditor,
         )
+        // The loader uses the graph's verified snapshot and current read readiness.
+        artworkLoader = MediaStoreArtworkLoader(this)
         dev.cmdrchara.songlass.playback.watchOutputEqualizer(this, graph.equalizer, graph.player, scope)
         watchAudioOutputs()
         NowPlayingWidgets.observe(this, scope)
