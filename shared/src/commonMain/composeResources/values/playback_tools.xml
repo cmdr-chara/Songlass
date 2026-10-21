@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="audio_tools_title">Audio</string>
+    <string name="audio_tools_file">Source file</string>
+    <string name="audio_tools_processing">Processing</string>
+    <string name="audio_tools_eq_observed">EQ: %1$s</string>
+    <string name="audio_tools_output">Selected output</string>
+    <string name="audio_tools_adjust">Adjust your sound</string>
+    <string name="audio_tools_transitions">Track transitions</string>
+    <string name="audio_tools_transition_summary">Set to %1$d ms automatic · %2$d ms manual</string>
+    <string name="player_return">Now Playing</string>
+    <string name="player_timer_short">Timer</string>
+    <string name="player_timer_minutes">%1$d min</string>
+    <string name="player_timer_track_end">Track end</string>
+    <string name="player_queue_short">Queue</string>
+    <string name="queue_saved_playlist">Saved: %1$s</string>
+    <string name="queue_saved_open">Open playlist</string>
+</resources>

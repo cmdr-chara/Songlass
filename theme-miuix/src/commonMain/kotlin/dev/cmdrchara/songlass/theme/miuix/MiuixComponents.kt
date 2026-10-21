@@ -115,8 +115,13 @@ internal fun MiuixIconAction(icon: ImageVector, label: String, onClick: () -> Un
 internal fun MiuixBack(label: String, onClick: () -> Unit, modifier: Modifier) = MiuixIconAction(AppIcons.ArrowBack, label, onClick, false, true, modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp))
 
 @Composable
-internal fun MiuixField(value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier) {
-    NativeField(value, onValueChange, modifier.fillMaxWidth().padding(vertical = 6.dp).semantics { contentDescription = label }, label = label, cornerRadius = 18.dp, singleLine = true, enabled = enabled)
+internal fun MiuixField(
+    value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier,
+    keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
+    keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
+) {
+    NativeField(value, onValueChange, modifier.fillMaxWidth().padding(vertical = 6.dp).semantics { contentDescription = label }, label = label, cornerRadius = 18.dp, singleLine = true, enabled = enabled,
+        keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
 }
 
 @Composable

@@ -73,6 +73,14 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override val sectionTitleBottomPadding = 6.dp
     override val libraryCategoriesAsRows = false
     override val compactPlaylistForm = false
+
+    @Composable
+    override fun PlaybackToolsSheet(visible: Boolean, title: String, subtitle: String?, groups: List<dev.cmdrchara.songlass.designsystem.PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, onDismiss: () -> Unit) =
+        MaterialPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss, palette())
+
+    @Composable
+    override fun PlayerUtilityBar(output: dev.cmdrchara.songlass.designsystem.PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<dev.cmdrchara.songlass.designsystem.PlayerUtilityAction>, modifier: Modifier) =
+        MaterialPlayerUtilities(output, audioLabel, onAudio, actions, modifier, palette())
     override val lyricsPresentation = dev.cmdrchara.songlass.designsystem.LyricsPresentation(fontSize = 32f, lineHeight = 42f, weight = 700, verticalPadding = 16f, selectionCorner = 28f)
 
     override val lyricsCardStyle = dev.cmdrchara.songlass.designsystem.LyricsCardStyle(corner = 112f, coverCorner = 64f, verseCorner = 88f, verseInset = 52f, fontSize = 64f, accentMark = true)

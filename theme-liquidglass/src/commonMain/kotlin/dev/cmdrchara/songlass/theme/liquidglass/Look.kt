@@ -88,6 +88,14 @@ interface GlassLook {
         LiquidGlassActionSheet(visible, title, null, null, emptyList(), closeLabel, onDismiss, rows)
 
     @Composable
+    fun PlaybackToolsSheet(visible: Boolean, title: String, subtitle: String?, groups: List<dev.cmdrchara.songlass.designsystem.PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, onDismiss: () -> Unit) =
+        LiquidPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
+
+    @Composable
+    fun PlayerUtilityBar(output: dev.cmdrchara.songlass.designsystem.PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<dev.cmdrchara.songlass.designsystem.PlayerUtilityAction>, modifier: Modifier) =
+        LiquidPlayerUtilities(output, audioLabel, onAudio, actions, modifier)
+
+    @Composable
     fun PromptSheet(visible: Boolean, title: String, initialText: String, placeholder: String, confirmLabel: String, cancelLabel: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) =
         LiquidGlassPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
 

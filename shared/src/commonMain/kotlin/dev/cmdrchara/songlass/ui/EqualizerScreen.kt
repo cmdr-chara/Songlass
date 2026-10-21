@@ -87,7 +87,7 @@ import kotlin.math.roundToInt
 
 /** Graphic equalizer, presets and headphone corrections; values and persistence live in core. */
 @Composable
-fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
+fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null, returnToPlayer: Boolean = false) {
     val state by equalizer.state.collectAsState()
     val listState = rememberLazyListState()
     val outputProfilesOffset = if (state.outputProfiles.isNotEmpty()) 1 else 0
@@ -148,7 +148,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
 
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
         item { BackPageTitle(stringResource(Res.string.eq_title),
-            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
+            if (returnToPlayer || searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                 SettingsSearchAnchor(SettingsTarget.Equalizer, searchFocus) {

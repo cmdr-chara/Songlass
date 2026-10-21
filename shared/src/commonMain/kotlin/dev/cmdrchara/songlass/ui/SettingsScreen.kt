@@ -64,6 +64,7 @@ fun SettingsScreen(
     backLabel: String,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
+    returnToPlayer: Boolean = false,
 ) {
     val focus = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -94,6 +95,7 @@ fun SettingsScreen(
         focus.clearFocus(); keyboard?.hide()
         when {
             page == SettingsPane.Playback && search.durationDraft != null -> closeDurationEditor()
+            returnToPlayer -> onBack()
             page == SettingsPane.Overview -> { search.updateQuery(""); search.returnToResults() }
             search.resultPane == page -> { search.returnToResults(); onPaneChanged(SettingsPane.Overview) }
             else -> onPaneChanged(SettingsPane.Overview)
@@ -132,6 +134,7 @@ fun SettingsScreen(
                             SettingsPane.Overview -> if (search.query.isNotEmpty()) stringResource(Res.string.settings_title) else backLabel
                             SettingsPane.Playback -> stringResource(when {
                                 search.durationDraft != null -> Res.string.action_cancel
+                                returnToPlayer -> Res.string.player_return
                                 search.resultPane == page -> Res.string.settings_search_results
                                 else -> Res.string.settings_title
                             })

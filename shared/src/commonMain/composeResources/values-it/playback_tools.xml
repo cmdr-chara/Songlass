@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="audio_tools_title">Audio</string>
+    <string name="audio_tools_file">File sorgente</string>
+    <string name="audio_tools_processing">Elaborazione</string>
+    <string name="audio_tools_eq_observed">EQ: %1$s</string>
+    <string name="audio_tools_output">Uscita selezionata</string>
+    <string name="audio_tools_adjust">Regola il suono</string>
+    <string name="audio_tools_transitions">Passaggi tra brani</string>
+    <string name="audio_tools_transition_summary">Impostati: %1$d ms automatico · %2$d ms manuale</string>
+    <string name="player_return">In riproduzione</string>
+    <string name="player_timer_short">Timer</string>
+    <string name="player_timer_minutes">%1$d min</string>
+    <string name="player_timer_track_end">Fine brano</string>
+    <string name="player_queue_short">Coda</string>
+    <string name="queue_saved_playlist">Salvata: %1$s</string>
+    <string name="queue_saved_open">Apri playlist</string>
+</resources>

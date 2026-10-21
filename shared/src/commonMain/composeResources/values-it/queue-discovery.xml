@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="queue_upcoming_count">
+        <item quantity="one">%1$d brano in coda</item>
+        <item quantity="other">%1$d brani in coda</item>
+    </plurals>
+    <string name="queue_known_duration">Durata nota: %1$s</string>
+    <string name="queue_duration_too_large">La durata supera il limite visualizzabile</string>
+    <plurals name="queue_unknown_durations">
+        <item quantity="one">%1$d durata sconosciuta</item>
+        <item quantity="other">%1$d durate sconosciute</item>
+    </plurals>
+    <plurals name="queue_unavailable_count">
+        <item quantity="one">%1$d file non disponibile</item>
+        <item quantity="other">%1$d file non disponibili</item>
+    </plurals>
+    <string name="queue_section_additions">Aggiunte temporanee · una sola volta</string>
+    <string name="queue_section_collection">Prosegui dalla raccolta</string>
+    <string name="queue_repeat_one_explanation">Ripeti uno è attivo. Il brano corrente si ripete finché non passi al successivo.</string>
+    <string name="queue_repeat_collection_explanation">Ripeti tutti è attivo per la raccolta. Le aggiunte temporanee vengono riprodotte una sola volta.</string>
+    <string name="queue_repeat_temporary_explanation">Queste aggiunte temporanee vengono riprodotte una sola volta, anche con Ripeti tutti.</string>
+    <string name="queue_choose_songs">Scegli altri brani</string>
+    <string name="queue_save_upcoming">Salva i brani in coda</string>
+    <string name="queue_save_name">Scegli il nome della playlist</string>
+    <string name="queue_save_selection_hint">I brani selezionati mantengono il loro ordine in coda, anche se la riproduzione prosegue. Ogni brano viene salvato una sola volta.</string>
+    <plurals name="queue_save_song_count">
+        <item quantity="one">%1$d brano selezionato</item>
+        <item quantity="other">%1$d brani selezionati</item>
+    </plurals>
+    <plurals name="queue_save_duplicates">
+        <item quantity="one">%1$d ripetizione esclusa: il brano è già incluso.</item>
+        <item quantity="other">%1$d ripetizioni escluse: quei brani sono già inclusi.</item>
+    </plurals>
+    <plurals name="queue_save_unavailable">
+        <item quantity="one">%1$d voce non disponibile verrà esclusa.</item>
+        <item quantity="other">%1$d voci non disponibili verranno escluse.</item>
+    </plurals>
+    <string name="queue_save_no_eligible">Nessun brano disponibile in coda da salvare.</string>
+    <string name="queue_save_library_wait">Attendi una scansione riuscita della libreria prima di salvare. Se necessario, controlla l'accesso alla musica in Libreria.</string>
+    <string name="queue_save_selection_changed">Alcuni brani selezionati sono cambiati o non sono più disponibili. Controlla la coda attuale prima di salvare di nuovo.</string>
+</resources>

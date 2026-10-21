@@ -291,13 +291,15 @@ fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: Strin
     val cancel = stringResource(Res.string.action_cancel)
     val exportPlaylist = rememberUserPlaylistExportAction(state, onExport)
     var playlistSaveFailed by remember { mutableStateOf(false) }
+    var queueSelectionChanged by remember { mutableStateOf(false) }
     InfoSheet(
-        visible = state.playlistMutationRejected || playlistSaveFailed,
+        visible = state.playlistMutationRejected || playlistSaveFailed || queueSelectionChanged,
         title = stringResource(Res.string.playlist_save),
         closeLabel = stringResource(Res.string.action_close),
-        onDismiss = { state.closePlaylistMutationNotice(); playlistSaveFailed = false },
-        rows = listOf(InfoRow(stringResource(if (playlistSaveFailed) Res.string.bookmark_write_failed else Res.string.restore_operation_changed),
-            stringResource(if (playlistSaveFailed) Res.string.playlist_import_save_failed else Res.string.restore_operation_retry))),
+        onDismiss = { state.closePlaylistMutationNotice(); playlistSaveFailed = false; queueSelectionChanged = false },
+        rows = if (queueSelectionChanged) listOf(InfoRow(stringResource(Res.string.queue_save_upcoming), stringResource(Res.string.queue_save_selection_changed)))
+            else listOf(InfoRow(stringResource(if (playlistSaveFailed) Res.string.bookmark_write_failed else Res.string.restore_operation_changed),
+                stringResource(if (playlistSaveFailed) Res.string.playlist_import_save_failed else Res.string.restore_operation_retry))),
     )
 
     // Keep the last values while sheets animate out.
@@ -364,7 +366,7 @@ fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: Strin
 
     var lastPrompt by remember { mutableStateOf<PlaylistPrompt?>(null) }
     state.playlistPrompt?.let { lastPrompt = it }
-    val prompt = lastPrompt
+    val prompt = state.playlistPrompt ?: lastPrompt
     PromptSheet(
         visible = state.playlistPrompt != null,
         title = stringResource(if (prompt is PlaylistPrompt.Rename) Res.string.playlist_rename else Res.string.playlist_new),
@@ -373,16 +375,9 @@ fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: Strin
         confirmLabel = stringResource(if (prompt is PlaylistPrompt.Rename) Res.string.playlist_save else Res.string.playlist_create),
         cancelLabel = cancel,
         onConfirm = { name ->
-            if (!state.canConfirmPlaylistPrompt(prompt)) return@PromptSheet
-            try { when (prompt) {
-                is PlaylistPrompt.Create -> {
-                    val id = state.userPlaylists.create(name, prompt.trackIds)
-                    // A playlist made from the Library opens right away; one made from a song does not interrupt.
-                    if (prompt.trackIds.isEmpty()) state.open(Route.UserPlaylistDetail(id))
-                }
-                is PlaylistPrompt.Rename -> state.userPlaylists.rename(prompt.id, name)
-                null -> Unit
-            } } catch (_: Exception) { playlistSaveFailed = true }
+            try {
+                queueSelectionChanged = state.confirmPlaylistName(prompt, name) == PlaylistNameResult.QueueSelectionChanged
+            } catch (_: Exception) { playlistSaveFailed = true }
         },
         onDismiss = state::closePlaylistPrompt,
     )

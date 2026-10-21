@@ -87,13 +87,15 @@ internal fun LiquidGlassActionSheet(
     onDismiss: () -> Unit,
     details: List<InfoRow> = emptyList(),
     field: (@Composable () -> Unit)? = null,
+    contentKey: String? = null,
+    dismissOnAction: Boolean = true,
 ) {
     val sheetTint = LocalSheetTint.current
     if (sheetTint == null) {
-        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field)
+        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction)
     } else {
         ProvideArtworkTint(sheetTint) {
-            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field)
+            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction)
         }
     }
 }
@@ -110,13 +112,14 @@ internal fun LiquidGlassPromptSheet(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var text by remember(visible) { mutableStateOf(initialText) }
+    var text by remember(visible, initialText) { mutableStateOf(initialText) }
     val focus = remember { FocusRequester() }
     val colors = AppTheme.colors
     fun confirm() {
-        if (text.isNotBlank()) {
-            onDismiss()
+        if (visible && text.isNotBlank()) {
+            // The request and its restore ticket must still be live during confirmation.
             onConfirm(text.trim())
+            onDismiss()
         }
     }
     LiquidGlassActionSheet(
@@ -124,9 +127,10 @@ internal fun LiquidGlassPromptSheet(
         title = title,
         subtitle = null,
         artwork = null,
-        actions = listOf(SheetAction(confirmLabel, null) { if (text.isNotBlank()) onConfirm(text.trim()) }),
+        actions = listOf(SheetAction(confirmLabel, null) { confirm() }),
         cancelLabel = cancelLabel,
         onDismiss = onDismiss,
+        dismissOnAction = false,
         field = {
             Box(
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 12.dp)
@@ -161,7 +165,11 @@ private fun ActionSheetContent(
     details: List<InfoRow>,
     tinted: Boolean,
     field: (@Composable () -> Unit)? = null,
+    contentKey: String? = null,
+    dismissOnAction: Boolean = true,
 ) {
+    val scroll = rememberScrollState()
+    LaunchedEffect(contentKey) { scroll.scrollTo(0) }
     val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val look = LocalGlassLook.current
@@ -214,7 +222,7 @@ private fun ActionSheetContent(
         ) {
             CompositionLocalProvider(LocalContentColor provides colors.label) {
                 if (bottomSheet) {
-                    BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight)
+                    BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight, scroll, dismissOnAction)
                     return@CompositionLocalProvider
                 }
                 Column(
@@ -223,7 +231,7 @@ private fun ActionSheetContent(
                         .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
                         .padding(horizontal = 8.dp, vertical = 8.dp),
                 ) {
-                    Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(rememberScrollState())) {
+                    Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(scroll)) {
                         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             if (artwork != null) {
                                 LiquidGlassAlbumArt(artwork, cornerRadius = 8.dp, modifier = Modifier.size(48.dp))
@@ -249,7 +257,7 @@ private fun ActionSheetContent(
                             if (index > 0) Separator()
                             SheetRow(action.label, action.icon) {
                                 if (visible) {
-                                    onDismiss()
+                                    if (dismissOnAction) onDismiss()
                                     action.onClick()
                                 }
                             }
@@ -312,6 +320,8 @@ private fun BottomSheetContent(
     field: (@Composable () -> Unit)?,
     surface: Color,
     maxHeight: androidx.compose.ui.unit.Dp,
+    scroll: androidx.compose.foundation.ScrollState,
+    dismissOnAction: Boolean,
 ) {
     val colors = AppTheme.colors
     Column(
@@ -322,7 +332,7 @@ private fun BottomSheetContent(
             .background(surface)
             .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
             .heightIn(max = maxHeight)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(scroll)
             .padding(bottom = 8.dp),
     ) {
         Box(
@@ -352,7 +362,7 @@ private fun BottomSheetContent(
         actions.forEach { action ->
             BottomSheetRow(action.label, action.icon) {
                 if (visible) {
-                    onDismiss()
+                    if (dismissOnAction) onDismiss()
                     action.onClick()
                 }
             }

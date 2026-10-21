@@ -5,6 +5,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
@@ -16,9 +17,11 @@ import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.library.AlphabetSection
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.model.TrackAvailability
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.playlists.PlaylistAddResult
 import dev.cmdrchara.songlass.core.playlists.PlaylistInsertion
+import dev.cmdrchara.songlass.core.queue.QueuePlaylistSnapshot
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.storage.MutationTicket
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
@@ -27,14 +30,25 @@ enum class Tab { Home, Library, Search }
 
 enum class PlayerPage { Artwork, Queue, Lyrics }
 
+enum class AudioInformationPage { Overview, File, Processing, Output }
+
+/** A settings visit borrowed from the player, not a second navigation stack. */
+private data class PlayerSettingsReturn(
+    val tab: Tab, val depth: Int, val page: PlayerPage,
+    val settingsPane: SettingsPane, val settingsSearch: SettingsSearchSession,
+)
+
 /** Library sections, in display order. Folders first: that is how many people organise music. */
 /** Library categories listed above the folders, each opening its own page. */
 enum class LibraryCategory { Artists, Albums, Songs, Favorites }
 
 sealed interface PlaylistPrompt {
     data class Create(val trackIds: List<String>) : PlaylistPrompt
+    data class CreateFromQueue(val snapshot: QueuePlaylistSnapshot) : PlaylistPrompt
     data class Rename(val id: String, val currentName: String) : PlaylistPrompt
 }
+enum class PlaylistNameResult { Saved, QueueSelectionChanged }
+data class SavedQueuePlaylist(val id: String, val name: String)
 
 data class PlaylistInsertionRequest(
     val playlistId: String, val trackIds: List<String>, val mutationTicket: MutationTicket? = null,
@@ -155,6 +169,9 @@ class AppState(graph: AppGraph) {
         private set
     var isSongInfoVisible by mutableStateOf(false)
         private set
+    var audioInformationPage by mutableStateOf(AudioInformationPage.Overview)
+        private set
+    private var playerSettingsReturn by mutableStateOf<PlayerSettingsReturn?>(null)
     fun updateArtworkExpansion(expanded: Boolean) { isArtworkExpanded = expanded }
     var isLibraryDurationPickerOpen by mutableStateOf(false)
         private set
@@ -170,8 +187,41 @@ class AppState(graph: AppGraph) {
         private set
     fun openSleepMenu() { isSleepMenuOpen = true }
     fun closeSleepMenu() { isSleepMenuOpen = false }
-    fun showSongInfo() { isSongInfoVisible = true }
+    fun showSongInfo() { audioInformationPage = AudioInformationPage.Overview; isSongInfoVisible = true }
+    fun showAudioInformationPage(page: AudioInformationPage) { audioInformationPage = page }
     fun closeSongInfo() { isSongInfoVisible = false }
+    fun backFromAudioInformation() {
+        if (audioInformationPage == AudioInformationPage.Overview) closeSongInfo()
+        else audioInformationPage = AudioInformationPage.Overview
+    }
+
+    fun returnsToPlayerFrom(destination: ScreenDestination): Boolean = playerSettingsReturn?.let {
+        destination.tab == it.tab && destination.depth == it.depth + 1
+    } == true
+
+    /** Open the real control after creating its route; opening Settings resets its search session. */
+    fun openPlayerSettings(target: SettingsTarget) {
+        if (!restoreMutations.canMutate || !isNowPlayingOpen) return
+        val origin = PlayerSettingsReturn(tab, backStacks.getValue(tab).size, playerPage, settingsPane, settingsSearch)
+        closeSongInfo()
+        closeNowPlaying()
+        settingsSearch = SettingsSearchSession()
+        open(target.settingsRoute)
+        target.settingsPane?.let { settingsPane = it }
+        settingsSearch.select(target)
+        playerSettingsReturn = origin
+    }
+
+    /** End a borrowed settings visit without leaving its temporary routes or search state behind. */
+    private fun finishPlayerSettings(): PlayerPage? {
+        val origin = playerSettingsReturn ?: return null
+        val stack = backStacks.getValue(origin.tab)
+        while (stack.size > origin.depth) stack.removeLastOrNull()
+        playerSettingsReturn = null
+        settingsPane = origin.settingsPane
+        settingsSearch = origin.settingsSearch
+        return origin.page
+    }
     val isQueueVisible: Boolean get() = playerPage == PlayerPage.Queue
 
     /** Track whose "…" menu is open, if any. */
@@ -197,6 +247,7 @@ class AppState(graph: AppGraph) {
 
     fun selectTab(newTab: Tab) {
         if (!restoreMutations.canMutate) return
+        finishPlayerSettings()
         closeAlphabetJump()
         if (newTab == Tab.Search) searchFocusRequest += 1
         // Tapping the current tab again returns to its root, as in iOS.
@@ -208,7 +259,7 @@ class AppState(graph: AppGraph) {
     fun updateLibrary(updated: dev.cmdrchara.songlass.core.library.MusicLibrary) {
         if (library !== updated) closeAlphabetJump()
         library = updated
-        backStacks.values.forEach { stack ->
+        backStacks.forEach { (stackTab, stack) ->
             for (index in stack.lastIndex downTo 0) {
                 val original = stack[index]
                 val refreshed: Route? = when (original) {
@@ -218,7 +269,14 @@ class AppState(graph: AppGraph) {
                     is Route.FacetDetail -> original.takeIf { updated.facet(it.context) != null }
                     else -> original
                 }
-                if (refreshed == null) stack.removeAt(index) else if (refreshed != original) stack[index] = refreshed
+                if (refreshed == null) {
+                    stack.removeAt(index)
+                    // Refresh can remove a folder/album below the borrowed settings route.
+                    // Keep the return boundary aligned so nested AutoEQ Back stays nested.
+                    playerSettingsReturn?.takeIf { it.tab == stackTab && index < it.depth }?.let {
+                        playerSettingsReturn = it.copy(depth = it.depth - 1)
+                    }
+                } else if (refreshed != original) stack[index] = refreshed
             }
         }
     }
@@ -248,12 +306,18 @@ class AppState(graph: AppGraph) {
             isLibraryDurationPickerOpen -> closeLibraryDurationPicker()
             isSleepMenuOpen -> closeSleepMenu()
             menuTrack != null -> closeMenu()
-            isSongInfoVisible -> closeSongInfo()
+            isSongInfoVisible -> backFromAudioInformation()
             isArtworkExpanded -> updateArtworkExpansion(false)
             isNowPlayingOpen -> closeNowPlaying()
             editingPlaylistId != null -> editingPlaylistId = null
             else -> {
                 val removed = backStacks.getValue(tab).removeLastOrNull()
+                val origin = playerSettingsReturn
+                if (origin != null && tab == origin.tab && backStacks.getValue(tab).size == origin.depth) {
+                    playerPage = finishPlayerSettings() ?: origin.page
+                    isNowPlayingOpen = controller.queue.value.current != null
+                    return
+                }
                 if (currentRoute == Route.Settings && removed == settingsSearch.focus?.target?.settingsRoute) {
                     // Back can interrupt a reveal before its scroll finishes. Do not replay it later.
                     settingsSearch.returnToResults()
@@ -264,7 +328,8 @@ class AppState(graph: AppGraph) {
 
     fun openNowPlaying() {
         if (!restoreMutations.canMutate) return
-        if (!isNowPlayingOpen) playerPage = PlayerPage.Artwork
+        val returnedPage = finishPlayerSettings()
+        if (!isNowPlayingOpen) playerPage = returnedPage ?: PlayerPage.Artwork
         isNowPlayingOpen = true
     }
 
@@ -274,6 +339,7 @@ class AppState(graph: AppGraph) {
         isArtworkExpanded = false
         isSongInfoVisible = false
         isNowPlayingOpen = false
+        clearSavedQueuePlaylist()
     }
 
     /** The user playlist the open track menu was opened from, for "Remove from playlist". */
@@ -334,7 +400,7 @@ class AppState(graph: AppGraph) {
     }
 
     /** A name being asked: for a new playlist (with its first tracks) or to rename one. */
-    var playlistPrompt by mutableStateOf<PlaylistPrompt?>(null)
+    var playlistPrompt by mutableStateOf<PlaylistPrompt?>(null, referentialEqualityPolicy())
         private set
     private var playlistPromptTicket: MutationTicket? = null
     fun askPlaylistName(prompt: PlaylistPrompt) {
@@ -346,6 +412,41 @@ class AppState(graph: AppGraph) {
         val current = prompt != null && prompt === playlistPrompt && restoreMutations.accepts(playlistPromptTicket)
         if (!current) rejectPlaylistMutation()
         return current
+    }
+    var savedQueuePlaylist by mutableStateOf<SavedQueuePlaylist?>(null)
+        private set
+    fun clearSavedQueuePlaylist() { savedQueuePlaylist = null }
+
+    /** Mutate while the prompt ticket is still live; the view dismisses only after this returns. */
+    fun confirmPlaylistName(prompt: PlaylistPrompt?, name: String): PlaylistNameResult? {
+        if (name.isBlank() || !canConfirmPlaylistPrompt(prompt)) return null
+        when (prompt) {
+            is PlaylistPrompt.Create -> {
+                val id = userPlaylists.create(name.trim(), prompt.trackIds)
+                if (prompt.trackIds.isEmpty()) open(Route.UserPlaylistDetail(id))
+            }
+            is PlaylistPrompt.CreateFromQueue -> {
+                if (!libraryAccess.value || !hasCompleteLibraryScan.value || isLibraryLoading.value) {
+                    return PlaylistNameResult.QueueSelectionChanged
+                }
+                val ids = prompt.snapshot.currentTrackIds(TrackAvailability(allTracks.value))
+                if (ids.isNullOrEmpty()) return PlaylistNameResult.QueueSelectionChanged
+                val id = userPlaylists.create(name.trim(), ids)
+                savedQueuePlaylist = SavedQueuePlaylist(id, name.trim())
+            }
+            is PlaylistPrompt.Rename -> userPlaylists.rename(prompt.id, name.trim())
+            null -> return null
+        }
+        return PlaylistNameResult.Saved
+    }
+    fun openSavedQueuePlaylist() {
+        if (!restoreMutations.canMutate) return
+        val saved = savedQueuePlaylist ?: return
+        if (userPlaylists.playlists.value.any { it.id == saved.id }) {
+            closeNowPlaying()
+            open(Route.UserPlaylistDetail(saved.id))
+        }
+        clearSavedQueuePlaylist()
     }
     fun closePlaylistPrompt() { playlistPrompt = null; playlistPromptTicket = null }
 

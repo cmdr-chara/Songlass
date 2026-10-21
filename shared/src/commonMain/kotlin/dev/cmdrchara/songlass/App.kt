@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass
 
+import dev.cmdrchara.songlass.shared.resources.player_return
+
 import dev.cmdrchara.songlass.designsystem.Artwork
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -209,18 +211,25 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             }
                         },
                     ) { destination ->
-                        val backLabel = when (destination.parentRoute) {
+                        val backLabel = if (state.returnsToPlayerFrom(destination)) stringResource(Res.string.player_return) else when (destination.parentRoute) {
                             Route.Settings -> stringResource(Res.string.settings_title)
                             Route.ListeningStatistics -> stringResource(Res.string.stats_title)
                             else -> tabTitles.getValue(destination.tab)
                         }
                         when (val route = destination.route) {
-                            Route.Settings -> SettingsScreen(
-                                pane = state.settingsPane,
-                                search = state.settingsSearch,
+                            Route.Settings -> {
+                                // Each animated destination keeps its own session while leaving.
+                                // A player shortcut can place Settings above another Settings page.
+                                val pageSearch = remember(destination) { state.settingsSearch }
+                                var pagePane by remember(destination) { mutableStateOf(state.settingsPane) }
+                                val playerReturn = remember(destination) { state.returnsToPlayerFrom(destination) }
+                                if (state.destination == destination) pagePane = state.settingsPane
+                                SettingsScreen(
+                                pane = pagePane,
+                                search = pageSearch,
                                 onSearchResult = state::openSettingsResult,
                                 onPaneChanged = state::selectSettingsPane,
-                                isActive = state.currentRoute == Route.Settings && !nowPlayingVisible && !state.hasOverlay,
+                                isActive = state.destination == destination && !nowPlayingVisible && !state.hasOverlay,
                                 settings = graph.settings,
                                 preferences = preferences,
                                 supportsAmllLyrics = graph.supportsAmllLyrics,
@@ -236,7 +245,9 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 backLabel = backLabel,
                                 onBack = state::goBack,
                                 contentPadding = padding,
+                                returnToPlayer = playerReturn,
                             )
+                            }
                             Route.HomeCustomization -> dev.cmdrchara.songlass.ui.HomeCustomizationScreen(
                                 state = state,
                                 backLabel = stringResource(Res.string.settings_title), onBack = state::goBack, contentPadding = padding,
@@ -251,7 +262,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
                             is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)
-                            Route.Equalizer -> EqualizerScreen(graph.equalizer, stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding, state.settingsFocusFor(Route.Equalizer))
+                            Route.Equalizer -> EqualizerScreen(graph.equalizer, if (state.returnsToPlayerFrom(destination)) backLabel else stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding, state.settingsFocusFor(Route.Equalizer), returnToPlayer = state.returnsToPlayerFrom(destination))
                             Route.AutoEqCatalog -> dev.cmdrchara.songlass.ui.AutoEqCatalogScreen(graph.autoEq, state, padding)
                             is Route.AutoEqDetail -> dev.cmdrchara.songlass.ui.AutoEqDetailScreen(route.entry, graph.autoEq, graph.equalizer,
                                 state::goBack, { state.goBack(); state.goBack() }, padding)

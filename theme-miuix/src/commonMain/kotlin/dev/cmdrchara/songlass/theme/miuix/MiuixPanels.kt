@@ -52,14 +52,22 @@ internal fun MiuixInfo(visible: Boolean, title: String, rows: List<InfoRow>, clo
 internal fun MiuixPrompt(visible: Boolean, title: String, initialText: String, placeholder: String, confirmLabel: String, cancelLabel: String, confirm: (String) -> Unit, dismiss: () -> Unit) {
     var text by remember(visible, initialText) { mutableStateOf(initialText) }
     val focus = remember { FocusRequester() }
+    fun submit() {
+        if (visible && text.isNotBlank()) {
+            confirm(text.trim())
+            dismiss()
+        }
+    }
     OverlayDialog(show = visible, title = title, onDismissRequest = dismiss) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            MiuixField(text, { text = it.take(80) }, placeholder, true, Modifier.focusRequester(focus))
+            MiuixField(text, { text = it.take(80) }, placeholder, true, Modifier.focusRequester(focus),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                    capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences,
+                    imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { submit() }))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MiuixAction(cancelLabel, null, dismiss, Modifier.weight(1f))
-                MiuixAction(confirmLabel, null, {
-                    if (visible && text.isNotBlank()) { val value = text.trim(); dismiss(); confirm(value) }
-                }, Modifier.weight(1f), primary = true, enabled = text.isNotBlank())
+                MiuixAction(confirmLabel, null, ::submit, Modifier.weight(1f), primary = true, enabled = text.isNotBlank())
             }
         }
         LaunchedEffect(visible) { if (visible) runCatching { focus.requestFocus() } }

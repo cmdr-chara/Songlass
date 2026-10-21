@@ -165,6 +165,14 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.InfoSheet(visible, title, rows, closeLabel, onDismiss)
 
     @Composable
+    override fun PlaybackToolsSheet(visible: Boolean, title: String, subtitle: String?, groups: List<dev.cmdrchara.songlass.designsystem.PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, onDismiss: () -> Unit) =
+        LocalGlassLook.current.PlaybackToolsSheet(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
+
+    @Composable
+    override fun PlayerUtilityBar(output: dev.cmdrchara.songlass.designsystem.PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<dev.cmdrchara.songlass.designsystem.PlayerUtilityAction>, modifier: Modifier) =
+        LocalGlassLook.current.PlayerUtilityBar(output, audioLabel, onAudio, actions, modifier)
+
+    @Composable
     override fun ActionSheet(
         visible: Boolean,
         title: String,

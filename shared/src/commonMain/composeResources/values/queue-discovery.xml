@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="queue_upcoming_count">
+        <item quantity="one">%1$d upcoming song</item>
+        <item quantity="other">%1$d upcoming songs</item>
+    </plurals>
+    <string name="queue_known_duration">Known duration: %1$s</string>
+    <string name="queue_duration_too_large">Duration exceeds the display limit</string>
+    <plurals name="queue_unknown_durations">
+        <item quantity="one">%1$d unknown duration</item>
+        <item quantity="other">%1$d unknown durations</item>
+    </plurals>
+    <plurals name="queue_unavailable_count">
+        <item quantity="one">%1$d unavailable file</item>
+        <item quantity="other">%1$d unavailable files</item>
+    </plurals>
+    <string name="queue_section_additions">Temporary additions · played once</string>
+    <string name="queue_section_collection">Continue from the collection</string>
+    <string name="queue_repeat_one_explanation">Repeat One is on. The playing song repeats until you skip.</string>
+    <string name="queue_repeat_collection_explanation">Repeat All is on for the collection. Temporary additions play once.</string>
+    <string name="queue_repeat_temporary_explanation">These temporary additions play once, even with Repeat All.</string>
+    <string name="queue_choose_songs">Choose more songs</string>
+    <string name="queue_save_upcoming">Save upcoming songs</string>
+    <string name="queue_save_name">Name playlist</string>
+    <string name="queue_save_selection_hint">The selected songs keep their upcoming order, even if playback moves on. Each song is saved once.</string>
+    <plurals name="queue_save_song_count">
+        <item quantity="one">%1$d song selected</item>
+        <item quantity="other">%1$d songs selected</item>
+    </plurals>
+    <plurals name="queue_save_duplicates">
+        <item quantity="one">%1$d repeated entry omitted; the song is already included.</item>
+        <item quantity="other">%1$d repeated entries omitted; those songs are already included.</item>
+    </plurals>
+    <plurals name="queue_save_unavailable">
+        <item quantity="one">%1$d unavailable entry will be left out.</item>
+        <item quantity="other">%1$d unavailable entries will be left out.</item>
+    </plurals>
+    <string name="queue_save_no_eligible">No available upcoming songs to save.</string>
+    <string name="queue_save_library_wait">Wait for a successful library scan before saving. Check music access in Library if needed.</string>
+    <string name="queue_save_selection_changed">Some selected songs changed or became unavailable. Review the current upcoming list before saving again.</string>
+</resources>

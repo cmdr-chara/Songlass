@@ -1,81 +1,46 @@
 package dev.cmdrchara.songlass.ui
 
-import androidx.compose.runtime.collectAsState
-
-import dev.cmdrchara.songlass.shared.resources.sleep_title
-
-import dev.cmdrchara.songlass.shared.resources.playback_volume
-
-import dev.cmdrchara.songlass.core.playback.SleepTimerState
-
-import dev.cmdrchara.songlass.designsystem.VolumeSlider
-
-import androidx.compose.foundation.combinedClickable
-import dev.cmdrchara.songlass.designsystem.foundation.playerArtworkTarget
-import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
-import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
-import androidx.compose.ui.draw.clip
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.clickable
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
+import dev.cmdrchara.songlass.core.playback.SleepTimerState
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.AudioFormatInfo
 import dev.cmdrchara.songlass.core.player.PlayerState
 import dev.cmdrchara.songlass.core.queue.PlaybackQueue
 import dev.cmdrchara.songlass.core.queue.RepeatMode
 import dev.cmdrchara.songlass.designsystem.ActionButton
-import dev.cmdrchara.songlass.designsystem.ActionSheet
-import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
-import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
+import dev.cmdrchara.songlass.designsystem.PlayerOutputAction
+import dev.cmdrchara.songlass.designsystem.PlayerUtilityBar
 import dev.cmdrchara.songlass.designsystem.ScreenTransition
 import dev.cmdrchara.songlass.designsystem.SeekBar
 import dev.cmdrchara.songlass.designsystem.TransportControls
-import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
-import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.VolumeSlider
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.playerArtworkTarget
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
@@ -99,14 +64,14 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
     BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
-        // On short windows scroll the composition instead of squeezing playback hit targets.
-        val contentHeight = maxHeight.coerceAtLeast(540.dp)
-        val needsScroll = maxHeight < contentHeight
-        val seekGap = if (contentHeight > 600.dp) 8.dp else 4.dp
+        val viewportHeight = maxHeight
+        val minimumPageHeight = 240.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
+        val seekGap = if (maxHeight > 600.dp) 8.dp else 4.dp
         val scroll = rememberScrollState()
-        Box(Modifier.fillMaxSize().then(if (needsScroll) Modifier.verticalScroll(scroll) else Modifier)) {
-            Column(Modifier.fillMaxWidth().height(contentHeight)) {
-                ScreenTransition(state.playerPage, Modifier.weight(1f).fillMaxWidth()) { page ->
+        val needsScroll = scroll.maxValue > 0
+        Box(Modifier.fillMaxSize().verticalScroll(scroll)) {
+            PlayerContentLayout(viewportHeight, minimumPageHeight) {
+                ScreenTransition(state.playerPage, Modifier.fillMaxWidth()) { page ->
                     Column(Modifier.fillMaxSize()) {
                         when (page) {
                             PlayerPage.Lyrics -> LyricsPane(track, player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, player.isPlaying, state.lyrics, controller::seekTo, Modifier.fillMaxSize())
@@ -121,10 +86,9 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                             else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
                                     }
                                 }
-                                QueueHeading(queue, state)
-                                if (queue.upNext.isEmpty()) {
-                                    AppText(stringResource(Res.string.up_next_empty), AppTheme.typography.subheadline, color = secondary, modifier = Modifier.weight(1f))
-                                } else ReorderableQueue(queue, state, Modifier.weight(1f))
+                                QueuePane(state, queue, onSaveUpcoming = { snapshot ->
+                                    state.askPlaylistName(PlaylistPrompt.CreateFromQueue(snapshot))
+                                }, Modifier.weight(1f))
                             }
                             PlayerPage.Artwork -> {
                                 if (LocalArtworkPresentation.current == ArtworkPresentation.Square) {
@@ -167,7 +131,6 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                         contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                                         onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
                                     )
-                                    if (!track.uri.startsWith("demo:")) IconButton(AppIcons.InfoCircle, stringResource(Res.string.playback_song_info), onClick = state::showSongInfo, filled = true)
                                 }
                             }
                         }
@@ -225,47 +188,37 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                     if (!compact && systemVolume != null) {
                         VolumeSlider(systemVolume.value, systemVolume.set, stringResource(Res.string.playback_volume))
                     }
-                    Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (outputPicker != null) AudioOutputButton(outputName, onClick = outputPicker, modifier = Modifier.weight(1f))
-                        else Spacer(Modifier.weight(1f))
-                        val lyricsOn = state.playerPage == PlayerPage.Lyrics
-                        val timerOn = sleepTimer != SleepTimerState.Off
-                        IconButton(AppIcons.Timer, stringResource(Res.string.sleep_title), state::openSleepMenu, selected = timerOn, filled = timerOn)
-                        IconButton(AppIcons.Lyrics, stringResource(Res.string.playback_lyrics), state::toggleLyrics, selected = lyricsOn, filled = lyricsOn)
-                        IconButton(AppIcons.Queue, stringResource(Res.string.playback_queue), state::toggleQueue, selected = state.isQueueVisible, filled = state.isQueueVisible)
-                        IconButton(AppIcons.More, stringResource(Res.string.action_more), onClick = { state.openMenu(track) })
+                    val minutesLeft = sleepMinutesLeft(sleepTimer)
+                    val timerLabel = when {
+                        minutesLeft != null -> stringResource(Res.string.player_timer_minutes, minutesLeft)
+                        sleepTimer == SleepTimerState.EndOfTrack -> stringResource(Res.string.player_timer_track_end)
+                        else -> stringResource(Res.string.player_timer_short)
                     }
+                    PlayerUtilityBar(
+                        output = outputPicker?.let { PlayerOutputAction(
+                            outputName ?: stringResource(Res.string.playback_audio_output),
+                            listOfNotNull(stringResource(Res.string.playback_audio_output), outputName).joinToString(", "), it,
+                        ) },
+                        audioLabel = stringResource(Res.string.audio_tools_title),
+                        onAudio = state::showSongInfo,
+                        actions = listOf(
+                            PlayerUtilityAction(timerLabel, AppIcons.Timer, sleepTimer != SleepTimerState.Off, state::openSleepMenu,
+                                accessibilityLabel = if (sleepTimer == SleepTimerState.Off) stringResource(Res.string.sleep_title)
+                                    else "${stringResource(Res.string.sleep_title)}, $timerLabel"),
+                            PlayerUtilityAction(stringResource(Res.string.playback_lyrics), AppIcons.Lyrics, state.playerPage == PlayerPage.Lyrics, state::toggleLyrics),
+                            PlayerUtilityAction(stringResource(Res.string.player_queue_short), AppIcons.Queue, state.isQueueVisible, state::toggleQueue),
+                            PlayerUtilityAction(stringResource(Res.string.action_more), AppIcons.More, false, onClick = { state.openMenu(track) }),
+                        ),
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
                 }
             }
         }
     }
 }
 
-/** Output icon plus the current device name ("This phone", headphones, Bluetooth speaker…). */
-@Composable
-private fun AudioOutputButton(name: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val label = stringResource(Res.string.playback_audio_output)
-    Row(
-        modifier
-            .heightIn(min = 44.dp)
-            .clip(CircleShape)
-            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
-            .semantics(mergeDescendants = true) { contentDescription = listOfNotNull(label, name).joinToString(", ") }
-            .padding(end = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(44.dp), contentAlignment = Alignment.Center) {
-            AppIcon(AppIcons.AudioOutput, contentDescription = null)
-        }
-        if (name != null) {
-            AppText(name, AppTheme.typography.footnote, color = LocalContentColor.current.copy(alpha = 0.72f),
-                maxLines = 1, modifier = Modifier.weight(1f))
-        }
-    }
-}
-
 /** Show known input properties only: this does not claim the output device has the same format. */
-private fun audioQualityLabel(format: AudioFormatInfo?): String? = format?.let {
+internal fun audioQualityLabel(format: AudioFormatInfo?): String? = format?.let {
     buildList {
         it.bitDepth?.takeIf { n -> n > 0 }?.let { n -> add("$n-bit") }
         it.sampleRateHz?.takeIf { n -> n > 0 }?.let { hz ->
@@ -281,127 +234,21 @@ fun SongInformation(state: AppState, track: Track, player: PlayerState) {
     AudioInformationSheet(state, track, player)
 }
 
-/** Shared controls keep each style's own sheet, typography, surfaces and touch targets. */
+
+/**
+ * Measure controls before allocating the page, in the same pass. Large text and short windows
+ * grow the scrollable composition instead of clipping controls or moving the artwork target
+ * after an onSizeChanged/recomposition round trip. Lazy queue/lyrics always receive a finite height.
+ */
 @Composable
-private fun QueueHeading(queue: PlaybackQueue, state: AppState) {
-    var options by remember { mutableStateOf(false) }
-    val temporaryCount = remember(queue) { queue.temporaryEntries.size }
-    Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            AppText(stringResource(Res.string.up_next), AppTheme.typography.headline)
-            if (temporaryCount > 0) AppText(
-                stringResource(if (queue.hasSource) Res.string.queue_return_hint else Res.string.queue_standalone_hint, temporaryCount),
-                AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
-            )
-        }
-        if (temporaryCount > 0) IconButton(AppIcons.More, stringResource(Res.string.queue_options), { options = true })
-    }
-    ActionSheet(
-        visible = options && temporaryCount > 0,
-        title = stringResource(Res.string.queue_options),
-        cancelLabel = stringResource(Res.string.action_cancel),
-        onDismiss = { options = false },
-        actions = listOfNotNull(
-            if (queue.pendingTemporaryCount > 0) SheetAction(stringResource(Res.string.queue_clear_pending), AppIcons.Close) {
-                state.controller.clearTemporaryQueue()
-            } else null,
-            if (queue.current?.isTemporary == true) SheetAction(
-                stringResource(if (queue.hasSource) Res.string.queue_return_source else Res.string.queue_finish_temporary), AppIcons.Library,
-            ) { state.controller.returnToSource() } else null,
-        ),
-    )
-}
-
-/** Up Next supports touch dragging and the same move/remove actions through a tap or TalkBack. */
-@Composable
-private fun ReorderableQueue(queue: PlaybackQueue, state: AppState, modifier: Modifier) {
-    val reduceMotion = AppTheme.accessibility.reduceMotion
-    val currentQueue by rememberUpdatedState(queue)
-    val upcoming = remember(queue) { queue.upNext }
-    var draggedId by remember { mutableStateOf<Long?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    var editId by remember { mutableStateOf<Long?>(null) }
-    val editLabel = stringResource(Res.string.queue_edit_entry)
-    val upLabel = stringResource(Res.string.queue_move_up)
-    val downLabel = stringResource(Res.string.queue_move_down)
-    val removeLabel = stringResource(Res.string.queue_remove_entry)
-
-    fun canMove(id: Long, direction: Int): Boolean {
-        val q = currentQueue
-        val index = q.indexOf(id)
-        val target = index + direction
-        return index > q.currentIndex && target > q.currentIndex && target in q.entries.indices &&
-            q.entries[index].isTemporary == q.entries[target].isTemporary
-    }
-    fun move(id: Long, direction: Int): Boolean {
-        return state.controller.moveQueueEntry(id, direction)
-    }
-
-    LazyColumn(modifier) {
-        itemsIndexed(upcoming, key = { _, entry -> entry.id }) { _, entry ->
-            val dragging = entry.id == draggedId
-            var rowHeightPx by remember(entry.id) { mutableIntStateOf(0) }
-            Box(
-                Modifier
-                    .heightIn(min = 60.dp)
-                    .onSizeChanged { rowHeightPx = it.height }
-                    .semantics {
-                        customActions = buildList {
-                            if (canMove(entry.id, -1)) add(CustomAccessibilityAction(upLabel) { move(entry.id, -1) })
-                            if (canMove(entry.id, 1)) add(CustomAccessibilityAction(downLabel) { move(entry.id, 1) })
-                            add(CustomAccessibilityAction(removeLabel) { state.controller.removeFromQueue(entry.id); true })
-                        }
-                    }
-                    .zIndex(if (dragging) 1f else 0f)
-                    .graphicsLayer {
-                        translationY = if (dragging) dragOffset else 0f
-                        val scale = if (dragging && !reduceMotion) 1.02f else 1f
-                        scaleX = scale; scaleY = scale
-                    },
-            ) {
-                ListRow(
-                    title = entry.track.title,
-                    subtitle = if (!entry.isAvailable) stringResource(Res.string.queue_file_unavailable)
-                        else if (entry.isTemporary) stringResource(Res.string.queue_temporary_subtitle, artistName(entry.track.artist))
-                        else artistName(entry.track.artist),
-                    leading = { AlbumArt(rememberTrackArtwork(entry.track), Modifier.size(40.dp), cornerRadius = 6.dp) },
-                    trailing = {
-                        IconButton(
-                            icon = AppIcons.DragHandle,
-                            contentDescription = editLabel,
-                            onClick = { editId = entry.id },
-                            modifier = Modifier.pointerInput(entry.id, rowHeightPx) {
-                                detectDragGestures(
-                                    onDragStart = { draggedId = entry.id; dragOffset = 0f },
-                                    onDragEnd = { draggedId = null; dragOffset = 0f },
-                                    onDragCancel = { draggedId = null; dragOffset = 0f },
-                                ) { change, amount ->
-                                    change.consume()
-                                    dragOffset += amount.y
-                                    if (rowHeightPx > 0) {
-                                        if (dragOffset > rowHeightPx / 2 && move(entry.id, 1)) dragOffset -= rowHeightPx
-                                        else if (dragOffset < -rowHeightPx / 2 && move(entry.id, -1)) dragOffset += rowHeightPx
-                                        else dragOffset = dragOffset.coerceIn(-rowHeightPx.toFloat(), rowHeightPx.toFloat())
-                                    }
-                                }
-                            },
-                        )
-                    },
-                    onClick = if (entry.isAvailable) ({ state.controller.skipTo(entry.id) }) else null,
-                )
-            }
+private fun PlayerContentLayout(viewportHeight: Dp, minimumPageHeight: Dp, content: @Composable () -> Unit) {
+    Layout(content = content, modifier = Modifier.fillMaxWidth()) { children, constraints ->
+        val controls = children[1].measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
+        val height = maxOf(viewportHeight.roundToPx(), 540.dp.roundToPx(), controls.height + minimumPageHeight.roundToPx())
+        val page = children[0].measure(Constraints.fixed(constraints.maxWidth, height - controls.height))
+        layout(constraints.maxWidth, height) {
+            page.placeRelative(0, 0)
+            controls.placeRelative(0, page.height)
         }
     }
-    val editing = editId?.let { id -> queue.entries.firstOrNull { it.id == id } }
-    ActionSheet(
-        visible = editing != null,
-        title = editing?.track?.title.orEmpty(),
-        cancelLabel = stringResource(Res.string.action_cancel),
-        onDismiss = { editId = null },
-        actions = listOfNotNull(
-            editing?.takeIf { canMove(it.id, -1) }?.let { entry -> SheetAction(upLabel, null) { move(entry.id, -1) } },
-            editing?.takeIf { canMove(it.id, 1) }?.let { entry -> SheetAction(downLabel, null) { move(entry.id, 1) } },
-            editing?.let { entry -> SheetAction(removeLabel, AppIcons.Close) { state.controller.removeFromQueue(entry.id) } },
-        ),
-    )
 }
