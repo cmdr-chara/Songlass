@@ -86,6 +86,7 @@ class Media3AudioPlayer(
     private var disconnectOccurrence = 0L
     /** Native focus/item callbacks must not expose a half-committed automatic handover. */
     private var automaticHandoverInProgress = false
+    private var cancellingSuppressedTransition = false
     override val supportsCrossfade: Boolean get() = standbyFactory != null
     private val _state = MutableStateFlow(PlayerState(outputRoute = AudioOutputRoute()))
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -240,10 +241,12 @@ class Media3AudioPlayer(
 
             override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
                 // Transient focus loss can keep playWhenReady=true while suppressing the decoder.
-                // A pending manual hand-over must not request focus again on the incoming player.
-                if (manualPreparing != null && (voice === active || voice === fading) &&
-                    playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
-                    cancelManualPreparationInPause()
+                // The incoming voice does not own focus during an overlap, so it must be paused
+                // too. A retired voice or an obsolete callback cannot cancel a newer transition.
+                if (fading != null && (voice === active || voice === fading) &&
+                    playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE &&
+                    voice.player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) {
+                    cancelTransitionInPause()
                 }
             }
 
@@ -637,12 +640,25 @@ class Media3AudioPlayer(
         (active.player.playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE ||
             fading?.player?.playbackSuppressionReason?.let { it != Player.PLAYBACK_SUPPRESSION_REASON_NONE } == true)
 
-    private fun cancelManualPreparationInPause() {
-        if (manualPreparing == null) return
-        active.player.pause()
-        fading?.player?.pause()
-        finishFade(CrossfadeSkipReason.Interrupted, continuePrepared = false)
-        publishState()
+    private fun cancelTransitionInPause() {
+        val outgoing = fading ?: return
+        if (cancellingSuppressedTransition) return
+        val incoming = active
+        val generation = eventGeneration
+        cancellingSuppressedTransition = true
+        try {
+            // Pause before transferring focus. Moving focus to an incoming voice whose intent
+            // is still true would request it back from the transient owner. These native calls
+            // may themselves deliver suppression callbacks; cancel this transition only once.
+            incoming.player.pause()
+            if (active !== incoming || fading !== outgoing || eventGeneration != generation) return
+            outgoing.player.pause()
+            if (active !== incoming || fading !== outgoing || eventGeneration != generation) return
+            finishFade(CrossfadeSkipReason.Interrupted, continuePrepared = false)
+        } finally {
+            cancellingSuppressedTransition = false
+            publishState()
+        }
     }
 
     private fun startManualFadeWhenReady() {
@@ -650,7 +666,7 @@ class Media3AudioPlayer(
         val outgoing = fading ?: return
         val incoming = active
         if (isManualPreparationSuppressed()) {
-            cancelManualPreparationInPause()
+            cancelTransitionInPause()
             return
         }
         if (incoming.player.playerError != null) {
@@ -660,7 +676,7 @@ class Media3AudioPlayer(
         }
         if (!outgoing.player.playWhenReady) {
             // A system focus/noisy-output pause during preparation must never resume the new item.
-            cancelManualPreparationInPause()
+            cancelTransitionInPause()
             return
         }
         if (incoming.player.playbackState != Player.STATE_READY) return
@@ -1062,7 +1078,7 @@ class Media3AudioPlayer(
     }
 
     private fun publishState() {
-        if (automaticHandoverInProgress) return
+        if (automaticHandoverInProgress || cancellingSuppressedTransition) return
         val player = active.player
         val editing = editingUri != null && loadedTrack?.uri == editingUri
         val error: PlaybackException? = player.playerError

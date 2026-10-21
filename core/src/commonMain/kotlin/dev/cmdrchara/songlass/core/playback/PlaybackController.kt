@@ -45,6 +45,18 @@ class PlaybackController(
     var transportIntentRevision: Long = 0
         private set
 
+    /**
+     * Records a Play/selection that must await the library before it can open a file.
+     * The serial owner thread must compare the returned revision again immediately before
+     * applying the result. A newer pending request, Pause, Stop or selection supersedes it.
+     * Reconcile native advancement and cancel reconnect/gesture tokens first; the requested
+     * selection itself is not applied until the caller validates the returned revision.
+     */
+    fun beginAsyncPlaybackRequest(): Long {
+        beginUserTransport()
+        return transportIntentRevision
+    }
+
     private val _stopAfterCurrent = MutableStateFlow(false)
     /** The decoder identity, deliberately independent of refreshed queue metadata. */
     private var loadedTrack: Track? = null

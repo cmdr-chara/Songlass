@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.playback
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Looper
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -28,9 +29,10 @@ import dev.cmdrchara.songlass.core.browse.BrowseLabels
 import dev.cmdrchara.songlass.core.browse.BrowseLayout
 import dev.cmdrchara.songlass.core.browse.BrowseNode
 import dev.cmdrchara.songlass.core.browse.BrowseTree
-import dev.cmdrchara.songlass.core.browse.PlayRequest
 import dev.cmdrchara.songlass.core.browse.play
+import dev.cmdrchara.songlass.core.browse.resumeForExternalPlayback
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -48,13 +50,14 @@ class PlaybackService : MediaLibraryService() {
     private val scope = MainScope()
     private lateinit var graph: AppGraph
     private lateinit var buttons: HeadsetButtons
+    private lateinit var forwardingPlayer: QueueForwardingPlayer
 
     override fun onCreate() {
         super.onCreate()
         graph = (application as SonglassApplication).graph
         buttons = HeadsetButtons(graph.controller)
         val audio = graph.player as Media3AudioPlayer
-        val forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio)
+        forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio)
         session = MediaLibrarySession.Builder(this, forwardingPlayer, LibraryCallback())
             .setBitmapLoader(EmbeddedArtworkBitmapLoader(this))
             .build()
@@ -160,7 +163,7 @@ class PlaybackService : MediaLibraryService() {
             mediaItems: MutableList<MediaItem>,
             startIndex: Int,
             startPositionMs: Long,
-        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = withTree { tree ->
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = withPlaybackTree { tree ->
             val item = mediaItems.getOrNull(startIndex) ?: mediaItems.firstOrNull()
             val request = item?.mediaId?.takeIf { it.isNotEmpty() }?.let(tree::resolvePlay)
                 ?: item?.requestMetadata?.searchQuery?.let(tree::resolveQuery)
@@ -182,41 +185,27 @@ class PlaybackService : MediaLibraryService() {
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
             if (!isForPlayback) return Futures.immediateFailedFuture(UnsupportedOperationException("No resumption card"))
-            return withTree { tree ->
-                val request = tree.resume(graph.history.state.value.recentPlays.firstOrNull()) ?: throw IllegalStateException("No music")
-                play(request)
+            return forwardingPlayer.acknowledgeResumptionResult(withPlaybackTree { tree ->
+                graph.controller.resumeForExternalPlayback {
+                    tree.resume(graph.history.state.value.recentPlays.firstOrNull())
+                }
                 playbackResumptionResult(graph.controller)
-            }
+            })
         }
 
         override fun onMediaButtonEvent(session: MediaSession, controllerInfo: MediaSession.ControllerInfo, intent: Intent): Boolean =
             buttons.handle(intent)
     }
 
-    private fun play(request: PlayRequest) = graph.controller.play(request)
-
     /** Runs [block] on the main thread with a tree of the current library, loading it first after a cold start. */
-    private fun <T> withTree(block: (BrowseTree) -> T): ListenableFuture<T> {
-        val future = SettableFuture.create<T>()
-        val job = scope.launch {
-            try {
-                awaitBrowsableLibrary(graph)
-                future.set(block(buildTree()))
-            } catch (cancelled: CancellationException) {
-                future.cancel(false)
-                throw cancelled
-            } catch (error: Exception) {
-                future.setException(error)
-            }
-        }
-        future.addListener({ if (future.isCancelled) job.cancel() }, MoreExecutors.directExecutor())
-        // A service can be destroyed before the dispatched coroutine even enters its try block.
-        job.invokeOnCompletion { failure ->
-            if (failure is CancellationException) future.cancel(false)
-            else if (failure != null) future.setException(failure)
-        }
-        return future
+    private fun <T> withTree(block: (BrowseTree) -> T): ListenableFuture<T> = scopeResult(scope) {
+        awaitBrowsableLibrary(graph)
+        block(buildTree())
     }
+
+    private fun <T> withPlaybackTree(block: (BrowseTree) -> T): ListenableFuture<T> =
+        deferredPlaybackRequest(scope, graph.controller, forwardingPlayer,
+            awaitReady = { awaitBrowsableLibrary(graph) }, select = { block(buildTree()) })
 
     private fun buildTree(): BrowseTree = browseTree(this, graph)
 
@@ -245,6 +234,47 @@ class PlaybackService : MediaLibraryService() {
         val from = page.coerceAtLeast(0).toLong() * pageSize
         return if (from >= size) emptyList() else subList(from.toInt(), minOf(size.toLong(), from + pageSize).toInt())
     }
+}
+
+
+/** Same production boundary used by the service and the controllable native integration probe. */
+@OptIn(UnstableApi::class)
+internal fun <T> deferredPlaybackRequest(
+    scope: CoroutineScope,
+    controller: PlaybackController,
+    forwardingPlayer: QueueForwardingPlayer,
+    awaitReady: suspend () -> Unit,
+    select: () -> T,
+): ListenableFuture<T> {
+    check(Looper.myLooper() === forwardingPlayer.applicationLooper) { "Playback requests belong to the player looper" }
+    val requestedRevision = controller.beginAsyncPlaybackRequest()
+    return scopeResult(scope) {
+        awaitReady()
+        check(Looper.myLooper() === forwardingPlayer.applicationLooper) { "Playback selection must return to the player looper" }
+        check(controller.transportIntentRevision == requestedRevision) { "A newer playback request replaced this one" }
+        select()
+    }
+}
+
+private fun <T> scopeResult(scope: CoroutineScope, block: suspend () -> T): ListenableFuture<T> {
+    val future = SettableFuture.create<T>()
+    val job = scope.launch {
+        try {
+            future.set(block())
+        } catch (cancelled: CancellationException) {
+            future.cancel(false)
+            throw cancelled
+        } catch (error: Exception) {
+            future.setException(error)
+        }
+    }
+    future.addListener({ if (future.isCancelled) job.cancel() }, MoreExecutors.directExecutor())
+    // A service can be destroyed before the dispatched coroutine even enters its try block.
+    job.invokeOnCompletion { failure ->
+        if (failure is CancellationException) future.cancel(false)
+        else if (failure != null) future.setException(failure)
+    }
+    return future
 }
 
 

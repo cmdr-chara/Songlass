@@ -53,6 +53,8 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                         "audio-manual" -> audio(context, scope, manualOnly = true)
                         "audio-manual-resume" -> audio(context, scope, manualResumeOnly = true)
                         "audio-manual-focus" -> audio(context, scope, manualFocusOnly = true)
+                        "audio-overlap-focus" -> audio(context, scope, overlapFocusKind = CrossfadeKind.Automatic)
+                        "audio-manual-overlap-focus" -> audio(context, scope, overlapFocusKind = CrossfadeKind.Manual)
                         null, "backup" -> backup(context, scope)
                         else -> error("Unknown feature probe: $probe")
                     }
@@ -100,7 +102,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -150,6 +152,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (overlapFocusKind != null) {
+                overlapFocusAudio(context, graph, audio, session, voices, tracks, overlapFocusKind)
+                return
+            }
             if (manualFocusOnly) {
                 manualFocusAudio(context, graph, audio, session, voices, tracks, checkNotNull(prepareGate), prepareWaiting)
                 return
@@ -212,6 +218,81 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             prepareGate?.countDown()
             audio.release()
             withContext(Dispatchers.IO) { file.delete() }
+        }
+    }
+
+    /** Transient focus suppression after both real decoders started, not while preparing. */
+    private suspend fun overlapFocusAudio(
+        context: Context,
+        graph: AppGraph,
+        audio: Media3AudioPlayer,
+        session: QueueForwardingPlayer,
+        voices: List<PlayerVoice>,
+        tracks: List<Track>,
+        kind: CrossfadeKind,
+    ) {
+        val automatic = kind == CrossfadeKind.Automatic
+        graph.settings.setCrossfadeDuration(if (automatic) 2_000 else 0)
+        graph.settings.setManualCrossfadeDuration(if (automatic) 0 else 2_000)
+        await {
+            audio.diagnostics().configuredMs == (if (automatic) 2_000L else 0L) &&
+                audio.diagnostics().manualConfiguredMs == (if (automatic) 0L else 2_000L)
+        }
+        graph.controller.playTracks(tracks)
+        await { audio.exoPlayer.isPlaying && (!automatic || audio.diagnostics().standbyReady) }
+        val outgoing = audio.exoPlayer
+        var transientSuppressionObserved = false
+        val listener = object : Player.Listener {
+            override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+                if (playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
+                    transientSuppressionObserved = true
+                }
+            }
+        }
+        outgoing.addListener(listener)
+        val focusChanges = mutableListOf<Int>()
+        val manager = context.getSystemService(AudioManager::class.java)
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build())
+            .setOnAudioFocusChangeListener { focusChanges += it }
+            .build()
+        var focusHeld = false
+        try {
+            if (automatic) graph.controller.seekTo(4_050) else graph.controller.skipToNext()
+            await { audio.diagnostics().stage == CrossfadeStage.Fading && voices.count { it.player.isPlaying } == 2 }
+            check(!audio.isPreparingManualTransition && audio.exoPlayer !== outgoing)
+            check(audio.state.value.crossfadeStatus?.kind == kind)
+            val incoming = audio.exoPlayer
+            val entry = checkNotNull(graph.controller.queue.value.current)
+            check(entry.track.id == tracks[1].id)
+            check(manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "Probe transient focus was denied" }
+            focusHeld = true
+            await {
+                transientSuppressionObserved && audio.diagnostics().stage != CrossfadeStage.Fading &&
+                    voices.none { it.player.playWhenReady || it.player.isPlaying }
+            }
+            check(audio.state.value.crossfadeStatus?.skipReason == CrossfadeSkipReason.Interrupted)
+            check(audio.exoPlayer === incoming && graph.controller.queue.value.current?.id == entry.id)
+            check(!session.playWhenReady)
+            delay(100)
+            check(focusChanges.none { it < 0 }) { "Interrupted overlap reclaimed focus from the transient owner" }
+            manager.abandonAudioFocusRequest(request)
+            focusHeld = false
+            // Beyond the old preparation timeout: no focus-return, tick or posted READY work
+            // may revive either voice or advance the now-paused current queue occurrence.
+            delay(2_100)
+            check(voices.none { it.player.playWhenReady || it.player.isPlaying })
+            check(audio.exoPlayer === incoming && graph.controller.queue.value.current?.id == entry.id)
+            session.play()
+            await { incoming.isPlaying }
+            check(voices.count { it.player.isPlaying } == 1)
+            check(graph.controller.queue.value.current?.id == entry.id)
+            Log.i("SonglassFeatures", "overlap kind=$kind transientFocusObserved=true bothPaused=true focusNotReclaimed=true noAutomaticResume=true explicitPlayWorks=true")
+        } finally {
+            if (focusHeld) manager.abandonAudioFocusRequest(request)
+            outgoing.removeListener(listener)
         }
     }
 
