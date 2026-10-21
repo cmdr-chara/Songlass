@@ -88,6 +88,8 @@ import dev.cmdrchara.songlass.designsystem.foundation.formatDuration
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
+import dev.cmdrchara.songlass.shared.resources.bookmark_open
+import dev.cmdrchara.songlass.shared.resources.bookmark_library_hint
 import dev.cmdrchara.songlass.shared.resources.albums_count
 import dev.cmdrchara.songlass.shared.resources.library_access_button
 import dev.cmdrchara.songlass.shared.resources.library_access_message

@@ -88,9 +88,38 @@ object TrackMarkersCodec {
         return rows
     }
 
-    private fun writeRows(rows: List<List<String?>>): String = buildString {
-        append(HEADER)
-        rows.forEach { row -> row.forEach { append(encodeField(it)) } }
+    private fun writeRows(rows: List<List<String?>>): String {
+        // Reject before constructing or persisting a value our own reader cannot accept.
+        var size = HEADER.length
+        rows.forEach { row -> row.forEach { field ->
+            require(field == null || field.length <= MAX_FIELD)
+            val encodedSize = if (field == null) 3 else field.length.toString().length + 1 + field.length
+            require(encodedSize <= MAX_TEXT - size)
+            size += encodedSize
+        } }
+        return buildString(size) {
+            append(HEADER)
+            rows.forEach { row -> row.forEach { append(encodeField(it)) } }
+        }
+    }
+
+    private fun validateIdentity(track: TrackSignature) {
+        require(track.id.isNotEmpty() && track.uri.isNotEmpty() && track.durationMs >= 0)
+    }
+
+    private fun validateProgress(progress: SavedProgress) {
+        validateIdentity(progress.track)
+        require(progress.positionMs > 0 &&
+            (progress.track.durationMs == 0L || progress.positionMs <= progress.track.durationMs))
+    }
+
+    private fun validateBookmark(bookmark: TrackBookmark) {
+        validateIdentity(bookmark.track)
+        require(bookmark.id.isNotBlank() && bookmark.id.length <= 80)
+        require(bookmark.positionMs >= 0 &&
+            (bookmark.track.durationMs == 0L || bookmark.positionMs <= bookmark.track.durationMs))
+        require(bookmark.title == null || (bookmark.title.isNotBlank() && bookmark.title.length <= 200 &&
+            bookmark.title.trim() == bookmark.title))
     }
 
     fun decodeProgress(value: String?): List<SavedProgress> {
@@ -98,7 +127,7 @@ object TrackMarkersCodec {
         val result = readRows(value, 8, MAX_PROGRESS).map { fields ->
             val position = fields[7]?.toLongOrNull()
             require(position != null && position > 0 && position.toString() == fields[7])
-            SavedProgress(identity(fields, 0), position)
+            SavedProgress(identity(fields, 0), position).also(::validateProgress)
         }
         require(result.distinctBy { it.track }.size == result.size)
         return result
@@ -113,7 +142,7 @@ object TrackMarkersCodec {
             require(position != null && position >= 0 && position.toString() == fields[8])
             val title = fields[9]
             require(title == null || (title.isNotBlank() && title.length <= 200 && title.trim() == title))
-            TrackBookmark(id, identity(fields, 1), position, title)
+            TrackBookmark(id, identity(fields, 1), position, title).also(::validateBookmark)
         }
         require(result.distinctBy { it.id }.size == result.size)
         return result
@@ -121,11 +150,15 @@ object TrackMarkersCodec {
 
     fun encodeProgress(values: List<SavedProgress>): String {
         require(values.size <= MAX_PROGRESS)
+        require(values.distinctBy { it.track }.size == values.size)
+        values.forEach(::validateProgress)
         return writeRows(values.map { identityFields(it.track) + it.positionMs.toString() })
     }
 
     fun encodeBookmarks(values: List<TrackBookmark>): String {
         require(values.size <= MAX_BOOKMARKS)
+        require(values.distinctBy { it.id }.size == values.size)
+        values.forEach(::validateBookmark)
         return writeRows(values.map { listOf(it.id) + identityFields(it.track) +
             listOf(it.positionMs.toString(), it.title) })
     }
@@ -158,6 +191,9 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
     val state: StateFlow<TrackMarkersState> = _state.asStateFlow()
     private var byPath: Map<String, List<Track>> = emptyMap()
     private var byUriId: Map<Pair<String, String>, List<Track>> = emptyMap()
+    private val _libraryRevision = MutableStateFlow(0L)
+    /** Availability can change without editing any bookmark or moving the player. */
+    val libraryRevision: StateFlow<Long> = _libraryRevision.asStateFlow()
     /** Backup replacement owns these keys until repository reload has finished. */
     var writesSuspended: Boolean = false
 
@@ -167,6 +203,7 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
         // Build once per MediaStore refresh. Bookmark lists never scan the full library per row.
         byPath = tracks.mapNotNull { track -> track.path?.let { it to track } }.groupBy({ it.first }, { it.second })
         byUriId = tracks.groupBy { it.id to it.uri }
+        _libraryRevision.value++
     }
 
     /** Identity must be unique in the unfiltered library. Similar tags alone never match. */

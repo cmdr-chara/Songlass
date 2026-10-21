@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.queue
 
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.model.isSameFileAs
 import kotlin.random.Random
 
 enum class RepeatMode {
@@ -146,7 +147,10 @@ data class PlaybackQueue(
 
     /** Refreshes metadata in both orders without changing slots, membership or playback position. */
     fun withUpdatedTracks(tracks: Map<String, Track>): PlaybackQueue {
-        fun List<QueueEntry>.updated() = map { entry -> tracks[entry.track.id]?.let { entry.copy(track = it) } ?: entry }
+        fun List<QueueEntry>.updated() = map { entry ->
+            tracks[entry.track.id]?.takeIf { entry.track.isSameFileAs(it) }
+                ?.let { entry.copy(track = it) } ?: entry
+        }
         return copy(entries = entries.updated(), unshuffledEntries = unshuffledEntries?.updated())
     }
 

@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.core.playback
 
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.FakeAudioPlayer
+import dev.cmdrchara.songlass.core.player.PlayerStatus
 import dev.cmdrchara.songlass.core.queue.RepeatMode
 import dev.cmdrchara.songlass.core.settings.AppSettings
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
@@ -150,5 +151,85 @@ class LongPlaybackControllerTest {
             assertEquals("b", player.loadedTrack?.id)
             controller.pause()
             assertTrue(!player.state.value.playWhenReady)
+        }
+
+    @Test
+    fun recycledIdRefreshCannotSeekOrSaveTheOutgoingRecordingAsItsReplacement() =
+        runTest(UnconfinedTestDispatcher()) {
+            val store = InMemoryKeyValueStore()
+            val settings = AppSettings(store).apply { setResumePerTrack(true) }
+            val original = episode("17")
+            val replacement = original.copy(fileName = "unrelated.flac", title = "Another episode")
+            val markers = TrackMarkers(store).apply { setLibrary(listOf(original)) }
+            val bookmark = markers.add(original, 145_000, "Original only")
+            val player = FakeAudioPlayer()
+            val controller = PlaybackController(player, backgroundScope, markers = markers) { settings.state.value }
+            controller.playTracks(listOf(original))
+            controller.seekTo(145_000)
+            markers.setLibrary(listOf(replacement))
+            controller.refreshTracks(listOf(replacement))
+            assertEquals(original, controller.queue.value.current?.track)
+            controller.pause()
+            assertNull(markers.progressFor(replacement, 600_000))
+            assertNull(markers.resolve(bookmark.track))
+            controller.playBookmark(replacement, 50_000)
+            assertEquals(replacement, player.loadedTrack)
+            assertEquals(50_000L, player.state.value.positionMs)
+            assertEquals(replacement, controller.queue.value.current?.track)
+            assertEquals(145_000L, markers.state.value.progress.single { it.track == TrackSignature.of(original) }.positionMs)
+        }
+
+    @Test
+    fun restartAfterSafeReindexCannotReintroduceTheOutgoingCheckpoint() =
+        runTest(UnconfinedTestDispatcher()) {
+            val store = InMemoryKeyValueStore()
+            val settings = AppSettings(store).apply { setResumePerTrack(true) }
+            val original = episode("old")
+            val reindexed = original.copy(id = "new", uri = "content://media/audio/new")
+            val markers = TrackMarkers(store).apply { setLibrary(listOf(original)) }
+            val player = FakeAudioPlayer()
+            val controller = PlaybackController(player, backgroundScope, markers = markers) { settings.state.value }
+            controller.playTracks(listOf(original))
+            controller.seekTo(185_000)
+            markers.setLibrary(listOf(reindexed))
+            controller.refreshTracks(listOf(reindexed))
+            controller.playFromBeginning(reindexed)
+            assertEquals(reindexed, player.loadedTrack)
+            assertEquals(0L, player.state.value.positionMs)
+            assertTrue(markers.state.value.progress.isEmpty())
+            assertNull(markers.progressFor(reindexed, 600_000))
+        }
+
+    @Test
+    fun stopFlushesSubMilestonePositionAndResumesItOnlyWhenOptedIn() =
+        runTest(UnconfinedTestDispatcher()) {
+            val store = InMemoryKeyValueStore()
+            val settings = AppSettings(store).apply { setResumePerTrack(true) }
+            val first = episode("first")
+            val second = episode("second")
+            val markers = TrackMarkers(store).apply { setLibrary(listOf(first, second)) }
+            val player = FakeAudioPlayer()
+            val controller = PlaybackController(player, backgroundScope, Random(7), markers) { settings.state.value }
+            controller.playTracks(listOf(first, second, first))
+            controller.setShuffle(true)
+            controller.cycleRepeatMode()
+            controller.seekTo(125_000)
+            player.advanceBy(14_321)
+            assertEquals(125_000L, markers.progressFor(first, 600_000))
+            val before = controller.queue.value
+            controller.stop()
+            assertEquals(before, controller.queue.value)
+            assertEquals(PlayerStatus.Idle, player.state.value.status)
+            assertNull(player.loadedTrack)
+            assertEquals(139_321L, markers.progressFor(first, 600_000))
+            assertEquals(139_321L, TrackMarkers(store).apply { setLibrary(listOf(first, second)) }.progressFor(first, 600_000))
+            controller.resume()
+            assertEquals(first, player.loadedTrack)
+            assertEquals(139_321L, player.state.value.positionMs)
+            controller.stop()
+            settings.setResumePerTrack(false)
+            controller.resume()
+            assertEquals(0L, player.state.value.positionMs)
+            assertEquals(139_321L, markers.progressFor(first, 600_000))
         }
 }

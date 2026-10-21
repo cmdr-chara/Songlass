@@ -3,6 +3,10 @@ package dev.cmdrchara.songlass.core.playback
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -161,5 +165,87 @@ class TrackMarkersTest {
         markers.checkpoint(episode, 180_000, 600_000, true)
         assertTrue(markers.state.value.progress.isEmpty())
         assertFailsWith<IllegalArgumentException> { markers.add(episode, 10_000, null) }
+    }
+
+    @Test
+    fun rejectedIdentityWritesLeaveExistingCollectionsAndStorageIntact() {
+        val store = InMemoryKeyValueStore()
+        val original = track("original")
+        val markers = TrackMarkers(store).apply {
+            setLibrary(listOf(original))
+            checkpoint(original, 125_000, 600_000, true)
+            add(original, 125_000, "Keep me")
+        }
+        val before = markers.state.value
+        val stored = store.snapshot()
+        val oversized = "x".repeat(4_097)
+        val invalid = listOf(
+            track("other").copy(title = oversized),
+            track("other").copy(artist = oversized),
+            track("other").copy(album = oversized),
+            track("other").copy(fileName = oversized),
+            track("other").copy(id = ""),
+            track("other").copy(uri = ""),
+        )
+        invalid.forEach { bad ->
+            assertFailsWith<IllegalArgumentException> { markers.add(bad, 150_000, null) }
+            assertFailsWith<IllegalArgumentException> { markers.checkpoint(bad, 150_000, 600_000, true) }
+            assertEquals(before, markers.state.value)
+            assertEquals(stored, store.snapshot())
+        }
+        assertEquals(before, TrackMarkers(store).state.value)
+    }
+
+    @Test
+    fun encoderRejectsCollectionsThatExceedTheReadersTotalBound() {
+        val wide = "x".repeat(4_096)
+        val signature = TrackSignature("id", wide, wide, wide, wide, wide, 1_200_000)
+        val bookmarks = List(1_000) { TrackBookmark(it.toString(), signature, 250_000, null) }
+        // Every field and the record count are individually valid; their aggregate exceeds 16 MiB.
+        assertTrue(bookmarks.size < TrackMarkersCodec.MAX_BOOKMARKS)
+        assertFailsWith<IllegalArgumentException> { TrackMarkersCodec.encodeBookmarks(bookmarks) }
+        val progress = bookmarks.map { SavedProgress(it.track.copy(id = it.id), it.positionMs) }
+        assertFailsWith<IllegalArgumentException> { TrackMarkersCodec.encodeProgress(progress) }
+    }
+
+    @Test
+    fun codecChecksDuplicateRecordsAndKnownDurationInBothDirections() {
+        val signature = TrackSignature.of(track("a"))
+        val bookmark = TrackBookmark("one", signature, 250_000, "Chapter")
+        val progress = SavedProgress(signature, 250_000)
+        assertFailsWith<IllegalArgumentException> { TrackMarkersCodec.encodeBookmarks(listOf(bookmark, bookmark)) }
+        assertFailsWith<IllegalArgumentException> { TrackMarkersCodec.encodeProgress(listOf(progress, progress)) }
+        assertFailsWith<IllegalArgumentException> {
+            TrackMarkersCodec.encodeBookmarks(listOf(bookmark.copy(positionMs = 1_200_001)))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            TrackMarkersCodec.encodeProgress(listOf(progress.copy(positionMs = 1_200_001)))
+        }
+        val brokenBookmark = TrackMarkersCodec.encodeBookmarks(listOf(bookmark)).replace("6:250000", "7:1200001")
+        val brokenProgress = TrackMarkersCodec.encodeProgress(listOf(progress)).replace("6:250000", "7:1200001")
+        assertFalse(TrackMarkersCodec.canonicalBookmarks(brokenBookmark))
+        assertFalse(TrackMarkersCodec.canonicalProgress(brokenProgress))
+        assertFailsWith<IllegalArgumentException> { TrackMarkersCodec.decodeBookmarks(brokenBookmark) }
+        assertFailsWith<IllegalArgumentException> { TrackMarkersCodec.decodeProgress(brokenProgress) }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun availabilityChangesAreObservableEvenWithoutMarkerOrPlayerChanges() = runTest(UnconfinedTestDispatcher()) {
+        val original = track("old")
+        val reindexed = original.copy(id = "new", uri = "content://media/audio/new")
+        val markers = TrackMarkers(InMemoryKeyValueStore())
+        val bookmark = markers.add(original, 150_000, null)
+        val before = markers.state.value
+        val resolved = mutableListOf<Track?>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            markers.libraryRevision.collect { resolved += markers.resolve(bookmark.track) }
+        }
+        markers.setLibrary(listOf(original))
+        markers.setLibrary(emptyList())
+        markers.setLibrary(listOf(reindexed))
+        markers.setLibrary(listOf(reindexed, reindexed.copy(id = "duplicate")))
+        assertEquals(listOf(null, original, null, reindexed, null), resolved)
+        assertEquals(before, markers.state.value)
     }
 }

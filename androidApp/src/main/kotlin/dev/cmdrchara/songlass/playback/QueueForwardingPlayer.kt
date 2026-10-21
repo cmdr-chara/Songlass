@@ -33,8 +33,7 @@ class QueueForwardingPlayer(
     }
 
     override fun handleStop(): ListenableFuture<*> {
-        val target = audio ?: return super.handleStop()
-        target.stop()
+        controller.stop()
         refreshPlaybackIntent()
         return Futures.immediateVoidFuture()
     }

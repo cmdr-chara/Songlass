@@ -368,6 +368,64 @@ class PlaybackControllerTest {
         assertEquals(0, controller.queue.value.currentIndex)
         assertEquals("1", audio.fake.loadedTrack?.id)
     }
+
+    @Test
+    fun userTransportCallbackIsNotRaisedByAutomaticAdvanceOrRepeat() = runTest(UnconfinedTestDispatcher()) {
+        val audio = RecordingPlayer()
+        var commands = 0
+        val controller = PlaybackController(audio, backgroundScope, onUserTransport = { commands++ })
+        controller.playTracks(tracks(2))
+        assertEquals(1, commands)
+        audio.signal(PlayerEvent.TrackEnded(audio.eventGeneration))
+        assertEquals(1, commands)
+        controller.setRepeat(RepeatMode.One)
+        audio.signal(PlayerEvent.TrackEnded(audio.eventGeneration))
+        audio.signal(PlayerEvent.PausedByDisconnect)
+        assertEquals(1, commands)
+        controller.pause()
+        controller.resume()
+        controller.seekTo(10_000)
+        controller.skipToPrevious()
+        controller.skipToNext()
+        controller.playFromBeginning(track("2"))
+        controller.stop()
+        controller.clearQueue()
+        assertEquals(9, commands)
+    }
+
+    @Test
+    fun timelineSeparatesLoadsSeeksAndRepeatOccurrencesWithoutCountingPauseOrShuffle() = runTest(UnconfinedTestDispatcher()) {
+        val audio = RecordingPlayer()
+        val controller = PlaybackController(audio, backgroundScope)
+        assertEquals(PlaybackTimeline(), controller.timeline.value)
+        controller.playTracks(tracks(3))
+        assertEquals(PlaybackTimeline(1, 0), controller.timeline.value)
+        controller.pause()
+        controller.resume()
+        controller.setShuffle(true)
+        controller.setShuffle(false)
+        controller.moveInQueue(1, 2)
+        assertEquals(PlaybackTimeline(1, 0), controller.timeline.value)
+        controller.seekTo(25_000)
+        assertEquals(PlaybackTimeline(1, 1), controller.timeline.value)
+        controller.seekTo(0)
+        assertEquals(PlaybackTimeline(2, 2), controller.timeline.value)
+        controller.skipToNext()
+        assertEquals(PlaybackTimeline(3, 2), controller.timeline.value)
+        controller.setRepeat(RepeatMode.One)
+        audio.signal(PlayerEvent.TrackEnded(audio.eventGeneration))
+        assertEquals(PlaybackTimeline(4, 2), controller.timeline.value)
+        audio.signal(PlayerEvent.AdvancedToNext(audio.eventGeneration))
+        assertEquals(PlaybackTimeline(5, 2), controller.timeline.value)
+        audio.signal(PlayerEvent.AdvancedToNext(audio.eventGeneration - 1))
+        assertEquals(PlaybackTimeline(5, 2), controller.timeline.value)
+        controller.playBookmark(track("new"), 50_000)
+        assertEquals(PlaybackTimeline(6, 3), controller.timeline.value)
+        controller.stop()
+        assertEquals(PlaybackTimeline(6, 3), controller.timeline.value)
+        controller.resume()
+        assertEquals(PlaybackTimeline(7, 3), controller.timeline.value)
+    }
 }
 
 /** Records the command boundary, and can deliver events after the user has changed the timeline. */
@@ -381,9 +439,19 @@ private class RecordingPlayer(val fake: FakeAudioPlayer = FakeAudioPlayer()) : A
         fake.load(track, playWhenReady)
     }
 
+    override fun loadAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        loads += track.id
+        fake.loadAt(track, playWhenReady, startPositionMs)
+    }
+
     override fun transitionTo(track: Track, playWhenReady: Boolean) {
         manual += track.id to playWhenReady
         fake.load(track, playWhenReady)
+    }
+
+    override fun transitionToAt(track: Track, playWhenReady: Boolean, startPositionMs: Long) {
+        manual += track.id to playWhenReady
+        fake.transitionToAt(track, playWhenReady, startPositionMs)
     }
 
     fun signal(event: PlayerEvent) { check(events.tryEmit(event)) }

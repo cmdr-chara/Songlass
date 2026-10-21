@@ -16,6 +16,32 @@ class PlaybackQueueTest {
     private fun PlaybackQueue.ids() = entries.map { it.track.id }
 
     @Test
+    fun metadataRefreshRejectsReusedIdsInBothOrdersButRetainsRealTagEdits() {
+        val first = track("1").copy(uri = "content://media/audio/1", folder = "Music", fileName = "original.flac")
+        val second = track("2")
+        val shuffled = PlaybackQueue.of(listOf(first, second, first)).withShuffle(true, Random(42))
+        val replacement = first.copy(fileName = "unrelated.flac", title = "Different recording")
+        val untouched = shuffled.withUpdatedTracks(mapOf(first.id to replacement))
+        assertEquals(shuffled, untouched)
+        val edited = first.copy(title = "Corrected title", album = "Corrected album", artworkRevision = 42)
+        val refreshed = shuffled.withUpdatedTracks(mapOf(first.id to edited))
+        assertEquals(shuffled.entries.map { it.id }, refreshed.entries.map { it.id })
+        assertEquals(shuffled.currentIndex, refreshed.currentIndex)
+        assertTrue(refreshed.entries.filter { it.track.id == first.id }.all { it.track == edited })
+        assertEquals(listOf(edited, second, edited), refreshed.withShuffle(false).entries.map { it.track })
+    }
+
+    @Test
+    fun pathlessContentIdsRequireMatchingRecordingFacts() {
+        val original = track("1").copy(uri = "content://media/audio/1")
+        val queue = PlaybackQueue.of(listOf(original))
+        assertEquals(queue, queue.withUpdatedTracks(mapOf(original.id to original.copy(title = "Another recording"))))
+        assertEquals(queue, queue.withUpdatedTracks(mapOf(original.id to original.copy(durationMs = 900_000))))
+        val artwork = original.copy(artworkRevision = 5)
+        assertEquals(artwork, queue.withUpdatedTracks(mapOf(original.id to artwork)).current?.track)
+    }
+
+    @Test
     fun emptyQueueHasNoCurrentEntry() {
         val queue = PlaybackQueue.of(emptyList())
         assertNull(queue.current)
