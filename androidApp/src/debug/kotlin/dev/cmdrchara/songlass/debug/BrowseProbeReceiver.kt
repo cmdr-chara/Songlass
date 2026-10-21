@@ -38,6 +38,10 @@ class BrowseProbeReceiver : BroadcastReceiver() {
         val play = intent.getBooleanExtra("play", false)
         MainScope().launch {
             try {
+                if (intent.getBooleanExtra("externalControls", false)) {
+                    ExternalControlsProbe.run(context)
+                    return@launch
+                }
                 intent.getStringExtra("wordLyricsProbe")?.let { mode ->
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         WordLyricsProbe.run(context, mode)

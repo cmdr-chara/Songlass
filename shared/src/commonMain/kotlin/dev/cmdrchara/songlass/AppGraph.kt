@@ -33,11 +33,14 @@ import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.demo.SampleLibrary
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import kotlin.time.TimeSource
@@ -115,6 +118,7 @@ class AppGraph(
     private val _libraryRefreshFailure = MutableStateFlow<LibraryRefreshFailure?>(null)
     val libraryRefreshFailure: StateFlow<LibraryRefreshFailure?> = _libraryRefreshFailure.asStateFlow()
     private val refreshMutex = kotlinx.coroutines.sync.Mutex()
+    private var readerLibraryRefresh: Deferred<Unit>? = null
     private var libraryAccessGeneration = 0L
 
     private val _allTracks = MutableStateFlow<List<Track>>(emptyList())
@@ -274,6 +278,23 @@ class AppGraph(
 
     /** Retry is process-scoped, so closing the reporting screen does not abandon a scan. */
     fun requestLibraryRefresh() { scope.launch { refreshLibrary() } }
+
+    /**
+     * Main-thread readers join a current scan or share a process-owned cold-start scan.
+     * Cancelling one browser request must not cancel the scan awaited by other readers.
+     * Explicit refreshes remain separate: a rejected file write must queue a fresh scan
+     * even when an older one is running with an obsolete access generation.
+     */
+    suspend fun awaitLibraryScan() {
+        if (_isLibraryLoading.value) {
+            _isLibraryLoading.first { !it }
+            return
+        }
+        if (_hasCompleteLibraryScan.value) return
+        val pending = readerLibraryRefresh?.takeIf { it.isActive }
+            ?: scope.async { refreshLibrary() }.also { readerLibraryRefresh = it }
+        pending.await()
+    }
 
     /** Called on Main when a file writer rejects stale identity or cannot verify its write. */
     fun onFileWriteFailure() {

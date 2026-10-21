@@ -29,9 +29,10 @@ data class BrowseNode(
 /** What to play for a chosen node. */
 data class PlayRequest(val tracks: List<Track>, val startIndex: Int, val context: PlayContext?, val shuffle: Boolean = false)
 
-/** Starts [request] on this controller. */
-fun PlaybackController.play(request: PlayRequest) {
-    if (request.shuffle) shuffleTracks(request.tracks, request.context) else playTracks(request.tracks, request.startIndex, request.context)
+/** Starts [request]; an explicit browser position overrides per-track resume for this selection. */
+fun PlaybackController.play(request: PlayRequest, startPositionMs: Long? = null) {
+    if (request.shuffle) shuffleTracks(request.tracks, request.context, startPositionMs)
+    else playTracks(request.tracks, request.startIndex, request.context, startPositionMs)
 }
 
 /** Localised titles the tree needs (resources live with the platform). */

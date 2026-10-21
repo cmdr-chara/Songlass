@@ -1162,7 +1162,7 @@ class Media3AudioPlayer(
     }
 }
 
-private fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
+internal fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaId(id)
     .setUri(uri)
     // In-process source identity only; LocalConfiguration tags are not metadata or backup data.

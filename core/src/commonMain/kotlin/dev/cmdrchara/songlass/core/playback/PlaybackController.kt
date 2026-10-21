@@ -10,6 +10,7 @@ import dev.cmdrchara.songlass.core.player.PlayerState
 import dev.cmdrchara.songlass.core.player.PlayerStatus
 import dev.cmdrchara.songlass.core.queue.PlaybackQueue
 import dev.cmdrchara.songlass.core.queue.QueueEntry
+import dev.cmdrchara.songlass.core.queue.RepeatMode
 import dev.cmdrchara.songlass.core.settings.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,6 +41,9 @@ class PlaybackController(
     val playerState: StateFlow<PlayerState> = player.state
     private val _timeline = MutableStateFlow(PlaybackTimeline())
     val timeline: StateFlow<PlaybackTimeline> = _timeline.asStateFlow()
+    /** Serial owner-thread token for rejecting delayed gestures after a newer manual intent. */
+    var transportIntentRevision: Long = 0
+        private set
 
     private val _stopAfterCurrent = MutableStateFlow(false)
     /** The decoder identity, deliberately independent of refreshed queue metadata. */
@@ -158,17 +162,18 @@ class PlaybackController(
     val listeningContext: PlayContext? get() = context.takeUnless { _queue.value.current?.isTemporary == true }
 
     /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
-    fun playTracks(tracks: List<Track>, startIndex: Int = 0, context: PlayContext? = null) {
+    fun playTracks(tracks: List<Track>, startIndex: Int = 0, context: PlayContext? = null, startPositionMs: Long? = null) {
         beginUserTransport()
         val availability = libraryAvailability
         if (tracks.isNotEmpty() && availability != null &&
             availability.resolve(tracks.getOrNull(startIndex) ?: return) == null) return
         this.context = context
-        replaceQueue(PlaybackQueue.of(tracks, startIndex, shuffle = false, _queue.value.repeatMode, random))
+        replaceQueue(PlaybackQueue.of(tracks, startIndex, shuffle = false, _queue.value.repeatMode, random,
+            firstEntryId = _queue.value.nextEntryId), positionOverrideMs = startPositionMs?.coerceAtLeast(0))
     }
 
     /** Replaces the queue with [tracks] in random order (the "Shuffle" button on an album or playlist). */
-    fun shuffleTracks(tracks: List<Track>, context: PlayContext? = null) {
+    fun shuffleTracks(tracks: List<Track>, context: PlayContext? = null, startPositionMs: Long? = null) {
         if (tracks.isEmpty()) return clearQueue()
         beginUserTransport()
         val availability = libraryAvailability
@@ -176,7 +181,8 @@ class PlaybackController(
         if (candidates.isEmpty()) return
         val start = candidates[random.nextInt(candidates.size)]
         this.context = context
-        replaceQueue(PlaybackQueue.of(tracks, start, shuffle = true, _queue.value.repeatMode, random))
+        replaceQueue(PlaybackQueue.of(tracks, start, shuffle = true, _queue.value.repeatMode, random,
+            firstEntryId = _queue.value.nextEntryId), positionOverrideMs = startPositionMs?.coerceAtLeast(0))
     }
 
     fun togglePlayPause() {
@@ -242,7 +248,8 @@ class PlaybackController(
         else if (index >= 0) return
         else {
             context = null
-            replaceQueue(PlaybackQueue.of(listOf(target), repeatMode = _queue.value.repeatMode, random = random), at)
+            replaceQueue(PlaybackQueue.of(listOf(target), repeatMode = _queue.value.repeatMode, random = random,
+                firstEntryId = _queue.value.nextEntryId), at)
         }
     }
 
@@ -295,19 +302,29 @@ class PlaybackController(
 
     /** Plays the given queue entry (e.g. tapped in the Up Next list). */
     fun skipTo(entryId: Long) {
-        beginUserTransport()
+        synchronizeNativeAdvance()
         val index = _queue.value.indexOf(entryId)
-        if (index >= 0 && _queue.value.entries[index].isAvailable) moveTo(index, playWhenReady = true, manual = true)
+        if (index < 0 || !_queue.value.entries[index].isAvailable) return
+        notifyUserTransport()
+        moveTo(index, playWhenReady = true, manual = true)
     }
 
     fun setShuffle(enabled: Boolean) {
         synchronizeNativeAdvance()
         _queue.update { it.withShuffle(enabled, random) }
+        reconcilePrefetch()
     }
 
     fun cycleRepeatMode() {
         synchronizeNativeAdvance()
-        _queue.update { it.withRepeatMode(it.repeatMode.next()) }
+        setRepeatMode(_queue.value.repeatMode.next())
+    }
+
+    /** The app and external controls select the same core mode; decoders never own looping. */
+    fun setRepeatMode(mode: RepeatMode) {
+        synchronizeNativeAdvance()
+        _queue.update { it.withRepeatMode(mode) }
+        reconcilePrefetch()
     }
 
     fun playNext(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks, playNext = true) }
@@ -333,8 +350,9 @@ class PlaybackController(
 
     fun removeFromQueue(entryId: Long) {
         synchronizeNativeAdvance()
+        if (_queue.value.indexOf(entryId) < 0) return
         val before = _queue.value.current
-        if (before?.id == entryId) onUserTransport()
+        if (before?.id == entryId) notifyUserTransport()
         _queue.update { it.remove(entryId) }
         val after = _queue.value.current
         when {
@@ -391,7 +409,7 @@ class PlaybackController(
         beginUserTransport()
         checkpointCurrent(force = true)
         loadedTrack = null
-        _queue.update { PlaybackQueue(repeatMode = it.repeatMode) }
+        _queue.update { PlaybackQueue(repeatMode = it.repeatMode, nextEntryId = it.nextEntryId) }
         player.stop()
     }
 
@@ -403,7 +421,7 @@ class PlaybackController(
             libraryAvailability?.let { changed.withResolvedTracks(it::resolve) } ?: changed
         }
         if (wasEmpty && _queue.value.current != null) {
-            onUserTransport()
+            notifyUserTransport()
             loadCurrent(playWhenReady = true, explicitSelection = true)
         }
     }
@@ -452,6 +470,11 @@ class PlaybackController(
 
     private fun beginUserTransport() {
         synchronizeNativeAdvance()
+        notifyUserTransport()
+    }
+
+    private fun notifyUserTransport() {
+        transportIntentRevision++
         onUserTransport()
     }
 
@@ -466,6 +489,11 @@ class PlaybackController(
             // Mark before queue/state changes can synchronously re-enter an observer.
             handledAdvanceSerial = event.serial
         }
+        // The native decoder consumed the prepared item. Equality with a subsequent desired
+        // slot no longer proves it is prepared: Repeat One selected before Flow delivery can
+        // request exactly the item just consumed. Invalidate before any synchronous observer.
+        prefetchInitialized = false
+        prefetchedEntry = null
         onAdvancedToNext(event)
     }
 

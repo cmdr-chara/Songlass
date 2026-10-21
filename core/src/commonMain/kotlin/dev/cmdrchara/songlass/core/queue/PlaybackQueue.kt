@@ -295,21 +295,26 @@ data class PlaybackQueue(
     companion object {
         const val NO_INDEX = -1
 
-        /** Builds a queue from [tracks], starting at [startIndex], optionally shuffled. */
+        /**
+         * Builds a queue from [tracks], starting at [startIndex], optionally shuffled.
+         * A controller passes its previous [nextEntryId] as [firstEntryId], including after
+         * clearing the queue: a delayed row action must never refer to a different slot.
+         */
         fun of(
             tracks: List<Track>,
             startIndex: Int = 0,
             shuffle: Boolean = false,
             repeatMode: RepeatMode = RepeatMode.Off,
             random: Random = Random,
+            firstEntryId: Long = 0,
         ): PlaybackQueue {
-            if (tracks.isEmpty()) return PlaybackQueue(repeatMode = repeatMode)
+            if (tracks.isEmpty()) return PlaybackQueue(repeatMode = repeatMode, nextEntryId = firstEntryId)
             require(startIndex in tracks.indices) { "Start index $startIndex out of bounds for ${tracks.size} tracks" }
             val queue = PlaybackQueue(
-                entries = tracks.mapIndexed { i, track -> QueueEntry(i.toLong(), track) },
+                entries = tracks.mapIndexed { i, track -> QueueEntry(firstEntryId + i, track) },
                 currentIndex = startIndex,
                 repeatMode = repeatMode,
-                nextEntryId = tracks.size.toLong(),
+                nextEntryId = firstEntryId + tracks.size,
             )
             return queue.withShuffle(shuffle, random)
         }

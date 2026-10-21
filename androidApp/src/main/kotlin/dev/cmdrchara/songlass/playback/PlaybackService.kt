@@ -2,9 +2,6 @@ package dev.cmdrchara.songlass.playback
 
 import android.content.Intent
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -18,8 +15,11 @@ import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import com.google.common.util.concurrent.SettableFuture
 import dev.cmdrchara.songlass.AppGraph
+import dev.cmdrchara.songlass.LibrarySnapshotUnavailableException
+import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.R
 import dev.cmdrchara.songlass.SonglassApplication
 import dev.cmdrchara.songlass.artwork.ArtworkProvider
@@ -30,10 +30,11 @@ import dev.cmdrchara.songlass.core.browse.BrowseNode
 import dev.cmdrchara.songlass.core.browse.BrowseTree
 import dev.cmdrchara.songlass.core.browse.PlayRequest
 import dev.cmdrchara.songlass.core.browse.play
-import dev.cmdrchara.songlass.core.playback.PlaybackController
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -71,12 +72,20 @@ class PlaybackService : MediaLibraryService() {
                 forwardingPlayer.refreshPlaybackIntent()
             }
         }
+        // UI and remote mode changes share one owner. Refresh even if no decoder event is
+        // emitted (e.g. turning repeat on while paused), so connected controllers stay current.
+        scope.launch {
+            graph.controller.queue.map { it.repeatMode to it.isShuffled }.distinctUntilChanged().collect {
+                forwardingPlayer.refreshPlaybackIntent()
+            }
+        }
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
 
     override fun onDestroy() {
         // The player belongs to the application graph, so only the session is released here.
+        if (::buttons.isInitialized) buttons.release()
         scope.cancel()
         session?.release()
         session = null
@@ -155,7 +164,11 @@ class PlaybackService : MediaLibraryService() {
             val item = mediaItems.getOrNull(startIndex) ?: mediaItems.firstOrNull()
             val request = item?.mediaId?.takeIf { it.isNotEmpty() }?.let(tree::resolvePlay)
                 ?: item?.requestMetadata?.searchQuery?.let(tree::resolveQuery)
-            request?.let(::play)
+                ?: throw IllegalArgumentException("The requested library item is unavailable")
+            // The forwarder acknowledges resolved items without reopening native media.
+            // Apply an explicit position with the accepted selection, never as a later
+            // seek that could affect the old decoder after a rejected library request.
+            graph.controller.play(request, startPositionMs.takeIf { it >= 0 })
             MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex.coerceAtLeast(0), startPositionMs)
         }
 
@@ -172,8 +185,7 @@ class PlaybackService : MediaLibraryService() {
             return withTree { tree ->
                 val request = tree.resume(graph.history.state.value.recentPlays.firstOrNull()) ?: throw IllegalStateException("No music")
                 play(request)
-                val current = mediaSession.player.currentMediaItem
-                MediaSession.MediaItemsWithStartPosition(listOfNotNull(current), 0, C.TIME_UNSET)
+                playbackResumptionResult(graph.controller)
             }
         }
 
@@ -186,13 +198,22 @@ class PlaybackService : MediaLibraryService() {
     /** Runs [block] on the main thread with a tree of the current library, loading it first after a cold start. */
     private fun <T> withTree(block: (BrowseTree) -> T): ListenableFuture<T> {
         val future = SettableFuture.create<T>()
-        scope.launch {
+        val job = scope.launch {
             try {
-                if (graph.library.value.tracks.isEmpty()) graph.refreshLibrary()
+                awaitBrowsableLibrary(graph)
                 future.set(block(buildTree()))
+            } catch (cancelled: CancellationException) {
+                future.cancel(false)
+                throw cancelled
             } catch (error: Exception) {
                 future.setException(error)
             }
+        }
+        future.addListener({ if (future.isCancelled) job.cancel() }, MoreExecutors.directExecutor())
+        // A service can be destroyed before the dispatched coroutine even enters its try block.
+        job.invokeOnCompletion { failure ->
+            if (failure is CancellationException) future.cancel(false)
+            else if (failure != null) future.setException(failure)
         }
         return future
     }
@@ -221,9 +242,27 @@ class PlaybackService : MediaLibraryService() {
 
     private fun <T> List<T>.page(page: Int, pageSize: Int): List<T> {
         if (pageSize <= 0 || pageSize == Int.MAX_VALUE) return this
-        val from = page.coerceAtLeast(0) * pageSize
-        return if (from >= size) emptyList() else subList(from, minOf(size, from + pageSize))
+        val from = page.coerceAtLeast(0).toLong() * pageSize
+        return if (from >= size) emptyList() else subList(from.toInt(), minOf(size.toLong(), from + pageSize).toInt())
     }
+}
+
+
+/** A successful empty/filtered scan is valid; track count is never a readiness signal. */
+internal suspend fun awaitBrowsableLibrary(graph: AppGraph) {
+    graph.isRestoringBackup.first { !it }
+    graph.awaitLibraryScan()
+    if (!graph.source.hasAccess.value || !graph.hasCompleteLibraryScan.value ||
+        graph.isLibraryLoading.value || graph.isRestoringBackup.value || graph.libraryRefreshFailure.value != null) {
+        throw LibrarySnapshotUnavailableException()
+    }
+}
+
+/** Native onEvents may still describe the previous item until this main-loop turn ends. */
+@OptIn(UnstableApi::class)
+internal fun playbackResumptionResult(controller: PlaybackController): MediaSession.MediaItemsWithStartPosition {
+    val entry = checkNotNull(controller.queue.value.current?.takeIf { it.isAvailable }) { "No available music" }
+    return MediaSession.MediaItemsWithStartPosition(listOf(entry.track.toMediaItem()), 0, C.TIME_UNSET)
 }
 
 
@@ -256,38 +295,5 @@ internal fun browseTree(context: android.content.Context, graph: AppGraph): Brow
                 songs = { resources.getQuantityString(R.plurals.browse_songs, it, it) },
             ),
         )
-    }
-}
-
-/**
- * The single button of headphones and headsets: one press plays or pauses, two skip to the next
- * song, three go back. Presses within [TAP_WINDOW_MS] of each other count as one gesture.
- * Other media keys (next, previous, play, pause from widgets or cars) keep their default meaning.
- */
-private class HeadsetButtons(private val controller: PlaybackController) {
-    private val handler = Handler(Looper.getMainLooper())
-    private var presses = 0
-    private val resolve = Runnable {
-        when (presses) {
-            1 -> controller.togglePlayPause()
-            2 -> controller.skipToNext()
-            else -> controller.skipToPrevious()
-        }
-        presses = 0
-    }
-
-    fun handle(intent: Intent): Boolean {
-        val event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java) ?: return false
-        if (event.keyCode != KeyEvent.KEYCODE_HEADSETHOOK && event.keyCode != KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) return false
-        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
-            presses++
-            handler.removeCallbacks(resolve)
-            handler.postDelayed(resolve, TAP_WINDOW_MS)
-        }
-        return true
-    }
-
-    private companion object {
-        const val TAP_WINDOW_MS = 400L
     }
 }
