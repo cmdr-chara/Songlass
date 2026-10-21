@@ -1,0 +1,3 @@
+<resources>
+    <string name="backup_export_interrupted">The previous export request cannot be resumed safely. A document already created may be empty, incomplete or already saved. Check the destination, then export again if needed.</string>
+</resources>

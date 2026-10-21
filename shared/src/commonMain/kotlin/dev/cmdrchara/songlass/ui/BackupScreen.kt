@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
 
-private enum class BackupNotice { None, Saved, Restored, Failed, Invalid, PreviewChanged, LibraryUnavailable }
+private enum class BackupNotice { None, Saved, Restored, Failed, Invalid, PreviewChanged, LibraryUnavailable, Interrupted }
 
 /** The file is validated and previewed before an explicit replacement of app data. */
 @Composable
@@ -71,6 +71,7 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
         notice = when (result) {
             BackupFileExport.Saved -> BackupNotice.Saved
             BackupFileExport.Cancelled -> BackupNotice.None
+            BackupFileExport.Interrupted -> BackupNotice.Interrupted
             BackupFileExport.Failed -> BackupNotice.Failed
         }
     }
@@ -92,6 +93,7 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
             FeatureHint(stringResource(when (notice) {
                 BackupNotice.Saved -> Res.string.backup_export_success
                 BackupNotice.Restored -> Res.string.backup_restore_success
+                BackupNotice.Interrupted -> Res.string.backup_export_interrupted
                 BackupNotice.Invalid -> Res.string.backup_invalid
                 BackupNotice.PreviewChanged -> Res.string.backup_preview_changed
                 BackupNotice.LibraryUnavailable -> Res.string.backup_library_unavailable

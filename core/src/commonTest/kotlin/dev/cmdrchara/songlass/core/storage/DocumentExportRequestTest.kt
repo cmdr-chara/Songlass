@@ -1,14 +1,14 @@
-package dev.cmdrchara.songlass.core.playlists
+package dev.cmdrchara.songlass.core.storage
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-class M3uExportRequestTest {
+class DocumentExportRequestTest {
     @Test
     fun aDuplicateResultCannotClaimThePayloadTwice() {
-        val request = M3uExportRequest("#EXTM3U\n/song-a.flac\n")
+        val request = DocumentExportRequest("#EXTM3U\n/song-a.flac\n")
         assertEquals("#EXTM3U\n/song-a.flac\n", request.claim())
         assertNull(request.claim())
     }
@@ -16,13 +16,13 @@ class M3uExportRequestTest {
     @Test
     fun aLateResultAfterRecreationCannotWriteANewRequestsContent() {
         val writes = mutableListOf<Pair<String, String>>()
-        fun callback(request: M3uExportRequest): (String) -> Unit = { destination ->
+        fun callback(request: DocumentExportRequest): (String) -> Unit = { destination ->
             request.claim()?.let { writes += destination to it }
         }
-        val oldRequest = M3uExportRequest("playlist A")
+        val oldRequest = DocumentExportRequest("playlist A")
         val oldResult = callback(oldRequest)
         oldRequest.invalidate() // The old Activity/UI registration is disposed.
-        val newRequest = M3uExportRequest("playlist B")
+        val newRequest = DocumentExportRequest("playlist B")
         val newResult = callback(newRequest)
         oldResult("destination A")
         assertTrue(writes.isEmpty())
@@ -33,8 +33,8 @@ class M3uExportRequestTest {
 
     @Test
     fun cancellationDoesNotConsumeAnotherRequestsPayload() {
-        val cancelled = M3uExportRequest("cancelled")
-        val retry = M3uExportRequest("retry")
+        val cancelled = DocumentExportRequest("cancelled")
+        val retry = DocumentExportRequest("retry")
         cancelled.invalidate()
         cancelled.invalidate()
         assertNull(cancelled.claim())
@@ -43,11 +43,11 @@ class M3uExportRequestTest {
 
     @Test
     fun aFailedProviderWriteNeedsANewExplicitRequest() {
-        val failed = M3uExportRequest("playlist")
+        val failed = DocumentExportRequest("playlist")
         assertEquals("playlist", failed.claim()) // The provider can fail after accepting a result.
         failed.invalidate()
         assertNull(failed.claim())
-        val explicitRetry = M3uExportRequest("playlist")
+        val explicitRetry = DocumentExportRequest("playlist")
         assertEquals("playlist", explicitRetry.claim())
     }
 }

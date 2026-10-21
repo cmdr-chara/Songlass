@@ -1,0 +1,3 @@
+<resources>
+    <string name="backup_export_interrupted">La richiesta di esportazione precedente non può essere ripresa in modo sicuro. Un documento già creato potrebbe essere vuoto, incompleto o già salvato. Controlla la destinazione, poi esporta di nuovo se necessario.</string>
+</resources>

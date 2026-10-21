@@ -25,6 +25,9 @@ sealed interface BackupFileExport {
     /** The user closed the picker without choosing a location; nothing was written. */
     data object Cancelled : BackupFileExport
 
+    /** The old picker lost its UI owner before accepting a location. Start a new export explicitly. */
+    data object Interrupted : BackupFileExport
+
     /** The location could not be written; a partly written file is removed where the system allows. */
     data object Failed : BackupFileExport
 }

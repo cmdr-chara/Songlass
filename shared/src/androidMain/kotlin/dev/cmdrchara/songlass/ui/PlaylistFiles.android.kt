@@ -17,7 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import dev.cmdrchara.songlass.core.playlists.M3u
-import dev.cmdrchara.songlass.core.playlists.M3uExportRequest
+import dev.cmdrchara.songlass.core.storage.DocumentExportRequest
 import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.InfoSheet
 import dev.cmdrchara.songlass.shared.resources.*
@@ -82,7 +82,7 @@ private enum class PlaylistExportNotice { Saved, Failed, Interrupted }
 
 private class PlaylistExportRegistrations {
     var active = true
-    val launchers = mutableMapOf<M3uExportRequest, ActivityResultLauncher<String>>()
+    val launchers = mutableMapOf<DocumentExportRequest, ActivityResultLauncher<String>>()
 
     fun dispose() {
         active = false
@@ -131,7 +131,7 @@ actual fun rememberPlaylistExporter(): ((fileName: String, content: String) -> U
     return { fileName, content ->
         if (registrations.active && !busy) {
             val requestId = UUID.randomUUID().toString()
-            val request = M3uExportRequest(content)
+            val request = DocumentExportRequest(content)
             busy = true
             saved = null
             unfinishedRequestId = requestId
