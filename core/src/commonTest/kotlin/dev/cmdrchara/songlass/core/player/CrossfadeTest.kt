@@ -109,6 +109,41 @@ class CrossfadeTest {
     }
 
     @Test
+    fun manualResumeUsesTheRemainingIncomingAudio() {
+        val plan = Crossfade.manualPlan(12_000, fourMinutes, 30_000, 10_000, incomingPositionMs = 29_000)
+        assertEquals(CrossfadePlan(10_000, 500), plan)
+        assertNull(Crossfade.manualPlan(12_000, fourMinutes, 30_000, 10_000, incomingPositionMs = 29_900))
+    }
+
+    @Test
+    fun aKnownBookmarkAtOrBeyondTheEndIsTooShortRatherThanUnknown() {
+        for (position in listOf(29_900L, 30_000L, Long.MAX_VALUE)) {
+            val decision = Crossfade.decide(CrossfadeKind.Manual, 12_000, fourMinutes, 30_000,
+                positionMs = 10_000, incomingPositionMs = position)
+            assertNull(decision.plan)
+            assertEquals(CrossfadeSkipReason.TooShort, decision.skipReason)
+        }
+    }
+
+    @Test
+    fun negativeIncomingPositionsAreClampedAndUnknownDurationStaysUnknown() {
+        assertEquals(
+            Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, 10_000),
+            Crossfade.manualPlan(1_250, fourMinutes, fourMinutes, 10_000, incomingPositionMs = Long.MIN_VALUE),
+        )
+        val unknown = Crossfade.decide(CrossfadeKind.Manual, 1_250, fourMinutes, 0,
+            incomingPositionMs = 1_500)
+        assertEquals(CrossfadeSkipReason.UnknownDuration, unknown.skipReason)
+    }
+
+    @Test
+    fun automaticJoinsStillStartTheirIncomingTrackAtZero() {
+        val baseline = Crossfade.decide(CrossfadeKind.Automatic, 4_000, fourMinutes, 30_000)
+        assertEquals(baseline, Crossfade.decide(CrossfadeKind.Automatic, 4_000, fourMinutes, 30_000,
+            incomingPositionMs = 29_900))
+    }
+
+    @Test
     fun eligibilityExplainsWhyATransitionCannotRun() {
         fun reason(ms: Long = 1_250, out: Long = fourMinutes, incoming: Long = fourMinutes,
             same: Boolean = false, supported: Boolean = true, playing: Boolean = true) =

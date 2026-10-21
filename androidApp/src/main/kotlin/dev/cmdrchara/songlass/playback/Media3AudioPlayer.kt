@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.playback
 
 import android.net.Uri
 import android.os.Handler
+import android.os.SystemClock
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -18,8 +19,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.core.equalizer.EqChain
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.model.isSameFileAs
 import dev.cmdrchara.songlass.core.player.AudioFormatInfo
 import dev.cmdrchara.songlass.core.player.AudioPlayer
+import dev.cmdrchara.songlass.core.player.AudioOutputRoute
+import dev.cmdrchara.songlass.core.player.OutputDisconnect
+import dev.cmdrchara.songlass.core.player.ReplayGainApplication
 import dev.cmdrchara.songlass.core.player.Crossfade
 import dev.cmdrchara.songlass.core.player.CrossfadeKind
 import dev.cmdrchara.songlass.core.player.CrossfadeSkipReason
@@ -40,6 +45,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -70,8 +77,17 @@ class Media3AudioPlayer(
 ) : AudioPlayer {
     override var eventGeneration: Long = 0
         private set
+    override var latestAdvance: PlayerEvent.AdvancedToNext? = null
+        private set
+    private var advanceSerial = 0L
+    override val monotonicTimeMs: Long get() = SystemClock.elapsedRealtime()
+    override var latestDisconnect: OutputDisconnect? = null
+        private set
+    private var disconnectOccurrence = 0L
+    /** Native focus/item callbacks must not expose a half-committed automatic handover. */
+    private var automaticHandoverInProgress = false
     override val supportsCrossfade: Boolean get() = standbyFactory != null
-    private val _state = MutableStateFlow(PlayerState())
+    private val _state = MutableStateFlow(PlayerState(outputRoute = AudioOutputRoute()))
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
 
     private val _events = MutableSharedFlow<PlayerEvent>(extraBufferCapacity = 16)
@@ -108,6 +124,7 @@ class Media3AudioPlayer(
     }
 
     private var positionJob: Job? = null
+    private var processingJob: Job? = null
     private var nextTrack: Track? = null
     private var nextEntryId: Long? = null
     private var nextPlacement = NextPlacement.None
@@ -117,6 +134,9 @@ class Media3AudioPlayer(
     private var initialPositionMs = 0L
     private var outputVolume = 1f
     private var replayGainMode = ReplayGainMode.Off
+    private var replayGainSnapshot = ReplayGainApplication(ReplayGainMode.Off, 1f)
+    private var replayGainSnapshotTags: ReplayGainTags? = null
+    private var outputRoute = AudioOutputRoute()
     override val handlesReplayGain: Boolean get() = true
     private var chain: EqChain = EqChain.Flat
 
@@ -143,6 +163,15 @@ class Media3AudioPlayer(
 
     init {
         attach(primary)
+        // Follow the current voice, cancelling the old subscription on each crossfade handover.
+        // Processor configuration also updates information while paused, without another poller.
+        processingJob = scope.launch {
+            activePlayer.collectLatest { observedPlayer ->
+                active.equalizer?.processingInfo?.collect {
+                    if (active.player === observedPlayer) publishState()
+                }
+            }
+        }
     }
 
     private fun attach(voice: PlayerVoice) {
@@ -162,12 +191,16 @@ class Media3AudioPlayer(
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
-                if (playWhenReady && voice === active) reportedDisconnect = false
+                if (playWhenReady && (voice === active || voice === fading)) {
+                    latestDisconnect = null
+                    reportedDisconnect = false
+                }
                 // Either receiver can observe the unplug first. Report before mirroring the pause,
                 // which otherwise turns the active voice's later callback into a no-op.
                 if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY &&
                     (voice === active || voice === fading) && !reportedDisconnect) {
                     reportedDisconnect = true
+                    latestDisconnect = OutputDisconnect(++disconnectOccurrence, monotonicTimeMs)
                     _events.tryEmit(PlayerEvent.PausedByDisconnect)
                 }
                 // Only one player owns audio focus and each one watches its own noisy-output
@@ -255,12 +288,14 @@ class Media3AudioPlayer(
 
     override fun load(track: Track, playWhenReady: Boolean) {
         eventGeneration++
+        latestAdvance = null
         interrupt(CrossfadeInterruption.Load)
         returnToPrimaryIfDisabled()
         val voice = active
         voice.track = track
         if (track.id == editingTrackId) {
             resumeAfterEdit = playWhenReady
+            positionAfterEdit = initialPositionMs
             voice.player.stop()
             return
         }
@@ -279,9 +314,10 @@ class Media3AudioPlayer(
         val outgoing = active
         val decision = Crossfade.decide(
             CrossfadeKind.Manual, manualCrossfadeMs, durationOf(outgoing), track.durationMs,
-            outgoing.player.currentPosition, sameTrack = outgoing.track?.id == track.id,
+            outgoing.player.currentPosition, sameTrack = outgoing.track?.isSameFileAs(track) == true,
             supported = supportsCrossfade,
             playing = playWhenReady && outgoing.player.isPlaying,
+            incomingPositionMs = initialPositionMs,
         )
         // Repeated commands take control immediately; never create a third voice or let a stale
         // pending request replace the newly selected track. A file write must also remain exclusive.
@@ -303,15 +339,23 @@ class Media3AudioPlayer(
             return
         }
         eventGeneration++
+        latestAdvance = null
         handler.removeCallbacks(trigger)
         handler.removeCallbacks(tick)
         removeNextFromActive()
-        val reusable = incoming.track?.id == track.id && incoming.player.mediaItemCount > 0 && incoming.player.playerError == null
+        val reusable = incoming.track?.isSameFileAs(track) == true &&
+            incoming.player.mediaItemCount > 0 && incoming.player.playerError == null
         if (!reusable) incoming.reset()
         incoming.track = track
         if (!reusable) incoming.replayGain = null
         incoming.envelope = 0f
         updateBaseVolume(incoming)
+        // A reused standby's seek delivers POSITION_DISCONTINUITY(SEEK) synchronously. Keep
+        // it spare and paused until its requested start position is set, otherwise the ordinary
+        // user-seek handler would cancel the manual overlap we are about to prepare.
+        incoming.player.playWhenReady = false
+        if (!reusable) incoming.player.setMediaItem(track.toMediaItem(), initialPositionMs)
+        else if (incoming.player.currentPosition != initialPositionMs) incoming.player.seekTo(initialPositionMs)
         // The requested track becomes visible immediately in buffering state. Its predecessor is
         // only an audible tail, never the source of position, tags or future queue-advance events.
         active = incoming
@@ -320,8 +364,6 @@ class Media3AudioPlayer(
         fadePlan = null
         nextPlacement = NextPlacement.None
         nextSkipReason = null
-        if (!reusable) incoming.player.setMediaItem(track.toMediaItem(), initialPositionMs)
-        else if (initialPositionMs > 0L) incoming.player.seekTo(initialPositionMs)
         // Decode while paused: the target's intro must not advance silently while READY waits
         // for the application looper. The pending intent is exposed by publishState instead.
         incoming.player.playWhenReady = false
@@ -349,7 +391,7 @@ class Media3AudioPlayer(
 
     override fun updateMetadata(track: Track) {
         val voice = active
-        if (voice.track?.id != track.id) return
+        if (voice.track?.isSameFileAs(track) != true) return
         voice.track = track
         if (track.id == editingTrackId) return
         val player = voice.player
@@ -380,8 +422,7 @@ class Media3AudioPlayer(
             editingTrackId = null
             val latest = loadedTrack
             if (latest?.id == track.id) {
-                load(latest, resumeAfterEdit)
-                seekTo(positionAfterEdit)
+                loadAt(latest, resumeAfterEdit, positionAfterEdit)
             } else if (nextTrack?.id == track.id) reconcileNext(force = true)
         }
     }
@@ -396,6 +437,13 @@ class Media3AudioPlayer(
         replayGainMode = mode
         updateBaseVolume(primary)
         secondary?.let(::updateBaseVolume)
+        publishState()
+    }
+
+    override fun setOutputRoute(route: AudioOutputRoute) {
+        if (outputRoute == route) return
+        outputRoute = route
+        publishState()
     }
 
     private fun updateBaseVolume(voice: PlayerVoice) {
@@ -445,6 +493,9 @@ class Media3AudioPlayer(
     }
 
     override fun seekTo(positionMs: Long) {
+        if (loadedTrack == null) return
+        eventGeneration++
+        latestAdvance = null
         if (loadedTrack?.id == editingTrackId && editingTrackId != null) { positionAfterEdit = positionMs.coerceAtLeast(0); return }
         // Seeking during an overlap means the user takes over the incoming track.
         interrupt(CrossfadeInterruption.Seek)
@@ -455,6 +506,7 @@ class Media3AudioPlayer(
 
     override fun stop() {
         eventGeneration++
+        latestAdvance = null
         interrupt(CrossfadeInterruption.Stop)
         active.track = null
         active.player.pause()
@@ -482,8 +534,10 @@ class Media3AudioPlayer(
 
     override fun release() {
         eventGeneration++
+        latestAdvance = null
         handler.removeCallbacksAndMessages(null)
         positionJob?.cancel()
+        processingJob?.cancel()
         fading = null
         fadePlan = null
         manualPreparing = null
@@ -492,7 +546,7 @@ class Media3AudioPlayer(
         primary.player.release()
         secondary?.player?.release()
         secondary = null
-        _state.value = PlayerState()
+        _state.value = PlayerState(outputRoute = outputRoute)
     }
 
     /** What the crossfade is doing, for runtime checks. Contains no user data. */
@@ -572,8 +626,9 @@ class Media3AudioPlayer(
         if (incoming.player.playbackState != Player.STATE_READY) return
         val decision = Crossfade.decide(
             CrossfadeKind.Manual, requested, durationOf(outgoing), durationOf(incoming),
-            outgoing.player.currentPosition, sameTrack = outgoing.track?.id == incoming.track?.id,
+            outgoing.player.currentPosition, sameTrack = incoming.track?.let { outgoing.track?.isSameFileAs(it) } == true,
             playing = outgoing.player.isPlaying,
+            incomingPositionMs = incoming.player.currentPosition,
         )
         val plan = decision.plan
         if (plan == null) {
@@ -644,7 +699,7 @@ class Media3AudioPlayer(
         nextSkipReason = if (desired == NextPlacement.Active && current != null && next != null) {
             if (noOverlapFor == next.id) noOverlapReason ?: CrossfadeSkipReason.NotReady
             else Crossfade.decide(CrossfadeKind.Automatic, crossfadeMs, durationOf(active), next.durationMs,
-                sameTrack = current.id == next.id, supported = supportsCrossfade).skipReason
+                sameTrack = current.isSameFileAs(next), supported = supportsCrossfade).skipReason
         } else null
         when (desired) {
             NextPlacement.Standby -> {
@@ -666,7 +721,7 @@ class Media3AudioPlayer(
 
     private fun wantsOverlap(current: Track, next: Track): Boolean =
         crossfadeMs >= Crossfade.MIN_EFFECTIVE_MS && standbyFactory != null && noOverlapFor != next.id &&
-            Crossfade.plan(crossfadeMs, durationOf(active), next.durationMs, 0, sameTrack = next.id == current.id) != null
+            Crossfade.plan(crossfadeMs, durationOf(active), next.durationMs, 0, sameTrack = current.isSameFileAs(next)) != null
 
     private fun durationOf(voice: PlayerVoice): Long =
         voice.player.duration.takeIf { it > 0 } ?: voice.track?.durationMs ?: 0L
@@ -693,7 +748,7 @@ class Media3AudioPlayer(
     private fun prepareStandby(next: Track, force: Boolean) {
         val voice = spareVoice(create = true) ?: return
         val player = voice.player
-        if (!force && voice.track?.id == next.id && player.mediaItemCount > 0 && player.playerError == null) return
+        if (!force && voice.track?.isSameFileAs(next) == true && player.mediaItemCount > 0 && player.playerError == null) return
         voice.track = next
         voice.replayGain = null
         // Silent before anything is decoded, so the first buffers never play at full volume.
@@ -727,17 +782,17 @@ class Media3AudioPlayer(
         val player = active.player
         if (player.mediaItemCount == 0) return
         val index = player.currentMediaItemIndex + 1
-        if (!force && player.mediaItemCount == index + 1 && player.getMediaItemAt(index).mediaId == next.id) return
+        if (!force && player.mediaItemCount == index + 1 && player.getMediaItemAt(index).matchesTrack(next)) return
         if (player.mediaItemCount > index) player.removeMediaItems(index, player.mediaItemCount)
         player.addMediaItem(next.toMediaItem())
     }
 
     private fun overlapFor(outgoing: PlayerVoice, next: Track, positionMs: Long): CrossfadePlan? {
         val standby = spareVoice(create = false)
-        val incomingDuration = standby?.takeIf { it.track?.id == next.id }?.let(::durationOf) ?: next.durationMs
+        val incomingDuration = standby?.takeIf { it.track?.isSameFileAs(next) == true }?.let(::durationOf) ?: next.durationMs
         return Crossfade.plan(
             crossfadeMs, durationOf(outgoing), incomingDuration, positionMs,
-            sameTrack = next.id == outgoing.track?.id,
+            sameTrack = outgoing.track?.isSameFileAs(next) == true,
         )
     }
 
@@ -767,7 +822,7 @@ class Media3AudioPlayer(
             return
         }
         val standby = spareVoice(create = false)
-        if (standby == null || standby.track?.id != next.id || standby.player.playbackState != Player.STATE_READY) {
+        if (standby == null || standby.track?.isSameFileAs(next) != true || standby.player.playbackState != Player.STATE_READY) {
             // Still opening the file. The overlap shrinks as time passes and gives way to the
             // gapless join once there is too little left.
             handler.postDelayed(trigger, STANDBY_POLL_MS)
@@ -798,42 +853,51 @@ class Media3AudioPlayer(
         val next = nextTrack ?: return false
         val consumedId = nextEntryId
         val consumedGeneration = eventGeneration
-        if (nextPlacement != NextPlacement.Standby || incoming.track?.id != next.id ||
+        if (nextPlacement != NextPlacement.Standby || incoming.track?.isSameFileAs(next) != true ||
             incoming.player.playbackState != Player.STATE_READY || incoming.player.playerError != null
         ) return false
         val outgoing = active
         handler.removeCallbacks(trigger)
-        // The standby decoder already knows this file's own loudness tags.
-        incoming.baseVolume = outputVolume * ReplayGain.volumeFor(incoming.replayGain, replayGainMode)
-        incoming.envelope = if (overlap != null) 0f else 1f
-        incoming.applyVolume()
-        // From here on the incoming track is the current one for every listener.
-        active = incoming
-        nextTrack = null
-        nextEntryId = null
-        nextPlacement = NextPlacement.None
-        if (overlap != null) {
-            fading = outgoing
-            fadePlan = overlap
-            overlapsStarted++
-        } else {
-            handOvers++
-            incoming.setFocusOwner(true)
-            outgoing.setFocusOwner(false)
-            outgoing.reset()
+        automaticHandoverInProgress = true
+        val advance = try {
+            // The standby decoder already knows this file's own loudness tags.
+            incoming.baseVolume = outputVolume * ReplayGain.volumeFor(incoming.replayGain, replayGainMode)
+            incoming.envelope = if (overlap != null) 0f else 1f
+            incoming.applyVolume()
+            active = incoming
+            nextTrack = null
+            nextEntryId = null
+            nextPlacement = NextPlacement.None
+            if (overlap != null) {
+                fading = outgoing
+                fadePlan = overlap
+                overlapsStarted++
+            } else {
+                handOvers++
+                incoming.setFocusOwner(true)
+                outgoing.setFocusOwner(false)
+                outgoing.reset()
+            }
+            lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Automatic, crossfadeMs,
+                effectiveDurationMs = overlap?.durationMs ?: 0L,
+                skipReason = if (overlap == null) CrossfadeSkipReason.TooShort else null)
+            incoming.player.playWhenReady = true
+            updatePositionPolling()
+            PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next, ++advanceSerial).also {
+                latestAdvance = it
+            }
+        } finally {
+            automaticHandoverInProgress = false
         }
-        lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Automatic, crossfadeMs,
-            effectiveDurationMs = overlap?.durationMs ?: 0L,
-            skipReason = if (overlap == null) CrossfadeSkipReason.TooShort else null)
-        incoming.player.playWhenReady = true
-        _activePlayer.value = incoming.player
-        updatePositionPolling()
+        // The incoming state is now coherent. A synchronous observer may pause, seek or replace
+        // it here; nothing below may restore its old intent or resurrect its interrupted fade.
         publishState()
-        _events.tryEmit(PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next))
-        if (overlap != null) {
+        if (active === incoming) _activePlayer.value = incoming.player
+        _events.tryEmit(advance)
+        if (overlap != null && fading === outgoing && fadePlan === overlap) {
             handler.removeCallbacks(tick)
             handler.post(tick)
-        } else {
+        } else if (overlap == null && active === incoming && eventGeneration == consumedGeneration) {
             reconcileNext()
         }
         return true
@@ -907,20 +971,28 @@ class Media3AudioPlayer(
         val next = nextTrack ?: return
         val consumedId = nextEntryId
         val consumedGeneration = eventGeneration
-        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || mediaItem?.mediaId != next.id) return
+        if (reason != Player.MEDIA_ITEM_TRANSITION_REASON_AUTO || mediaItem?.matchesTrack(next) != true) return
         lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Automatic, crossfadeMs,
             skipReason = nextSkipReason ?: CrossfadeSkipReason.NotReady)
         // The prepared next track took over: it becomes the current one.
         val voice = active
-        voice.track = next
-        nextTrack = null
-        nextEntryId = null
-        nextPlacement = NextPlacement.None
-        voice.replayGain = null
-        val index = voice.player.currentMediaItemIndex
-        if (index > 0) voice.player.removeMediaItems(0, index)
+        automaticHandoverInProgress = true
+        val advance = try {
+            voice.track = next
+            nextTrack = null
+            nextEntryId = null
+            nextPlacement = NextPlacement.None
+            voice.replayGain = null
+            val index = voice.player.currentMediaItemIndex
+            if (index > 0) voice.player.removeMediaItems(0, index)
+            PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next, ++advanceSerial).also {
+                latestAdvance = it
+            }
+        } finally {
+            automaticHandoverInProgress = false
+        }
         publishState()
-        _events.tryEmit(PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next))
+        _events.tryEmit(advance)
     }
 
     private fun onActiveEnded() {
@@ -950,8 +1022,10 @@ class Media3AudioPlayer(
     }
 
     private fun publishState() {
+        if (automaticHandoverInProgress) return
         val player = active.player
         val error: PlaybackException? = player.playerError
+        val infoReady = currentTrackIsReady()
         _state.value = PlayerState(
             status = when {
                 error != null -> PlayerStatus.Error
@@ -968,16 +1042,34 @@ class Media3AudioPlayer(
             audioFormat = currentSourceFormat(),
             replayGain = active.replayGain,
             crossfadeStatus = lastCrossfadeStatus,
+            processing = active.equalizer?.processingInfo?.value.takeIf { infoReady },
+            replayGainApplication = if (infoReady) currentReplayGainApplication() else null,
+            outputRoute = outputRoute,
         )
     }
 
-    private fun currentSourceFormat(): AudioFormatInfo? {
-        val track = loadedTrack ?: return null
+    private fun currentReplayGainApplication(): ReplayGainApplication {
+        val tags = active.replayGain
+        if (replayGainSnapshot.mode != replayGainMode || replayGainSnapshotTags != tags) {
+            replayGainSnapshotTags = tags
+            replayGainSnapshot = ReplayGainApplication.fromTags(tags, replayGainMode)
+        }
+        return replayGainSnapshot
+    }
+
+    private fun currentTrackIsReady(): Boolean {
+        val track = loadedTrack ?: return false
         val player = active.player
-        val item = player.currentMediaItem ?: return null
-        if (item.mediaId != track.id || item.localConfiguration?.uri?.toString() != track.uri) return null
+        val item = player.currentMediaItem ?: return false
+        if (!item.matchesTrack(track)) return false
         // A newly loaded item may briefly retain old track groups until preparation completes.
-        if (player.playbackState != Player.STATE_READY && player.playbackState != Player.STATE_ENDED) return null
+        return manualPreparing == null &&
+            (player.playbackState == Player.STATE_READY || player.playbackState == Player.STATE_ENDED)
+    }
+
+    private fun currentSourceFormat(): AudioFormatInfo? {
+        if (!currentTrackIsReady()) return null
+        val player = active.player
         for (group in player.currentTracks.groups) {
             if (group.type != C.TRACK_TYPE_AUDIO) continue
             for (index in 0 until group.length) {
@@ -1030,6 +1122,8 @@ class Media3AudioPlayer(
 private fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaId(id)
     .setUri(uri)
+    // In-process source identity only; LocalConfiguration tags are not metadata or backup data.
+    .setTag(this)
     .setMediaMetadata(
         MediaMetadata.Builder()
             .setTitle(title)
@@ -1043,3 +1137,8 @@ private fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
             .build(),
     )
     .build()
+
+@androidx.annotation.OptIn(UnstableApi::class)
+private fun MediaItem.matchesTrack(track: Track): Boolean =
+    mediaId == track.id && localConfiguration?.uri?.toString() == track.uri &&
+        (localConfiguration?.tag as? Track)?.isSameFileAs(track) == true

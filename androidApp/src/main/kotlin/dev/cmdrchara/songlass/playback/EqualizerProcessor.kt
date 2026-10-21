@@ -5,6 +5,12 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import dev.cmdrchara.songlass.core.equalizer.EqChain
+import dev.cmdrchara.songlass.core.player.AudioProcessingInfo
+import dev.cmdrchara.songlass.core.player.EqualizerProcessing
+import dev.cmdrchara.songlass.core.player.PcmEncoding
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.nio.ByteBuffer
 import kotlin.math.pow
 
@@ -24,17 +30,29 @@ class EqualizerProcessor : BaseAudioProcessor() {
     private var coefficients = DoubleArray(0)
     private var memory = DoubleArray(0)
     private var filterCount = 0
+    private val _processingInfo = MutableStateFlow<AudioProcessingInfo?>(null)
+    val processingInfo: StateFlow<AudioProcessingInfo?> = _processingInfo.asStateFlow()
 
     fun setChain(chain: EqChain) {
         pending = chain
     }
 
     override fun onConfigure(inputAudioFormat: AudioProcessor.AudioFormat): AudioProcessor.AudioFormat {
-        if (inputAudioFormat.encoding != C.ENCODING_PCM_16BIT && inputAudioFormat.encoding != C.ENCODING_PCM_FLOAT) {
+        val encoding = when (inputAudioFormat.encoding) {
+            C.ENCODING_PCM_16BIT -> PcmEncoding.Signed16
+            C.ENCODING_PCM_FLOAT -> PcmEncoding.Float32
+            else -> null
+        }
+        applied = null
+        _processingInfo.value = AudioProcessingInfo(
+            sampleRateHz = inputAudioFormat.sampleRate,
+            channelCount = inputAudioFormat.channelCount,
+            encoding = encoding,
+            equalizer = if (encoding == null) EqualizerProcessing.Unsupported else EqualizerProcessing.AwaitingAudio,
+        )
+        if (encoding == null) {
             return AudioProcessor.AudioFormat.NOT_SET
         }
-        // Coefficients depend on the sample rate.
-        applied = null
         return inputAudioFormat
     }
 
@@ -95,6 +113,16 @@ class EqualizerProcessor : BaseAudioProcessor() {
         filterCount = count
         preamp = 10.0.pow(chain.preampDb / 20.0)
         applied = chain
+        // This branch runs only for a newly configured stream or changed curve. Nothing is
+        // allocated or emitted for ordinary buffers, and no UI work runs on the audio thread.
+        _processingInfo.value = AudioProcessingInfo(
+            sampleRateHz = sampleRate,
+            channelCount = channels,
+            encoding = if (inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT) PcmEncoding.Float32 else PcmEncoding.Signed16,
+            equalizer = if (chain.isFlat) EqualizerProcessing.Bypassed else EqualizerProcessing.Active,
+            headroomDb = chain.preampDb,
+            filterCount = count,
+        )
     }
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
@@ -105,5 +133,6 @@ class EqualizerProcessor : BaseAudioProcessor() {
         applied = null
         memory = DoubleArray(0)
         filterCount = 0
+        _processingInfo.value = null
     }
 }

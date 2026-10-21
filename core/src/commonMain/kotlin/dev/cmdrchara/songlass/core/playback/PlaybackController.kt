@@ -45,6 +45,7 @@ class PlaybackController(
     /** The decoder identity, deliberately independent of refreshed queue metadata. */
     private var loadedTrack: Track? = null
     private var libraryAvailability: TrackAvailability? = null
+    private var handledAdvanceSerial = 0L
 
     /** Playback pauses when the current track ends (sleep timer "end of track"). */
     val stopAfterCurrent: StateFlow<Boolean> = _stopAfterCurrent.asStateFlow()
@@ -52,9 +53,12 @@ class PlaybackController(
     init {
         scope.launch {
             player.events.collect { event ->
+                // State and UI commands can already have observed the incoming decoder while
+                // this Flow event was queued. Reconcile its retained identity before any event.
+                synchronizeNativeAdvance()
                 when (event) {
                     is PlayerEvent.TrackEnded -> if (event.generation == player.eventGeneration) onTrackEnded()
-                    is PlayerEvent.AdvancedToNext -> if (event.generation == player.eventGeneration) onAdvancedToNext(event)
+                    is PlayerEvent.AdvancedToNext -> acceptAdvance(event)
                     // Remembered by the app graph for resuming on reconnect.
                     PlayerEvent.PausedByDisconnect -> Unit
                 }
@@ -65,7 +69,11 @@ class PlaybackController(
         scope.launch {
             var wasPlaying = false
             var previousSignature: TrackSignature? = null
-            player.state.collect { status ->
+            player.state.collect {
+                synchronizeNativeAdvance()
+                // Reconciliation may explicitly load a different continuation. Never pair the
+                // old emitted position with the newly authoritative decoder identity.
+                val status = player.state.value
                 val track = loadedTrack
                 val signature = track?.let(TrackSignature::of)
                 if (track != null) {
@@ -93,11 +101,12 @@ class PlaybackController(
     }
 
     fun setStopAfterCurrent(enabled: Boolean) {
+        synchronizeNativeAdvance()
         _stopAfterCurrent.value = enabled
     }
 
     fun pause() {
-        onUserTransport()
+        beginUserTransport()
         pauseCurrent()
     }
 
@@ -108,7 +117,7 @@ class PlaybackController(
 
     /** External Stop releases the decoder but retains the queue and its exact eligible checkpoint. */
     fun stop() {
-        onUserTransport()
+        beginUserTransport()
         checkpointCurrent(force = true)
         loadedTrack = null
         player.stop()
@@ -116,7 +125,7 @@ class PlaybackController(
 
     /** Plays the current entry if it is paused; does nothing while playing or with an empty queue. */
     fun resume() {
-        onUserTransport()
+        beginUserTransport()
         if (_queue.value.current == null || player.state.value.playWhenReady) return
         toggleCurrentPlayback()
     }
@@ -130,7 +139,7 @@ class PlaybackController(
 
     /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
     fun playTracks(tracks: List<Track>, startIndex: Int = 0, context: PlayContext? = null) {
-        onUserTransport()
+        beginUserTransport()
         val availability = libraryAvailability
         if (tracks.isNotEmpty() && availability != null &&
             availability.resolve(tracks.getOrNull(startIndex) ?: return) == null) return
@@ -141,7 +150,7 @@ class PlaybackController(
     /** Replaces the queue with [tracks] in random order (the "Shuffle" button on an album or playlist). */
     fun shuffleTracks(tracks: List<Track>, context: PlayContext? = null) {
         if (tracks.isEmpty()) return clearQueue()
-        onUserTransport()
+        beginUserTransport()
         val availability = libraryAvailability
         val candidates = tracks.indices.filter { availability == null || availability.resolve(tracks[it]) != null }
         if (candidates.isEmpty()) return
@@ -151,7 +160,7 @@ class PlaybackController(
     }
 
     fun togglePlayPause() {
-        onUserTransport()
+        beginUserTransport()
         toggleCurrentPlayback()
     }
 
@@ -170,7 +179,7 @@ class PlaybackController(
     }
 
     fun seekTo(positionMs: Long) {
-        onUserTransport()
+        beginUserTransport()
         seekCurrent(positionMs)
     }
 
@@ -191,7 +200,7 @@ class PlaybackController(
 
     /** For chapters and bookmarks. Does not change the queue when the track is already active. */
     fun playBookmark(track: Track, positionMs: Long) {
-        onUserTransport()
+        beginUserTransport()
         val target = if (libraryAvailability == null) track else libraryAvailability?.resolve(track) ?: return
         val at = positionMs.coerceIn(0L, target.durationMs.takeIf { it > 0 } ?: Long.MAX_VALUE)
         val status = player.state.value.status
@@ -215,6 +224,7 @@ class PlaybackController(
 
     /** Contextual ±10 s buttons use the same seek semantics as the progress slider. */
     fun skipBy(deltaMs: Long) {
+        synchronizeNativeAdvance()
         val now = player.state.value.positionMs.coerceAtLeast(0)
         val maximum = player.state.value.durationMs.takeIf { it > 0 }
             ?: loadedTrack?.durationMs?.takeIf { it > 0 } ?: Long.MAX_VALUE
@@ -230,7 +240,7 @@ class PlaybackController(
 
     /** Goes to the next entry, keeping the play/pause state. Does nothing at the end of a non-repeating queue. */
     fun skipToNext() {
-        onUserTransport()
+        beginUserTransport()
         val index = _queue.value.nextIndex(userInitiated = true) ?: run {
             if (_queue.value.current?.isTemporary == true) leaveTemporarySegment(manual = true)
             return
@@ -243,7 +253,7 @@ class PlaybackController(
      * otherwise goes to the previous entry (or restarts if there is none).
      */
     fun skipToPrevious() {
-        onUserTransport()
+        beginUserTransport()
         if (player.state.value.positionMs > RESTART_THRESHOLD_MS) return seekCurrent(0)
         val index = _queue.value.previousIndex() ?: return seekCurrent(0)
         moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
@@ -254,30 +264,39 @@ class PlaybackController(
      * there is none). For gestures that show the track changing, such as swiping the mini player.
      */
     fun skipToPreviousTrack() {
-        onUserTransport()
+        beginUserTransport()
         val index = _queue.value.previousIndex() ?: return seekCurrent(0)
         moveTo(index, playWhenReady = player.state.value.playWhenReady, manual = true)
     }
 
     /** Plays the given queue entry (e.g. tapped in the Up Next list). */
     fun skipTo(entryId: Long) {
-        onUserTransport()
+        beginUserTransport()
         val index = _queue.value.indexOf(entryId)
         if (index >= 0 && _queue.value.entries[index].isAvailable) moveTo(index, playWhenReady = true, manual = true)
     }
 
-    fun setShuffle(enabled: Boolean) = _queue.update { it.withShuffle(enabled, random) }
+    fun setShuffle(enabled: Boolean) {
+        synchronizeNativeAdvance()
+        _queue.update { it.withShuffle(enabled, random) }
+    }
 
-    fun cycleRepeatMode() = _queue.update { it.withRepeatMode(it.repeatMode.next()) }
+    fun cycleRepeatMode() {
+        synchronizeNativeAdvance()
+        _queue.update { it.withRepeatMode(it.repeatMode.next()) }
+    }
 
     fun playNext(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks, playNext = true) }
 
     fun addToQueue(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks) }
 
-    fun clearTemporaryQueue() = _queue.update { it.clearTemporary() }
+    fun clearTemporaryQueue() {
+        synchronizeNativeAdvance()
+        _queue.update { it.clearTemporary() }
+    }
 
     fun returnToSource() {
-        onUserTransport()
+        beginUserTransport()
         leaveTemporarySegment(manual = true)
     }
 
@@ -289,6 +308,7 @@ class PlaybackController(
     }
 
     fun removeFromQueue(entryId: Long) {
+        synchronizeNativeAdvance()
         val before = _queue.value.current
         if (before?.id == entryId) onUserTransport()
         _queue.update { it.remove(entryId) }
@@ -299,10 +319,23 @@ class PlaybackController(
         }
     }
 
-    fun moveInQueue(fromIndex: Int, toIndex: Int) = _queue.update { it.move(fromIndex, toIndex) }
+    fun moveInQueue(fromIndex: Int, toIndex: Int) {
+        val before = _queue.value
+        val movingId = before.entries.getOrNull(fromIndex)?.id
+        val targetId = before.entries.getOrNull(toIndex)?.id
+        synchronizeNativeAdvance()
+        if (movingId == null || targetId == null) return
+        _queue.update { queue ->
+            // Consuming a temporary row can change both indices during synchronization.
+            val from = queue.indexOf(movingId)
+            val to = queue.indexOf(targetId)
+            if (from < 0 || to < 0) queue else queue.move(from, to)
+        }
+    }
 
     /** Accessible/drag actions can outlive their composed row; resolve its slot at execution. */
     fun moveQueueEntry(entryId: Long, direction: Int): Boolean {
+        synchronizeNativeAdvance()
         if (direction != -1 && direction != 1) return false
         var moved = false
         _queue.update { queue ->
@@ -317,6 +350,7 @@ class PlaybackController(
 
     /** Saved file tags must reach every duplicate slot and the hidden unshuffled order. */
     fun refreshTracks(tracks: List<Track>) {
+        synchronizeNativeAdvance()
         val availability = TrackAvailability(tracks)
         libraryAvailability = availability
         _queue.update { it.withResolvedTracks(availability::resolve) }
@@ -327,7 +361,7 @@ class PlaybackController(
     }
 
     fun clearQueue() {
-        onUserTransport()
+        beginUserTransport()
         checkpointCurrent(force = true)
         loadedTrack = null
         _queue.update { PlaybackQueue(repeatMode = it.repeatMode) }
@@ -335,6 +369,7 @@ class PlaybackController(
     }
 
     private fun addTracks(change: (PlaybackQueue) -> PlaybackQueue) {
+        synchronizeNativeAdvance()
         val wasEmpty = _queue.value.current == null
         _queue.update { before ->
             val changed = change(before)
@@ -388,6 +423,25 @@ class PlaybackController(
         try { write() } catch (_: Exception) { }
     }
 
+    private fun beginUserTransport() {
+        synchronizeNativeAdvance()
+        onUserTransport()
+    }
+
+    private fun synchronizeNativeAdvance() {
+        player.latestAdvance?.let(::acceptAdvance)
+    }
+
+    private fun acceptAdvance(event: PlayerEvent.AdvancedToNext) {
+        if (event.generation != player.eventGeneration) return
+        if (event.serial > 0L) {
+            if (event.serial <= handledAdvanceSerial) return
+            // Mark before queue/state changes can synchronously re-enter an observer.
+            handledAdvanceSerial = event.serial
+        }
+        onAdvancedToNext(event)
+    }
+
     private fun checkpointCurrent(force: Boolean = false) {
         val track = loadedTrack ?: return
         if (!preferences().resumePerTrack) return
@@ -399,6 +453,7 @@ class PlaybackController(
     private fun onTrackEnded() {
         loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
         val queue = _queue.value
+        val playing = player.state.value.playWhenReady
         val index = queue.nextIndex(userInitiated = false) ?: run {
             _stopAfterCurrent.value = false
             if (queue.current?.isTemporary == true) leaveTemporarySegment(manual = false)
@@ -411,9 +466,9 @@ class PlaybackController(
         }
         if (index == queue.currentIndex) {
             seekCurrent(0, explicit = false)
-            player.play()
+            if (playing) player.play()
         } else {
-            moveTo(index, playWhenReady = true)
+            moveTo(index, playWhenReady = playing)
         }
     }
 
@@ -440,9 +495,11 @@ class PlaybackController(
             return
         }
         val index = exact ?: before.nextIndex(userInitiated = false) ?: return
+        // Queue observers can synchronously prepare the following item and publish player
+        // state. Attribute those callbacks to this incoming file before notifying observers.
+        loadedTrack = before.entries[index].track
         _timeline.update { it.copy(occurrenceId = it.occurrenceId + 1) }
         _queue.update { it.withCurrentIndex(index) }
-        loadedTrack = _queue.value.current?.track
         if (_stopAfterCurrent.value) {
             // The end-of-track request raced with an already-started native join.
             _stopAfterCurrent.value = false

@@ -65,7 +65,8 @@ class AppGraph(
 ) {
     val settings = AppSettings(store)
     val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
-    val controller = PlaybackController(player, scope, markers = trackMarkers, preferences = { settings.state.value })
+    val controller = PlaybackController(player, scope, markers = trackMarkers,
+        onUserTransport = { outputResume.cancel() }, preferences = { settings.state.value })
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store)
     val pins = Pins(store)
@@ -91,7 +92,9 @@ class AppGraph(
     val autoEq = dev.cmdrchara.songlass.ui.autoEqRepository(store, equalizer)
     val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })
     private val playCounter = PlayCounter()
-    private val outputResume = OutputResume(clock = { Clock.System.now().toEpochMilliseconds() })
+    private val outputResume = OutputResume(
+        clock = { player.monotonicTimeMs }, latestDisconnect = { player.latestDisconnect },
+    )
 
     private val _isLibraryLoading = MutableStateFlow(false)
     val isLibraryLoading: StateFlow<Boolean> = _isLibraryLoading.asStateFlow()

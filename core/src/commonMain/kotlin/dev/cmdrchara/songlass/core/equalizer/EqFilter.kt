@@ -12,6 +12,10 @@ enum class FilterType { Peaking, LowShelf, HighShelf }
 
 /** One second-order filter of an equalizer, as AutoEQ and most parametric equalizers describe it. */
 data class EqFilter(val type: FilterType, val frequencyHz: Double, val gainDb: Double, val q: Double) {
+    /** The same supported domain as imported AutoEQ profiles; persisted data is not trusted. */
+    val isSupported: Boolean get() = frequencyHz.isFinite() && frequencyHz in 10.0..22_000.0 &&
+        gainDb.isFinite() && gainDb in -24.0..24.0 && q.isFinite() && q in 0.1..10.0
+
     /** Biquad coefficients for [sampleRate] (Robert Bristow-Johnson's Audio EQ Cookbook), normalised by a0. */
     fun coefficients(sampleRate: Int): Biquad {
         // A filter above Nyquist is meaningless: keep it just below.
@@ -73,7 +77,8 @@ data class Biquad(val b0: Double, val b1: Double, val b2: Double, val a1: Double
 
 /**
  * What the player applies: [filters] in series after a [preampDb] attenuation that leaves room
- * for the boosts, so the result never clips.
+ * for the estimated response of the boosts. It is not a guarantee about inter-sample peaks or
+ * later processing in the platform and the output device.
  */
 data class EqChain(val filters: List<EqFilter>, val preampDb: Double) {
     val isFlat: Boolean get() = filters.all { it.gainDb == 0.0 } && preampDb == 0.0

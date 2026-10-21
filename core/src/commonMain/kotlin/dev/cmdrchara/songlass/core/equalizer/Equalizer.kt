@@ -27,7 +27,8 @@ object GraphicEq {
         frequencies.zip(gains) { f, g -> EqFilter(FilterType.Peaking, f, g, Q) }
 
     fun snap(gainDb: Double): Double =
-        ((gainDb.coerceIn(-MAX_GAIN_DB, MAX_GAIN_DB) / STEP_DB).roundToInt() * STEP_DB)
+        if (!gainDb.isFinite()) 0.0
+        else ((gainDb.coerceIn(-MAX_GAIN_DB, MAX_GAIN_DB) / STEP_DB).roundToInt() * STEP_DB)
 }
 
 /** Ready-made curves for the graphic equalizer. */
@@ -50,6 +51,15 @@ data class HeadphoneProfile(val id: String, val name: String, val filters: List<
 data class EqOutput(val id: String, val name: String)
 data class OutputEqProfile(val output: EqOutput, val enabled: Boolean, val gains: List<Double>, val profileId: String?)
 
+/** The persistent manual fallback, shown without switching away from a bound output curve. */
+data class ManualEqCurve(
+    val enabled: Boolean = false,
+    val gains: List<Double> = GraphicEq.flat,
+    val profileId: String? = null,
+) {
+    val preset: EqPreset? get() = EqPreset.entries.firstOrNull { it.gains == gains }
+}
+
 data class EqualizerState(
     val enabled: Boolean = false,
     val gains: List<Double> = GraphicEq.flat,
@@ -58,6 +68,7 @@ data class EqualizerState(
     val automaticOutputs: Boolean = false,
     val output: EqOutput? = null,
     val outputProfiles: List<OutputEqProfile> = emptyList(),
+    val manualCurve: ManualEqCurve = ManualEqCurve(),
 ) {
     val outputProfile: OutputEqProfile? get() = outputProfiles.firstOrNull { it.output.id == output?.id }
     val usesOutputProfile: Boolean get() = automaticOutputs && outputProfile != null
@@ -95,7 +106,7 @@ class Equalizer(
 
     fun setGain(band: Int, gainDb: Double) {
         val gains = _state.value.gains
-        if (band !in gains.indices) return
+        if (band !in gains.indices || !gainDb.isFinite()) return
         saveGains(gains.toMutableList().also { it[band] = GraphicEq.snap(gainDb) })
     }
 
@@ -130,10 +141,8 @@ class Equalizer(
     fun applyCatalogProfile(correction: AutoEqCorrection, forOutput: EqOutput? = null): Boolean {
         val state = _state.value
         if (forOutput != null && state.output != forOutput) return false
-        if (correction.filters.isEmpty() || correction.filters.size > AutoEq.MAX_FILTERS || correction.filters.any {
-            !it.frequencyHz.isFinite() || it.frequencyHz !in 10.0..22_000.0 ||
-                !it.gainDb.isFinite() || it.gainDb !in -24.0..24.0 || !it.q.isFinite() || it.q !in 0.1..10.0
-        }) return false
+        if (correction.filters.isEmpty() || correction.filters.size > AutoEq.MAX_FILTERS ||
+            correction.filters.any { !it.isSupported }) return false
         val profile = HeadphoneProfile("autoeq:${correction.entry.id}", correction.entry.name, correction.filters)
         val profiles = state.profiles.filterNot { it.id == profile.id } + profile
         store.putString("$PROFILE_PREFIX${profile.id}.name", profile.name)
@@ -166,7 +175,10 @@ class Equalizer(
         if (store.getString(SELECTED_KEY) == id) store.putString(SELECTED_KEY, null)
         val outputs = _state.value.outputProfiles.map { it.copy(profileId = it.profileId.takeIf { selected -> selected != id }) }
         saveOutputs(outputs)
-        _state.update { state -> state.copy(profiles = profiles, outputProfiles = outputs, profileId = state.profileId.takeIf { it != id }) }
+        _state.update { state -> state.copy(
+            profiles = profiles, outputProfiles = outputs, profileId = state.profileId.takeIf { it != id },
+            manualCurve = state.manualCurve.copy(profileId = state.manualCurve.profileId.takeIf { it != id }),
+        ) }
     }
 
     private fun saveGains(gains: List<Double>) {
@@ -209,6 +221,7 @@ class Equalizer(
             gains = bound?.gains ?: manual.gains,
             profileId = (bound?.profileId ?: if (bound == null) manual.profileId else null)
                 ?.takeIf { id -> state.profiles.any { it.id == id } },
+            manualCurve = manual.manualCurve,
         )
     }
 
@@ -223,7 +236,7 @@ class Equalizer(
             store.putString(ENABLED_KEY, state.enabled.toString())
             store.putString(GAINS_KEY, state.gains.joinToString(","))
             store.putString(SELECTED_KEY, state.profileId)
-            _state.value = state
+            _state.value = state.copy(manualCurve = ManualEqCurve(state.enabled, state.gains, state.profileId))
         }
     }
 
@@ -239,27 +252,25 @@ class Equalizer(
     }
 
     private fun load(): EqualizerState {
-        val gains = store.getString(GAINS_KEY)
-            ?.split(',')
-            ?.mapNotNull { it.toDoubleOrNull()?.let(GraphicEq::snap) }
-            ?.takeIf { it.size == GraphicEq.frequencies.size }
-            ?: GraphicEq.flat
-        val profiles = store.getStringList(PROFILES_KEY).mapNotNull { id ->
-            val name = store.getString("$PROFILE_PREFIX$id.name") ?: return@mapNotNull null
+        val gains = decodeGains(store.getString(GAINS_KEY)) ?: GraphicEq.flat
+        val profiles = store.getStringList(PROFILES_KEY).distinct().mapNotNull { id ->
+            val name = store.getString("$PROFILE_PREFIX$id.name")?.takeIf(String::isNotBlank) ?: return@mapNotNull null
             val filters = decode(store.getString("$PROFILE_PREFIX$id.filters")).takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             HeadphoneProfile(id, name, filters)
         }
+        val enabled = store.getString(ENABLED_KEY)?.toBooleanStrictOrNull() ?: false
+        val profileId = store.getString(SELECTED_KEY)?.takeIf { id -> profiles.any { it.id == id } }
         return EqualizerState(
-            enabled = store.getString(ENABLED_KEY)?.toBooleanStrictOrNull() ?: false,
+            enabled = enabled,
             gains = gains,
             profiles = profiles,
-            profileId = store.getString(SELECTED_KEY)?.takeIf { id -> profiles.any { it.id == id } },
+            profileId = profileId,
+            manualCurve = ManualEqCurve(enabled, gains, profileId),
             automaticOutputs = store.getString("equalizer.outputs.enabled") == "true",
             outputProfiles = store.getStringList("equalizer.outputs.index").distinct().mapNotNull { id ->
                 val key = "equalizer.outputs.$id"
-                val name = store.getString("$key.name") ?: return@mapNotNull null
-                val bands = store.getString("$key.gains")?.split(',')?.mapNotNull { it.toDoubleOrNull()?.takeIf(Double::isFinite)?.let(GraphicEq::snap) }
-                    ?.takeIf { it.size == GraphicEq.frequencies.size } ?: return@mapNotNull null
+                val name = store.getString("$key.name")?.takeIf(String::isNotBlank) ?: return@mapNotNull null
+                val bands = decodeGains(store.getString("$key.gains")) ?: return@mapNotNull null
                 OutputEqProfile(EqOutput(id, name), store.getString("$key.enabled") == "true", bands,
                     store.getString("$key.profile")?.takeIf { wanted -> profiles.any { it.id == wanted } })
             },
@@ -276,11 +287,34 @@ class Equalizer(
         fun encode(filters: List<EqFilter>): String =
             filters.joinToString(";") { "${it.type.name}:${it.frequencyHz}:${it.gainDb}:${it.q}" }
 
-        fun decode(text: String?): List<EqFilter> = text.orEmpty().split(';').mapNotNull { item ->
-            val parts = item.split(':')
-            if (parts.size != 4) return@mapNotNull null
-            val type = FilterType.entries.firstOrNull { it.name == parts[0] } ?: return@mapNotNull null
-            EqFilter(type, parts[1].toDoubleOrNull() ?: return@mapNotNull null, parts[2].toDoubleOrNull() ?: return@mapNotNull null, parts[3].toDoubleOrNull() ?: return@mapNotNull null)
+        fun decodeGains(text: String?): List<Double>? {
+            if (text == null || text.length > GraphicEq.frequencies.size * 64) return null
+            val values = text.split(',', limit = GraphicEq.frequencies.size + 1)
+            if (values.size != GraphicEq.frequencies.size) return null
+            return values.map { value ->
+                // Do not discard one malformed band and shift the remaining frequencies.
+                val gain = value.toDoubleOrNull()?.takeIf(Double::isFinite) ?: return null
+                GraphicEq.snap(gain)
+            }
+        }
+
+        fun decode(text: String?): List<EqFilter> {
+            // Imported profiles contain at most twenty filters. Reject a damaged correction as
+            // a whole instead of silently applying a different, partial headphone correction.
+            if (text.isNullOrBlank() || text.length > AutoEq.MAX_FILTERS * 128) return emptyList()
+            val items = text.split(';')
+            if (items.size > AutoEq.MAX_FILTERS) return emptyList()
+            return items.map { item ->
+                val parts = item.split(':')
+                if (parts.size != 4) return emptyList()
+                val type = FilterType.entries.firstOrNull { it.name == parts[0] } ?: return emptyList()
+                val filter = EqFilter(type,
+                    parts[1].toDoubleOrNull() ?: return emptyList(),
+                    parts[2].toDoubleOrNull() ?: return emptyList(),
+                    parts[3].toDoubleOrNull() ?: return emptyList())
+                if (!filter.isSupported) return emptyList()
+                filter
+            }
         }
     }
 }

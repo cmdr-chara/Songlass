@@ -66,8 +66,6 @@ import dev.cmdrchara.songlass.core.queue.RepeatMode
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.SheetAction
-import dev.cmdrchara.songlass.designsystem.InfoSheet
-import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
@@ -96,7 +94,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val secondary = LocalContentColor.current.copy(alpha = 0.72f)
     val isFavorite = track.id in favoriteIds
     val outputPicker = rememberAudioOutputPicker()
-    val outputName = rememberAudioOutputName()
+    val outputName = player.outputRoute?.let { audioOutputName(it) } ?: rememberAudioOutputName()
     val quality = audioQualityLabel(player.audioFormat)
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
@@ -227,8 +225,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                         VolumeSlider(systemVolume.value, systemVolume.set, stringResource(Res.string.playback_volume))
                     }
                     Row(Modifier.fillMaxWidth().height(56.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (outputPicker != null) AudioOutputButton(outputName, onClick = outputPicker)
-                        Spacer(Modifier.weight(1f))
+                        if (outputPicker != null) AudioOutputButton(outputName, onClick = outputPicker, modifier = Modifier.weight(1f))
+                        else Spacer(Modifier.weight(1f))
                         val lyricsOn = state.playerPage == PlayerPage.Lyrics
                         val timerOn = sleepTimer != SleepTimerState.Off
                         IconButton(AppIcons.Timer, stringResource(Res.string.sleep_title), state::openSleepMenu, selected = timerOn, filled = timerOn)
@@ -244,10 +242,10 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
 
 /** Output icon plus the current device name ("This phone", headphones, Bluetooth speaker…). */
 @Composable
-private fun AudioOutputButton(name: String?, onClick: () -> Unit) {
+private fun AudioOutputButton(name: String?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val label = stringResource(Res.string.playback_audio_output)
     Row(
-        Modifier
+        modifier
             .heightIn(min = 44.dp)
             .clip(CircleShape)
             .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
@@ -259,7 +257,8 @@ private fun AudioOutputButton(name: String?, onClick: () -> Unit) {
             AppIcon(AppIcons.AudioOutput, contentDescription = null)
         }
         if (name != null) {
-            AppText(name, AppTheme.typography.footnote, color = LocalContentColor.current.copy(alpha = 0.72f), maxLines = 1)
+            AppText(name, AppTheme.typography.footnote, color = LocalContentColor.current.copy(alpha = 0.72f),
+                maxLines = 1, modifier = Modifier.weight(1f))
         }
     }
 }
@@ -278,23 +277,7 @@ private fun audioQualityLabel(format: AudioFormatInfo?): String? = format?.let {
 
 @Composable
 fun SongInformation(state: AppState, track: Track, player: PlayerState) {
-    val quality = audioQualityLabel(player.audioFormat)
-    InfoSheet(
-        visible = state.isSongInfoVisible,
-        title = stringResource(Res.string.playback_song_info),
-        rows = listOfNotNull(
-            InfoRow(stringResource(Res.string.playback_info_title), track.title),
-            InfoRow(stringResource(Res.string.playback_info_artist), artistName(track.artist)),
-            track.album?.let { InfoRow(stringResource(Res.string.playback_info_album), it) },
-            InfoRow(stringResource(Res.string.playback_info_duration), formatDuration(player.durationMs.takeIf { it > 0 } ?: track.durationMs)),
-            quality?.let { InfoRow(stringResource(Res.string.playback_info_format), it) },
-            player.audioFormat?.bitRate?.takeIf { it > 0 }?.let { InfoRow(stringResource(Res.string.playback_info_bitrate), "${it / 1000} kbps") },
-            track.folder?.let { InfoRow(stringResource(Res.string.playback_info_folder), it) },
-            if (!track.uri.startsWith("demo:")) InfoRow(stringResource(Res.string.playback_info_storage), stringResource(Res.string.playback_local_file)) else null,
-        ),
-        closeLabel = stringResource(Res.string.action_close),
-        onDismiss = state::closeSongInfo,
-    )
+    AudioInformationSheet(state, track, player)
 }
 
 /** Shared controls keep each style's own sheet, typography, surfaces and touch targets. */

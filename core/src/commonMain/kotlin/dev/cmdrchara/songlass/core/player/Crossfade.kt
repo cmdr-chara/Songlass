@@ -130,19 +130,21 @@ object Crossfade {
         return if (duration < MIN_EFFECTIVE_MS) null else CrossfadePlan(start, duration)
     }
 
-    /** A manual change starts now, bounded by the outgoing remainder and both track lengths. */
+    /** A manual change starts now, bounded by the remaining audio on both sides. */
     fun manualPlan(
         configuredMs: Long,
         outgoingDurationMs: Long,
         incomingDurationMs: Long,
         positionMs: Long = 0,
         sameTrack: Boolean = false,
+        incomingPositionMs: Long = 0,
     ): CrossfadePlan? {
         val configured = normalize(configuredMs)
         if (configured < MIN_EFFECTIVE_MS || sameTrack) return null
         if (outgoingDurationMs <= 0 || incomingDurationMs <= 0) return null
         val start = positionMs.coerceIn(0, outgoingDurationMs)
-        val duration = minOf(configured, minOf(outgoingDurationMs, incomingDurationMs) / 2, outgoingDurationMs - start)
+        val incomingRemaining = incomingDurationMs - incomingPositionMs.coerceIn(0, incomingDurationMs)
+        val duration = minOf(configured, minOf(outgoingDurationMs, incomingRemaining) / 2, outgoingDurationMs - start)
         return if (duration < MIN_EFFECTIVE_MS) null else CrossfadePlan(start, duration)
     }
 
@@ -156,6 +158,8 @@ object Crossfade {
         sameTrack: Boolean = false,
         supported: Boolean = true,
         playing: Boolean = true,
+        /** A manual resume/bookmark can start partway through the incoming file. */
+        incomingPositionMs: Long = 0,
     ): CrossfadeDecision {
         val reason = when {
             normalize(configuredMs) < MIN_EFFECTIVE_MS -> CrossfadeSkipReason.Disabled
@@ -168,7 +172,8 @@ object Crossfade {
         if (reason != null) return CrossfadeDecision(null, reason)
         val plan = when (kind) {
             CrossfadeKind.Automatic -> plan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs)
-            CrossfadeKind.Manual -> manualPlan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs)
+            CrossfadeKind.Manual -> manualPlan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs,
+                incomingPositionMs = incomingPositionMs)
         }
         return CrossfadeDecision(plan, if (plan == null) CrossfadeSkipReason.TooShort else null)
     }

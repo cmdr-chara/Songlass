@@ -34,18 +34,19 @@ class QueueConcurrencyTest {
     }
 
     @Test
-    fun clearingPendingAfterNativeStartCannotLabelTheSourceAsThatTemporaryDecoder() = runTest {
+    fun clearingPendingAfterNativeStartPreservesTheActiveTemporaryDecoder() = runTest {
         val player = FakeAudioPlayer()
         val controller = PlaybackController(player, backgroundScope)
         controller.playTracks(tracks(2))
-        controller.addToQueue(listOf(track("x")))
+        controller.addToQueue(listOf(track("x"), track("y")))
         runCurrent()
         player.finishTrack()
         controller.clearTemporaryQueue()
         runCurrent()
-        assertEquals("2", controller.queue.value.current?.track?.id)
+        assertEquals("x", controller.queue.value.current?.track?.id)
         assertEquals(controller.queue.value.current?.track, player.loadedTrack)
-        assertTrue(controller.queue.value.temporaryEntries.isEmpty())
+        assertEquals(listOf("x"), controller.queue.value.temporaryEntries.map { it.track.id })
+        assertEquals("2", player.nextTrack?.id)
     }
 
     @Test
@@ -55,8 +56,9 @@ class QueueConcurrencyTest {
         controller.playTracks(tracks(1))
         controller.addToQueue(listOf(track("x")))
         runCurrent()
+        val consumed = controller.queue.value.temporaryEntries.single().id
         player.finishTrack()
-        controller.clearTemporaryQueue()
+        controller.removeFromQueue(consumed)
         runCurrent()
         assertEquals(PlayerStatus.Idle, player.state.value.status)
         assertNull(player.loadedTrack)
@@ -98,7 +100,7 @@ class QueueConcurrencyTest {
     }
 
     @Test
-    fun endOfTrackSleepRequestedAfterNativeJoinPausesItsContinuation() = runTest {
+    fun endOfTrackSleepRequestedAfterNativeJoinAppliesToTheActuallyCurrentTrack() = runTest {
         val player = FakeAudioPlayer()
         val controller = PlaybackController(player, backgroundScope)
         controller.playTracks(tracks(3))
@@ -107,6 +109,13 @@ class QueueConcurrencyTest {
         controller.setStopAfterCurrent(true)
         runCurrent()
         assertEquals("2", controller.queue.value.current?.track?.id)
+        assertEquals(controller.queue.value.current?.track, player.loadedTrack)
+        assertTrue(player.state.value.playWhenReady)
+        assertTrue(controller.stopAfterCurrent.value)
+        assertNull(player.nextTrack)
+        player.finishTrack()
+        runCurrent()
+        assertEquals("3", controller.queue.value.current?.track?.id)
         assertEquals(controller.queue.value.current?.track, player.loadedTrack)
         assertFalse(player.state.value.playWhenReady)
         assertFalse(controller.stopAfterCurrent.value)

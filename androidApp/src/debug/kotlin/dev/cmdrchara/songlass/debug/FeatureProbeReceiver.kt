@@ -48,11 +48,13 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         scope.launch {
             try {
                 withTimeout(35_000) {
-                    when (intent.getStringExtra("case")) {
+                    when (val probe = intent.getStringExtra("case")) {
                         "audio" -> audio(context, scope)
                         "audio-manual" -> audio(context, scope, manualOnly = true)
+                        "audio-manual-resume" -> audio(context, scope, manualResumeOnly = true)
                         "audio-manual-focus" -> audio(context, scope, manualFocusOnly = true)
-                        else -> backup(context, scope)
+                        null, "backup" -> backup(context, scope)
+                        else -> error("Unknown feature probe: $probe")
                     }
                 }
                 Log.i("SonglassFeatures", "PASS " + (intent.getStringExtra("case") ?: "backup"))
@@ -97,7 +99,8 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         } finally { store.replace(store.snapshot().keys, emptyMap()) }
     }
 
-    private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false, manualFocusOnly: Boolean = false) {
+    private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -153,6 +156,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             }
             if (manualOnly) {
                 manualAudio(graph, audio, session, voices, tracks + tracks[0].copy(id = "tone-3", title = "Probe three"))
+                return
+            }
+            if (manualResumeOnly) {
+                manualResumeAudio(graph, audio, session, voices, tracks)
                 return
             }
             graph.controller.playTracks(tracks)
@@ -271,6 +278,46 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             if (focusHeld) manager.abandonAudioFocusRequest(request)
             outgoing.removeListener(listener)
         }
+    }
+
+    /** A prepared automatic standby must remain a manual fade when opened at a bookmark. */
+    private suspend fun manualResumeAudio(
+        graph: AppGraph,
+        audio: Media3AudioPlayer,
+        session: QueueForwardingPlayer,
+        voices: List<PlayerVoice>,
+        tracks: List<Track>,
+    ) {
+        graph.settings.setCrossfadeDuration(2_000)
+        graph.settings.setManualCrossfadeDuration(1_250)
+        await { audio.diagnostics().configuredMs == 2_000L && audio.diagnostics().manualConfiguredMs == 1_250L }
+        graph.controller.playTracks(tracks)
+        await { audio.exoPlayer.isPlaying && audio.diagnostics().standbyReady }
+        val outgoing = audio.exoPlayer
+        val prepared = voices.single { it.player !== outgoing }.player
+        val before = graph.controller.queue.value.entries.map { it.id }
+        val bookmarkPosition = 1_500L
+
+        graph.controller.playBookmark(tracks[1], bookmarkPosition)
+        check(audio.exoPlayer === prepared && voices.size == 2) { "Bookmark did not reuse the prepared voice" }
+        check(graph.controller.queue.value.currentIndex == 1 && graph.controller.queue.value.entries.map { it.id } == before)
+        // ExoPlayer delivers SEEK synchronously. A faulty initial seek cancels manualPreparing,
+        // drops the outgoing tail and is then overwritten by the preparation's paused intent.
+        check(audio.isPreparingManualTransition && audio.state.value.playWhenReady) { "Initial bookmark seek cancelled the transition" }
+        check(!prepared.playWhenReady && prepared.currentPosition == bookmarkPosition) { "Prepared bookmark consumed audio before the fade" }
+        check(session.playWhenReady && session.playbackState == Player.STATE_BUFFERING)
+        await { audio.diagnostics().stage == CrossfadeStage.Fading && prepared.isPlaying }
+        check(voices.count { it.player.isPlaying } == 2)
+        check(audio.state.value.crossfadeStatus?.kind == CrossfadeKind.Manual)
+        check(audio.state.value.crossfadeStatus?.effectiveDurationMs == 1_250L)
+        check(prepared.currentPosition >= bookmarkPosition)
+
+        // A subsequent user seek must still cancel the tail; the preparation fix is narrowly scoped.
+        session.seekTo(2_000)
+        await { prepared.isPlaying && audio.diagnostics().stage != CrossfadeStage.Fading }
+        check(!audio.isPreparingManualTransition && voices.count { it.player.isPlaying } == 1)
+        check(graph.controller.queue.value.currentIndex == 1 && prepared.currentPosition >= 2_000)
+        Log.i("SonglassFeatures", "manual reusedStandby=true bookmarkOffset=1500 pendingIntent=true noSilentPreroll=true overlap=true userSeekCancelsTail=true queueUnchanged=true")
     }
 
     private suspend fun manualAudio(

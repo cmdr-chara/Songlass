@@ -7,12 +7,14 @@ data class AudioFormatInfo(
     val bitDepth: Int? = null,
     /** Average encoded bit rate in bits per second, when the source reports it. */
     val bitRate: Int? = null,
+    val channelCount: Int? = null,
 ) {
     init {
         require(codec == null || codec.isNotBlank())
         require(sampleRateHz == null || sampleRateHz > 0)
         require(bitDepth == null || bitDepth > 0)
         require(bitRate == null || bitRate > 0)
+        require(channelCount == null || channelCount > 0)
     }
 
     companion object {
@@ -22,6 +24,7 @@ data class AudioFormatInfo(
             sampleRateHz: Int?,
             bitDepth: Int?,
             averageBitRate: Int?,
+            channelCount: Int? = null,
         ): AudioFormatInfo? {
             val mime = sampleMimeType?.lowercase()
             val codec = when (mime) {
@@ -53,9 +56,10 @@ data class AudioFormatInfo(
                 sampleRateHz = sampleRateHz?.takeIf { it > 0 },
                 bitDepth = depth,
                 bitRate = averageBitRate?.takeIf { it > 0 },
+                channelCount = channelCount?.takeIf { it > 0 },
             )
             return result.takeIf {
-                it.codec != null || it.sampleRateHz != null || it.bitDepth != null || it.bitRate != null
+                it.codec != null || it.sampleRateHz != null || it.bitDepth != null || it.bitRate != null || it.channelCount != null
             }
         }
 

@@ -4,6 +4,13 @@ import dev.cmdrchara.songlass.core.equalizer.EqChain
 import dev.cmdrchara.songlass.core.model.Track
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlin.time.TimeSource
+
+private val playerClockOrigin = TimeSource.Monotonic.markNow()
+internal fun monotonicPlayerTimeMs(): Long = playerClockOrigin.elapsedNow().inWholeMilliseconds
+
+/** An actual disconnect, stamped at the source in [AudioPlayer.monotonicTimeMs]'s clock. */
+data class OutputDisconnect(val occurrenceId: Long, val occurredAtMs: Long)
 
 /** Playback state, modelled on Media3/ExoPlayer so both platform players map onto it easily. */
 enum class PlayerStatus { Idle, Buffering, Ready, Ended, Error }
@@ -21,6 +28,11 @@ data class PlayerState(
     val replayGain: ReplayGainTags? = null,
     /** Last attempted transition; durations describe its applied plan, not measured audio timing. */
     val crossfadeStatus: CrossfadeStatus? = null,
+    /** PCM and EQ observed in the active decoder's processor, not the source or DAC format. */
+    val processing: AudioProcessingInfo? = null,
+    val replayGainApplication: ReplayGainApplication? = null,
+    /** Null on platforms without route reporting; an empty route means reporting is inconclusive. */
+    val outputRoute: AudioOutputRoute? = null,
 ) {
     val isPlaying: Boolean
         get() = playWhenReady && (status == PlayerStatus.Ready || status == PlayerStatus.Buffering)
@@ -36,9 +48,14 @@ sealed interface PlayerEvent {
         /** The consumed queue slot, captured before a later queue edit can replace "next". */
         val entryId: Long? = null,
         val track: Track? = null,
+        /** Monotonic per player instance; zero is reserved for legacy event-only players. */
+        val serial: Long = 0,
     ) : PlayerEvent
 
-    /** Playback paused because the audio output went away (headphones unplugged, Bluetooth lost). */
+    /**
+     * Playback paused because the audio output went away. Its source occurrence and time are
+     * retained in [AudioPlayer.latestDisconnect] before this notification or state is published.
+     */
     data object PausedByDisconnect : PlayerEvent
 }
 
@@ -51,8 +68,24 @@ interface AudioPlayer {
     val state: StateFlow<PlayerState>
     val events: Flow<PlayerEvent>
 
-    /** Explicit timeline replacements invalidate queued end/advance events from earlier loads. */
+    /** Explicit loads, seeks and stops invalidate queued end/advance events from earlier intent. */
     val eventGeneration: Long get() = 0
+
+    /**
+     * The most recent native join, retained before publishing its incoming [state]. Commands can
+     * reconcile the decoder's actual occurrence even when [events] has not delivered it yet.
+     * Clear on an explicit load, seek or stop; its serial must not reset during this instance.
+     */
+    val latestAdvance: PlayerEvent.AdvancedToNext? get() = null
+
+    /** A monotonic clock shared by disconnect timestamps and reconnect eligibility checks. */
+    val monotonicTimeMs: Long get() = monotonicPlayerTimeMs()
+
+    /**
+     * The latest eligible disconnect. Clear when playback starts again; its occurrence counter
+     * must never reset. A delayed notification cannot resurrect an occurrence cleared at source.
+     */
+    val latestDisconnect: OutputDisconnect? get() = null
 
     fun load(track: Track, playWhenReady: Boolean)
 
@@ -107,6 +140,9 @@ interface AudioPlayer {
     val handlesReplayGain: Boolean get() = false
 
     fun setReplayGainMode(mode: ReplayGainMode) {}
+
+    /** Updates the route observed by the platform's existing output monitor. */
+    fun setOutputRoute(route: AudioOutputRoute) {}
     fun play()
     fun pause()
     fun seekTo(positionMs: Long)

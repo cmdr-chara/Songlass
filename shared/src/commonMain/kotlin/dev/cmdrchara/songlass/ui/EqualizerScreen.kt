@@ -106,12 +106,33 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
             state.output?.let { output ->
                 val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
                 ListRow(title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
-                ListRow(title = stringResource(Res.string.eq_outputs_save), onClick = equalizer::saveForCurrentOutput)
+                ListRow(
+                    title = stringResource(if (state.outputProfile == null) Res.string.eq_outputs_save else Res.string.audio_eq_update_binding),
+                    subtitle = if (state.automaticOutputs) null else stringResource(Res.string.audio_eq_saved_auto_off),
+                    onClick = equalizer::saveForCurrentOutput,
+                )
+            } ?: ListRow(title = stringResource(Res.string.audio_eq_unknown_route), onClick = null)
+            ListRow(
+                title = stringResource(Res.string.audio_eq_configured),
+                subtitle = equalizerCurveLabel(state.enabled, state.preset, state.profile?.name),
+                onClick = null,
+            )
+            if (state.usesOutputProfile) state.manualCurve.let { manual ->
+                ListRow(
+                    title = stringResource(Res.string.audio_eq_manual_fallback),
+                    subtitle = equalizerCurveLabel(manual.enabled, manual.preset, state.profiles.firstOrNull { it.id == manual.profileId }?.name),
+                    onClick = null,
+                )
             }
         } }
         if (state.outputProfiles.isNotEmpty()) item { SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 8.dp)) {
             state.outputProfiles.forEach { binding ->
-                ListRow(title = binding.output.name, trailing = {
+                val active = state.usesOutputProfile && state.output?.id == binding.output.id
+                val status = stringResource(if (active) Res.string.audio_eq_saved_active else Res.string.audio_eq_saved_inactive)
+                val preset = EqPreset.entries.firstOrNull { it.gains == binding.gains }
+                val description = equalizerCurveLabel(binding.enabled, preset, state.profiles.firstOrNull { it.id == binding.profileId }?.name)
+                ListRow(title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
+                    subtitle = "$status · $description", trailing = {
                     dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { equalizer.removeOutputProfile(binding.output.id) })
                 }, onClick = null)
             }
@@ -132,7 +153,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                 modifier = Modifier.padding(start = pageInset, end = pageInset, top = 20.dp),
             )
         }
-        item { Hint(stringResource(Res.string.eq_hint)) }
+        item { Hint(stringResource(Res.string.audio_eq_headroom_hint)) }
         item { SectionTitle(stringResource(Res.string.eq_presets)) }
         item {
             SettingsSearchAnchor(SettingsTarget.EqualizerPresets, searchFocus) {

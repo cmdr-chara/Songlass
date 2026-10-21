@@ -14,6 +14,7 @@ internal fun Format.sourceAudioFormat(): AudioFormatInfo? = AudioFormatInfo.from
     bitDepth = sourceBitDepth(sampleMimeType, pcmEncoding),
     // Format.bitrate prefers peakBitrate. Only the reported average describes the usual file rate.
     averageBitRate = averageBitrate,
+    channelCount = channelCount,
 )
 
 @androidx.annotation.OptIn(UnstableApi::class)
