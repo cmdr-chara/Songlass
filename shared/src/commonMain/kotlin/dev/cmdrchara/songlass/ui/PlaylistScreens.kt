@@ -35,6 +35,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -46,6 +48,10 @@ import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
+import dev.cmdrchara.songlass.core.playlists.PlaylistInsertion
+import dev.cmdrchara.songlass.designsystem.ActionButton
+import dev.cmdrchara.songlass.designsystem.InfoRow
+import dev.cmdrchara.songlass.designsystem.InfoSheet
 import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.ArtworkShelf
@@ -80,6 +86,7 @@ import dev.cmdrchara.songlass.shared.resources.playlist_rename
 import dev.cmdrchara.songlass.shared.resources.playlist_save
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tag_playlist
+import dev.cmdrchara.songlass.shared.resources.*
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -94,15 +101,32 @@ private typealias Playlist = dev.cmdrchara.songlass.core.library.Playlist
 fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
     val playlists by state.userPlaylists.playlists.collectAsState()
     val playlist = playlists.firstOrNull { it.id == id } ?: return
-    val tracks = remember(playlist, state.library) { playlist.tracksIn(state.library) }
+    val allTracks by state.allTracks.collectAsState()
+    val scanning by state.isLibraryLoading.collectAsState()
+    val scanComplete by state.hasCompleteLibraryScan.collectAsState()
+    val access by state.libraryAccess.collectAsState()
+    val availability = remember(playlist, state.library, allTracks) { playlist.availability(state.library, allTracks) }
+    val tracks = availability.tracks
     val context = PlayContext.UserPlaylist(id)
     val editing = state.editingPlaylistId == id
-    val rowHeightPx = with(LocalDensity.current) { EditRowHeight.toPx() }
+    // Drag calculations use the same font-scaled height as the row, including large text.
+    val editRowHeight = EditRowHeight * LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val rowHeightPx = with(LocalDensity.current) { editRowHeight.toPx() }
     var draggedId by remember { mutableStateOf<String?>(null) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     val currentTracks by rememberUpdatedState(tracks)
     val reorderLabel = stringResource(Res.string.action_reorder)
     val removeLabel = stringResource(Res.string.playlist_remove_song)
+    val upLabel = stringResource(Res.string.playlist_move_up)
+    val downLabel = stringResource(Res.string.playlist_move_down)
+
+    fun moveVisible(trackId: String, offset: Int): Boolean {
+        val position = currentTracks.indexOfFirst { it.id == trackId }
+        val destination = currentTracks.getOrNull(position + offset) ?: return false
+        val all = state.userPlaylists.get(id)?.trackIds ?: return false
+        state.userPlaylists.move(id, all.indexOf(trackId), all.indexOf(destination.id))
+        return true
+    }
 
     ArtworkCollectionPage(
         artwork = playlist.artwork(tracks),
@@ -116,8 +140,8 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
-        extra = if (tracks.isEmpty()) {
-            {
+        extra = {
+            if (playlist.trackIds.isEmpty()) {
                 item {
                     AppText(
                         stringResource(Res.string.playlist_empty),
@@ -127,7 +151,25 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
                     )
                 }
             }
-        } else null,
+            if (availability.filteredTrackIds.isNotEmpty()) {
+                item {
+                    AppText(pluralStringResource(Res.plurals.playlist_filtered_count, availability.filteredTrackIds.size, availability.filteredTrackIds.size),
+                        AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    ActionButton(stringResource(Res.string.library_settings), { state.open(Route.LibrarySettings) },
+                        Modifier.padding(horizontal = pageInset))
+                }
+            }
+            if (access && scanComplete && !scanning && availability.missingTrackIds.isNotEmpty()) {
+                item {
+                    AppText(pluralStringResource(Res.plurals.playlist_missing_count, availability.missingTrackIds.size, availability.missingTrackIds.size),
+                        AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
+                    ActionButton(stringResource(Res.string.playlist_remove_missing), { state.askPlaylistRemoval(id, missingOnly = true) },
+                        Modifier.padding(horizontal = pageInset))
+                }
+            }
+        },
         headerAction = {
             if (editing) {
                 IconButton(AppIcons.Checkmark, stringResource(Res.string.playlist_done), onClick = { state.editingPlaylistId = null }, selected = true, filled = true)
@@ -142,13 +184,19 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
             }
             return@ArtworkCollectionPage
         }
-        // Edit mode: fixed-height rows, so the drag offset maps directly to positions.
+        // Stored-index mapping keeps hidden/missing entries intact when visible rows move.
         val dragging = track.id == draggedId
         Box(
             Modifier
-                .height(EditRowHeight)
+                .height(editRowHeight)
                 .zIndex(if (dragging) 1f else 0f)
-                .graphicsLayer { translationY = if (dragging) dragOffset else 0f },
+                .graphicsLayer { translationY = if (dragging) dragOffset else 0f }
+                .semantics {
+                    customActions = buildList {
+                        if (index > 0) add(CustomAccessibilityAction(upLabel) { moveVisible(track.id, -1) })
+                        if (index < tracks.lastIndex) add(CustomAccessibilityAction(downLabel) { moveVisible(track.id, 1) })
+                    }
+                },
         ) {
             ListRow(
                 title = track.title,
@@ -162,10 +210,10 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
                         contentDescription = null,
                         tint = LocalContentColor.current.copy(alpha = 0.6f),
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(48.dp)
                             .padding(10.dp)
                             .semantics { contentDescription = reorderLabel }
-                            .pointerInput(track.id) {
+                            .pointerInput(track.id, rowHeightPx) {
                                 detectDragGestures(
                                     onDragStart = { draggedId = track.id; dragOffset = 0f },
                                     onDragEnd = { draggedId = null; dragOffset = 0f },
@@ -251,8 +299,52 @@ fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: Strin
         actions = buildList {
             val ids = lastTracks.map { it.id }
             add(SheetAction(stringResource(Res.string.playlist_new), AppIcons.AddToQueue) { state.askPlaylistName(PlaylistPrompt.Create(ids)) })
-            playlists.forEach { playlist -> add(SheetAction(playlist.name, AppIcons.Library) { state.userPlaylists.add(playlist.id, ids) }) }
+            playlists.forEach { playlist -> add(SheetAction(playlist.name, AppIcons.Library) { state.askPlaylistInsertion(playlist.id, ids) }) }
         },
+    )
+
+    var lastInsertion by remember { mutableStateOf<PlaylistInsertionRequest?>(null) }
+    state.playlistInsertionRequest?.let { lastInsertion = it }
+    val insertion = lastInsertion
+    ActionSheet(
+        visible = state.playlistInsertionRequest != null,
+        title = stringResource(Res.string.playlist_insert_title),
+        subtitle = playlists.firstOrNull { it.id == insertion?.playlistId }?.name,
+        cancelLabel = cancel, onDismiss = state::closePlaylistInsertion,
+        actions = if (insertion == null) emptyList() else listOf(
+            SheetAction(stringResource(Res.string.playlist_insert_end), AppIcons.AddToQueue) { state.addToPlaylist(insertion, PlaylistInsertion.End) },
+            SheetAction(stringResource(Res.string.playlist_insert_start), AppIcons.AddToQueue) { state.addToPlaylist(insertion, PlaylistInsertion.Start) },
+        ),
+    )
+
+    var lastNotice by remember { mutableStateOf<PlaylistAdditionNotice?>(null) }
+    state.playlistAdditionNotice?.let { lastNotice = it }
+    val notice = lastNotice
+    InfoSheet(
+        visible = state.playlistAdditionNotice != null,
+        title = notice?.playlistName?.ifEmpty { null } ?: stringResource(Res.string.playlist_add_to),
+        closeLabel = stringResource(Res.string.playlist_done), onDismiss = state::closePlaylistAdditionNotice,
+        rows = if (notice == null) emptyList() else if (!notice.result.playlistFound) listOf(
+            InfoRow(stringResource(Res.string.playlist_unavailable), stringResource(Res.string.playlist_pick_another)),
+        ) else listOf(
+            InfoRow(stringResource(Res.string.playlist_added), notice.result.added.toString()),
+            InfoRow(stringResource(Res.string.playlist_already_present), notice.result.alreadyPresent.toString()),
+        ),
+    )
+
+    var lastRemoval by remember { mutableStateOf<PlaylistRemovalRequest?>(null) }
+    state.playlistRemovalRequest?.let { lastRemoval = it }
+    val removal = lastRemoval
+    ActionSheet(
+        visible = state.playlistRemovalRequest != null,
+        title = stringResource(if (removal?.missingOnly == true) Res.string.playlist_remove_missing_confirm else Res.string.playlist_delete_confirm),
+        subtitle = playlists.firstOrNull { it.id == removal?.playlistId }?.name,
+        cancelLabel = cancel, onDismiss = state::closePlaylistRemoval,
+        actions = if (removal == null) emptyList() else listOf(
+            SheetAction(stringResource(if (removal.missingOnly) Res.string.playlist_remove_missing else Res.string.playlist_delete), AppIcons.Close) {
+                state.removePlaylist(removal)
+            },
+        ),
     )
 
     var lastPrompt by remember { mutableStateOf<PlaylistPrompt?>(null) }
@@ -297,8 +389,7 @@ fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: Strin
             )
             add(
                 SheetAction(stringResource(Res.string.playlist_delete), AppIcons.Close) {
-                    state.userPlaylists.delete(options.id)
-                    state.goBack()
+                    state.askPlaylistRemoval(options.id)
                 },
             )
         },

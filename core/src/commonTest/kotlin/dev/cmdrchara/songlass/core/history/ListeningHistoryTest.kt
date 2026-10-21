@@ -72,33 +72,4 @@ class ListeningHistoryTest {
         assertNull(PlayContext.fromKey("hologram\u001Dx"))
     }
 
-    @Test
-    fun playCounterCountsOncePerEntryAfterThreshold() {
-        val counter = PlayCounter()
-        assertFalse(counter.update(1, 10_000, 200_000))
-        assertTrue(counter.update(1, 30_000, 200_000))
-        assertFalse(counter.update(1, 60_000, 200_000))
-        assertTrue(counter.update(2, 31_000, 200_000))
-    }
-
-    @Test
-    fun shortTracksCountAtHalf() {
-        val counter = PlayCounter()
-        assertFalse(counter.update(1, 9_000, 20_000))
-        assertTrue(counter.update(1, 10_000, 20_000))
-    }
-
-    @Test
-    fun rewindingAllowsCountingTheSameEntryAgain() {
-        val counter = PlayCounter()
-        assertTrue(counter.update(1, 40_000, 60_000))
-        assertFalse(counter.update(1, 59_000, 60_000))
-        assertFalse(counter.update(1, 0, 60_000))
-        assertTrue(counter.update(1, 30_000, 60_000))
-    }
-
-    @Test
-    fun nothingCountsWithoutAnEntry() {
-        assertFalse(PlayCounter().update(null, 100_000, 200_000))
-    }
 }

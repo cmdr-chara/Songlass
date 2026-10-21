@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.core.history
 
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
+
 /** What a listening session was started from, for "Recently played". */
 sealed interface PlayContext {
     /** Stable text form, used for storage and de-duplication. */
@@ -15,6 +17,10 @@ sealed interface PlayContext {
 
     data class Artist(val name: String?) : PlayContext {
         override val key: String get() = "artist$FIELD${name.orEmpty()}"
+    }
+
+    data class Facet(val kind: LibraryFacetKind, val value: String) : PlayContext {
+        override val key: String get() = "facet$FIELD${kind.storageKey}$FIELD$value"
     }
 
     /** A playlist the user made (see UserPlaylists). */
@@ -40,6 +46,12 @@ sealed interface PlayContext {
                 "album" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { Album(it, parts.getOrNull(2)?.ifEmpty { null }) }
                 "playlist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { Playlist(it) }
                 "artist" -> if (parts.size >= 2) Artist(parts[1].ifEmpty { null }) else null
+                "facet" -> {
+                    val kind = LibraryFacetKind.fromStorage(parts.getOrNull(1)) ?: return null
+                    val value = parts.getOrNull(2)?.takeIf { it.isNotBlank() } ?: return null
+                    if (parts.size != 3 || (kind == LibraryFacetKind.Year && value.toIntOrNull() !in 1..9999)) null
+                    else Facet(kind, value)
+                }
                 "userplaylist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { UserPlaylist(it) }
                 "smartplaylist" -> parts.getOrNull(1)?.takeIf { it.isNotEmpty() }?.let { SmartPlaylist(it) }
                 "favorites" -> Favorites

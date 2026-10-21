@@ -42,6 +42,8 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.HeadphoneCorrection -> Res.string.eq_headphones
     SettingsTarget.MinimumDuration -> Res.string.library_minimum_duration
     SettingsTarget.ExcludedFolders -> Res.string.library_excluded_folders
+    SettingsTarget.PlayCountRule -> Res.string.library_counting_title
+    SettingsTarget.AlbumLayout -> Res.string.library_album_layout
     SettingsTarget.HomeCustomization -> Res.string.homecfg_title
     SettingsTarget.Backup -> Res.string.backup_title
     SettingsTarget.About -> Res.string.about_title
@@ -65,7 +67,8 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.Equalizer -> playback
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$playback › $equalizer"
-            SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders -> library
+            SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
+            SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> library
             SettingsTarget.AmllLyrics -> lyrics
             SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> accessibility
             else -> null
@@ -114,6 +117,8 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             else stringResource(Res.string.library_duration_seconds, (preferences.libraryFilter.minimumDurationMs / 1_000).toInt())
         SettingsTarget.ExcludedFolders -> pluralStringResource(Res.plurals.settings_search_excluded_count,
             preferences.libraryFilter.excludedFolders.size, preferences.libraryFilter.excludedFolders.size)
+        SettingsTarget.PlayCountRule -> playCountRuleLabel(preferences.playCountRule)
+        SettingsTarget.AlbumLayout -> stringResource(if (preferences.albumLayout == AlbumLayout.List) Res.string.library_layout_list else Res.string.library_layout_grid)
         SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About -> null
     }
 }

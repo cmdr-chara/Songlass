@@ -100,6 +100,7 @@ fun HomeScreen(
     contentPadding: PaddingValues,
 ) {
     val library = state.library
+    val refreshFailure by state.libraryRefreshFailure.collectAsState()
     val inset = pageInset
     val history by state.history.state.collectAsState()
     val layout by state.homeCustomization.state.collectAsState()
@@ -134,7 +135,12 @@ fun HomeScreen(
             },
             contentPadding = contentPadding,
         ) {
+            if (hasAccess && refreshFailure != null) item(key = "home.scan-error") {
+                val loading by state.isLibraryLoading.collectAsState()
+                LibraryRefreshNotice(refreshFailure, loading, state.requestLibraryRefresh)
+            }
             if (!hasAccess || library.tracks.isEmpty()) {
+                if (hasAccess && refreshFailure != null) return@HomePage
                 item(key = "home.empty") {
                     val loading by state.isLibraryLoading.collectAsState()
                     val preferences by state.settings.state.collectAsState()
@@ -360,6 +366,7 @@ private fun openItem(item: HomeItem, state: AppState) {
         is HomeItem.AlbumItem -> state.open(Route.AlbumDetail(item.album))
         is HomeItem.PlaylistItem -> state.openPlaylist(item.playlist)
         is HomeItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
+        is HomeItem.FacetItem -> state.open(Route.FacetDetail(item.facet.context))
         is HomeItem.TrackItem -> state.controller.playTracks(listOf(item.track))
         is HomeItem.FavoritesItem -> state.controller.playTracks(item.tracks, context = PlayContext.Favorites)
         is HomeItem.UserPlaylistItem -> state.open(Route.UserPlaylistDetail(item.playlist.id))
@@ -393,6 +400,7 @@ private fun tileContent(item: HomeItem): Tile = when (item) {
     is HomeItem.UserPlaylistItem -> Tile(item.playlist.name, stringResource(Res.string.tag_playlist), item.playlist.artwork(item.tracks))
     is HomeItem.SmartPlaylistItem -> Tile(item.playlist.name, stringResource(Res.string.homecfg_kind_smart_playlist), item.playlist.artwork(item.tracks))
     is HomeItem.ArtistItem -> Tile(artistName(item.artist.name), stringResource(Res.string.tag_artist), (item.artist.albums.firstOrNull()?.artwork() ?: item.artist.tracks.first().artwork()))
+    is HomeItem.FacetItem -> Tile(item.facet.value, facetKindLabel(item.facet.kind), item.facet.tracks.first().artwork())
     is HomeItem.TrackItem -> Tile(item.track.title, stringResource(Res.string.tag_song) + " · " + artistName(item.track.artist), item.track.artwork())
     is HomeItem.FavoritesItem -> Tile(stringResource(Res.string.library_favorites), pluralStringResource(Res.plurals.songs_count, item.tracks.size, item.tracks.size), item.tracks.first().artwork())
 }

@@ -60,10 +60,11 @@ import dev.cmdrchara.songlass.shared.resources.tag_song
 import dev.cmdrchara.songlass.shared.resources.tag_album
 import dev.cmdrchara.songlass.shared.resources.tag_artist
 import dev.cmdrchara.songlass.shared.resources.tag_playlist
+import dev.cmdrchara.songlass.shared.resources.library_metadata
 import org.jetbrains.compose.resources.stringResource
 
 /** What the search results show: everything, or one kind of result. */
-enum class SearchFilter { All, Songs, Albums, Artists, Playlists }
+enum class SearchFilter { All, Songs, Albums, Artists, Playlists, Metadata }
 
 @Composable
 fun SearchScreen(
@@ -74,6 +75,7 @@ fun SearchScreen(
     contentPadding: PaddingValues,
 ) {
     val loading by state.isLibraryLoading.collectAsState()
+    val refreshFailure by state.libraryRefreshFailure.collectAsState()
     val preferences by state.settings.state.collectAsState()
     val searchFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
@@ -93,6 +95,7 @@ fun SearchScreen(
             is SearchItem.AlbumItem -> state.open(Route.AlbumDetail(item.album))
             is SearchItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
             is SearchItem.FolderItem -> state.openPlaylist(item.playlist)
+            is SearchItem.FacetItem -> state.open(Route.FacetDetail(item.facet.context))
         }
     }
     // Only kinds that have results get a chip; a filter whose kind vanished falls back to All.
@@ -102,6 +105,7 @@ fun SearchScreen(
         if (results.albums.isNotEmpty()) add(SearchFilter.Albums)
         if (results.artists.isNotEmpty()) add(SearchFilter.Artists)
         if (results.playlists.isNotEmpty()) add(SearchFilter.Playlists)
+        if (results.facets.isNotEmpty()) add(SearchFilter.Metadata)
     }
     val filter = state.searchFilter.takeIf { it in available } ?: SearchFilter.All
     fun shows(kind: SearchFilter) = filter == SearchFilter.All || filter == kind
@@ -129,7 +133,11 @@ fun SearchScreen(
                 }
             }
         }
+        if (hasAccess && refreshFailure != null) item(key = "search.scan-error") {
+            LibraryRefreshNotice(refreshFailure, loading, state.requestLibraryRefresh)
+        }
         when {
+            hasAccess && refreshFailure != null && library.tracks.isEmpty() -> Unit
             !hasAccess || library.tracks.isEmpty() -> item {
                 LibraryEmptyState(hasAccess, onRequestAccess, loading,
                     preferences.libraryFilter != dev.cmdrchara.songlass.core.library.LibraryFilter())
@@ -208,6 +216,12 @@ fun SearchScreen(
                     item { SectionTitle(stringResource(Res.string.library_playlists)) }
                     items(results.playlists.preview(3), key = { it.id }) { playlist -> PlaylistRow(playlist) { open(SearchItem.FolderItem(playlist)) } }
                 }
+                if (shows(SearchFilter.Metadata) && results.facets.isNotEmpty()) {
+                    item { SectionTitle(stringResource(Res.string.library_metadata)) }
+                    items(results.facets.preview(3), key = { it.context.key }) { facet ->
+                        LibraryFacetRow(facet) { open(SearchItem.FacetItem(facet)) }
+                    }
+                }
                 if (shows(SearchFilter.Songs) && results.tracks.isNotEmpty()) {
                     item { SectionTitle(stringResource(Res.string.library_songs)) }
                     val tracks = results.tracks.preview(8)
@@ -230,6 +244,7 @@ private val SearchFilter.label
         SearchFilter.Albums -> Res.string.library_albums
         SearchFilter.Artists -> Res.string.library_artists
         SearchFilter.Playlists -> Res.string.library_playlists
+        SearchFilter.Metadata -> Res.string.library_metadata
     }
 
 @Composable
@@ -249,18 +264,21 @@ private fun RecentSearchRow(item: SearchItem, currentTrackId: String?, onRemove:
         is SearchItem.AlbumItem -> albumTitle(item.album.title)
         is SearchItem.ArtistItem -> artistName(item.artist.name)
         is SearchItem.FolderItem -> item.playlist.name
+        is SearchItem.FacetItem -> item.facet.value
     }
     val subtitle = when (item) {
         is SearchItem.Song -> "${stringResource(Res.string.tag_song)} · ${artistName(item.track.artist)}"
         is SearchItem.AlbumItem -> "${stringResource(Res.string.tag_album)} · ${artistName(item.album.artist)}"
         is SearchItem.ArtistItem -> stringResource(Res.string.tag_artist)
         is SearchItem.FolderItem -> stringResource(Res.string.tag_playlist)
+        is SearchItem.FacetItem -> facetKindLabel(item.facet.kind)
     }
     val artwork = when (item) {
         is SearchItem.Song -> rememberTrackArtwork(item.track)
         is SearchItem.AlbumItem -> item.album.artwork()
         is SearchItem.ArtistItem -> item.artist.tracks.first().artwork()
         is SearchItem.FolderItem -> item.playlist.artwork()
+        is SearchItem.FacetItem -> item.facet.tracks.first().artwork()
     }
     ListRow(
         title = title, subtitle = subtitle,

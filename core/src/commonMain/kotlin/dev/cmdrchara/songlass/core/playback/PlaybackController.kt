@@ -126,7 +126,9 @@ class PlaybackController(
     /** Plays the current entry if it is paused; does nothing while playing or with an empty queue. */
     fun resume() {
         beginUserTransport()
-        if (_queue.value.current == null || player.state.value.playWhenReady) return
+        val state = player.state.value
+        if (_queue.value.current == null || (state.playWhenReady &&
+                (state.status == PlayerStatus.Ready || state.status == PlayerStatus.Buffering))) return
         toggleCurrentPlayback()
     }
 
@@ -167,6 +169,10 @@ class PlaybackController(
     private fun toggleCurrentPlayback() {
         val state = player.state.value
         when {
+            state.status == PlayerStatus.Ended && _queue.value.current?.isAvailable != true -> {
+                loadedTrack = null
+                player.stop()
+            }
             state.status == PlayerStatus.Ended -> {
                 seekCurrent(0)
                 player.play()
@@ -348,10 +354,10 @@ class PlaybackController(
         return moved
     }
 
-    /** Saved file tags must reach every duplicate slot and the hidden unshuffled order. */
-    fun refreshTracks(tracks: List<Track>) {
+    /** Saved tags reach every slot; [stableIds] requires a registry-validated canonical scan. */
+    fun refreshTracks(tracks: List<Track>, stableIds: Boolean = false) {
         synchronizeNativeAdvance()
-        val availability = TrackAvailability(tracks)
+        val availability = TrackAvailability(tracks, stableIds)
         libraryAvailability = availability
         _queue.update { it.withResolvedTracks(availability::resolve) }
         _queue.value.current?.track?.takeIf { loadedTrack?.isSameFileAs(it) == true }?.let {

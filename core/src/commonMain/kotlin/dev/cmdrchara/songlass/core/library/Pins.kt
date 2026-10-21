@@ -16,6 +16,7 @@ sealed interface PinnedItem {
     data class AlbumPin(val album: Album, override val context: PlayContext) : PinnedItem
     data class FolderPin(val folder: Folder, override val context: PlayContext) : PinnedItem
     data class ArtistPin(val artist: Artist, override val context: PlayContext) : PinnedItem
+    data class FacetPin(val facet: LibraryFacet, override val context: PlayContext) : PinnedItem
 }
 
 /**
@@ -51,6 +52,7 @@ class Pins(private val store: KeyValueStore = InMemoryKeyValueStore()) {
                 ?.let { PinnedItem.AlbumPin(it, context) }
             is PlayContext.Playlist -> library.folder(context.id)?.let { PinnedItem.FolderPin(it, context) }
             is PlayContext.Artist -> library.artists.firstOrNull { it.name == context.name }?.let { PinnedItem.ArtistPin(it, context) }
+            is PlayContext.Facet -> library.facet(context)?.let { PinnedItem.FacetPin(it, context) }
             PlayContext.Favorites, is PlayContext.UserPlaylist, is PlayContext.SmartPlaylist -> null
         }
     }

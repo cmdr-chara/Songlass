@@ -118,36 +118,3 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
         const val MAX_RECENT_PLAYS = 50
     }
 }
-
-/**
- * Decides when the current track counts as "played": after 30 seconds, or half of it for short
- * tracks, once per queue entry. Jumping well back (e.g. repeat one, seeking to the start)
- * allows the same entry to count again.
- */
-class PlayCounter(private val minPlayMs: Long = 30_000) {
-    private var entryId: Long? = null
-    private var counted = false
-    private var lastPositionMs = 0L
-
-    /** Feed playback progress; returns true exactly when a play should be recorded. */
-    fun update(entryId: Long?, positionMs: Long, durationMs: Long): Boolean {
-        if (entryId != this.entryId) {
-            this.entryId = entryId
-            counted = false
-        } else if (counted && positionMs + REWIND_MS < lastPositionMs) {
-            counted = false
-        }
-        lastPositionMs = positionMs
-        if (entryId == null || counted) return false
-        val threshold = if (durationMs > 0) minOf(minPlayMs, durationMs / 2) else minPlayMs
-        if (positionMs >= threshold) {
-            counted = true
-            return true
-        }
-        return false
-    }
-
-    private companion object {
-        const val REWIND_MS = 5_000L
-    }
-}

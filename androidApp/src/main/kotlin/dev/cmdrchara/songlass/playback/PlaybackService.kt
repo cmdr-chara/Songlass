@@ -23,6 +23,7 @@ import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.R
 import dev.cmdrchara.songlass.SonglassApplication
 import dev.cmdrchara.songlass.artwork.ArtworkProvider
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.browse.BrowseLabels
 import dev.cmdrchara.songlass.core.browse.BrowseLayout
 import dev.cmdrchara.songlass.core.browse.BrowseNode
@@ -247,6 +248,11 @@ internal fun browseTree(context: android.content.Context, graph: AppGraph): Brow
                 shuffleAll = getString(R.string.browse_shuffle_all),
                 unknownArtist = getString(R.string.browse_unknown_artist),
                 unknownAlbum = getString(R.string.browse_unknown_album),
+                facetTitles = mapOf(
+                    LibraryFacetKind.AlbumArtist to getString(R.string.browse_album_artists),
+                    LibraryFacetKind.Year to getString(R.string.browse_years),
+                    LibraryFacetKind.Composer to getString(R.string.browse_composers),
+                ),
                 songs = { resources.getQuantityString(R.plurals.browse_songs, it, it) },
             ),
         )

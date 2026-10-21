@@ -4,6 +4,9 @@ import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.Playlist
+import dev.cmdrchara.songlass.core.library.LibraryFacet
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
+import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,6 +18,7 @@ sealed interface SearchTarget {
     data class AlbumId(val title: String?, val artist: String?) : SearchTarget
     data class ArtistName(val name: String?) : SearchTarget
     data class FolderId(val id: String) : SearchTarget
+    data class Facet(val context: PlayContext.Facet) : SearchTarget
 }
 
 sealed interface SearchItem {
@@ -30,6 +34,9 @@ sealed interface SearchItem {
     }
     data class FolderItem(val playlist: Playlist) : SearchItem {
         override val target = SearchTarget.FolderId(playlist.id)
+    }
+    data class FacetItem(val facet: LibraryFacet) : SearchItem {
+        override val target = SearchTarget.Facet(facet.context)
     }
 }
 
@@ -55,6 +62,7 @@ class SearchHistory(private val store: KeyValueStore) {
                 ?.let(SearchItem::AlbumItem)
             is SearchTarget.ArtistName -> library.artists.firstOrNull { it.name == target.name }?.let(SearchItem::ArtistItem)
             is SearchTarget.FolderId -> library.playlists.firstOrNull { it.id == target.id }?.let(SearchItem::FolderItem)
+            is SearchTarget.Facet -> library.facet(target.context)?.let(SearchItem::FacetItem)
         }
     }
 
@@ -65,6 +73,7 @@ class SearchHistory(private val store: KeyValueStore) {
                 is SearchTarget.AlbumId -> listOf("a", target.title, target.artist)
                 is SearchTarget.ArtistName -> listOf("r", target.name)
                 is SearchTarget.FolderId -> listOf("f", target.id)
+                is SearchTarget.Facet -> listOf("m", target.context.kind.storageKey, target.context.value)
             }
             // Length prefixes preserve separators, Unicode, empty strings and missing tags.
             fields.joinToString("") { if (it == null) "-1:" else "${it.length}:$it" }
@@ -97,6 +106,11 @@ class SearchHistory(private val store: KeyValueStore) {
                             "a" -> SearchTarget.AlbumId(field(), field())
                             "r" -> SearchTarget.ArtistName(field())
                             "f" -> SearchTarget.FolderId(requireNotNull(field()))
+                            "m" -> {
+                                val kind = requireNotNull(LibraryFacetKind.fromStorage(field()))
+                                val value = requireNotNull(field()).also { require(it.isNotBlank()) }
+                                SearchTarget.Facet(PlayContext.Facet(kind, value))
+                            }
                             else -> error("Unknown search target")
                         }
                     }.getOrNull() ?: break

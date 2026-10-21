@@ -7,7 +7,8 @@ package dev.cmdrchara.songlass.core.model
  * so core never invents display strings.
  */
 data class Track(
-    /** Stable identifier from the platform media store. */
+    /** Application identifier; registry-backed sources preserve it across platform reindexing.
+     * Opaque to consumers: it must never be parsed as a MediaStore row ID. */
     val id: String,
     val title: String,
     /** Location the platform player can open (content URI on Android, file URL on iOS). */
@@ -31,6 +32,8 @@ data class Track(
     val artworkRevision: Long = 0,
     /** Genre as tagged/indexed by the platform; null when unknown. */
     val genre: String? = null,
+    /** Composer credits from actual file/platform metadata; empty when unavailable. */
+    val composers: List<String> = emptyList(),
 ) {
     /** `folder/fileName` relative to the storage root, as written in M3U playlists; null if unknown. */
     val path: String? get() = fileName?.let { name -> folder?.takeIf { it.isNotBlank() }?.let { "${it.trim('/')}/$name" } ?: name }

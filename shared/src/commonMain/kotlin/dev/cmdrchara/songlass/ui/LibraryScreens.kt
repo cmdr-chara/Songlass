@@ -24,6 +24,8 @@ import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.library.AlphabeticalIndex
+import dev.cmdrchara.songlass.core.settings.AlbumLayout
 import dev.cmdrchara.songlass.core.library.PinnedItem
 import dev.cmdrchara.songlass.designsystem.CollectionTile
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
@@ -66,6 +68,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
@@ -107,6 +110,11 @@ import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_library
 import dev.cmdrchara.songlass.shared.resources.settings_title
+import dev.cmdrchara.songlass.shared.resources.bookmark_open
+import dev.cmdrchara.songlass.shared.resources.bookmark_library_hint
+import dev.cmdrchara.songlass.shared.resources.library_metadata
+import dev.cmdrchara.songlass.shared.resources.library_layout_list
+import dev.cmdrchara.songlass.shared.resources.library_layout_grid
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -124,6 +132,7 @@ fun LibraryScreen(
     contentPadding: PaddingValues,
 ) {
     val library = state.library
+    val refreshFailure by state.libraryRefreshFailure.collectAsState()
     val onImportPlaylist = rememberPlaylistImporter { name, text ->
         val entries = text?.let(M3u::parse).orEmpty()
         val imported = M3u.resolve(entries, state.library)
@@ -158,7 +167,12 @@ fun LibraryScreen(
                 trailing = { AppText(saved.bookmarks.size.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel) },
                 onClick = { state.openBookmarks() })
         }
+        if (hasAccess && refreshFailure != null) item(key = "library.scan-error") {
+            val loading by state.isLibraryLoading.collectAsState()
+            LibraryRefreshNotice(refreshFailure, loading, state.requestLibraryRefresh)
+        }
         if (!hasAccess || library.tracks.isEmpty()) {
+            if (hasAccess && refreshFailure != null) return@LazyColumn
             item {
                     val loading by state.isLibraryLoading.collectAsState()
                     val preferences by state.settings.state.collectAsState()
@@ -173,6 +187,8 @@ fun LibraryScreen(
             item { PinnedRow(pinned, state) }
         }
         item { CategoryGrid(library, favoriteTracks, state) }
+        item { SectionTitle(stringResource(Res.string.library_metadata)) }
+        item { LibraryFacetCategories(state) }
         item { SectionTitle(stringResource(Res.string.library_playlists)) }
         item { UserPlaylistRow(state, onImportPlaylist) }
         if (library.folders.isNotEmpty()) {
@@ -256,6 +272,8 @@ private fun PinnedRow(items: List<PinnedItem>, state: AppState) {
                 { state.open(Route.ArtistDetail(item.artist)) },
                 circular = true,
             )
+            is PinnedItem.FacetPin -> ShelfItem(item.context.key, item.facet.value, facetKindLabel(item.facet.kind),
+                item.facet.tracks.first().artwork(), { state.open(Route.FacetDetail(item.facet.context)) })
         }
     }
     ArtworkShelf(shelf, ShelfStyle.Pins, PinSize)
@@ -282,7 +300,21 @@ fun LibraryCategoryScreen(
 ) {
     val library = state.library
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
+    val preferences by state.settings.state.collectAsState()
+    val albumLayout = preferences.albumLayout
     val listState = rememberLazyListState()
+    val scrollScope = rememberCoroutineScope()
+    val alphabet = remember(category, library) {
+        val titles = when (category) {
+            LibraryCategory.Artists -> library.artists.map { it.name }
+            LibraryCategory.Albums -> library.albums.map { it.title }
+            LibraryCategory.Songs -> library.tracks.map { it.title }
+            LibraryCategory.Favorites -> emptyList()
+        }
+        if (titles.size < ALPHABET_MIN_ITEMS) emptyList()
+        else AlphabeticalIndex.build(titles).takeIf { it.size > 1 }.orEmpty()
+    }
+    val albumRows = remember(library) { library.albums.chunked(2) }
     when (category) {
         LibraryCategory.Songs -> PrefetchTrackRowArtwork(listState, library.tracks)
         LibraryCategory.Favorites -> PrefetchTrackRowArtwork(listState, favoriteTracks)
@@ -297,12 +329,30 @@ fun LibraryCategoryScreen(
                 modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp),
             )
         }
+        if (category == LibraryCategory.Albums) item {
+            SegmentedControl(listOf(stringResource(Res.string.library_layout_grid), stringResource(Res.string.library_layout_list)),
+                if (albumLayout == AlbumLayout.Grid) 0 else 1,
+                { state.settings.setAlbumLayout(if (it == 0) AlbumLayout.Grid else AlbumLayout.List) },
+                Modifier.padding(horizontal = pageInset, vertical = 8.dp))
+        }
+        if (alphabet.isNotEmpty()) item {
+            val firstItem = 3 + if (category == LibraryCategory.Albums || category == LibraryCategory.Songs) 1 else 0
+            LibraryAlphabetButton(state, alphabet, listState, scrollScope) { index ->
+                firstItem + if (category == LibraryCategory.Albums && albumLayout == AlbumLayout.Grid) index / 2 else index
+            }
+        }
         when (category) {
             LibraryCategory.Artists -> items(library.artists) { artist ->
                 ArtistRow(artist) { state.open(Route.ArtistDetail(artist)) }
             }
-            LibraryCategory.Albums -> items(library.albums.chunked(2)) { pair ->
-                AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) }
+            LibraryCategory.Albums -> if (albumLayout == AlbumLayout.Grid) {
+                items(albumRows) { pair -> AlbumGridRow(pair) { state.open(Route.AlbumDetail(it)) } }
+            } else {
+                items(library.albums) { album ->
+                    ListRow(albumTitle(album.title), subtitle = artistName(album.artist),
+                        leading = { AlbumArt(album.artwork(), Modifier.size(48.dp), cornerRadius = 8.dp) },
+                        onClick = { state.open(Route.AlbumDetail(album)) })
+                }
             }
             LibraryCategory.Songs -> {
                 item { PlayShuffleRow(library.tracks, null, state) }

@@ -5,7 +5,7 @@ enum class SettingsTarget {
     InterfaceStyle, Appearance, ArtworkStyle, ResumeOnReconnect, ReplayGain, Crossfade,
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
-    HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold,
+    HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -154,6 +154,10 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "library|libreria|track|brano|tracks|brani|filter|filtro|seconds|secondi|short|brevi")
     SettingsTarget.ExcludedFolders -> terms("Excluded folders", "Cartelle escluse",
         aliases = "library|libreria|directory|cartelle|hide|nascondi|exclude|esclusioni|esclusione|filter|filtro")
+    SettingsTarget.PlayCountRule -> terms("Count a play after", "Play count rule", "Conta un ascolto dopo", "Regola conteggio ascolti",
+        aliases = "statistics|statistiche|history|cronologia|listening|ascolti|30 seconds|30 secondi|50 percent|90 percent|soglia")
+    SettingsTarget.AlbumLayout -> terms("Album layout", "Layout album", "Album view", "Vista album",
+        aliases = "library|libreria|grid|griglia|list|lista|density|densità|rows|righe|covers|copertine")
     SettingsTarget.HomeCustomization -> terms("Customize Home", "Personalizza Home", "Home customization",
         aliases = "shortcuts|scorciatoie|sections|sezioni|order|ordine|pins|fissati|home")
     SettingsTarget.Backup -> terms("Backup", "Backup and restore", "Backup e ripristino",

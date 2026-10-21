@@ -1,0 +1,5 @@
+<resources>
+    <string name="browse_album_artists">Album artists</string>
+    <string name="browse_years">Years</string>
+    <string name="browse_composers">Composers</string>
+</resources>

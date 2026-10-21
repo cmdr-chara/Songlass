@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.settings
 
 import dev.cmdrchara.songlass.core.library.LibraryFilter
+import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.storage.getStringList
 import dev.cmdrchara.songlass.core.storage.putStringList
 import dev.cmdrchara.songlass.core.library.FolderSort
@@ -46,6 +47,8 @@ class AppSettings(private val store: KeyValueStore) {
         crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
         manualCrossfadeDurationMs = store.getString(MANUAL_CROSSFADE_KEY)?.let(::parseCrossfadeDurationMs) ?: 0L,
         amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
+        playCountRule = PlayCountRule.fromStorage(store.getString(PLAY_COUNT_RULE_KEY)),
+        albumLayout = if (store.getString(ALBUM_LAYOUT_KEY) == "list") AlbumLayout.List else AlbumLayout.Grid,
         resumePerTrack = store.getString(PER_TRACK_KEY)?.toBooleanStrictOrNull() ?: false,
         longTrackThresholdMs = store.getString(LONG_THRESHOLD_KEY)?.toLongOrNull()?.takeIf { it in LONG_TRACK_CHOICES_MS } ?: 10 * 60_000L,
         libraryFilter = LibraryFilter(
@@ -161,6 +164,16 @@ class AppSettings(private val store: KeyValueStore) {
         _state.update { it.copy(amllEnabled = enabled) }
     }
 
+    fun setPlayCountRule(rule: PlayCountRule) {
+        store.putString(PLAY_COUNT_RULE_KEY, rule.storageKey)
+        _state.update { it.copy(playCountRule = rule) }
+    }
+
+    fun setAlbumLayout(layout: AlbumLayout) {
+        store.putString(ALBUM_LAYOUT_KEY, if (layout == AlbumLayout.List) "list" else "grid")
+        _state.update { it.copy(albumLayout = layout) }
+    }
+
     fun setMinimumDuration(durationMs: Long) {
         require(durationMs in LibraryFilter.durationChoicesMs)
         store.putString(MIN_DURATION_KEY, durationMs.toString())
@@ -193,5 +206,7 @@ class AppSettings(private val store: KeyValueStore) {
         const val CROSSFADE_KEY = "settings.crossfade_duration_ms"
         const val MANUAL_CROSSFADE_KEY = "settings.manual_crossfade_duration_ms"
         const val AMLL_KEY = "settings.amll_enabled"
+        const val PLAY_COUNT_RULE_KEY = "settings.play_count_rule"
+        const val ALBUM_LAYOUT_KEY = "library.album_layout"
     }
 }

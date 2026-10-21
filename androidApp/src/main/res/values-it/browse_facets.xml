@@ -1,0 +1,5 @@
+<resources>
+    <string name="browse_album_artists">Artisti dell’album</string>
+    <string name="browse_years">Anni</string>
+    <string name="browse_composers">Compositori</string>
+</resources>

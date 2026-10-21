@@ -55,6 +55,7 @@ import dev.cmdrchara.songlass.ui.LibraryScreen
 import dev.cmdrchara.songlass.ui.SystemBarAppearance
 import dev.cmdrchara.songlass.ui.SettingsScreen
 import dev.cmdrchara.songlass.shared.resources.settings_title
+import dev.cmdrchara.songlass.shared.resources.stats_title
 import dev.cmdrchara.songlass.ui.EqualizerScreen
 import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
 import dev.cmdrchara.songlass.ui.NowPlayingContent
@@ -202,7 +203,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             }
                         },
                     ) { destination ->
-                        val backLabel = tabTitles.getValue(destination.tab)
+                        val backLabel = when (destination.parentRoute) {
+                            Route.Settings -> stringResource(Res.string.settings_title)
+                            Route.ListeningStatistics -> stringResource(Res.string.stats_title)
+                            else -> tabTitles.getValue(destination.tab)
+                        }
                         when (val route = destination.route) {
                             Route.Settings -> SettingsScreen(
                                 pane = state.settingsPane,
@@ -235,7 +240,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.Bookmarks -> dev.cmdrchara.songlass.ui.BookmarksScreen(route.track, state, backLabel, padding)
                             Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(state::goBack, padding, state.settingsFocusFor(Route.About))
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
-                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding, state.settingsFocusFor(Route.LibrarySettings))
+                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding, backLabel, state.settingsFocusFor(Route.LibrarySettings))
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
                             is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)
@@ -245,6 +250,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 state::goBack, { state.goBack(); state.goBack() }, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
+                            is Route.FacetList -> dev.cmdrchara.songlass.ui.LibraryFacetListScreen(route.kind, state, backLabel, padding)
+                            is Route.FacetDetail -> dev.cmdrchara.songlass.ui.LibraryFacetScreen(route.context, state, currentId, backLabel, padding)
                             is Route.FolderDetail -> FolderScreen(route.folder, state, currentId, backLabel, padding)
                             is Route.UserPlaylistDetail -> UserPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.LibraryPage -> LibraryCategoryScreen(route.category, state, currentId, favoriteIds, backLabel, padding)
@@ -280,6 +287,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                 TrackMenu(state, favoriteIds)
                 SleepTimerMenu(state)
                 dev.cmdrchara.songlass.ui.LibraryDurationMenu(state)
+                dev.cmdrchara.songlass.ui.LibraryAlphabetMenu(state)
                 PlaylistSheets(state, rememberPlaylistExporter())
                 dev.cmdrchara.songlass.ui.SmartPlaylistDeleteSheet(state)
             }
@@ -306,6 +314,7 @@ private fun Route?.pageArtwork(state: AppState): Artwork? = when (this) {
     is Route.AlbumDetail -> album.artwork()
     is Route.FolderDetail -> folder.artwork()
     is Route.ArtistDetail -> artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
+    is Route.FacetDetail -> state.library.facet(context)?.tracks?.firstOrNull()?.artwork()
     is Route.UserPlaylistDetail -> state.userPlaylists.get(id)?.let { it.artwork(it.tracksIn(state.library)) }
     is Route.SmartPlaylistDetail -> {
         val playlists by state.smartPlaylists.playlists.collectAsState()

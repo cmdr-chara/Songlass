@@ -1,0 +1,5 @@
+<resources>
+    <string name="backup_unavailable_progress">Unavailable saved positions</string>
+    <string name="backup_unavailable_bookmarks">Unavailable bookmarks</string>
+    <string name="backup_unavailable_markers_hint">These positions and bookmarks are included in the totals above. Songlass will keep their original details, but cannot safely link them to a music file. They will remain unavailable for resuming or starting playback, even if other data for that song is matched.</string>
+</resources>

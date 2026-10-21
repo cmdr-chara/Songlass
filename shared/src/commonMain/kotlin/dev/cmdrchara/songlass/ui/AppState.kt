@@ -12,8 +12,13 @@ import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.Playlist
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
+import dev.cmdrchara.songlass.core.library.AlphabetSection
+import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
+import dev.cmdrchara.songlass.core.playlists.PlaylistAddResult
+import dev.cmdrchara.songlass.core.playlists.PlaylistInsertion
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 
@@ -29,6 +34,16 @@ sealed interface PlaylistPrompt {
     data class Create(val trackIds: List<String>) : PlaylistPrompt
     data class Rename(val id: String, val currentName: String) : PlaylistPrompt
 }
+
+data class PlaylistInsertionRequest(val playlistId: String, val trackIds: List<String>)
+data class PlaylistAdditionNotice(val playlistName: String, val result: PlaylistAddResult)
+data class PlaylistRemovalRequest(
+    val playlistId: String,
+    val missingOnly: Boolean,
+    /** Snapshot of the references the user is being asked to remove, never expanded later. */
+    val missingCandidateIds: List<String> = emptyList(),
+)
+data class AlphabetJumpRequest(val sections: List<AlphabetSection>, val onSelect: (Int) -> Unit)
 
 sealed interface Route {
     data object About : Route
@@ -46,13 +61,15 @@ sealed interface Route {
     data object ListeningStatistics : Route
     data class AlbumDetail(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
+    data class FacetList(val kind: LibraryFacetKind) : Route
+    data class FacetDetail(val context: PlayContext.Facet) : Route
     data class FolderDetail(val folder: Folder) : Route
     data class LibraryPage(val category: LibraryCategory) : Route
     data class UserPlaylistDetail(val id: String) : Route
 }
 
 /** A stable snapshot so outgoing screens retain their route during navigation. */
-data class ScreenDestination(val tab: Tab, val route: Route?, val depth: Int)
+data class ScreenDestination(val tab: Tab, val route: Route?, val depth: Int, val parentRoute: Route? = null)
 
 /**
  * UI state that survives recomposition: which tab and page are shown, and whether Now Playing
@@ -73,6 +90,11 @@ class AppState(graph: AppGraph) {
     val userPlaylists = graph.userPlaylists
     val sleepTimer = graph.sleepTimer
     val isLibraryLoading = graph.isLibraryLoading
+    val libraryRefreshFailure = graph.libraryRefreshFailure
+    val requestLibraryRefresh: () -> Unit = graph::requestLibraryRefresh
+    val hasCompleteLibraryScan = graph.hasCompleteLibraryScan
+    val allTracks = graph.allTracks
+    val libraryAccess = graph.source.hasAccess
     val history: ListeningHistory = graph.history
     val lyrics = graph.lyrics
 
@@ -120,6 +142,12 @@ class AppState(graph: AppGraph) {
         private set
     fun openLibraryDurationPicker() { isLibraryDurationPickerOpen = true }
     fun closeLibraryDurationPicker() { isLibraryDurationPickerOpen = false }
+    var alphabetJumpRequest by mutableStateOf<AlphabetJumpRequest?>(null)
+        private set
+    fun openAlphabetJump(sections: List<AlphabetSection>, onSelect: (Int) -> Unit) {
+        alphabetJumpRequest = AlphabetJumpRequest(sections, onSelect)
+    }
+    fun closeAlphabetJump() { alphabetJumpRequest = null }
     var isSleepMenuOpen by mutableStateOf(false)
         private set
     fun openSleepMenu() { isSleepMenuOpen = true }
@@ -135,7 +163,10 @@ class AppState(graph: AppGraph) {
     private val backStacks = Tab.entries.associateWith { mutableStateListOf<Route>() }
 
     val currentRoute: Route? get() = backStacks.getValue(tab).lastOrNull()
-    val destination: ScreenDestination get() = ScreenDestination(tab, currentRoute, backStacks.getValue(tab).size)
+    val destination: ScreenDestination get() {
+        val stack = backStacks.getValue(tab)
+        return ScreenDestination(tab, stack.lastOrNull(), stack.size, stack.getOrNull(stack.lastIndex - 1))
+    }
 
     /** Opens the folder a playlist stands for (playlists are folders with music in them). */
     fun openPlaylist(playlist: Playlist) {
@@ -147,6 +178,7 @@ class AppState(graph: AppGraph) {
     val canGoBack: Boolean get() = hasOverlay || editingPlaylistId != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
+        closeAlphabetJump()
         if (newTab == Tab.Search) searchFocusRequest += 1
         // Tapping the current tab again returns to its root, as in iOS.
         if (newTab == tab) backStacks.getValue(tab).clear()
@@ -155,6 +187,7 @@ class AppState(graph: AppGraph) {
 
     /** Refresh route snapshots too: hidden songs must not survive in an older collection page. */
     fun updateLibrary(updated: dev.cmdrchara.songlass.core.library.MusicLibrary) {
+        if (library !== updated) closeAlphabetJump()
         library = updated
         backStacks.values.forEach { stack ->
             for (index in stack.lastIndex downTo 0) {
@@ -163,6 +196,7 @@ class AppState(graph: AppGraph) {
                     is Route.AlbumDetail -> updated.albums.firstOrNull { it.title == original.album.title && it.artist == original.album.artist }?.let(Route::AlbumDetail)
                     is Route.ArtistDetail -> updated.artists.firstOrNull { it.name == original.artist.name }?.let(Route::ArtistDetail)
                     is Route.FolderDetail -> updated.folder(original.folder.id)?.let(Route::FolderDetail)
+                    is Route.FacetDetail -> original.takeIf { updated.facet(it.context) != null }
                     else -> original
                 }
                 if (refreshed == null) stack.removeAt(index) else if (refreshed != original) stack[index] = refreshed
@@ -171,6 +205,7 @@ class AppState(graph: AppGraph) {
     }
 
     fun open(route: Route) {
+        closeAlphabetJump()
         if (route == Route.Settings) {
             settingsPane = SettingsPane.Overview
             settingsSearch = SettingsSearchSession()
@@ -180,6 +215,10 @@ class AppState(graph: AppGraph) {
 
     fun goBack() {
         when {
+            alphabetJumpRequest != null -> closeAlphabetJump()
+            playlistAdditionNotice != null -> closePlaylistAdditionNotice()
+            playlistRemovalRequest != null -> closePlaylistRemoval()
+            playlistInsertionRequest != null -> closePlaylistInsertion()
             deletingSmartPlaylistId != null -> closeDeleteSmartPlaylist()
             playlistPrompt != null -> closePlaylistPrompt()
             addToPlaylistTracks != null -> closeAddToPlaylist()
@@ -228,6 +267,44 @@ class AppState(graph: AppGraph) {
     fun openAddToPlaylist(tracks: List<Track>) { addToPlaylistTracks = tracks }
     fun closeAddToPlaylist() { addToPlaylistTracks = null }
 
+    var playlistInsertionRequest by mutableStateOf<PlaylistInsertionRequest?>(null)
+        private set
+    fun askPlaylistInsertion(id: String, trackIds: List<String>) {
+        playlistInsertionRequest = PlaylistInsertionRequest(id, trackIds)
+    }
+    fun closePlaylistInsertion() { playlistInsertionRequest = null }
+    var playlistAdditionNotice by mutableStateOf<PlaylistAdditionNotice?>(null)
+        private set
+    fun addToPlaylist(request: PlaylistInsertionRequest, insertion: PlaylistInsertion) {
+        val name = userPlaylists.get(request.playlistId)?.name.orEmpty()
+        playlistAdditionNotice = PlaylistAdditionNotice(name,
+            userPlaylists.addDetailed(request.playlistId, request.trackIds, insertion))
+    }
+    fun closePlaylistAdditionNotice() { playlistAdditionNotice = null }
+
+    var playlistRemovalRequest by mutableStateOf<PlaylistRemovalRequest?>(null)
+        private set
+    fun askPlaylistRemoval(id: String, missingOnly: Boolean = false) {
+        val candidates = if (missingOnly) {
+            if (!libraryAccess.value || !hasCompleteLibraryScan.value || isLibraryLoading.value) return
+            val playlist = userPlaylists.get(id) ?: return
+            playlist.availability(library, allTracks.value).missingTrackIds.takeIf { it.isNotEmpty() } ?: return
+        } else emptyList()
+        playlistRemovalRequest = PlaylistRemovalRequest(id, missingOnly, candidates)
+    }
+    fun closePlaylistRemoval() { playlistRemovalRequest = null }
+    fun removePlaylist(request: PlaylistRemovalRequest) {
+        if (request.missingOnly) {
+            if (libraryAccess.value && hasCompleteLibraryScan.value && !isLibraryLoading.value) {
+                userPlaylists.removeMissing(request.playlistId, allTracks.value, request.missingCandidateIds)
+            }
+        } else {
+            userPlaylists.delete(request.playlistId)
+            if (editingPlaylistId == request.playlistId) editingPlaylistId = null
+            backStacks.values.forEach { stack -> stack.removeAll { it == Route.UserPlaylistDetail(request.playlistId) } }
+        }
+    }
+
     /** A name being asked: for a new playlist (with its first tracks) or to rename one. */
     var playlistPrompt by mutableStateOf<PlaylistPrompt?>(null)
         private set
@@ -249,7 +326,8 @@ class AppState(graph: AppGraph) {
     fun closeDeleteSmartPlaylist() { deletingSmartPlaylistId = null }
 
     val hasOverlay: Boolean
-        get() = deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
+        get() = alphabetJumpRequest != null || playlistInsertionRequest != null || playlistAdditionNotice != null || playlistRemovalRequest != null ||
+            deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
 
     fun openBookmarks(track: Track? = null) {

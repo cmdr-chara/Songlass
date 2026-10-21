@@ -6,6 +6,7 @@ import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.Playlist
+import dev.cmdrchara.songlass.core.library.LibraryFacet
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 import dev.cmdrchara.songlass.core.playlists.SmartPlaylist
@@ -16,6 +17,7 @@ sealed interface HomeItem {
     data class AlbumItem(val album: Album) : HomeItem
     data class PlaylistItem(val playlist: Playlist) : HomeItem
     data class ArtistItem(val artist: Artist) : HomeItem
+    data class FacetItem(val facet: LibraryFacet) : HomeItem
     data class TrackItem(val track: Track) : HomeItem
     data class FavoritesItem(val tracks: List<Track>) : HomeItem
     data class UserPlaylistItem(val playlist: UserPlaylist, val tracks: List<Track>) : HomeItem

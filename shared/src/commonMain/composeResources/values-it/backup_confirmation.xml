@@ -1,0 +1,5 @@
+<resources>
+    <string name="backup_preview_changed">La libreria è cambiata e questo backup ora corrisponde ai file in modo diverso. Non è stato ripristinato nulla. Controlla l’anteprima aggiornata qui sotto e conferma di nuovo se vuoi proseguire.</string>
+    <string name="backup_library_unavailable">Le operazioni di backup richiedono l’accesso alla musica e una scansione completa della libreria. Completa o riprova la scansione prima di esaminare o ripristinare un backup. Il backup selezionato e i dati attuali dell’app sono invariati.</string>
+    <string name="backup_review_again">Esamina di nuovo il backup selezionato</string>
+</resources>

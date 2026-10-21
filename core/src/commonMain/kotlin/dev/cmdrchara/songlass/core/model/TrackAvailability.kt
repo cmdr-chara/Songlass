@@ -3,15 +3,17 @@ package dev.cmdrchara.songlass.core.model
 import kotlin.math.abs
 
 /**
- * One full, unfiltered scan. A stale content URI is never reopened just because its media id
- * still exists. A unique unchanged recording at the same path may acquire a new platform id.
- * This is conservative metadata matching, not a fingerprint of the audio bytes.
+ * One full, unfiltered scan. With [stableIds], IDs must already have been validated by the track
+ * identity registry: only a unique canonical ID may resolve, including to a reindexed URI.
+ * Legacy sources instead use conservative location/metadata matching, not an audio fingerprint.
  */
-class TrackAvailability(tracks: List<Track>) {
-    private val byIdentity = tracks.groupBy { it.id to it.uri }
-    private val byPath = tracks.filter { it.path != null }.groupBy { it.path }
+class TrackAvailability(tracks: List<Track>, private val stableIds: Boolean = false) {
+    private val byId = if (stableIds) tracks.groupBy { it.id } else emptyMap()
+    private val byIdentity = if (stableIds) emptyMap() else tracks.groupBy { it.id to it.uri }
+    private val byPath = if (stableIds) emptyMap() else tracks.filter { it.path != null }.groupBy { it.path }
 
     fun resolve(track: Track): Track? {
+        if (stableIds) return byId[track.id]?.singleOrNull()
         val sameIdentity = byIdentity[track.id to track.uri]
         if (sameIdentity != null) {
             // A conflicting reused identity cannot fall back to the path and bypass the guard.

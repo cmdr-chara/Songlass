@@ -7,6 +7,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlin.math.abs
 
+/** Trust is local to an installation; a backup must validate it against its target library. */
+enum class MarkerBinding { Legacy, Canonical, Unresolved }
+
 /**
  * File identity accompanies every saved point. A recycled MediaStore id is never enough to
  * associate private listening data with a file. No tags or audio bytes are modified.
@@ -19,6 +22,7 @@ data class TrackSignature(
     val artist: String?,
     val album: String?,
     val durationMs: Long,
+    val binding: MarkerBinding = MarkerBinding.Legacy,
 ) {
     companion object {
         fun of(track: Track) = TrackSignature(track.id, track.uri, track.path, track.title,
@@ -34,6 +38,37 @@ data class TrackMarkersState(
 )
 
 /**
+ * Different saved points may become the same active signature after remapping or promotion.
+ * There is no timestamp that could justify choosing one. Keep every original row, position and
+ * file fact inertly instead, including when the original rows differed only in their binding.
+ */
+private fun preserveAmbiguousProgress(
+    original: List<SavedProgress>,
+    mapped: List<SavedProgress>,
+): List<SavedProgress> {
+    require(original.size == mapped.size)
+    val counts = HashMap<TrackSignature, Int>()
+    mapped.forEach { point ->
+        if (point.track.binding != MarkerBinding.Unresolved) {
+            counts[point.track] = (counts[point.track] ?: 0) + 1
+        }
+    }
+    if (counts.values.none { it > 1 }) return mapped
+    return mapped.mapIndexed { index, point ->
+        if ((counts[point.track] ?: 0) <= 1) point else original[index].let {
+            it.copy(track = it.track.copy(binding = MarkerBinding.Unresolved))
+        }
+    }
+}
+
+/** The backup matcher distinguishes a missing file from an occupied or ambiguous identity. */
+sealed interface MarkerRestoreResolution {
+    data class Matched(val track: Track) : MarkerRestoreResolution
+    data object Missing : MarkerRestoreResolution
+    data object Conflict : MarkerRestoreResolution
+}
+
+/**
  * A bounded, versioned, length-prefixed wire format. Unknown/corrupt records are not silently
  * interpreted as positions, and backup validation can reject a damaged value before writing.
  * New keys are explicitly allowlisted by the backup; its original v1 container stays readable.
@@ -43,7 +78,8 @@ object TrackMarkersCodec {
     const val BOOKMARKS_KEY = "playback.bookmarks.v1"
     const val MAX_PROGRESS = 2_500
     const val MAX_BOOKMARKS = 10_000
-    private const val HEADER = "v1|"
+    private const val HEADER_V1 = "v1|"
+    private const val HEADER_V2 = "v2|"
     private const val MAX_TEXT = 16 * 1024 * 1024
     private const val MAX_FIELD = 4_096
 
@@ -54,19 +90,40 @@ object TrackMarkersCodec {
         id.id, id.uri, id.path, id.title, id.artist, id.album, id.durationMs.toString(),
     )
 
-    private fun identity(fields: List<String?>, offset: Int): TrackSignature {
+    private fun identity(fields: List<String?>, offset: Int, binding: MarkerBinding): TrackSignature {
         val duration = fields[offset + 6]?.toLongOrNull()
         require(duration != null && duration >= 0 && duration.toString() == fields[offset + 6])
         val id = requireNotNull(fields[offset]).also { require(it.isNotEmpty()) }
         val uri = requireNotNull(fields[offset + 1]).also { require(it.isNotEmpty()) }
         return TrackSignature(id, uri, fields[offset + 2], requireNotNull(fields[offset + 3]),
-            fields[offset + 4], fields[offset + 5], duration)
+            fields[offset + 4], fields[offset + 5], duration, binding)
+    }
+
+    private fun hasBinding(text: String): Boolean {
+        require(text.length <= MAX_TEXT)
+        return when {
+            text.startsWith(HEADER_V1) -> false
+            text.startsWith(HEADER_V2) -> true
+            else -> error("Unknown marker version")
+        }
+    }
+
+    private fun binding(value: String?): MarkerBinding = when (value) {
+        "legacy" -> MarkerBinding.Legacy
+        "canonical" -> MarkerBinding.Canonical
+        "unresolved" -> MarkerBinding.Unresolved
+        else -> error("Unknown marker binding")
+    }
+
+    private fun bindingField(binding: MarkerBinding): String = when (binding) {
+        MarkerBinding.Legacy -> "legacy"
+        MarkerBinding.Canonical -> "canonical"
+        MarkerBinding.Unresolved -> "unresolved"
     }
 
     private fun readRows(text: String, width: Int, maximum: Int): List<List<String?>> {
-        require(text.length <= MAX_TEXT && text.startsWith(HEADER))
         val rows = ArrayList<List<String?>>()
-        var cursor = HEADER.length
+        var cursor = HEADER_V1.length
         while (cursor < text.length) {
             require(rows.size < maximum)
             val fields = ArrayList<String?>(width)
@@ -88,9 +145,10 @@ object TrackMarkersCodec {
         return rows
     }
 
-    private fun writeRows(rows: List<List<String?>>): String {
+    private fun writeRows(rows: List<List<String?>>, hasBinding: Boolean): String {
         // Reject before constructing or persisting a value our own reader cannot accept.
-        var size = HEADER.length
+        val header = if (hasBinding) HEADER_V2 else HEADER_V1
+        var size = header.length
         rows.forEach { row -> row.forEach { field ->
             require(field == null || field.length <= MAX_FIELD)
             val encodedSize = if (field == null) 3 else field.length.toString().length + 1 + field.length
@@ -98,7 +156,7 @@ object TrackMarkersCodec {
             size += encodedSize
         } }
         return buildString(size) {
-            append(HEADER)
+            append(header)
             rows.forEach { row -> row.forEach { append(encodeField(it)) } }
         }
     }
@@ -113,6 +171,11 @@ object TrackMarkersCodec {
             (progress.track.durationMs == 0L || progress.positionMs <= progress.track.durationMs))
     }
 
+    private fun requireUniqueActiveProgress(values: List<SavedProgress>) {
+        val seen = HashSet<TrackSignature>()
+        require(values.all { it.track.binding == MarkerBinding.Unresolved || seen.add(it.track) })
+    }
+
     private fun validateBookmark(bookmark: TrackBookmark) {
         validateIdentity(bookmark.track)
         require(bookmark.id.isNotBlank() && bookmark.id.length <= 80)
@@ -124,25 +187,29 @@ object TrackMarkersCodec {
 
     fun decodeProgress(value: String?): List<SavedProgress> {
         if (value == null) return emptyList()
-        val result = readRows(value, 8, MAX_PROGRESS).map { fields ->
+        val versionTwo = hasBinding(value)
+        val result = readRows(value, if (versionTwo) 9 else 8, MAX_PROGRESS).map { fields ->
             val position = fields[7]?.toLongOrNull()
             require(position != null && position > 0 && position.toString() == fields[7])
-            SavedProgress(identity(fields, 0), position).also(::validateProgress)
+            val binding = if (versionTwo) binding(fields[8]) else MarkerBinding.Legacy
+            SavedProgress(identity(fields, 0, binding), position).also(::validateProgress)
         }
-        require(result.distinctBy { it.track }.size == result.size)
+        requireUniqueActiveProgress(result)
         return result
     }
 
     fun decodeBookmarks(value: String?): List<TrackBookmark> {
         if (value == null) return emptyList()
-        val result = readRows(value, 10, MAX_BOOKMARKS).map { fields ->
+        val versionTwo = hasBinding(value)
+        val result = readRows(value, if (versionTwo) 11 else 10, MAX_BOOKMARKS).map { fields ->
             val id = requireNotNull(fields[0])
             require(id.isNotBlank() && id.length <= 80)
             val position = fields[8]?.toLongOrNull()
             require(position != null && position >= 0 && position.toString() == fields[8])
             val title = fields[9]
             require(title == null || (title.isNotBlank() && title.length <= 200 && title.trim() == title))
-            TrackBookmark(id, identity(fields, 1), position, title).also(::validateBookmark)
+            val binding = if (versionTwo) binding(fields[10]) else MarkerBinding.Legacy
+            TrackBookmark(id, identity(fields, 1, binding), position, title).also(::validateBookmark)
         }
         require(result.distinctBy { it.id }.size == result.size)
         return result
@@ -150,17 +217,21 @@ object TrackMarkersCodec {
 
     fun encodeProgress(values: List<SavedProgress>): String {
         require(values.size <= MAX_PROGRESS)
-        require(values.distinctBy { it.track }.size == values.size)
+        requireUniqueActiveProgress(values)
         values.forEach(::validateProgress)
-        return writeRows(values.map { identityFields(it.track) + it.positionMs.toString() })
+        val versionTwo = values.any { it.track.binding != MarkerBinding.Legacy }
+        return writeRows(values.map { identityFields(it.track) + it.positionMs.toString() +
+            (if (versionTwo) listOf(bindingField(it.track.binding)) else emptyList()) }, versionTwo)
     }
 
     fun encodeBookmarks(values: List<TrackBookmark>): String {
         require(values.size <= MAX_BOOKMARKS)
         require(values.distinctBy { it.id }.size == values.size)
         values.forEach(::validateBookmark)
+        val versionTwo = values.any { it.track.binding != MarkerBinding.Legacy }
         return writeRows(values.map { listOf(it.id) + identityFields(it.track) +
-            listOf(it.positionMs.toString(), it.title) })
+            listOf(it.positionMs.toString(), it.title) +
+            (if (versionTwo) listOf(bindingField(it.track.binding)) else emptyList()) }, versionTwo)
     }
 
     fun canonicalProgress(value: String): Boolean =
@@ -169,16 +240,70 @@ object TrackMarkersCodec {
     fun canonicalBookmarks(value: String): Boolean =
         runCatching { encodeBookmarks(decodeBookmarks(value)) == value }.getOrDefault(false)
 
-    /**
-     * Backup remaps only id references that have a safe match. The original path, metadata and
-     * duration stay attached even after remapping; a mismatched candidate cannot be opened.
-     * A missing/conflicting record is retained as unavailable, never attached by id alone.
-     */
-    fun remapProgress(value: String, map: (String) -> String?): String =
-        encodeProgress(decodeProgress(value).map { it.copy(track = it.track.copy(id = map(it.track.id) ?: it.track.id)) })
+    /** Known local location and recording facts are both required to trust a pre-registry record. */
+    fun matchesLegacyIdentity(signature: TrackSignature, sourceSignature: TrackSignature): Boolean {
+        val sameLocation = if (signature.path != null || sourceSignature.path != null) {
+            !signature.path.isNullOrBlank() && signature.path == sourceSignature.path
+        } else signature.uri == sourceSignature.uri
+        if (!sameLocation || signature.title.isBlank() || signature.title != sourceSignature.title ||
+            signature.artist != sourceSignature.artist || signature.album != sourceSignature.album ||
+            signature.durationMs <= 0 || sourceSignature.durationMs <= 0) return false
+        val difference = if (signature.durationMs >= sourceSignature.durationMs) {
+            signature.durationMs - sourceSignature.durationMs
+        } else sourceSignature.durationMs - signature.durationMs
+        return difference <= 1_000
+    }
 
-    fun remapBookmarks(value: String, map: (String) -> String?): String =
-        encodeBookmarks(decodeBookmarks(value).map { it.copy(track = it.track.copy(id = map(it.track.id) ?: it.track.id)) })
+    /**
+     * Source trust never crosses an installation boundary. Matched records bind to the validated
+     * target facts in the restore transaction itself, without a second commit during reload.
+     * Missing records keep their original identity without trust. Conflicts keep all source
+     * fields but are permanently inert, including after re-export.
+     */
+    private fun remapIdentity(
+        signature: TrackSignature,
+        map: (String) -> String?,
+        resolveMarker: ((TrackSignature) -> MarkerRestoreResolution)?,
+    ): TrackSignature {
+        if (signature.binding == MarkerBinding.Unresolved) return signature
+        if (resolveMarker == null) {
+            val id = map(signature.id) ?: return signature.copy(binding = MarkerBinding.Unresolved)
+            return signature.copy(id = id, binding = MarkerBinding.Legacy)
+        }
+        return when (val resolution = resolveMarker(signature)) {
+            is MarkerRestoreResolution.Matched -> TrackSignature.of(resolution.track)
+                .copy(binding = MarkerBinding.Canonical)
+            MarkerRestoreResolution.Missing -> signature.copy(binding = MarkerBinding.Legacy)
+            MarkerRestoreResolution.Conflict -> signature.copy(binding = MarkerBinding.Unresolved)
+        }
+    }
+
+    fun remapProgress(
+        value: String,
+        map: (String) -> String?,
+        resolveMarker: ((TrackSignature) -> MarkerRestoreResolution)? = null,
+    ): String {
+        val original = decodeProgress(value)
+        val mapped = original.map {
+            val track = remapIdentity(it.track, map, resolveMarker)
+            it.copy(track = track, positionMs = boundedPosition(it.positionMs, track))
+        }
+        return encodeProgress(preserveAmbiguousProgress(original, mapped))
+    }
+
+    fun remapBookmarks(
+        value: String,
+        map: (String) -> String?,
+        resolveMarker: ((TrackSignature) -> MarkerRestoreResolution)? = null,
+    ): String = encodeBookmarks(decodeBookmarks(value).map {
+        val track = remapIdentity(it.track, map, resolveMarker)
+        it.copy(track = track, positionMs = boundedPosition(it.positionMs, track))
+    })
+
+    // A validated match permits up to 1 s of duration variance between media scanners. A point
+    // at the old endpoint must not make the entire backup invalid on a slightly shorter target.
+    private fun boundedPosition(positionMs: Long, track: TrackSignature): Long =
+        if (track.durationMs > 0) positionMs.coerceAtMost(track.durationMs) else positionMs
 }
 
 class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Long = { 0L }) {
@@ -189,6 +314,8 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
 
     private val _state = MutableStateFlow(read())
     val state: StateFlow<TrackMarkersState> = _state.asStateFlow()
+    private var stableIds = false
+    private var byId: Map<String, List<Track>> = emptyMap()
     private var byPath: Map<String, List<Track>> = emptyMap()
     private var byUriId: Map<Pair<String, String>, List<Track>> = emptyMap()
     private val _libraryRevision = MutableStateFlow(0L)
@@ -197,17 +324,71 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
     /** Backup replacement owns these keys until repository reload has finished. */
     var writesSuspended: Boolean = false
 
-    fun reload() { _state.value = read() }
+    fun reload() {
+        val loaded = read()
+        // Restore still owns the keys while this runs. Migration is part of reload, not a
+        // playback checkpoint, and must finish before releasing writesSuspended.
+        _state.value = if (stableIds) migrateLegacy(loaded, byId) else loaded
+    }
 
-    fun setLibrary(tracks: List<Track>) {
+    /** [stableIds] is only for scans already validated by the persistent identity registry. */
+    fun setLibrary(tracks: List<Track>, stableIds: Boolean = false) {
         // Build once per MediaStore refresh. Bookmark lists never scan the full library per row.
-        byPath = tracks.mapNotNull { track -> track.path?.let { it to track } }.groupBy({ it.first }, { it.second })
-        byUriId = tracks.groupBy { it.id to it.uri }
+        val nextById = if (stableIds) tracks.groupBy { it.id } else emptyMap()
+        val nextByPath = if (stableIds) emptyMap() else tracks.mapNotNull { track ->
+            track.path?.let { it to track }
+        }.groupBy({ it.first }, { it.second })
+        val nextByUriId = if (stableIds) emptyMap() else tracks.groupBy { it.id to it.uri }
+        val nextState = if (stableIds) migrateLegacy(state.value, nextById) else state.value
+        // A failed transaction leaves both the published library and marker state unchanged.
+        this.stableIds = stableIds
+        byId = nextById
+        byPath = nextByPath
+        byUriId = nextByUriId
+        _state.value = nextState
         _libraryRevision.value++
+    }
+
+    private fun migrateLegacy(
+        previous: TrackMarkersState,
+        library: Map<String, List<Track>>,
+    ): TrackMarkersState {
+        if (previous.progress.none { it.track.binding == MarkerBinding.Legacy } &&
+            previous.bookmarks.none { it.track.binding == MarkerBinding.Legacy }) return previous
+        fun migrate(signature: TrackSignature): TrackSignature {
+            if (signature.binding != MarkerBinding.Legacy) return signature
+            val candidates = library[signature.id] ?: return signature // Missing can return later.
+            val candidate = candidates.singleOrNull()
+            val binding = if (candidate != null &&
+                TrackMarkersCodec.matchesLegacyIdentity(signature, TrackSignature.of(candidate))) {
+                MarkerBinding.Canonical
+            } else MarkerBinding.Unresolved
+            return signature.copy(binding = binding)
+        }
+        val next = TrackMarkersState(
+            preserveAmbiguousProgress(previous.progress, previous.progress.map { it.copy(track = migrate(it.track)) }),
+            previous.bookmarks.map { it.copy(track = migrate(it.track)) },
+        )
+        if (next == previous) return previous
+        val changed = buildMap {
+            if (next.progress != previous.progress) put(TrackMarkersCodec.PROGRESS_KEY,
+                TrackMarkersCodec.encodeProgress(next.progress))
+            if (next.bookmarks != previous.bookmarks) put(TrackMarkersCodec.BOOKMARKS_KEY,
+                TrackMarkersCodec.encodeBookmarks(next.bookmarks))
+        }
+        // Both collections are committed together, with no state publication on failure.
+        // The caller serializes repository access; no background mutation races with playback.
+        store.replace(emptySet(), changed)
+        return next
     }
 
     /** Identity must be unique in the unfiltered library. Similar tags alone never match. */
     fun resolve(signature: TrackSignature): Track? {
+        if (signature.binding == MarkerBinding.Unresolved) return null
+        if (stableIds) return byId[signature.id]?.singleOrNull()?.takeIf { candidate ->
+            signature.binding == MarkerBinding.Canonical ||
+                TrackMarkersCodec.matchesLegacyIdentity(signature, TrackSignature.of(candidate))
+        }
         val candidates = if (signature.path != null) byPath[signature.path] else byUriId[signature.id to signature.uri]
         return candidates?.singleOrNull()?.takeIf { candidate ->
             candidate.title == signature.title && candidate.artist == signature.artist &&
@@ -216,12 +397,50 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
         }
     }
 
-    fun bookmarksFor(track: Track): List<TrackBookmark> =
-        state.value.bookmarks.filter { it.track == TrackSignature.of(track) || resolve(it.track) == track }
+    /** A Track selected inside this app is distinct from an untrusted stored legacy signature. */
+    fun resolveSelection(track: Track): Track? =
+        if (stableIds) byId[track.id]?.singleOrNull() else resolve(TrackSignature.of(track))
+
+    private fun signatureFor(track: Track): TrackSignature = TrackSignature.of(track).let { signature ->
+        if (stableIds && byId[track.id]?.singleOrNull() != null) {
+            signature.copy(binding = MarkerBinding.Canonical)
+        } else signature
+    }
+
+    private fun sameObservedIdentity(signature: TrackSignature, observed: TrackSignature): Boolean =
+        signature.id == observed.id && signature.uri == observed.uri &&
+            signature.path == observed.path && signature.title == observed.title &&
+            signature.artist == observed.artist && signature.album == observed.album &&
+            signature.durationMs == observed.durationMs
+
+    private fun belongsTo(signature: TrackSignature, track: Track, observed: TrackSignature): Boolean {
+        if (signature.binding == MarkerBinding.Unresolved) return false
+        // A loaded decoder can still checkpoint its exact file after access is revoked. Keep
+        // that identity match without allowing an unresolved signature to bypass the resolver.
+        return sameObservedIdentity(signature, observed) ||
+            (if (stableIds) resolve(signature)?.id == track.id else resolve(signature) == track)
+    }
+
+    fun bookmarksFor(track: Track): List<TrackBookmark> {
+        val observed = TrackSignature.of(track)
+        return state.value.bookmarks.filter { belongsTo(it.track, track, observed) }
+    }
+
+    /** Display also retains unavailable records; actions must still call [resolve] on the marker. */
+    fun bookmarksForDisplay(track: Track): List<TrackBookmark> {
+        val observed = TrackSignature.of(track)
+        val selection = resolveSelection(track)
+        return state.value.bookmarks.filter { marker ->
+            (stableIds && marker.track.binding == MarkerBinding.Canonical && marker.track.id == track.id) ||
+                sameObservedIdentity(marker.track, observed) ||
+                (selection != null && resolve(marker.track) == selection)
+        }
+    }
 
     fun progressFor(track: Track, minimumDurationMs: Long): Long? {
-        if (track.durationMs < minimumDurationMs || track.durationMs <= 0 || resolve(TrackSignature.of(track)) != track) return null
-        val entries = state.value.progress.filter { it.track == TrackSignature.of(track) || resolve(it.track) == track }
+        if (track.durationMs < minimumDurationMs || track.durationMs <= 0 || resolve(signatureFor(track)) != track) return null
+        val observed = TrackSignature.of(track)
+        val entries = state.value.progress.filter { belongsTo(it.track, track, observed) }
         if (entries.size != 1) return null
         return entries.single().positionMs.takeIf { it >= MIN_POSITION_MS && it < track.durationMs - END_MARGIN_MS }
     }
@@ -229,8 +448,11 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
     /** Call only on pauses, seeks, explicit exits, and spaced position milestones. */
     fun checkpoint(track: Track, positionMs: Long, thresholdMs: Long, force: Boolean = false) {
         if (writesSuspended || track.durationMs < thresholdMs || track.durationMs <= 0) return
-        val signature = TrackSignature.of(track)
-        val existing = state.value.progress.filter { it.track == signature || resolve(it.track) == track }
+        val observed = TrackSignature.of(track)
+        val existing = state.value.progress.filter { belongsTo(it.track, track, observed) }
+        val signature = if (stableIds && existing.any { it.track.binding == MarkerBinding.Canonical }) {
+            observed.copy(binding = MarkerBinding.Canonical)
+        } else signatureFor(track)
         // Loading or crossing the first seconds must not destroy a previously saved point.
         // Only an explicit restart clears it, or reaching the end margin/completion.
         if (positionMs < MIN_POSITION_MS) return
@@ -250,7 +472,7 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
     fun completed(track: Track) {
         if (writesSuspended) return
         val signature = TrackSignature.of(track)
-        val matches = state.value.progress.filter { it.track == signature || resolve(it.track) == track }
+        val matches = state.value.progress.filter { belongsTo(it.track, track, signature) }
         if (matches.isNotEmpty()) writeProgress(state.value.progress - matches.toSet())
     }
 
@@ -268,7 +490,7 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
         var sequence = 0
         var id = base
         while (existing.any { it.id == id }) { sequence++; id = base + "-" + sequence }
-        val marker = TrackBookmark(id, TrackSignature.of(track), positionMs, normalizedTitle)
+        val marker = TrackBookmark(id, signatureFor(track), positionMs, normalizedTitle)
         writeBookmarks(existing + marker)
         return marker
     }

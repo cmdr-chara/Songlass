@@ -1,0 +1,44 @@
+<resources>
+    <string name="library_counting_title">Conta un ascolto dopo</string>
+    <string name="library_counting_default">30 secondi o metà di un brano breve</string>
+    <string name="library_counting_half">Il 50% del brano</string>
+    <string name="library_counting_nearly_all">Il 90% del brano</string>
+    <string name="library_counting_hint">Conta solo il tempo in riproduzione. Pause, caricamenti e spostamenti nel brano non contano. Le modifiche valgono dal prossimo avvio di un brano; i totali esistenti restano invariati. Per i brani con durata sconosciuta si usano 30 secondi.</string>
+    <string name="stats_counting_current">Ascolti futuri: %1$s.</string>
+    <string name="stats_history_details">Ogni riproduzione conta al massimo una volta. Spostarsi nel brano non avvia un nuovo conteggio; ricominciare dall’inizio sì. I periodi usano gli ascolti con data, conservati per due anni o 50.000 ascolti. Sempre comprende anche i totali precedenti. Le statistiche riguardano solo i brani visibili. I crediti degli artisti possono sovrapporsi. Tutto resta sul dispositivo.</string>
+    <string name="playlist_insert_title">Aggiungi brani alla playlist</string>
+    <string name="playlist_insert_start">Aggiungi all’inizio</string>
+    <string name="playlist_insert_end">Aggiungi alla fine</string>
+    <string name="playlist_added">Brani aggiunti</string>
+    <string name="playlist_already_present">Già nella playlist</string>
+    <string name="playlist_unavailable">Playlist non disponibile</string>
+    <string name="playlist_pick_another">Scegli un’altra playlist.</string>
+    <string name="playlist_remove_missing">Rimuovi riferimenti mancanti</string>
+    <string name="playlist_remove_missing_confirm">Rimuovere i riferimenti mancanti?</string>
+    <string name="playlist_delete_confirm">Eliminare questa playlist?</string>
+    <string name="playlist_move_up">Sposta il brano in alto</string>
+    <string name="playlist_move_down">Sposta il brano in basso</string>
+    <string name="library_metadata">Esplora per metadati</string>
+    <string name="library_album_artists">Artisti dell’album</string>
+    <string name="library_years">Anni</string>
+    <string name="library_composers">Compositori</string>
+    <string name="library_metadata_hint">Le raccolte usano i tag dei brani visibili. Anni, artisti dell’album e compositori mancanti non vengono dedotti da altri campi.</string>
+    <string name="library_metadata_empty">Nessun metadato corrispondente nella libreria visibile.</string>
+    <string name="library_layout_list">Elenco</string>
+    <string name="library_layout_grid">Griglia</string>
+    <string name="library_jump_letter">Vai a una lettera</string>
+    <string name="library_jump_to">Vai a %1$s</string>
+    <plurals name="playlist_filtered_count">
+        <item quantity="one">%1$d brano è nascosto dai filtri della libreria. La sua posizione nella playlist viene mantenuta.</item>
+        <item quantity="other">%1$d brani sono nascosti dai filtri della libreria. Le loro posizioni nella playlist vengono mantenute.</item>
+    </plurals>
+    <plurals name="playlist_missing_count">
+        <item quantity="one">%1$d brano manca dalla libreria del dispositivo. Il riferimento resta finché non lo rimuovi. Qui non vengono mai eliminati file audio.</item>
+        <item quantity="other">%1$d brani mancano dalla libreria del dispositivo. I riferimenti restano finché non li rimuovi. Qui non vengono mai eliminati file audio.</item>
+    </plurals>
+    <string name="library_album_layout">Vista album</string>
+    <string name="library_refresh_failed">Non è stato possibile aggiornare la libreria</string>
+    <string name="library_refresh_failed_hint">Playlist e cronologia sono rimaste invariate. Controlla l’accesso ai brani e la disponibilità della memoria, poi riprova. L’ultima libreria potrebbe non essere aggiornata.</string>
+    <string name="library_identity_failed_hint">Songlass non ha potuto verificare le identità salvate dei file. Playlist, cronologia e dati di recupero sono conservati. Riprova dopo aver controllato la memoria; non cancellare i dati dell’app per aggirare questo controllo.</string>
+    <string name="library_refresh_retry">Riprova la scansione</string>
+</resources>

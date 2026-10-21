@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.MediaStore
 import dev.cmdrchara.songlass.MusicSource
+import dev.cmdrchara.songlass.core.library.TrackIdentityRegistry
 import dev.cmdrchara.songlass.core.model.TagNumbers
 import dev.cmdrchara.songlass.core.model.Track
 import kotlinx.coroutines.Dispatchers
@@ -15,7 +16,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
 /** Reads the device's music from MediaStore. Needs READ_MEDIA_AUDIO (Android 13+). */
-class MediaStoreMusicSource(private val context: Context) : MusicSource {
+class MediaStoreMusicSource(
+    private val context: Context,
+    private val identities: TrackIdentityRegistry,
+) : MusicSource {
+    override val hasStableTrackIds: Boolean = true
     private val _hasAccess = MutableStateFlow(checkAccess())
     override val hasAccess: StateFlow<Boolean> = _hasAccess.asStateFlow()
 
@@ -36,6 +41,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             MediaStore.Audio.Media.GENRE,
             MediaStore.Audio.Media.ALBUM,
             MediaStore.Audio.Media.ALBUM_ARTIST,
+            MediaStore.Audio.Media.COMPOSER,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.TRACK,
             MediaStore.Audio.Media.CD_TRACK_NUMBER,
@@ -63,6 +69,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
             val genre = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.GENRE)
             val album = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val albumArtist = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ARTIST)
+            val composer = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.COMPOSER)
             val duration = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val legacyTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
             val cdTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.CD_TRACK_NUMBER)
@@ -94,6 +101,7 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                     title = cursor.getString(title)?.takeIf { it.isNotBlank() } ?: continue,
                     uri = uri.toString(),
                     artists = extra.artists,
+                    composers = extra.composers.ifEmpty { dev.cmdrchara.songlass.core.model.ComposerTags.names(listOfNotNull(cursor.getString(composer).cleanTag())) },
                     releaseDate = extra.date ?: dev.cmdrchara.songlass.core.model.ReleaseDate.parse(cursor.getString(year)),
                     artist = artistTag,
                     genre = cursor.getString(genre).cleanTag(),
@@ -108,9 +116,11 @@ class MediaStoreMusicSource(private val context: Context) : MusicSource {
                     fileName = cursor.getString(displayName)?.takeIf { it.isNotBlank() },
                 )
             }
-        }
+        } ?: throw java.io.IOException("MediaStore did not return a library cursor")
         extraTags.save()
-        tracks
+        // Durable identity publication stays on IO. A null cursor, corrupt registry or failed
+        // commit throws: the graph keeps its last complete library instead of assigning IDs.
+        identities.canonicalize(tracks)
     }
 }
 

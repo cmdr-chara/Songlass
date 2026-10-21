@@ -1,7 +1,12 @@
 package dev.cmdrchara.songlass.core.backup
 
+import dev.cmdrchara.songlass.core.history.PlayContext
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
+import dev.cmdrchara.songlass.core.playback.MarkerBinding
+import dev.cmdrchara.songlass.core.playback.MarkerRestoreResolution
 import dev.cmdrchara.songlass.core.search.SearchHistory
 import dev.cmdrchara.songlass.core.playback.TrackMarkersCodec
+import dev.cmdrchara.songlass.core.playback.TrackSignature
 import dev.cmdrchara.songlass.core.search.SearchTarget
 
 /** How the value stored under a managed key is read, and whether it refers to tracks. */
@@ -159,17 +164,28 @@ internal object ValueCodecs {
     /** Track ids named by a canonical [value], in order, repeats included. */
     fun references(kind: ValueKind, value: String): List<String> = when (kind) {
         ValueKind.Plain, ValueKind.ImportedLyrics -> emptyList()
-        ValueKind.TrackProgress -> TrackMarkersCodec.decodeProgress(value).map { it.track.id }
-        ValueKind.TrackBookmarks -> TrackMarkersCodec.decodeBookmarks(value).map { it.track.id }
+        ValueKind.TrackProgress -> TrackMarkersCodec.decodeProgress(value)
+            .filter { it.track.binding != MarkerBinding.Unresolved }.map { it.track.id }
+        ValueKind.TrackBookmarks -> TrackMarkersCodec.decodeBookmarks(value)
+            .filter { it.track.binding != MarkerBinding.Unresolved }.map { it.track.id }
         ValueKind.SearchTargets -> decodeSearch(value).filterIsInstance<SearchTarget.Song>().map { it.id }
         else -> records(kind, value).map { it.id }
     }
 
-    /** Replaces each id by [resolve]; ids it maps to null are removed and reported to [onDrop]. */
-    fun remap(kind: ValueKind, value: String, resolve: (String) -> String?, onDrop: () -> Unit): String = when (kind) {
+    /**
+     * Replaces list/history ids by [resolve], reporting removed references to [onDrop]. Markers
+     * instead retain conflicts inertly and use [resolveMarker] to validate cross-device trust.
+     */
+    fun remap(
+        kind: ValueKind,
+        value: String,
+        resolve: (String) -> String?,
+        resolveMarker: ((TrackSignature) -> MarkerRestoreResolution)? = null,
+        onDrop: () -> Unit,
+    ): String = when (kind) {
         ValueKind.Plain, ValueKind.ImportedLyrics -> value
-        ValueKind.TrackProgress -> TrackMarkersCodec.remapProgress(value, resolve)
-        ValueKind.TrackBookmarks -> TrackMarkersCodec.remapBookmarks(value, resolve)
+        ValueKind.TrackProgress -> TrackMarkersCodec.remapProgress(value, resolve, resolveMarker)
+        ValueKind.TrackBookmarks -> TrackMarkersCodec.remapBookmarks(value, resolve, resolveMarker)
         ValueKind.SearchTargets -> encodeSearch(
             decodeSearch(value).mapNotNull { target ->
                 if (target !is SearchTarget.Song) return@mapNotNull target
@@ -218,6 +234,7 @@ internal object ValueCodecs {
             is SearchTarget.AlbumId -> listOf("a", target.title, target.artist)
             is SearchTarget.ArtistName -> listOf("r", target.name)
             is SearchTarget.FolderId -> listOf("f", target.id)
+            is SearchTarget.Facet -> listOf("m", target.context.kind.storageKey, target.context.value)
         }
         fields.joinToString("") { if (it == null) "-1:" else "${it.length}:$it" }
     }
@@ -242,6 +259,11 @@ internal object ValueCodecs {
                         "a" -> SearchTarget.AlbumId(field(), field())
                         "r" -> SearchTarget.ArtistName(field())
                         "f" -> SearchTarget.FolderId(requireNotNull(field()))
+                        "m" -> {
+                            val kind = requireNotNull(LibraryFacetKind.fromStorage(field()))
+                            val value = requireNotNull(field()).also { require(it.isNotBlank()) }
+                            SearchTarget.Facet(PlayContext.Facet(kind, value))
+                        }
                         else -> error("Unknown search target")
                     }
                 }.getOrNull() ?: break

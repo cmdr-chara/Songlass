@@ -12,6 +12,32 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppSettingsTest {
     @Test
+    fun albumLayoutPersistsAndUnknownValuesKeepTheExistingGridDefault() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        assertEquals(AlbumLayout.Grid, settings.state.value.albumLayout)
+        settings.setAlbumLayout(AlbumLayout.List)
+        assertEquals(AlbumLayout.List, AppSettings(store).state.value.albumLayout)
+        store.putString(AppSettings.ALBUM_LAYOUT_KEY, "unknown")
+        settings.reload()
+        assertEquals(AlbumLayout.Grid, settings.state.value.albumLayout)
+    }
+
+    @Test
+    fun playCountingRulePersistsWithoutRewritingHistory() {
+        val store = InMemoryKeyValueStore().apply { putString("history.counts", "existing history") }
+        val settings = AppSettings(store)
+        assertEquals(dev.cmdrchara.songlass.core.history.PlayCountRule.ThirtySecondsOrHalf, settings.state.value.playCountRule)
+        settings.setPlayCountRule(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll)
+        assertEquals(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll, AppSettings(store).state.value.playCountRule)
+        assertEquals("existing history", store.getString("history.counts"))
+        store.putString(AppSettings.PLAY_COUNT_RULE_KEY, "unknown future value")
+        settings.reload()
+        assertEquals(dev.cmdrchara.songlass.core.history.PlayCountRule.ThirtySecondsOrHalf, settings.state.value.playCountRule)
+        assertEquals("unknown future value", store.getString(AppSettings.PLAY_COUNT_RULE_KEY))
+    }
+
+    @Test
     fun perTrackResumeStartsOffAndThresholdPersistsIndependently() {
         val store = InMemoryKeyValueStore()
         val settings = AppSettings(store)

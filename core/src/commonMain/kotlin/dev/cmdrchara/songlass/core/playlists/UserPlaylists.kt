@@ -10,11 +10,30 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-/** A playlist the user made, by track id; songs no longer on the device are skipped when shown. */
+enum class PlaylistInsertion { Start, End }
+
+data class PlaylistAddResult(val added: Int, val alreadyPresent: Int, val playlistFound: Boolean = true)
+
+/** Distinguishes filters from missing files without removing either kind of stored reference. */
+data class PlaylistAvailability(
+    val tracks: List<Track>, val filteredTrackIds: List<String>, val missingTrackIds: List<String>,
+)
+
+/** A unique, ordered list of track references. Unavailable references survive library refresh. */
 data class UserPlaylist(val id: String, val name: String, val trackIds: List<String>, val createdMs: Long) {
     fun tracksIn(library: MusicLibrary): List<Track> {
         val byId = library.tracks.associateBy { it.id }
         return trackIds.mapNotNull { byId[it] }
+    }
+
+    fun availability(library: MusicLibrary, allTracks: List<Track>): PlaylistAvailability {
+        val visible = library.tracks.associateBy { it.id }
+        val allIds = allTracks.mapTo(HashSet()) { it.id }
+        return PlaylistAvailability(
+            trackIds.mapNotNull { visible[it] },
+            trackIds.filter { it !in visible && it in allIds },
+            trackIds.filter { it !in allIds },
+        )
     }
 }
 
@@ -51,15 +70,38 @@ class UserPlaylists(
 
     fun delete(id: String) = save(_playlists.value.filterNot { it.id == id })
 
-    /** Appends tracks not already in the playlist. Returns how many were added. */
-    fun add(id: String, trackIds: List<String>): Int {
-        var added = 0
-        update(id) { playlist ->
-            val new = trackIds.distinct().filterNot { it in playlist.trackIds }
-            added = new.size
-            playlist.copy(trackIds = playlist.trackIds + new)
+    /** Existing callers append; repeated requests remain idempotent. */
+    fun add(id: String, trackIds: List<String>, insertion: PlaylistInsertion = PlaylistInsertion.End): Int =
+        addDetailed(id, trackIds, insertion).added
+
+    /** Counts unique requested tracks; existing entries keep their position even for Start. */
+    fun addDetailed(id: String, trackIds: List<String>, insertion: PlaylistInsertion = PlaylistInsertion.End): PlaylistAddResult {
+        val playlist = get(id) ?: return PlaylistAddResult(0, 0, playlistFound = false)
+        val requested = trackIds.distinct()
+        val existing = playlist.trackIds.toHashSet()
+        val added = requested.filterNot { it in existing }
+        if (added.isNotEmpty()) update(id) {
+            it.copy(trackIds = when (insertion) {
+                PlaylistInsertion.Start -> added + it.trackIds
+                PlaylistInsertion.End -> it.trackIds + added
+            })
         }
-        return added
+        return PlaylistAddResult(added.size, requested.size - added.size)
+    }
+
+    /**
+     * Removes only the missing references offered for confirmation, if they are still missing
+     * from the complete current scan. A later scan must not expand an approved removal set.
+     */
+    fun removeMissing(id: String, allTracks: List<Track>, candidateIds: Collection<String>): Int {
+        val playlist = get(id) ?: return 0
+        if (candidateIds.isEmpty()) return 0
+        val candidates = candidateIds.toHashSet()
+        val allIds = allTracks.mapTo(HashSet()) { it.id }
+        val kept = playlist.trackIds.filter { it !in candidates || it in allIds }
+        val removed = playlist.trackIds.size - kept.size
+        if (removed > 0) update(id) { it.copy(trackIds = kept) }
+        return removed
     }
 
     fun remove(id: String, trackId: String) = update(id) { it.copy(trackIds = it.trackIds - trackId) }
@@ -89,7 +131,7 @@ class UserPlaylists(
         UserPlaylist(
             id = id,
             name = name,
-            trackIds = store.getStringList("$PREFIX$id.tracks"),
+            trackIds = store.getStringList("$PREFIX$id.tracks").distinct(),
             createdMs = store.getString("$PREFIX$id.created")?.toLongOrNull() ?: 0L,
         )
     }

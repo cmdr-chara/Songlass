@@ -88,7 +88,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             source.tracks = listOf(old.copy(id = "fixture-new", uri = "content://fixture/new"))
             graph.refreshLibrary()
             check(graph.previewBackup(archive.text).tracks.remapped == 1)
-            graph.restoreBackup(archive.text)
+            graph.restoreBackup(archive.text, graph.previewBackup(archive.text))
             check(graph.favorites.ids.value == listOf("fixture-new"))
             check(graph.settings.state.value.crossfadeDurationMs == 6_000L)
             check(HomeSection.RecentlyAdded in graph.homeCustomization.state.value.hidden)

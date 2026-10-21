@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.core.browse
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
@@ -43,6 +44,8 @@ data class BrowseLabels(
     val shuffleAll: String,
     val unknownArtist: String,
     val unknownAlbum: String,
+    /** Optional for older clients; the app supplies localized labels for all supported facets. */
+    val facetTitles: Map<LibraryFacetKind, String> = emptyMap(),
     val songs: (Int) -> String,
 )
 
@@ -77,8 +80,13 @@ class BrowseTree(
         }
         PLAYLISTS -> smartPlaylists.mapNotNull { contextNode(PlayContext.SmartPlaylist(it.id)) } + userPlaylists.mapNotNull { contextNode(PlayContext.UserPlaylist(it.id)) } +
             library.folders.mapNotNull { contextNode(PlayContext.Playlist(it.id)) }
-        ALBUMS -> library.albums.sortedBy { it.title?.lowercase() }.mapNotNull { contextNode(PlayContext.Album(it.title.orEmpty(), it.artist)) }
-        ARTISTS -> library.artists.mapNotNull { contextNode(PlayContext.Artist(it.name)) }
+        ALBUMS -> listOfNotNull(facetRoot(LibraryFacetKind.Year)) +
+            library.albums.sortedBy { it.title?.lowercase() }.mapNotNull { contextNode(PlayContext.Album(it.title.orEmpty(), it.artist)) }
+        ARTISTS -> listOfNotNull(facetRoot(LibraryFacetKind.AlbumArtist), facetRoot(LibraryFacetKind.Composer)) +
+            library.artists.mapNotNull { contextNode(PlayContext.Artist(it.name)) }
+        FACET_ALBUM_ARTISTS -> library.facets(LibraryFacetKind.AlbumArtist).mapNotNull { contextNode(it.context) }
+        FACET_YEARS -> library.facets(LibraryFacetKind.Year).mapNotNull { contextNode(it.context) }
+        FACET_COMPOSERS -> library.facets(LibraryFacetKind.Composer).mapNotNull { contextNode(it.context) }
         else -> parentId.removePrefixOrNull(CONTEXT)?.let(PlayContext::fromKey)?.let { context ->
             val subfolders = (context as? PlayContext.Playlist)?.let { library.folder(it.id) }?.children.orEmpty()
             // A folder shows its sub-folders, then its own songs; other collections all their songs.
@@ -111,6 +119,7 @@ class BrowseTree(
         val results = library.search(query)
         results.artists.firstOrNull()?.let { return resolvePlay(CONTEXT + PlayContext.Artist(it.name).key) }
         results.albums.firstOrNull()?.let { return resolvePlay(CONTEXT + PlayContext.Album(it.title.orEmpty(), it.artist).key) }
+        results.facets.firstOrNull()?.let { return resolvePlay(CONTEXT + it.context.key) }
         smartPlaylists.firstOrNull { it.name.equals(query.trim(), ignoreCase = true) }?.let {
             return resolvePlay(CONTEXT + PlayContext.SmartPlaylist(it.id).key)
         }
@@ -137,6 +146,7 @@ class BrowseTree(
         val results = library.search(query)
         return results.artists.take(MAX_SEARCH).mapNotNull { contextNode(PlayContext.Artist(it.name)) } +
             results.albums.take(MAX_SEARCH).mapNotNull { contextNode(PlayContext.Album(it.title.orEmpty(), it.artist)) } +
+            results.facets.take(MAX_SEARCH).mapNotNull { contextNode(it.context) } +
             results.tracks.take(MAX_SEARCH_SONGS).map { track ->
                 val album = library.albumOf(track)
                 val context = album?.let { PlayContext.Album(it.title.orEmpty(), it.artist) } ?: PlayContext.Artist(track.groupingArtist)
@@ -148,6 +158,7 @@ class BrowseTree(
     fun tracksOf(context: PlayContext): List<Track> = when (context) {
         is PlayContext.Album -> library.albums.firstOrNull { it.title == context.title && it.artist == context.artist }?.tracks
         is PlayContext.Artist -> library.artists.firstOrNull { it.name == context.name }?.tracks
+        is PlayContext.Facet -> library.facet(context)?.tracks
         is PlayContext.Playlist -> library.folder(context.id)?.allTracks
         is PlayContext.UserPlaylist -> userPlaylists.firstOrNull { it.id == context.id }?.tracksIn(library)
         is PlayContext.SmartPlaylist -> smartPlaylists.firstOrNull { it.id == context.id }?.rules?.resolve(library, history, favorites.map { it.id }.toSet(), nowMs)
@@ -164,6 +175,11 @@ class BrowseTree(
             is PlayContext.Artist -> {
                 val artist = library.artists.firstOrNull { it.name == context.name } ?: return null
                 BrowseNode(id, artist.name ?: labels.unknownArtist, labels.songs(artist.tracks.size), browsable = true, playable = true, artworkTrack = artist.albums.firstOrNull()?.tracks?.firstOrNull() ?: artist.tracks.firstOrNull())
+            }
+            is PlayContext.Facet -> {
+                val facet = library.facet(context) ?: return null
+                BrowseNode(id, facet.value, listOfNotNull(labels.facetTitles[facet.kind], labels.songs(facet.tracks.size)).joinToString(" · "),
+                    browsable = true, playable = true, artworkTrack = facet.tracks.firstOrNull())
             }
             is PlayContext.Playlist -> {
                 val folder: Folder = library.folder(context.id) ?: return null
@@ -186,6 +202,18 @@ class BrowseTree(
         }
     }
 
+    private fun facetRoot(kind: LibraryFacetKind): BrowseNode? {
+        val title = labels.facetTitles[kind] ?: return null
+        val facets = library.facets(kind)
+        if (facets.isEmpty()) return null
+        val id = when (kind) {
+            LibraryFacetKind.AlbumArtist -> FACET_ALBUM_ARTISTS
+            LibraryFacetKind.Year -> FACET_YEARS
+            LibraryFacetKind.Composer -> FACET_COMPOSERS
+        }
+        return BrowseNode(id, title, null, browsable = true, playable = false, artworkTrack = facets.first().tracks.firstOrNull())
+    }
+
     private fun trackNode(context: PlayContext, track: Track) = BrowseNode(
         id = TRACK + context.key + SEPARATOR + track.id,
         title = track.title,
@@ -202,6 +230,9 @@ class BrowseTree(
         const val ALBUMS = "albums"
         const val ARTISTS = "artists"
         const val SHUFFLE_ALL = "shuffle_all"
+        const val FACET_ALBUM_ARTISTS = "facet:album_artists"
+        const val FACET_YEARS = "facet:years"
+        const val FACET_COMPOSERS = "facet:composers"
         private const val CONTEXT = "c:"
         private const val TRACK = "t:"
         private const val SEPARATOR = '\u001F'

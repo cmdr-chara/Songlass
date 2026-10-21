@@ -1,6 +1,8 @@
 package dev.cmdrchara.songlass.core.library
 
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.model.ComposerTags
+import dev.cmdrchara.songlass.core.history.PlayContext
 
 data class Album(
     val title: String?,
@@ -64,8 +66,9 @@ data class SearchResults(
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
+    val facets: List<LibraryFacet> = emptyList(),
 ) {
-    val isEmpty: Boolean get() = tracks.isEmpty() && albums.isEmpty() && artists.isEmpty() && playlists.isEmpty()
+    val isEmpty: Boolean get() = tracks.isEmpty() && albums.isEmpty() && artists.isEmpty() && playlists.isEmpty() && facets.isEmpty()
 }
 
 /**
@@ -82,6 +85,32 @@ data class SearchResults(
 class MusicLibrary(tracks: List<Track>) {
 
     val tracks: List<Track> = tracks.sortedWith(compareBy { it.title.sortKey() })
+
+    // Build each membership index once per immutable library snapshot. Missing tags do not
+    // create invented credits, and one track with duplicate credits occurs once in a facet.
+    private val facetsByKind: Map<LibraryFacetKind, List<LibraryFacet>> = LibraryFacetKind.entries.associateWith { kind ->
+        val names = mutableMapOf<String, String>()
+        val members = linkedMapOf<String, MutableList<Track>>()
+        this.tracks.forEach { track ->
+            val values = when (kind) {
+                LibraryFacetKind.AlbumArtist -> listOfNotNull(track.albumArtist?.trim()?.takeIf { it.isNotEmpty() })
+                LibraryFacetKind.Year -> listOfNotNull(track.releaseDate?.year?.takeIf { it in 1..9999 }?.toString())
+                LibraryFacetKind.Composer -> ComposerTags.names(track.composers)
+            }
+            values.distinctBy { it.lowercase() }.forEach { value ->
+                val key = value.lowercase()
+                names.getOrPut(key) { value }
+                members.getOrPut(key) { mutableListOf() }.add(track)
+            }
+        }
+        val result = members.map { (key, songs) -> LibraryFacet(kind, names.getValue(key), songs.distinctBy { it.id }) }
+        if (kind == LibraryFacetKind.Year) result.sortedByDescending { it.value.toInt() }
+        else result.sortedBy { it.value.sortKey() }
+    }
+    private val facetsByKey = facetsByKind.values.flatten().associateBy { it.kind to it.value.lowercase() }
+
+    fun facets(kind: LibraryFacetKind): List<LibraryFacet> = facetsByKind.getValue(kind)
+    fun facet(context: PlayContext.Facet): LibraryFacet? = facetsByKey[context.kind to context.value.lowercase()]
 
     val albums: List<Album> = tracks
         .filter { it.album != null }
@@ -207,11 +236,15 @@ class MusicLibrary(tracks: List<Track>) {
                     track.artist?.let { add(it.key()) }
                     track.artistNames.forEach { add(it.key()) }
                     track.album?.let { add(it.key()) }
+                    track.albumArtist?.let { add(it.key()) }
+                    track.releaseDate?.year?.let { add(it.toString().key()) }
+                    track.composers.forEach { add(it.key()) }
                 })
             },
             albums = albums.map { SearchEntry(it, listOfNotNull(it.title?.key(), it.artist?.key())) },
             artists = artists.map { SearchEntry(it, listOfNotNull(it.name?.key())) },
             playlists = playlists.map { SearchEntry(it, listOf(it.name.key())) },
+            facets = facetsByKind.values.flatten().map { SearchEntry(it, listOf(it.value.key())) },
         )
     }
 
@@ -224,6 +257,7 @@ class MusicLibrary(tracks: List<Track>) {
             albums = searchIndex.albums.matches(needle),
             artists = searchIndex.artists.matches(needle),
             playlists = searchIndex.playlists.matches(needle),
+            facets = searchIndex.facets.matches(needle),
         )
     }
 
@@ -239,6 +273,7 @@ class MusicLibrary(tracks: List<Track>) {
         val albums: List<SearchEntry<Album>>,
         val artists: List<SearchEntry<Artist>>,
         val playlists: List<SearchEntry<Playlist>>,
+        val facets: List<SearchEntry<LibraryFacet>>,
     )
 
     private fun <T> List<SearchEntry<T>>.matches(needle: String): List<T> = buildList {

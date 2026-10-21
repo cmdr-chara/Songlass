@@ -1,0 +1,44 @@
+<resources>
+    <string name="library_counting_title">Count a play after</string>
+    <string name="library_counting_default">30 seconds or half a short song</string>
+    <string name="library_counting_half">50% of the song</string>
+    <string name="library_counting_nearly_all">90% of the song</string>
+    <string name="library_counting_hint">Only time spent playing counts. Pauses, buffering and seeking do not. Changes apply when a song starts again; existing totals stay unchanged. Songs with an unknown duration use 30 seconds.</string>
+    <string name="stats_counting_current">Future plays: %1$s.</string>
+    <string name="stats_history_details">Each playback counts at most once. Seeking within a song does not start a new count; restarting from the beginning does. Periods use dated plays retained for two years or 50,000 plays. All time also includes earlier totals. Statistics cover visible songs only. Artist credits may overlap. Everything stays on this device.</string>
+    <string name="playlist_insert_title">Add songs to playlist</string>
+    <string name="playlist_insert_start">Add at the beginning</string>
+    <string name="playlist_insert_end">Add at the end</string>
+    <string name="playlist_added">Songs added</string>
+    <string name="playlist_already_present">Already in the playlist</string>
+    <string name="playlist_unavailable">Playlist unavailable</string>
+    <string name="playlist_pick_another">Choose another playlist.</string>
+    <string name="playlist_remove_missing">Remove missing references</string>
+    <string name="playlist_remove_missing_confirm">Remove missing references?</string>
+    <string name="playlist_delete_confirm">Delete this playlist?</string>
+    <string name="playlist_move_up">Move song up</string>
+    <string name="playlist_move_down">Move song down</string>
+    <string name="library_metadata">Browse by metadata</string>
+    <string name="library_album_artists">Album artists</string>
+    <string name="library_years">Years</string>
+    <string name="library_composers">Composers</string>
+    <string name="library_metadata_hint">Collections use the tags of visible songs. Missing years, album artists and composers are not inferred from other fields.</string>
+    <string name="library_metadata_empty">No matching metadata in the visible library.</string>
+    <string name="library_layout_list">List</string>
+    <string name="library_layout_grid">Grid</string>
+    <string name="library_jump_letter">Jump to a letter</string>
+    <string name="library_jump_to">Jump to %1$s</string>
+    <plurals name="playlist_filtered_count">
+        <item quantity="one">%1$d song is hidden by your library filters. Its playlist position is kept.</item>
+        <item quantity="other">%1$d songs are hidden by your library filters. Their playlist positions are kept.</item>
+    </plurals>
+    <plurals name="playlist_missing_count">
+        <item quantity="one">%1$d song is missing from the device library. Its reference is kept until you remove it. Audio files are never deleted here.</item>
+        <item quantity="other">%1$d songs are missing from the device library. Their references are kept until you remove them. Audio files are never deleted here.</item>
+    </plurals>
+    <string name="library_album_layout">Album layout</string>
+    <string name="library_refresh_failed">The library could not be refreshed</string>
+    <string name="library_refresh_failed_hint">Saved playlists and listening history are unchanged. Check access to your music and whether its storage is available, then try again. The last library may be out of date.</string>
+    <string name="library_identity_failed_hint">Songlass could not verify the saved file identities. Your playlists, history and recovery data have been kept. Try again after checking storage; do not clear app data to bypass this check.</string>
+    <string name="library_refresh_retry">Retry library scan</string>
+</resources>

@@ -89,9 +89,12 @@ class AdvancedSmartRulesTest {
         val rules = SmartRules(match = SmartMatch.Any, genre = "Rock", yearFrom = 2000, durationToSeconds = 180, excludeFolder = "Music/Live/Sub")
         val smart = SmartPlaylists(source) { now }.save(null, "Smart", rules)
         HomeCustomization(source).apply { addShortcut(PlayContext.UserPlaylist(personal)); addShortcut(PlayContext.SmartPlaylist(smart)) }
-        val text = DataBackup(source) { now }.export(tracks).text
+        // The range tests above deliberately include an unknown duration. A cross-device
+        // backup needs known recording facts; keep the round-trip assertions on that contract.
+        val backedUpTracks = tracks.map { if (it.durationMs == 0L) it.copy(durationMs = 60_000) else it }
+        val text = DataBackup(source) { now }.export(backedUpTracks).text
         val restored = InMemoryKeyValueStore();val backup = DataBackup(restored) { now }
-        backup.apply(backup.preview(text, tracks))
+        backup.apply(backup.preview(text, backedUpTracks))
         assertEquals(rules, SmartPlaylists(restored) { now }.get(smart)?.rules)
         assertEquals(listOf(PlayContext.UserPlaylist(personal), PlayContext.SmartPlaylist(smart)), HomeCustomization(restored).state.value.shortcuts)
         assertEquals(listOf("a", "d"), UserPlaylists(restored) { now }.get(personal)?.trackIds)

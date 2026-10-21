@@ -89,7 +89,8 @@ internal val SettingsTarget.settingsRoute: Route
     get() = when (this) {
         SettingsTarget.Equalizer, SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles,
         SettingsTarget.HeadphoneCorrection -> Route.Equalizer
-        SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders -> Route.LibrarySettings
+        SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
+        SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> Route.LibrarySettings
         SettingsTarget.HomeCustomization -> Route.HomeCustomization
         SettingsTarget.Backup -> Route.Backup
         SettingsTarget.About -> Route.About

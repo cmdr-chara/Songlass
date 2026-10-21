@@ -52,11 +52,11 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
     var kindsVisible by remember { mutableStateOf(false) }
     val kindLabels = listOf(stringResource(Res.string.search_all), stringResource(Res.string.homecfg_kind_user_playlist),
         stringResource(Res.string.homecfg_kind_smart_playlist), stringResource(Res.string.library_albums),
-        stringResource(Res.string.library_artists), stringResource(Res.string.library_folders))
+        stringResource(Res.string.library_artists), stringResource(Res.string.library_folders), stringResource(Res.string.library_metadata))
     val chosen = layout.shortcuts
     val full = chosen.size >= HomeShortcuts.MAX
     val options = remember(library, saved) { HomeShortcuts.options(library, saved) }
-    val kinds = listOf(null, ShortcutKind.UserPlaylist, ShortcutKind.SmartPlaylist, ShortcutKind.Album, ShortcutKind.Artist, ShortcutKind.Folder)
+    val kinds = listOf(null, ShortcutKind.UserPlaylist, ShortcutKind.SmartPlaylist, ShortcutKind.Album, ShortcutKind.Artist, ShortcutKind.Folder, ShortcutKind.Metadata)
     val matches = remember(options, query, kindIndex) { HomeShortcuts.filter(options, query, kinds[kindIndex]) }
     val favoritesLabel = stringResource(Res.string.homecfg_kind_favorites)
     val showFavorites = kindIndex == 0 && favoritesLabel.contains(query.trim(), ignoreCase = true)
@@ -168,7 +168,8 @@ private fun PickerRow(option: ShortcutOption, item: HomeItem?, chosen: Boolean, 
     val title = if (option.kind == ShortcutKind.Favorites) stringResource(Res.string.homecfg_kind_favorites)
         else if (option.kind == ShortcutKind.Artist) artistName(option.title) else option.title ?: albumTitle(null)
     val label = if (chosen) stringResource(Res.string.homecfg_shortcut_remove, title) else stringResource(Res.string.homecfg_builder_add_named, title)
-    ListRow(title, subtitle = kindLabel(option.kind) + (option.subtitle?.let { " · $it" } ?: ""),
+    val kindTitle = (option.context as? PlayContext.Facet)?.let { facetKindLabel(it.kind) } ?: kindLabel(option.kind)
+    ListRow(title, subtitle = kindTitle + (option.subtitle?.let { " · $it" } ?: ""),
         modifier = Modifier.semantics { stateDescription = label }, leading = { ShortcutLeading(option.context, item) },
         trailing = if (chosen || !full) {{ IconButton(if (chosen) AppIcons.Checkmark else AppIcons.Plus, label, onToggle, selected = chosen) }} else null,
         onClick = if (chosen || !full) onToggle else null)
@@ -190,6 +191,7 @@ private fun artworkOf(item: HomeItem): Artwork = when (item) {
     is HomeItem.AlbumItem -> item.album.artwork()
     is HomeItem.PlaylistItem -> item.playlist.artwork()
     is HomeItem.ArtistItem -> item.artist.albums.firstOrNull()?.artwork() ?: item.artist.tracks.first().artwork()
+    is HomeItem.FacetItem -> item.facet.tracks.first().artwork()
     is HomeItem.TrackItem -> item.track.artwork()
     is HomeItem.FavoritesItem -> item.tracks.first().artwork()
     is HomeItem.UserPlaylistItem -> item.playlist.artwork(item.tracks)
@@ -198,6 +200,7 @@ private fun artworkOf(item: HomeItem): Artwork = when (item) {
 private fun kindOf(context: PlayContext): ShortcutKind = when (context) {
     is PlayContext.Album -> ShortcutKind.Album
     is PlayContext.Artist -> ShortcutKind.Artist
+    is PlayContext.Facet -> ShortcutKind.Metadata
     is PlayContext.Playlist -> ShortcutKind.Folder
     PlayContext.Favorites -> ShortcutKind.Favorites
     is PlayContext.UserPlaylist -> ShortcutKind.UserPlaylist
@@ -211,12 +214,14 @@ private fun kindLabel(kind: ShortcutKind): String = stringResource(when (kind) {
     ShortcutKind.Folder -> Res.string.homecfg_kind_folder
     ShortcutKind.UserPlaylist -> Res.string.homecfg_builder_personal_kind
     ShortcutKind.SmartPlaylist -> Res.string.homecfg_builder_smart_kind
+    ShortcutKind.Metadata -> Res.string.library_metadata
 })
 @Composable
 private fun chosenTitle(context: PlayContext, item: HomeItem?): String = when (context) {
     PlayContext.Favorites -> stringResource(Res.string.homecfg_kind_favorites)
     is PlayContext.Album -> context.title.ifEmpty { null } ?: albumTitle(null)
     is PlayContext.Artist -> artistName(context.name)
+    is PlayContext.Facet -> (item as? HomeItem.FacetItem)?.facet?.value ?: context.value
     is PlayContext.Playlist -> (item as? HomeItem.PlaylistItem)?.playlist?.name ?: context.id.trim('/').substringAfterLast('/')
     is PlayContext.UserPlaylist -> (item as? HomeItem.UserPlaylistItem)?.playlist?.name ?: stringResource(Res.string.homecfg_kind_user_playlist)
     is PlayContext.SmartPlaylist -> (item as? HomeItem.SmartPlaylistItem)?.playlist?.name ?: stringResource(Res.string.homecfg_kind_smart_playlist)

@@ -3,13 +3,16 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.AppGraph
+import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.library.LibraryFilter
 import dev.cmdrchara.songlass.core.library.LibraryFolderOption
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
+import dev.cmdrchara.songlass.core.settings.AlbumLayout
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -20,12 +23,16 @@ import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
+fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: () -> Unit, contentPadding: PaddingValues, backLabel: String, searchFocus: SettingsFocusRequest? = null) {
     val preferences by graph.settings.state.collectAsState()
+    val refreshFailure by graph.libraryRefreshFailure.collectAsState()
+    val loading by graph.isLibraryLoading.collectAsState()
     val listState = rememberLazyListState()
     val targetIndex = when (searchFocus?.target) {
         SettingsTarget.MinimumDuration -> 2
         SettingsTarget.ExcludedFolders -> 3
+        SettingsTarget.PlayCountRule -> 7
+        SettingsTarget.AlbumLayout -> 10
         else -> null
     }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
@@ -41,7 +48,7 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
     }
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
         item { BackPageTitle(stringResource(Res.string.library_settings),
-            stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), onBack) }
+            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
         item { LibraryHint(stringResource(Res.string.library_filter_count, library.tracks.size, tracks.size)) }
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
@@ -86,8 +93,44 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
                 folders.forEach { folderRow(it, 0) }
             }
         }
+        item { SectionTitle(stringResource(Res.string.library_counting_title)) }
+        item {
+            SettingsSearchAnchor(SettingsTarget.PlayCountRule, searchFocus) {
+                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                    PlayCountRule.entries.forEach { rule ->
+                        SettingsChoiceRow(playCountRuleLabel(rule), preferences.playCountRule == rule,
+                            { graph.settings.setPlayCountRule(rule) })
+                    }
+                }
+            }
+        }
+        item { LibraryHint(stringResource(Res.string.library_counting_hint)) }
+        item { SectionTitle(stringResource(Res.string.library_album_layout)) }
+        item {
+            SettingsSearchAnchor(SettingsTarget.AlbumLayout, searchFocus) {
+                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                    AlbumLayout.entries.forEach { layout ->
+                        SettingsChoiceRow(
+                            stringResource(if (layout == AlbumLayout.Grid) Res.string.library_layout_grid else Res.string.library_layout_list),
+                            preferences.albumLayout == layout,
+                            { graph.settings.setAlbumLayout(layout) },
+                        )
+                    }
+                }
+            }
+        }
+        if (refreshFailure != null) item {
+            LibraryRefreshNotice(refreshFailure, loading, graph::requestLibraryRefresh)
+        }
     }
 }
+
+@Composable
+internal fun playCountRuleLabel(rule: PlayCountRule): String = stringResource(when (rule) {
+    PlayCountRule.ThirtySecondsOrHalf -> Res.string.library_counting_default
+    PlayCountRule.Half -> Res.string.library_counting_half
+    PlayCountRule.NearlyAll -> Res.string.library_counting_nearly_all
+})
 
 /** Hosted above the scaffold so the bottom bar cannot cover sheet actions. */
 @Composable

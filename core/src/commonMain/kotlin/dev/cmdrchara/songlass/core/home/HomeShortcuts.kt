@@ -5,9 +5,10 @@ import dev.cmdrchara.songlass.core.history.HistorySnapshot
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 import dev.cmdrchara.songlass.core.playlists.SmartPlaylist
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.model.Track
 
-enum class ShortcutKind { Favorites, Album, Artist, Folder, UserPlaylist, SmartPlaylist }
+enum class ShortcutKind { Favorites, Album, Artist, Folder, UserPlaylist, SmartPlaylist, Metadata }
 
 /** Something that can be chosen as a Home shortcut, described for a picker. */
 data class ShortcutOption(
@@ -43,6 +44,7 @@ object HomeShortcuts {
         is HomeItem.AlbumItem -> PlayContext.Album(item.album.title.orEmpty(), item.album.artist)
         is HomeItem.PlaylistItem -> PlayContext.Playlist(item.playlist.id)
         is HomeItem.ArtistItem -> PlayContext.Artist(item.artist.name)
+        is HomeItem.FacetItem -> item.facet.context
         is HomeItem.FavoritesItem -> PlayContext.Favorites
         is HomeItem.UserPlaylistItem -> PlayContext.UserPlaylist(item.playlist.id)
         is HomeItem.SmartPlaylistItem -> PlayContext.SmartPlaylist(item.playlist.id)
@@ -55,6 +57,7 @@ object HomeShortcuts {
             ?.let(HomeItem::AlbumItem)
         is PlayContext.Playlist -> library.playlists.firstOrNull { it.id == context.id }?.let(HomeItem::PlaylistItem)
         is PlayContext.Artist -> library.artists.firstOrNull { it.name == context.name }?.let(HomeItem::ArtistItem)
+        is PlayContext.Facet -> library.facet(context)?.let(HomeItem::FacetItem)
         PlayContext.Favorites -> favorites.takeIf { it.isNotEmpty() }?.let(HomeItem::FavoritesItem)
         is PlayContext.UserPlaylist, is PlayContext.SmartPlaylist -> savedPlaylists.firstOrNull { contextOf(it) == context }
     }
@@ -81,7 +84,9 @@ object HomeShortcuts {
         library.playlists.forEach { playlist ->
             add(ShortcutOption(PlayContext.Playlist(playlist.id), ShortcutKind.Folder, playlist.name, playlist.location.joinToString(" / ").ifEmpty { null }))
         }
-
+        LibraryFacetKind.entries.forEach { kind -> library.facets(kind).forEach { facet ->
+            add(ShortcutOption(facet.context, ShortcutKind.Metadata, facet.value))
+        } }
     }
 
     /** Describes [context] if the library has it, for the list of chosen shortcuts. */

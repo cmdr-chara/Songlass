@@ -1,9 +1,11 @@
 package dev.cmdrchara.songlass.core.settings
 
 import dev.cmdrchara.songlass.core.library.FolderSort
+import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 
 enum class AppearanceMode { System, Light, Dark }
+enum class AlbumLayout { Grid, List }
 
 /** How covers are shown in Now Playing and on album/playlist pages. */
 enum class ArtworkStyle {
@@ -47,5 +49,9 @@ data class AppPreferences(
     val resumeOnReconnect: Boolean = false,
     /** Additional word-timed lyrics provider; users may disable it without disabling LRCLIB. */
     val amllEnabled: Boolean = true,
+    /** Snapshotted for each new playback occurrence; existing statistics are unchanged. */
+    val playCountRule: PlayCountRule = PlayCountRule.ThirtySecondsOrHalf,
+    /** A comfortable single-column alternative to the cover grid, useful with large text. */
+    val albumLayout: AlbumLayout = AlbumLayout.Grid,
     val libraryFilter: dev.cmdrchara.songlass.core.library.LibraryFilter = dev.cmdrchara.songlass.core.library.LibraryFilter(),
 )

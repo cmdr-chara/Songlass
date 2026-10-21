@@ -47,7 +47,11 @@ class TrackRemapTest {
 
     @Test
     fun referencesFollowTheirFilesToNewIdsByUniquePath() {
-        val reindexed = listOf(song("11", "Music/a.mp3"), song("12", "Music/b.mp3"), song("13", "Music/c.mp3"))
+        // Reindexing changes location IDs, not the recordings' title/artist/album/duration.
+        val reindexed = original.mapIndexed { index, track ->
+            val id = (index + 11).toString()
+            track.copy(id = id, uri = "content://media/external/audio/media/$id")
+        }
         val (preview, target) = restore(world(), original, reindexed)
 
         assertEquals(BackupTrackSummary(unchanged = 0, remapped = 3, missing = 0, conflicting = 0), preview.tracks)
@@ -106,7 +110,7 @@ class TrackRemapTest {
     fun anAmbiguousPathIsNotGuessed() {
         val source = InMemoryKeyValueStore().also { Favorites(it).toggle("1") }
         // Two volumes can hold the same relative path.
-        val twins = listOf(song("21", "Music/a.mp3"), song("22", "Music/a.mp3"))
+        val twins = listOf("21", "22").map { id -> a.copy(id = id, uri = "content://media/external/audio/media/$id") }
 
         val (absent, afterAbsent) = restore(source, original, twins)
         assertEquals(listOf("1"), favorites(afterAbsent))
@@ -142,13 +146,16 @@ class TrackRemapTest {
     }
 
     @Test
-    fun theSameFileIsRecognisedAfterMovesAndTagEdits() {
+    fun sameIdMovesRequireKnownRecordingFactsAndTagConflictsAreNotAssumedToBeEdits() {
         val source = InMemoryKeyValueStore().also { Favorites(it).toggle("1") }
         fun summary(vararg target: Track) = restore(source, original, target.toList()).first.tracks
         val same = BackupTrackSummary(unchanged = 1, remapped = 0, missing = 0, conflicting = 0)
 
-        // Same path, tags edited since: the file is the same.
-        assertEquals(same, summary(song("1", "Music/a.mp3", title = "Edited", artist = "Else")))
+        // v1 cannot distinguish an edit from replacement at the same ID/URI/path.
+        assertEquals(
+            BackupTrackSummary(unchanged = 0, remapped = 0, missing = 0, conflicting = 1),
+            summary(song("1", "Music/a.mp3", title = "Edited", artist = "Else")),
+        )
         // Renamed folder keeps the id: all the tags and the length still agree.
         assertEquals(same, summary(song("1", "Music/renamed/a.mp3")))
         assertEquals(same, summary(song("1", "Music/renamed/a.mp3", durationMs = 200_900)))
@@ -161,16 +168,16 @@ class TrackRemapTest {
 
     @Test
     fun oneFileIsNeverGivenToTwoOldIds() {
-        val twinsBefore = listOf(song("1", "Music/x.mp3"), song("2", "Music/x.mp3"))
+        val twinsBefore = listOf(song("1", "Music/x.mp3", title = "Same"), song("2", "Music/x.mp3", title = "Same"))
         val source = InMemoryKeyValueStore().also { Favorites(it).apply { toggle("1"); toggle("2") } }
 
         // Two old ids with the same path both want the single new file: neither gets it.
-        val (shared, afterShared) = restore(source, twinsBefore, listOf(song("9", "Music/x.mp3")))
+        val (shared, afterShared) = restore(source, twinsBefore, listOf(song("9", "Music/x.mp3", title = "Same")))
         assertEquals(listOf("1", "2"), favorites(afterShared))
         assertEquals(BackupTrackSummary(unchanged = 0, remapped = 0, missing = 2, conflicting = 0), shared.tracks)
 
         // An id that is already recognised on that file keeps it; the other id cannot move onto it.
-        val (claimed, afterClaimed) = restore(source, twinsBefore, listOf(song("1", "Music/x.mp3")))
+        val (claimed, afterClaimed) = restore(source, twinsBefore, listOf(song("1", "Music/x.mp3", title = "Same")))
         assertEquals(listOf("1", "2"), favorites(afterClaimed))
         assertEquals(BackupTrackSummary(unchanged = 1, remapped = 0, missing = 1, conflicting = 0), claimed.tracks)
     }

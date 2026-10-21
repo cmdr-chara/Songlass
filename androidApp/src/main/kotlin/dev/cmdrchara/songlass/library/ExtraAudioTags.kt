@@ -15,19 +15,21 @@ import androidx.media3.extractor.metadata.id3.InternalFrame
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import dev.cmdrchara.songlass.core.model.ReleaseDate
+import dev.cmdrchara.songlass.core.model.ComposerTags
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 
-internal data class ExtraTags(val artists: List<String> = emptyList(), val date: ReleaseDate? = null)
+internal data class ExtraTags(val artists: List<String> = emptyList(), val date: ReleaseDate? = null, val composers: List<String> = emptyList())
 
 /** Local header metadata through Media3's existing extractors: no decoder, player or network.
  * Cached by MediaStore id/size/modification time; the OS may safely evict this cache.
  */
 internal class ExtraAudioTags(private val context: Context) {
-    private val cacheFile = java.io.File(context.cacheDir, "library-tags-v1.json")
+    // Composer credits were not stored in v1. Re-read headers once after the schema change.
+    private val cacheFile = java.io.File(context.cacheDir, "library-tags-v2.json")
     private val cached = try { JSONObject(cacheFile.readText()) } catch (_: Exception) { JSONObject() }
     private val retained = JSONObject()
 
@@ -35,6 +37,7 @@ internal class ExtraAudioTags(private val context: Context) {
         val tags = cached.optJSONObject(key)?.let { runCatching { decode(it) }.getOrNull() } ?: extract(uri)
         retained.put(key, JSONObject().apply {
             put("artists", JSONArray(tags.artists))
+            put("composers", JSONArray(tags.composers))
             tags.date?.let { date -> put("date", "%04d".format(java.util.Locale.ROOT, date.year) +
                 (date.month?.let { "-%02d".format(java.util.Locale.ROOT, it) } ?: "") +
                 (date.day?.let { "-%02d".format(java.util.Locale.ROOT, it) } ?: "")) }
@@ -48,7 +51,9 @@ internal class ExtraAudioTags(private val context: Context) {
 
     private fun decode(json: JSONObject): ExtraTags {
         val artists = json.optJSONArray("artists")
-        return ExtraTags((0 until (artists?.length() ?: 0)).map { artists!!.getString(it) }, ReleaseDate.parse(json.optString("date")))
+        val composers = json.optJSONArray("composers")
+        return ExtraTags((0 until (artists?.length() ?: 0)).map { artists!!.getString(it) }, ReleaseDate.parse(json.optString("date")),
+            ComposerTags.names((0 until (composers?.length() ?: 0)).map { composers!!.getString(it) }))
     }
 
     private suspend fun extract(uri: Uri): ExtraTags {
@@ -68,7 +73,9 @@ internal class ExtraAudioTags(private val context: Context) {
         }
         val artists = mutableListOf<String>()
         val fallback = mutableListOf<String>()
+        val composers = mutableListOf<String>()
         var date: ReleaseDate? = null
+        fun result() = ExtraTags(artists.ifEmpty { fallback.takeIf { it.size > 1 }.orEmpty() }, date, ComposerTags.names(composers))
         try {
             var input = open(0)
             val extractor = extractors.firstOrNull { candidate ->
@@ -90,17 +97,25 @@ internal class ExtraAudioTags(private val context: Context) {
                                 is VorbisComment -> when (entry.key.uppercase(java.util.Locale.ROOT)) {
                                     "ARTISTS" -> artists += entry.value
                                     "ARTIST" -> fallback += entry.value
+                                    "COMPOSER", "COMPOSERS" -> composers += entry.value
                                     "RELEASEDATE" -> ReleaseDate.parse(entry.value)?.let { date = it }
                                     "DATE" -> if (date == null) date = ReleaseDate.parse(entry.value)
                                 }
-                                is InternalFrame -> if (entry.description.equals("ARTISTS", true)) artists += entry.text
+                                is InternalFrame -> when {
+                                    entry.description.equals("ARTISTS", true) -> artists += entry.text
+                                    ComposerTags.isComposerField(entry.description) -> composers += entry.text
+                                }
                                 is TextInformationFrame -> when {
                                     entry.id == "TXXX" && entry.description.equals("ARTISTS", true) -> artists += entry.values
                                     entry.id == "TPE1" || entry.id == "TP1" -> fallback += entry.values
+                                    ComposerTags.isComposerField(entry.id) ||
+                                        (entry.id == "TXXX" && ComposerTags.isComposerField(entry.description)) -> composers += entry.values
                                 }
                             }
                         }
                         val meta = builder.build()
+                        // Media3 maps MP4 ©wrt and other supported composer metadata here.
+                        if (composers.isEmpty()) meta.composer?.toString()?.let { composers += it }
                         if (date == null) {
                             val year = meta.releaseYear ?: meta.recordingYear
                             val month = if (meta.releaseYear != null) meta.releaseMonth else meta.recordingMonth
@@ -118,10 +133,10 @@ internal class ExtraAudioTags(private val context: Context) {
             repeat(10_000) {
                 currentCoroutineContext().ensureActive()
                 when (extractor.read(input, position)) {
-                    Extractor.RESULT_END_OF_INPUT -> return ExtraTags(artists.ifEmpty { fallback.takeIf { it.size > 1 }.orEmpty() }, date)
+                    Extractor.RESULT_END_OF_INPUT -> return result()
                     Extractor.RESULT_SEEK -> input = open(position.position)
                 }
-                if (formatted) return ExtraTags(artists.ifEmpty { fallback.takeIf { it.size > 1 }.orEmpty() }, date)
+                if (formatted) return result()
             }
         } catch (_: IOException) { /* Unreadable/unsupported metadata keeps the MediaStore tags. */
         } catch (cancelled: kotlinx.coroutines.CancellationException) { throw cancelled
@@ -130,6 +145,6 @@ internal class ExtraAudioTags(private val context: Context) {
             extractors.forEach { it.release() }
             source.close()
         }
-        return ExtraTags(artists.ifEmpty { fallback.takeIf { it.size > 1 }.orEmpty() }, date)
+        return result()
     }
 }

@@ -7,6 +7,20 @@ import kotlin.test.assertTrue
 
 class SettingsSearchTest {
     @Test
+    fun libraryRulesAndLayoutAreSearchableWithoutLosingExistingLibraryControls() {
+        for (query in listOf("play count rule", "regola conteggio ascolti", "count a play after", "statistiche")) {
+            assertEquals(listOf(SettingsTarget.PlayCountRule), index.search(query, true), query)
+        }
+        // "Album art" and "Cover layout" also make ArtworkStyle a legitimate secondary hit.
+        assertEquals(listOf(SettingsTarget.AlbumLayout, SettingsTarget.ArtworkStyle), index.search("album layout", true))
+        for (query in listOf("vista album", "grid", "griglia", "densità")) {
+            assertEquals(listOf(SettingsTarget.AlbumLayout), index.search(query, true), query)
+        }
+        assertEquals(listOf(SettingsTarget.MinimumDuration), index.search("durata minima", true))
+        assertEquals(listOf(SettingsTarget.ExcludedFolders), index.search("cartelle escluse", true))
+    }
+
+    @Test
     fun longTrackSettingsHaveBilingualSearchDestinations() {
         val documents = SettingsTarget.entries.map { SettingsSearchDocument(it, "Control ${it.name}", "Settings") }
         val index = SettingsSearchIndex(documents)

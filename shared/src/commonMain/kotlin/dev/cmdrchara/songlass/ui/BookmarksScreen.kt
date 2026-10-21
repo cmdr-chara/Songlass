@@ -16,7 +16,6 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.model.isSameFileAs
 import dev.cmdrchara.songlass.core.playback.TrackBookmark
-import dev.cmdrchara.songlass.core.playback.TrackSignature
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -46,15 +45,12 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
     val current = queue.current?.track
     val selection = track ?: current
     val available = remember(selection, libraryRevision) {
-        selection?.let { state.trackMarkers.resolve(TrackSignature.of(it)) }
+        selection?.let(state.trackMarkers::resolveSelection)
     }
     val selectionIsPlaying = selection != null && current?.isSameFileAs(selection) == true
     val position = if (selectionIsPlaying) player.positionMs.coerceAtLeast(0) else 0L
     val visible = remember(saved.bookmarks, track, available, libraryRevision) {
-        if (track == null) saved.bookmarks else saved.bookmarks.filter { marker ->
-            marker.track == TrackSignature.of(track) ||
-                (available != null && state.trackMarkers.resolve(marker.track) == available)
-        }
+        if (track == null) saved.bookmarks else state.trackMarkers.bookmarksForDisplay(track)
     }
     var edit by remember { mutableStateOf<BookmarkEdit?>(null) }
     var input by remember { mutableStateOf("") }
@@ -78,7 +74,7 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
         try {
             val success = when (val request = edit) {
                 is BookmarkEdit.Add -> {
-                    val fresh = state.trackMarkers.resolve(TrackSignature.of(request.track))
+                    val fresh = state.trackMarkers.resolveSelection(request.track)
                     if (fresh == null) { fail(BookmarkFailure.Unavailable); return }
                     state.trackMarkers.add(fresh, request.positionMs, input)
                     true
@@ -116,10 +112,10 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
         }
         if (selection != null) item {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 6.dp)) {
-                ListRow(selection.title, subtitle = if (available == null) stringResource(Res.string.bookmark_unavailable)
+                ListRow(available?.title ?: selection.title, subtitle = if (available == null) stringResource(Res.string.bookmark_unavailable)
                     else stringResource(Res.string.bookmark_current_position, formatDuration(position)))
                 if (available != null) ActionButton(stringResource(Res.string.bookmark_add), {
-                    val fresh = state.trackMarkers.resolve(TrackSignature.of(selection))
+                    val fresh = state.trackMarkers.resolveSelection(selection)
                     if (fresh == null) fail(BookmarkFailure.Unavailable) else {
                         val now = if (state.controller.queue.value.current?.track?.isSameFileAs(fresh) == true)
                             state.controller.playerState.value.positionMs.coerceAtLeast(0) else 0L

@@ -21,6 +21,7 @@ import kotlin.time.Clock
 @Composable
 fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPadding: PaddingValues) {
     val history by state.history.state.collectAsState()
+    val preferences by state.settings.state.collectAsState()
     var period by remember { mutableStateOf(StatsPeriod.Month) }
     val now = remember(history) { Clock.System.now().toEpochMilliseconds() }
     val days = remember(history, period, now) { ListeningTrend.days(period, history, now) }
@@ -122,7 +123,11 @@ fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPaddin
                 }
             }
         }
-        item { AppText(stringResource(Res.string.stats_history_hint), AppTheme.typography.footnote,
+        item { AppText(stringResource(Res.string.stats_counting_current, playCountRuleLabel(preferences.playCountRule)), AppTheme.typography.footnote,
+            color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
+        item { ActionButton(stringResource(Res.string.library_counting_title), { state.open(Route.LibrarySettings) },
+            Modifier.padding(horizontal = pageInset)) }
+        item { AppText(stringResource(Res.string.stats_history_details), AppTheme.typography.footnote,
             color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(24.dp)) }
     }
 }

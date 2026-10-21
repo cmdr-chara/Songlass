@@ -1,7 +1,10 @@
 package dev.cmdrchara.songlass.core.backup
 
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.playback.MarkerBinding
+import dev.cmdrchara.songlass.core.playback.MarkerRestoreResolution
 import dev.cmdrchara.songlass.core.playback.TrackMarkersCodec
+import dev.cmdrchara.songlass.core.playback.TrackSignature
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 
 enum class BackupError {
@@ -41,6 +44,9 @@ enum class BackupError {
 
 /** Thrown for every failure; the message is only the [error] name, never any user data. */
 class BackupException(val error: BackupError, cause: Throwable? = null) : Exception(error.name, cause)
+
+/** The newly validated plan must be shown and explicitly confirmed before any store change. */
+class BackupPreviewChangedException(val preview: BackupPreview) : Exception("Backup preview changed")
 
 /** How much of each kind of data a backup holds. */
 data class BackupCounts(
@@ -115,12 +121,26 @@ class BackupPreview internal constructor(
     val counts: BackupCounts,
     val tracks: BackupTrackSummary,
     val unresolved: List<UnresolvedTrack>,
+    /** Included in [counts], but retained without a safe file link for resuming playback. */
+    val unavailableTrackProgress: Int,
+    /** Included in [counts], but retained without a safe file link for bookmark playback. */
+    val unavailableBookmarks: Int,
     /** References removed from lists, history and search because their track is [UnresolvedKind.Conflict]. */
     val droppedReferences: Int,
-    /** Tracks in the library the backup was matched against; 0 means it was not loaded yet. */
+    /** Tracks in the scanned library the backup was matched against; a complete scan may be empty. */
     val libraryTrackCount: Int,
     internal val entries: Map<String, String>,
+    /** Parsed source identities bind confirmation to the reviewed backup, independent of ordering. */
+    internal val sourceTracks: Map<String, SourceTrack>,
 ) {
+    /** Unrelated library additions may change its size without changing this restore decision. */
+    fun sameRestorePlanAs(other: BackupPreview): Boolean =
+        createdMs == other.createdMs && sourceTracks == other.sourceTracks && entries == other.entries &&
+            counts == other.counts && tracks == other.tracks && unresolved == other.unresolved &&
+            unavailableTrackProgress == other.unavailableTrackProgress &&
+            unavailableBookmarks == other.unavailableBookmarks &&
+            droppedReferences == other.droppedReferences
+
     override fun toString(): String = "BackupPreview(entries=${entries.size}, tracks=$tracks)"
 }
 
@@ -133,7 +153,8 @@ data class BackupResult(val written: Int, val removed: Int)
  * unknown keys are left alone.
  *
  * Restore is two steps so the user can confirm: [preview] reads and validates a file without
- * touching the store, [apply] then replaces the managed keys through [KeyValueStore.replace].
+ * touching the store, [applyConfirmed] checks that revalidation has not changed the reviewed
+ * decision before replacing managed keys through [KeyValueStore.replace].
  * Android uses one synchronous commit; rollback after a write failure is best-effort.
  * After [apply] the caller reloads each repository (`reload()`), which keeps the player and the
  * process as they are.
@@ -195,12 +216,33 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
             else -> id
         }
 
+        fun resolveMarker(signature: TrackSignature): MarkerRestoreResolution {
+            // An unresolved marker is retained for the user, never reattached by a reused ID.
+            if (signature.binding == MarkerBinding.Unresolved) return MarkerRestoreResolution.Conflict
+            val source = sourcesById[signature.id] ?: return if (signature.id in currentById)
+                MarkerRestoreResolution.Conflict else MarkerRestoreResolution.Missing
+            // A legacy marker may already have outlived its original MediaStore row before
+            // export. Its own facts must agree with the source record before trusting a remap.
+            if (signature.binding == MarkerBinding.Legacy && !TrackMarkersCodec.matchesLegacyIdentity(
+                    signature, TrackSignature(source.id, source.uri, source.path, source.title,
+                        source.artist, source.album, source.durationMs),
+                )) return MarkerRestoreResolution.Conflict
+            return when (val matched = resolution[signature.id]) {
+                Resolution.Same -> currentById[signature.id]?.let { MarkerRestoreResolution.Matched(it) }
+                    ?: MarkerRestoreResolution.Missing
+                is Resolution.Moved -> MarkerRestoreResolution.Matched(matched.to)
+                Resolution.Missing -> MarkerRestoreResolution.Missing
+                Resolution.Conflict -> MarkerRestoreResolution.Conflict
+                null -> if (signature.id in currentById) MarkerRestoreResolution.Conflict else MarkerRestoreResolution.Missing
+            }
+        }
+
         var dropped = 0
         val restored = LinkedHashMap<String, String>()
         for ((key, value) in parsed.entries) {
             val kind = BackupKeys.kindOf(key) ?: throw BackupException(BackupError.InvalidEntry)
             if (kind != ValueKind.ImportedLyrics) {
-                restored[key] = ValueCodecs.remap(kind, value, ::idFor) { dropped++ }
+                restored[key] = ValueCodecs.remap(kind, value, ::idFor, resolveMarker = ::resolveMarker) { dropped++ }
                 continue
             }
             val uri = BackupKeys.lyricsUri(key)
@@ -239,10 +281,29 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
             counts = countsOf(restored),
             tracks = summary,
             unresolved = unresolved,
+            // Marker-specific source conflicts and previously unresolved records do not alter
+            // valid favorites/history references for the same id. Report the final bindings.
+            unavailableTrackProgress = restored[TrackMarkersCodec.PROGRESS_KEY]?.let { value ->
+                TrackMarkersCodec.decodeProgress(value).count { it.track.binding != MarkerBinding.Canonical }
+            } ?: 0,
+            unavailableBookmarks = restored[TrackMarkersCodec.BOOKMARKS_KEY]?.let { value ->
+                TrackMarkersCodec.decodeBookmarks(value).count { it.track.binding != MarkerBinding.Canonical }
+            } ?: 0,
             droppedReferences = dropped,
             libraryTrackCount = tracks.size,
             entries = restored,
+            sourceTracks = sourcesById,
         )
+    }
+
+    /**
+     * Revalidation can change which references are moved or dropped. Never substitute that new
+     * plan for the one the user reviewed. A mismatch throws before even reading the target store.
+     * The caller keeps the library snapshot stable while validating and applying this decision.
+     */
+    fun applyConfirmed(reviewed: BackupPreview, current: BackupPreview): BackupResult {
+        if (!reviewed.sameRestorePlanAs(current)) throw BackupPreviewChangedException(current)
+        return apply(current)
     }
 
     /**
