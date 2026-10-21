@@ -1,0 +1,8 @@
+<resources>
+    <string name="music_access_recovery_title">Accesso alla musica</string>
+    <string name="music_access_recovery_message">Android potrebbe non mostrare più la richiesta del permesso. Puoi riprovare oppure aprire le impostazioni di Songlass e consentire Musica e audio.</string>
+    <string name="music_access_try_request">Riprova richiesta</string>
+    <string name="music_access_open_settings">Impostazioni app</string>
+    <string name="music_access_request_failed">Impossibile aprire la richiesta del permesso. Riprova da Songlass oppure controlla i permessi nelle impostazioni app di Android.</string>
+    <string name="music_access_settings_failed">Impossibile aprire le impostazioni app. Apri Impostazioni di Android, poi App, Songlass e Autorizzazioni.</string>
+</resources>

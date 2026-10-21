@@ -1,0 +1,8 @@
+<resources>
+    <string name="music_access_recovery_title">Access to music</string>
+    <string name="music_access_recovery_message">Android may no longer show the permission dialog. You can try requesting access again or open Songlass app settings to allow Music and audio.</string>
+    <string name="music_access_try_request">Try request again</string>
+    <string name="music_access_open_settings">App settings</string>
+    <string name="music_access_request_failed">The permission request could not be opened. Try again from Songlass, or check its permissions in Android app settings.</string>
+    <string name="music_access_settings_failed">App settings could not be opened. Open Android Settings, then Apps, Songlass and Permissions.</string>
+</resources>
