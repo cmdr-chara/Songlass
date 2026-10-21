@@ -65,7 +65,7 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
             SheetAction(stringResource(Res.string.action_go_to_artist), AppIcons.MusicNote) { state.showArtistOf(track) },
         ) + state.library.artistsOf(track).filter { it != state.library.artistOf(track) }.map { artist ->
             SheetAction(stringResource(Res.string.action_go_to_named_artist, artistName(artist.name)), AppIcons.Person) {
-                state.open(Route.ArtistDetail(artist))
+                state.showArtist(artist)
             }
         },
     )

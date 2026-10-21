@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
@@ -80,7 +82,8 @@ fun SearchScreen(
     val searchFocus = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
-    val focusOnEntry = preferences.interfaceStyle == InterfaceStyle.LiquidGlass && state.tab == Tab.Search && state.currentRoute == null
+    val searchRootActive = state.tab == Tab.Search && state.currentRoute == null &&
+        !state.isNowPlayingOpen && !state.hasOverlay
     val results = state.searchResults
     val targets by state.searchHistory.targets.collectAsState()
     val library = state.library
@@ -112,6 +115,27 @@ fun SearchScreen(
     // "All" is a preview: a few of each kind; a chip shows a kind in full.
     fun <T> List<T>.preview(count: Int) = if (filter == SearchFilter.All) take(count) else this
     val listState = rememberLazyListState()
+    val focusRequest = state.searchFocusRequest
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    // This effect must outlive the lazy search-field item: a repeated Search tap must also
+    // work after a long list has scrolled the field out of composition. Consume the explicit
+    // request once so returning from a result never unexpectedly opens the keyboard.
+    LaunchedEffect(searchRootActive, focusRequest, preferences.interfaceStyle) {
+        if (!searchRootActive || !state.consumeSearchFocusRequest(focusRequest)) return@LaunchedEffect
+        // Material and Miuix enter their discovery page without opening the keyboard.
+        if (preferences.interfaceStyle != InterfaceStyle.LiquidGlass) return@LaunchedEffect
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > SEARCH_FIELD_INDEX }
+        if (reduceMotion) listState.scrollToItem(SEARCH_FIELD_INDEX)
+        else listState.animateScrollToItem(SEARCH_FIELD_INDEX)
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.any { it.index == SEARCH_FIELD_INDEX } }.first { it }
+        withFrameNanos { }
+        if (state.tab == Tab.Search && state.currentRoute == null && !state.isNowPlayingOpen &&
+            !state.hasOverlay && state.searchFocusRequest == focusRequest &&
+            state.settings.state.value.interfaceStyle == InterfaceStyle.LiquidGlass) {
+            searchFocus.requestFocus()
+            keyboard?.show()
+        }
+    }
     PrefetchTrackRowArtwork(listState, if (shows(SearchFilter.Songs)) results.tracks.preview(8) else emptyList())
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), state = listState, contentPadding = contentPadding) {
         item { ScreenTitle(stringResource(Res.string.tab_search)) }
@@ -123,15 +147,6 @@ fun SearchScreen(
                 clearLabel = stringResource(Res.string.search_clear),
                 modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp).focusRequester(searchFocus),
             )
-            // The separate Liquid search button enters editing immediately. Keep the
-            // Material tab's discovery landing page and keyboard behaviour unchanged.
-            LaunchedEffect(focusOnEntry, state.searchFocusRequest) {
-                if (focusOnEntry) {
-                    withFrameNanos { }
-                    searchFocus.requestFocus()
-                    keyboard?.show()
-                }
-            }
         }
         if (hasAccess && refreshFailure != null) item(key = "search.scan-error") {
             LibraryRefreshNotice(refreshFailure, loading, state.requestLibraryRefresh)
@@ -236,6 +251,8 @@ fun SearchScreen(
         }
     }
 }
+
+private const val SEARCH_FIELD_INDEX = 1
 
 private val SearchFilter.label
     get() = when (this) {

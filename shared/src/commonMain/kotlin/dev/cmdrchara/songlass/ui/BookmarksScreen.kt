@@ -37,7 +37,7 @@ private enum class BookmarkFailure { Write, Unavailable }
  * visible for renaming/deletion; they can never start a different recording by recycled id.
  */
 @Composable
-fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: PaddingValues) {
+fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: PaddingValues, isActive: () -> Boolean) {
     val saved by state.trackMarkers.state.collectAsState()
     val libraryRevision by state.trackMarkers.libraryRevision.collectAsState()
     val queue by state.controller.queue.collectAsState()
@@ -87,12 +87,16 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
         } catch (_: Exception) { fail(BookmarkFailure.Write) }
     }
 
-    LaunchedEffect(attention) {
+    val active = isActive()
+    LaunchedEffect(attention, edit, failure, selection != null, active) {
+        if (!isActive()) return@LaunchedEffect
         if (failure != null) listState.scrollToItem(2)
         else if (edit != null) {
             listState.scrollToItem(if (selection != null) 3 else 2)
             withFrameNanos { }
-            editorFocus.requestFocus()
+            // Outgoing transition content may still be composed after Back/tab/player navigation.
+            // Read the live destination again, as well as whether Save/Cancel removed the field.
+            if (isActive() && edit != null && failure == null) editorFocus.requestFocus()
         }
     }
 

@@ -127,6 +127,15 @@ class AppState(graph: AppGraph) {
     /** Changes on every Search activation, including a repeated tap on its button. */
     var searchFocusRequest by mutableStateOf(0)
         private set
+    private var consumedSearchFocusRequest = 0
+
+    /** Consume a Search-button request once, including across result-screen navigation. */
+    fun consumeSearchFocusRequest(request: Int): Boolean {
+        if (tab != Tab.Search || currentRoute != null || isNowPlayingOpen || hasOverlay ||
+            request != searchFocusRequest || request == consumedSearchFocusRequest) return false
+        consumedSearchFocusRequest = request
+        return true
+    }
     var searchQuery by mutableStateOf("")
     var autoEqQuery by mutableStateOf("")
     var searchFilter by mutableStateOf(SearchFilter.All)
@@ -354,7 +363,11 @@ class AppState(graph: AppGraph) {
     }
 
     fun showArtistOf(track: Track) {
-        val artist = library.artistOf(track) ?: return
+        library.artistOf(track)?.let(::showArtist)
+    }
+
+    /** Primary and additional credits leave the player before revealing their destination. */
+    fun showArtist(artist: Artist) {
         closeNowPlaying()
         open(Route.ArtistDetail(artist))
     }

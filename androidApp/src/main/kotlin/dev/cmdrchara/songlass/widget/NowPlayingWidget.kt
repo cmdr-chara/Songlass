@@ -9,7 +9,6 @@ import android.content.Intent
 import android.content.res.ColorStateList
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.util.SizeF
 import android.view.KeyEvent
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.Color
@@ -58,8 +57,7 @@ object NowPlayingWidgets {
         val availabilityRevision: Long,
         val seed: Int,
         val playing: Boolean,
-        val material: Boolean,
-        val miuix: Boolean,
+        val style: InterfaceStyle,
         val dark: Boolean,
     )
 
@@ -114,8 +112,7 @@ object NowPlayingWidgets {
             availabilityRevision = graph.artworkAvailability.revision.value,
             seed = track?.artwork()?.seed ?: 0,
             playing = playback.playing,
-            material = graph.settings.state.value.interfaceStyle == InterfaceStyle.MaterialGlass,
-            miuix = graph.settings.state.value.interfaceStyle == InterfaceStyle.Miuix,
+            style = graph.settings.state.value.interfaceStyle,
             dark = (app.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES,
         )
     }
@@ -130,22 +127,22 @@ object NowPlayingWidgets {
                 else app.artworkLoader.cachedBitmap(key, COVER_PX)) ?: CoverImages.generative(content.seed, COVER_PX)
             }
         }
-        val tint = if (content.material || content.miuix) null else liquidTint(cover, content.dark)
+        val tint = if (content.style == InterfaceStyle.LiquidGlass) liquidTint(cover, content.dark) else null
         val small = build(app, content, cover, tint, wide = false)
         val wide = build(app, content, cover, tint, wide = true)
-        return Rendered(ids, RemoteViews(mapOf(SizeF(110f, 110f) to small, SizeF(220f, 100f) to wide)))
+        return Rendered(ids, RemoteViews(mapOf(
+            WidgetLayoutSizing.compactSize to small,
+            WidgetLayoutSizing.wideSize(app, content.style,
+                content.title ?: app.getString(R.string.widget_nothing_playing),
+                content.subtitle ?: app.getString(R.string.app_name)) to wide,
+        )))
     }
 
     private fun build(context: Context, content: Content, cover: Bitmap?, tint: ArtworkTint?, wide: Boolean): RemoteViews {
-        val layout = when {
-            content.miuix && wide -> R.layout.widget_miuix_wide
-            content.miuix -> R.layout.widget_miuix_small
-            content.material && wide -> R.layout.widget_material_wide
-            content.material -> R.layout.widget_material_small
-            wide -> R.layout.widget_liquid_wide
-            else -> R.layout.widget_liquid_small
-        }
+        val layout = WidgetLayoutSizing.layout(content.style, wide)
         val views = RemoteViews(context.packageName, layout)
+        if (!wide && content.style == InterfaceStyle.LiquidGlass) WidgetLayoutSizing.applyCompactLiquid(context, views,
+            content.title ?: context.getString(R.string.widget_nothing_playing))
         if (cover != null) views.setImageViewBitmap(R.id.cover, cover) else views.setImageViewResource(R.id.cover, R.mipmap.ic_launcher)
         views.setTextViewText(R.id.title, content.title ?: context.getString(R.string.widget_nothing_playing))
         views.setImageViewResource(R.id.play, if (content.playing) R.drawable.widget_pause else R.drawable.widget_play)

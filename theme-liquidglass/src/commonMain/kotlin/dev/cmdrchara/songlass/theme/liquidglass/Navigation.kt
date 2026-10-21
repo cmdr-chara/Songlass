@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -142,7 +143,17 @@ internal fun LiquidGlassScaffold(
         MinimizeOnScroll(thresholdPx = with(density) { MinimizeScrollThreshold.toPx() }) { minimizeRequested = it }
     }
     // Without an accessory there is nothing to show inline, so the bar stays expanded.
-    val minimized = LocalGlassLook.current.minimizesOnScroll && !accessibility.reduceMotion && minimizeRequested && accessory != null
+    // Large text keeps the accessory at full width instead of squeezing it between two
+    // circles. Use the actual scaled line heights (including nonlinear Android scaling).
+    val minimized = look.minimizesOnScroll && !accessibility.reduceMotion && minimizeRequested &&
+        accessory != null && with(density) {
+            // Miuix shares this scaffold but does not minimize; its native line heights may
+            // be Unspecified. Only explicit sp metrics can prove that the compact text fits.
+            val titleLine = AppTheme.typography.subheadline.lineHeight
+            val subtitleLine = AppTheme.typography.footnote.lineHeight
+            titleLine.isSp && subtitleLine.isSp &&
+                titleLine.toDp() + subtitleLine.toDp() + MiniArtInset * 2 <= MinimizedHeight
+        }
     val colors = AppTheme.colors
 
     // App opening, after the launch splash: the page settles in from slightly larger while the
@@ -305,7 +316,7 @@ private fun NavigationLayer(
     ) { isMinimized ->
         if (isMinimized) {
             Row(
-                modifier = Modifier.fillMaxWidth().height(MinimizedHeight),
+                modifier = Modifier.fillMaxWidth().heightIn(min = MinimizedHeight),
                 horizontalArrangement = Arrangement.spacedBy(BarSpacing),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -703,7 +714,7 @@ internal fun LiquidGlassMiniPlayer(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(MinimizedHeight)
+            .heightIn(min = MinimizedHeight)
             // Where the Now Playing transition starts from and returns to.
             .miniPlayerFrame()
             .liquidPress(grow = 0.015f, reach = 2.dp)
@@ -711,7 +722,7 @@ internal fun LiquidGlassMiniPlayer(
             .trackSwipe(swipe, onNext, onPrevious)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .trackSwipeActions(labels, onNext, onPrevious)
-            .padding(start = MiniArtInset, end = 4.dp),
+            .padding(start = MiniArtInset, end = 4.dp, top = MiniArtInset, bottom = MiniArtInset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(Modifier.weight(1f).followTrackSwipe(swipe), verticalAlignment = Alignment.CenterVertically) {

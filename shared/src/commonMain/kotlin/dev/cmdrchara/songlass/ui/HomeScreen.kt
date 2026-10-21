@@ -66,6 +66,7 @@ import dev.cmdrchara.songlass.shared.resources.home_rediscover_weeks
 import dev.cmdrchara.songlass.shared.resources.home_release_anniversaries
 import dev.cmdrchara.songlass.shared.resources.home_shuffle_all
 import dev.cmdrchara.songlass.shared.resources.home_your_playlists
+import dev.cmdrchara.songlass.shared.resources.homecfg_no_content
 import dev.cmdrchara.songlass.shared.resources.homecfg_all_hidden
 import dev.cmdrchara.songlass.shared.resources.homecfg_kind_smart_playlist
 import dev.cmdrchara.songlass.shared.resources.homecfg_customize
@@ -151,11 +152,23 @@ fun HomeScreen(
             }
 
             val sections = layout.visibleSections
-            if (sections.isEmpty()) {
-                // Keep a way back: with nothing shown the page would be a bare title.
+            val hasContent = sections.any { section ->
+                when (section) {
+                    HomeSection.Statistics, HomeSection.ForYou -> true
+                    HomeSection.OnThisDay -> anniversaries.releases.isNotEmpty() || anniversaries.memories.isNotEmpty()
+                    HomeSection.Shortcuts -> feed.shortcuts.isNotEmpty()
+                    HomeSection.RecentlyAdded -> feed.recentlyAdded.isNotEmpty()
+                    HomeSection.ChangeOfPace -> feed.changeOfPace?.tracks?.isNotEmpty() == true
+                    HomeSection.MostPlayed -> feed.mostPlayed.isNotEmpty()
+                    HomeSection.Playlists -> feed.playlists.isNotEmpty()
+                }
+            }
+            if (!hasContent) {
+                // Selected sections may legitimately have no content today. Keep recovery
+                // available for that case as well as for explicitly hidden sections.
                 item(key = "home.all_hidden") {
                     Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AppText(stringResource(Res.string.homecfg_all_hidden), AppTheme.typography.subheadline,
+                        AppText(stringResource(if (sections.isEmpty()) Res.string.homecfg_all_hidden else Res.string.homecfg_no_content), AppTheme.typography.subheadline,
                             color = AppTheme.colors.secondaryLabel)
                         ActionButton(stringResource(Res.string.homecfg_customize), { state.open(Route.HomeCustomization) })
                     }

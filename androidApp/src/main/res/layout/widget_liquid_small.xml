@@ -15,6 +15,7 @@
         android:scaleType="centerCrop" />
 
     <ImageView
+        android:id="@+id/widget_scrim"
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:layout_gravity="bottom"
@@ -28,7 +29,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:layout_marginStart="12dp"
-        android:layout_marginEnd="52dp"
+        android:layout_marginEnd="12dp"
         android:layout_marginBottom="14dp"
         android:ellipsize="end"
         android:maxLines="2"
@@ -39,12 +40,12 @@
 
     <ImageView
         android:id="@+id/play"
-        android:layout_width="38dp"
-        android:layout_height="38dp"
-        android:layout_gravity="bottom|end"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|end"
         android:layout_margin="10dp"
         android:background="@drawable/widget_circle"
         android:contentDescription="@string/widget_play"
-        android:padding="10dp"
+        android:padding="15dp"
         android:src="@drawable/widget_play" />
 </FrameLayout>

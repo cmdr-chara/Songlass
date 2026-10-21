@@ -19,12 +19,12 @@
     <ImageView
         android:id="@+id/play"
         android:layout_width="56dp"
-        android:layout_height="40dp"
+        android:layout_height="48dp"
         android:layout_gravity="bottom|end"
         android:layout_margin="8dp"
         android:background="@drawable/widget_pill_material"
         android:contentDescription="@string/widget_play"
-        android:paddingVertical="10dp"
+        android:paddingVertical="14dp"
         android:src="@drawable/widget_play"
         android:tint="@color/widget_material_on_primary" />
 </FrameLayout>

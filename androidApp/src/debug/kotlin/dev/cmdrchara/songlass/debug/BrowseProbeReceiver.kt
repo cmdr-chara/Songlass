@@ -38,6 +38,10 @@ class BrowseProbeReceiver : BroadcastReceiver() {
         val play = intent.getBooleanExtra("play", false)
         MainScope().launch {
             try {
+                if (intent.getBooleanExtra("widgetLayout", false)) {
+                    WidgetLayoutProbe.run(context)
+                    return@launch
+                }
                 if (intent.getBooleanExtra("externalControls", false)) {
                     ExternalControlsProbe.run(context)
                     return@launch

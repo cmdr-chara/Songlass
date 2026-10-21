@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="homecfg_no_content">The selected Home sections have nothing to show right now. You can choose other sections.</string>
+</resources>

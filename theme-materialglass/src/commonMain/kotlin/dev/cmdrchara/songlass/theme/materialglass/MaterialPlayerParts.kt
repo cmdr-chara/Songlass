@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -91,11 +92,11 @@ internal fun MaterialMiniPlayer(
     val swipe = rememberTrackSwipe()
     val progress by animateFloatAsState(state.progress.coerceIn(0f, 1f), if (reduceMotion) snap() else tween(250), label = "miniProgress")
     Row(
-        look.navigationSurface(modifier.fillMaxWidth().height(64.dp).miniPlayerFrame(), RoundedCornerShape(percent = 50), interaction, edges = true)
+        look.navigationSurface(modifier.fillMaxWidth().heightIn(min = 64.dp).miniPlayerFrame(), RoundedCornerShape(percent = 50), interaction, edges = true)
             .trackSwipe(swipe, onNext, onPrevious)
             .clickable(interaction, indication = MaterialRipple, onClick = onClick)
             .trackSwipeActions(labels, onNext, onPrevious)
-            .padding(start = 8.dp, end = 8.dp),
+            .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(Modifier.weight(1f).followTrackSwipe(swipe), verticalAlignment = Alignment.CenterVertically) {

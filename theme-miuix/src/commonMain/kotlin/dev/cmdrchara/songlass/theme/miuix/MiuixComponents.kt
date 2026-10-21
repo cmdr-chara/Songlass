@@ -156,8 +156,8 @@ internal fun MiuixTransport(playing: Boolean, labels: PlaybackLabels, previous: 
 @Composable
 internal fun MiuixMini(state: MiniPlayerState, labels: PlaybackLabels, onClick: () -> Unit, playPause: () -> Unit, next: () -> Unit, previous: () -> Unit, modifier: Modifier) {
     val swipe = rememberTrackSwipe()
-    val surface = MiuixLook.navigationSurface(modifier.fillMaxWidth().height(68.dp).miniPlayerFrame(), RoundedCornerShape(24.dp), null, true)
-    Row(surface.trackSwipe(swipe, next, previous).trackSwipeActions(labels, next, previous).clickable(onClick = onClick).padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+    val surface = MiuixLook.navigationSurface(modifier.fillMaxWidth().heightIn(min = 68.dp).miniPlayerFrame(), RoundedCornerShape(24.dp), null, true)
+    Row(surface.trackSwipe(swipe, next, previous).trackSwipeActions(labels, next, previous).clickable(onClick = onClick).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).followTrackSwipe(swipe), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).miniPlayerCover()) { AlbumArt(state.artwork, Modifier.fillMaxSize(), cornerRadius = 16.dp) }
             Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
