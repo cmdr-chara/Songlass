@@ -3,6 +3,8 @@ package dev.cmdrchara.songlass.core.backup
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
+import dev.cmdrchara.songlass.core.lyrics.ImportedLyricsCodec
+import dev.cmdrchara.songlass.core.lyrics.LyricsBinding
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playlists.UserPlaylists
 import dev.cmdrchara.songlass.core.search.SearchHistory
@@ -10,7 +12,6 @@ import dev.cmdrchara.songlass.core.search.SearchTarget
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /** What happens to references when MediaStore ids changed, got reused, or the files are gone. */
@@ -43,7 +44,7 @@ class TrackRemapTest {
     }
 
     private fun favorites(store: InMemoryKeyValueStore) = Favorites(store).ids.value
-    private fun lyricsKeys(store: InMemoryKeyValueStore) = store.snapshot().keys.filter { it.startsWith("lyrics.import.") }
+    private fun lyricsKeys(store: InMemoryKeyValueStore) = store.snapshot().keys.filter { ImportedLyricsCodec.isKey(it) }
 
     @Test
     fun referencesFollowTheirFilesToNewIdsByUniquePath() {
@@ -63,8 +64,9 @@ class TrackRemapTest {
         assertEquals(mapOf("11" to 2, "13" to 1), history.playCounts)
         assertEquals(listOf("13", "11", "11"), history.recentPlays)
         assertEquals(listOf(SearchTarget.Song("12")), SearchHistory(target).targets.value)
-        assertEquals(listOf("lyrics.import.${reindexed[0].uri}"), lyricsKeys(target))
-        assertNotNull(target.getString("lyrics.import.${reindexed[0].uri}"))
+        assertEquals(listOf(ImportedLyricsCodec.trackKey(reindexed[0].id)), lyricsKeys(target))
+        assertEquals(0, preview.unavailableImportedLyrics)
+        assertEquals("[00:01.00]Words", ImportedLyricsCodec.decode(target.getString(lyricsKeys(target).single())!!)!!.text)
     }
 
     @Test
@@ -80,8 +82,11 @@ class TrackRemapTest {
 
         assertEquals(emptyList(), favorites(target))
         assertEquals(emptyList(), UserPlaylists(target) { NOW }.playlists.value.single().trackIds)
-        assertEquals(emptyList(), lyricsKeys(target))
-        assertEquals(3, preview.droppedReferences)
+        assertEquals(1, lyricsKeys(target).size)
+        assertEquals(LyricsBinding.Unassigned, ImportedLyricsCodec.decode(target.getString(lyricsKeys(target).single())!!)!!.binding)
+        assertEquals("[00:01.00]Words", ImportedLyricsCodec.decode(target.getString(lyricsKeys(target).single())!!)!!.text)
+        assertEquals(1, preview.unavailableImportedLyrics)
+        assertEquals(2, preview.droppedReferences)
         assertEquals(BackupTrackSummary(unchanged = 0, remapped = 0, missing = 0, conflicting = 1), preview.tracks)
         assertEquals(
             listOf(UnresolvedTrack("1", "Song 1", "Artist", "Album", "Music/a.mp3", UnresolvedKind.Conflict)),
@@ -103,7 +108,8 @@ class TrackRemapTest {
         assertEquals(listOf("2", "1", "3"), UserPlaylists(target) { NOW }.playlists.value.single().trackIds)
         assertEquals(mapOf("2" to 2, "3" to 1), ListeningHistory(target) { NOW }.state.value.playCounts)
         assertEquals(listOf(SearchTarget.Song("1")), SearchHistory(target).targets.value)
-        assertEquals(listOf("lyrics.import.${swapped[1].uri}"), lyricsKeys(target))
+        assertEquals(listOf(ImportedLyricsCodec.trackKey(swapped[1].id)), lyricsKeys(target))
+        assertEquals(0, preview.unavailableImportedLyrics)
     }
 
     @Test
@@ -130,7 +136,9 @@ class TrackRemapTest {
         assertEquals(BackupTrackSummary(unchanged = 0, remapped = 0, missing = 3, conflicting = 0), preview.tracks)
         assertEquals(listOf("1", "2", "3"), preview.unresolved.map { it.id }.sorted())
         assertTrue(preview.unresolved.all { it.kind == UnresolvedKind.Missing })
-        assertEquals(listOf("lyrics.import.${a.uri}"), lyricsKeys(target))
+        assertEquals(listOf(ImportedLyricsCodec.trackKey(a.id)), lyricsKeys(target))
+        assertEquals(1, preview.unavailableImportedLyrics)
+        assertEquals(LyricsBinding.Unassigned, ImportedLyricsCodec.decode(target.getString(lyricsKeys(target).single())!!)!!.binding)
     }
 
     @Test

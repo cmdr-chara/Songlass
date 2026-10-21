@@ -146,6 +146,9 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
                     BackupCountRow(stringResource(Res.string.bookmark_open), checked.counts.bookmarks)
                     if (checked.unavailableBookmarks > 0) BackupCountRow(
                         stringResource(Res.string.backup_unavailable_bookmarks), checked.unavailableBookmarks)
+                    BackupCountRow(stringResource(Res.string.lyrics_identity_backup_count), checked.counts.importedLyrics)
+                    if (checked.unavailableImportedLyrics > 0) BackupCountRow(
+                        stringResource(Res.string.lyrics_identity_backup_unavailable), checked.unavailableImportedLyrics)
                     BackupCountRow(stringResource(Res.string.backup_matched), checked.tracks.unchanged + checked.tracks.remapped)
                     BackupCountRow(stringResource(Res.string.backup_missing), checked.tracks.missing)
                     if (checked.tracks.conflicting > 0) BackupCountRow(stringResource(Res.string.backup_conflicting), checked.tracks.conflicting)
@@ -153,6 +156,9 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
             }
             if (checked.unavailableTrackProgress > 0 || checked.unavailableBookmarks > 0) item {
                 FeatureHint(stringResource(Res.string.backup_unavailable_markers_hint))
+            }
+            if (checked.unavailableImportedLyrics > 0) item {
+                FeatureHint(stringResource(Res.string.lyrics_identity_backup_hint))
             }
             if (checked.tracks.missing > 0) item { FeatureHint(stringResource(Res.string.backup_missing_hint)) }
             if (checked.tracks.conflicting > 0) item { FeatureHint(stringResource(Res.string.backup_conflict_hint)) }

@@ -7,6 +7,7 @@ import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Pins
 import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
+import dev.cmdrchara.songlass.core.lyrics.LyricsSelection
 import dev.cmdrchara.songlass.core.lyrics.LyricsResult
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playlists.SmartPlayStatus
@@ -86,7 +87,7 @@ class DataBackupTest {
             saveForCurrentOutput()
             setAutomaticOutputs(true)
         }
-        assertTrue(LyricsRepository(store = store).import(tracks[0], "[00:01.00]Hello\n[00:02.00]World"))
+        assertTrue(LyricsRepository(store = store, resolveSelection = { LyricsSelection(it, canonicalId = true) }).import(tracks[0], "[00:01.00]Hello\n[00:02.00]World"))
         store.putString("settings.appearance", "dark")
         store.putString("library.minimum_duration_ms", "30000")
         store.putString("home.sections", ODD)

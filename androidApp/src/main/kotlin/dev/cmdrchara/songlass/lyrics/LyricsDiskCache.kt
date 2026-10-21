@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.lyrics
 
+import dev.cmdrchara.songlass.core.lyrics.LyricsTransportPolicy
+
 import android.util.AtomicFile
 import java.io.File
 import java.io.IOException
@@ -21,7 +23,7 @@ internal class LyricsDiskCache(
         return try {
             AtomicFile(file).openRead().use { input ->
                 val bytes = input.readNBytes(maxEntryBytes + 1)
-                if (bytes.size > maxEntryBytes) null else bytes.toString(Charsets.UTF_8)
+                if (bytes.size > maxEntryBytes) null else LyricsTransportPolicy.decodeUtf8(bytes, maxBytes = maxEntryBytes.coerceAtMost(LyricsTransportPolicy.MAX_RESPONSE_BYTES))
             }
         } catch (_: IOException) {
             null

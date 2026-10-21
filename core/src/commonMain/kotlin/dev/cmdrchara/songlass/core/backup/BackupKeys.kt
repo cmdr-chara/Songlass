@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.backup
 
 import dev.cmdrchara.songlass.core.history.PlayContext
+import dev.cmdrchara.songlass.core.lyrics.ImportedLyricsCodec
 import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.playback.MarkerBinding
 import dev.cmdrchara.songlass.core.playback.MarkerRestoreResolution
@@ -26,8 +27,10 @@ internal enum class ValueKind {
     /** Length-prefixed [SearchTarget]s, as `SearchHistory` writes them. */
     SearchTargets,
 
-    /** Imported lyrics; the key, not the value, names the track (by URI). */
+    /** URI-only historical documents, retained without an inferred file binding. */
     ImportedLyrics,
+    /** Versioned identity records; malformed values are retained inertly for recovery/export. */
+    SavedLyrics,
     TrackProgress,
     TrackBookmarks,
 }
@@ -39,7 +42,7 @@ internal enum class ValueKind {
  * shapes below count.
  */
 internal object BackupKeys {
-    const val LYRICS_PREFIX = "lyrics.import."
+    const val LYRICS_PREFIX = ImportedLyricsCodec.LEGACY_PREFIX
     const val FAVORITES = "favorites"
     const val PINS = "library.pins"
     const val PLAYLISTS_INDEX = "playlists.index"
@@ -98,6 +101,7 @@ internal object BackupKeys {
         exact[key]?.let { return it }
         if (plainPrefixes.any { key.length > it.length && key.startsWith(it) }) return ValueKind.Plain
         if (key.length > LYRICS_PREFIX.length && key.startsWith(LYRICS_PREFIX)) return ValueKind.ImportedLyrics
+        if (ImportedLyricsCodec.isKey(key)) return ValueKind.SavedLyrics
         for (group in groups) {
             val (_, suffix) = group.match(key) ?: continue
             return if (suffix == group.idListSuffix) ValueKind.IdList else ValueKind.Plain
@@ -149,7 +153,7 @@ internal object ValueCodecs {
     private class Rec(val id: String, val tail: String)
 
     fun canonical(kind: ValueKind, value: String): String = when (kind) {
-        ValueKind.Plain, ValueKind.ImportedLyrics -> value
+        ValueKind.Plain, ValueKind.ImportedLyrics, ValueKind.SavedLyrics -> value
         ValueKind.TrackProgress -> TrackMarkersCodec.encodeProgress(TrackMarkersCodec.decodeProgress(value))
         ValueKind.TrackBookmarks -> TrackMarkersCodec.encodeBookmarks(TrackMarkersCodec.decodeBookmarks(value))
         ValueKind.SearchTargets -> encodeSearch(decodeSearch(value).distinct().take(SearchHistory.MAX))
@@ -163,7 +167,7 @@ internal object ValueCodecs {
 
     /** Track ids named by a canonical [value], in order, repeats included. */
     fun references(kind: ValueKind, value: String): List<String> = when (kind) {
-        ValueKind.Plain, ValueKind.ImportedLyrics -> emptyList()
+        ValueKind.Plain, ValueKind.ImportedLyrics, ValueKind.SavedLyrics -> emptyList()
         ValueKind.TrackProgress -> TrackMarkersCodec.decodeProgress(value)
             .filter { it.track.binding != MarkerBinding.Unresolved }.map { it.track.id }
         ValueKind.TrackBookmarks -> TrackMarkersCodec.decodeBookmarks(value)
@@ -183,7 +187,7 @@ internal object ValueCodecs {
         resolveMarker: ((TrackSignature) -> MarkerRestoreResolution)? = null,
         onDrop: () -> Unit,
     ): String = when (kind) {
-        ValueKind.Plain, ValueKind.ImportedLyrics -> value
+        ValueKind.Plain, ValueKind.ImportedLyrics, ValueKind.SavedLyrics -> value
         ValueKind.TrackProgress -> TrackMarkersCodec.remapProgress(value, resolve, resolveMarker)
         ValueKind.TrackBookmarks -> TrackMarkersCodec.remapBookmarks(value, resolve, resolveMarker)
         ValueKind.SearchTargets -> encodeSearch(

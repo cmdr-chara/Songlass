@@ -1,5 +1,11 @@
 package dev.cmdrchara.songlass.core.backup
 
+import dev.cmdrchara.songlass.core.lyrics.ImportedLyricsCodec
+import dev.cmdrchara.songlass.core.lyrics.ImportedLyricsRecord
+import dev.cmdrchara.songlass.core.lyrics.LyricsBinding
+import dev.cmdrchara.songlass.core.lyrics.LyricsSelection
+import dev.cmdrchara.songlass.core.lyrics.LyricsParser
+import dev.cmdrchara.songlass.core.lyrics.LyricsOrigin
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playback.MarkerBinding
 import dev.cmdrchara.songlass.core.playback.MarkerRestoreResolution
@@ -125,6 +131,8 @@ class BackupPreview internal constructor(
     val unavailableTrackProgress: Int,
     /** Included in [counts], but retained without a safe file link for bookmark playback. */
     val unavailableBookmarks: Int,
+    /** Imported documents retained without a verified file link, including URI-only legacy text. */
+    val unavailableImportedLyrics: Int,
     /** References removed from lists, history and search because their track is [UnresolvedKind.Conflict]. */
     val droppedReferences: Int,
     /** Tracks in the scanned library the backup was matched against; a complete scan may be empty. */
@@ -139,6 +147,7 @@ class BackupPreview internal constructor(
             counts == other.counts && tracks == other.tracks && unresolved == other.unresolved &&
             unavailableTrackProgress == other.unavailableTrackProgress &&
             unavailableBookmarks == other.unavailableBookmarks &&
+            unavailableImportedLyrics == other.unavailableImportedLyrics &&
             droppedReferences == other.droppedReferences
 
     override fun toString(): String = "BackupPreview(entries=${entries.size}, tracks=$tracks)"
@@ -171,7 +180,7 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
      */
     fun export(tracks: List<Track>): BackupExport {
         val snapshot = store.snapshot() ?: throw BackupException(BackupError.StoreUnsupported)
-        val entries = BackupKeys.exportable(snapshot)
+        val entries = prepareLyricsForExport(BackupKeys.exportable(snapshot), tracks)
         if (entries.size > BackupFormat.MAX_ENTRIES) throw BackupException(BackupError.TooLarge)
         try {
             val full = encode(entries, tracks)
@@ -180,7 +189,7 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
             if (tooLarge.error != BackupError.TooLarge) throw tooLarge
         }
         // Lyrics are the only bulky, re-importable part: leave them out rather than fail.
-        val lyrics = entries.keys.filterTo(HashSet()) { BackupKeys.kindOf(it) == ValueKind.ImportedLyrics }
+        val lyrics = entries.keys.filterTo(HashSet()) { isLyricsKind(BackupKeys.kindOf(it)) }
         if (lyrics.isEmpty()) throw BackupException(BackupError.TooLarge)
         val trimmed = entries - lyrics
         val encoded = encode(trimmed, tracks)
@@ -194,14 +203,13 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
     fun preview(text: String, tracks: List<Track>): BackupPreview {
         val parsed = BackupFormat.read(text)
         val sourcesById = parsed.sources.associateBy { it.id }
-        val sourcesByUri = parsed.sources.associateBy { it.uri }
 
         val referenced = LinkedHashSet<String>()
         for ((key, value) in parsed.entries) {
             val kind = BackupKeys.kindOf(key) ?: throw BackupException(BackupError.InvalidEntry)
-            if (kind == ValueKind.ImportedLyrics) {
-                sourcesByUri[BackupKeys.lyricsUri(key)]?.let { referenced += it.id }
-            } else {
+            if (kind == ValueKind.SavedLyrics) {
+                boundLyricsRecord(key, value)?.let { referenced += it.id }
+            } else if (kind != ValueKind.ImportedLyrics) {
                 if (!ValueCodecs.isCanonical(kind, value)) throw BackupException(BackupError.InvalidEntry)
                 referenced += ValueCodecs.references(kind, value)
             }
@@ -209,7 +217,6 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
 
         val resolution = TrackMatching.resolve(referenced, sourcesById, tracks)
         val currentById = tracks.associateBy { it.id }
-        val currentUris = tracks.mapTo(HashSet()) { it.uri }
         fun idFor(id: String): String? = when (val r = resolution[id]) {
             is Resolution.Moved -> r.to.id
             Resolution.Conflict -> null
@@ -239,26 +246,55 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
 
         var dropped = 0
         val restored = LinkedHashMap<String, String>()
+        // Legacy SourceTrack rows may have been inferred from an already reused URI. They
+        // cannot establish ownership of historical text, even if they match today's library.
         for ((key, value) in parsed.entries) {
             val kind = BackupKeys.kindOf(key) ?: throw BackupException(BackupError.InvalidEntry)
-            if (kind != ValueKind.ImportedLyrics) {
+            if (kind != ValueKind.SavedLyrics) {
                 restored[key] = ValueCodecs.remap(kind, value, ::idFor, resolveMarker = ::resolveMarker) { dropped++ }
-                continue
             }
-            val uri = BackupKeys.lyricsUri(key)
-            val source = sourcesByUri[uri]
-            val newUri = when {
-                source == null -> uri.takeUnless { it in currentUris } // no identity: only an unused URI is safe
-                else -> when (val r = resolution[source.id]) {
-                    is Resolution.Moved -> r.to.uri
-                    Resolution.Conflict -> null
-                    Resolution.Same -> currentById[source.id]?.uri ?: uri
-                    else -> uri
-                }
+        }
+        data class LyricsPlan(val oldKey: String, val raw: String, val record: ImportedLyricsRecord?, val targetKey: String?)
+        val lyricsPlans = parsed.entries.mapNotNull { (key, value) ->
+            if (BackupKeys.kindOf(key) != ValueKind.SavedLyrics) return@mapNotNull null
+            val record = ImportedLyricsCodec.decode(value)
+            val bound = boundLyricsRecord(key, value)
+            val source = bound?.let { sourcesById[it.id] }
+            val sourceTrack = source?.let { Track(id = it.id, uri = it.uri, title = it.title,
+                artist = it.artist, album = it.album, durationMs = it.durationMs,
+                folder = it.path?.substringBeforeLast('/', "")?.takeIf(String::isNotEmpty),
+                fileName = it.path?.substringAfterLast('/')) }
+            val trustworthy = bound != null && sourceTrack != null &&
+                (bound.binding == LyricsBinding.Canonical || bound.matchesObserved(sourceTrack))
+            val target = if (!trustworthy) null else when (val matched = resolution[bound.id]) {
+                Resolution.Same -> currentById[bound.id]
+                is Resolution.Moved -> matched.to
+                else -> null
             }
-            val newKey = newUri?.let { BackupKeys.LYRICS_PREFIX + it }
-            if (newKey == null || newKey.length > BackupFormat.MAX_KEY_CHARS || restored.containsKey(newKey)) dropped++
-            else restored[newKey] = value
+            val targetKey = target?.let { ImportedLyricsCodec.trackKey(it.id) }
+            val mapped = if (target != null && targetKey != null && record != null)
+                ImportedLyricsRecord.bound(LyricsSelection(target, canonicalId = true), record.text)
+            else record?.unassigned()
+            LyricsPlan(key, value, mapped, targetKey)
+        }
+        val destinationCounts = lyricsPlans.mapNotNull { it.targetKey }.groupingBy { it }.eachCount()
+        val safeDestinations = destinationCounts.filterValues { it == 1 }.keys
+        val reserved = (parsed.entries.keys + safeDestinations).toMutableSet()
+        var recoverySequence = 0
+        fun recoveryKey(): String {
+            while (true) {
+                val key = ImportedLyricsCodec.PREFIX + "r." + (recoverySequence++).toString(16)
+                if (reserved.add(key)) return key
+            }
+        }
+        // Allocate all proven targets first. An inert record cannot be overwritten by another
+        // record remapping into its old key; collisions keep every document separately.
+        lyricsPlans.filter { it.targetKey in safeDestinations }.forEach { plan ->
+            restored[plan.targetKey!!] = ImportedLyricsCodec.encode(plan.record!!)
+        }
+        lyricsPlans.filter { it.targetKey !in safeDestinations }.forEach { plan ->
+            val key = if (plan.oldKey !in restored) plan.oldKey else recoveryKey()
+            restored[key] = plan.record?.unassigned()?.let(ImportedLyricsCodec::encode) ?: plan.raw
         }
 
         val unresolved = resolution.mapNotNull { (id, r) ->
@@ -289,6 +325,13 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
             unavailableBookmarks = restored[TrackMarkersCodec.BOOKMARKS_KEY]?.let { value ->
                 TrackMarkersCodec.decodeBookmarks(value).count { it.track.binding != MarkerBinding.Canonical }
             } ?: 0,
+            unavailableImportedLyrics = restored.count { (key, value) ->
+                when (BackupKeys.kindOf(key)) {
+                    ValueKind.ImportedLyrics -> true
+                    ValueKind.SavedLyrics -> boundLyricsRecord(key, value) == null
+                    else -> false
+                }
+            },
             droppedReferences = dropped,
             libraryTrackCount = tracks.size,
             entries = restored,
@@ -322,15 +365,36 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
         return BackupResult(written = preview.entries.size, removed = stale.size)
     }
 
+    private fun isLyricsKind(kind: ValueKind?): Boolean =
+        kind == ValueKind.ImportedLyrics || kind == ValueKind.SavedLyrics
+
+    private fun boundLyricsRecord(key: String, value: String): ImportedLyricsRecord? =
+        ImportedLyricsCodec.decode(value)?.takeIf {
+            it.binding != LyricsBinding.Unassigned && ImportedLyricsCodec.trackKey(it.id) == key &&
+                LyricsParser.parse(it.text, LyricsOrigin.File) != null
+        }
+
+    /** Never lend today's file identity to an old URI-only or mismatched observed document. */
+    private fun prepareLyricsForExport(entries: Map<String, String>, tracks: List<Track>): Map<String, String> {
+        val byId = tracks.groupBy { it.id }
+        return entries.mapValues { (key, value) ->
+            if (BackupKeys.kindOf(key) != ValueKind.SavedLyrics) return@mapValues value
+            val record = ImportedLyricsCodec.decode(value) ?: return@mapValues value
+            val track = byId[record.id]?.singleOrNull()
+            val safe = track != null && boundLyricsRecord(key, value) != null &&
+                record.matches(LyricsSelection(track, canonicalId = record.binding == LyricsBinding.Canonical))
+            if (safe) value else ImportedLyricsCodec.encode(record.unassigned())
+        }
+    }
+
     private class Encoded(val text: String, val unidentified: Int)
 
     private fun encode(entries: Map<String, String>, tracks: List<Track>): Encoded {
         val byId = tracks.associateBy { it.id }
-        val byUri = tracks.associateBy { it.uri }
         val referenced = LinkedHashSet<String>()
         for ((key, value) in entries) {
             val kind = BackupKeys.kindOf(key) ?: continue
-            if (kind == ValueKind.ImportedLyrics) byUri[BackupKeys.lyricsUri(key)]?.let { referenced += it.id }
+            if (kind == ValueKind.SavedLyrics) boundLyricsRecord(key, value)?.let { referenced += it.id }
             else referenced += ValueCodecs.references(kind, value)
         }
         val sources = referenced.mapNotNull { byId[it] }
@@ -359,7 +423,7 @@ class DataBackup(private val store: KeyValueStore, private val clock: () -> Long
             searchItems = entries[BackupKeys.SEARCH]?.let(ValueCodecs::searchTargetCount) ?: 0,
             headphoneProfiles = items(BackupKeys.EQ_PROFILES),
             outputProfiles = items(BackupKeys.EQ_OUTPUTS_INDEX),
-            importedLyrics = entries.keys.count { it.startsWith(BackupKeys.LYRICS_PREFIX) },
+            importedLyrics = entries.keys.count { isLyricsKind(BackupKeys.kindOf(it)) },
             settings = entries.keys.count { it.startsWith("settings.") || (it.startsWith("library.") && it != BackupKeys.PINS) },
             homeEntries = entries.keys.count { it.startsWith("home.") },
             trackProgress = entries[TrackMarkersCodec.PROGRESS_KEY]?.let { TrackMarkersCodec.decodeProgress(it).size } ?: 0,

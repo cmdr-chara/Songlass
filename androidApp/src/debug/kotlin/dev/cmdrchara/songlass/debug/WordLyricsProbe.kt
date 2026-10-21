@@ -2,13 +2,20 @@ package dev.cmdrchara.songlass.debug
 
 import android.content.Context
 import android.util.Log
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.core.lyrics.Lyrics
 import dev.cmdrchara.songlass.core.lyrics.LyricsLine
 import dev.cmdrchara.songlass.core.lyrics.LyricsOrigin
+import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
+import dev.cmdrchara.songlass.core.lyrics.LyricsResult
 import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.lyrics.PreferWordTimedLyricsSource
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.lyrics.AmllLyricsSource
+import dev.cmdrchara.songlass.lyrics.EmbeddedLyricsSource
+import dev.cmdrchara.songlass.lyrics.LrcLibLyricsSource
+import dev.cmdrchara.songlass.lyrics.LyricsDiskCache
 import dev.cmdrchara.songlass.lyrics.LyricsHttpRequest
 import dev.cmdrchara.songlass.lyrics.LyricsHttpResponse
 import dev.cmdrchara.songlass.lyrics.NativeLyricsHttpRequest
@@ -23,9 +30,15 @@ import java.security.cert.Certificate
 import javax.net.ssl.HttpsURLConnection
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,7 +53,7 @@ internal object WordLyricsProbe {
     suspend fun run(context: Context, mode: String) = withTimeout(25_000) {
         val root = File(context.cacheDir, "word-lyrics-probe-${System.nanoTime()}")
         when (mode) {
-            "checks" -> checks(root)
+            "checks" -> checks(context, root)
             "live" -> live(root)
             else -> error("Unknown word lyrics probe mode")
         }
@@ -55,7 +68,7 @@ internal object WordLyricsProbe {
     private fun search(item: JSONObject = record(), truncated: Boolean = false) = envelope(JSONObject()
         .put("items", JSONArray().put(item)).put("pagination", JSONObject().put("page", 1).put("total", if (truncated) 2 else 1).put("hasMore", truncated)))
 
-    private suspend fun checks(root: File) {
+    private suspend fun checks(context: Context, root: File) {
         var assertions = 0
         fun verify(value: Boolean) { check(value); assertions++ }
         var calls = 0
@@ -111,6 +124,9 @@ internal object WordLyricsProbe {
             verify(retry.load(song) != null && calls == before + 2)
         }
         assertions += transportChecks()
+        assertions += lrcLibTransportChecks()
+        assertions += cacheEncodingChecks(root)
+        assertions += embeddedSelectionChecks(context)
         Log.i(TAG, "checks passed assertions=$assertions exactRequests=2 liveRequests=0")
     }
 
@@ -155,8 +171,101 @@ internal object WordLyricsProbe {
         return assertions + 1
     }
 
-    private fun fakeUrl(host: String, open: (URL) -> URLConnection): URL =
-        URL(null, "https://$host/v1/lyrics/search", object : URLStreamHandler() {
+    private suspend fun lrcLibTransportChecks(): Int {
+        var assertions = 0
+        for ((bytes, declared, status) in listOf(
+            Triple(ByteArray(9), -1L, 200), Triple(ByteArray(0), 9L, 200),
+            Triple(byteArrayOf(0xc3.toByte(), 0x28), -1L, 200), Triple(ByteArray(0), 0L, 302),
+        )) {
+            var closed = false
+            var disconnected = false
+            var opened = false
+            val input = object : ByteArrayInputStream(bytes) { override fun close() { closed = true; super.close() } }
+            val url = fakeUrl("lrclib.net", "/api/get") { target ->
+                opened = true
+                object : HttpsURLConnection(target) {
+                    override fun connect() = Unit
+                    override fun disconnect() { disconnected = true }
+                    override fun usingProxy() = false
+                    override fun getCipherSuite() = "fixture"
+                    override fun getLocalCertificates(): Array<Certificate>? = null
+                    override fun getServerCertificates(): Array<Certificate> = emptyArray()
+                    override fun getResponseCode() = status
+                    override fun getContentLengthLong() = declared
+                    override fun getInputStream(): InputStream = input
+                }
+            }
+            expectIo { LrcLibLyricsSource.get(url, maxResponseBytes = 8) }
+            check(opened && disconnected)
+            if (status == 200 && declared <= 8) check(closed)
+            assertions++
+        }
+        var foreignOpened = false
+        expectIo { LrcLibLyricsSource.get(fakeUrl("foreign.invalid", "/api/get") {
+            foreignOpened = true; error("Foreign endpoint opened")
+        }) }
+        check(!foreignOpened)
+        assertions++
+        check(LrcLibLyricsSource.retryAfterMillis("2", nowMs = 0) == 2_000L); assertions++
+        check(LrcLibLyricsSource.retryAfterMillis(Long.MAX_VALUE.toString(), nowMs = 0) == 3_600_000L); assertions++
+        check(LrcLibLyricsSource.retryAfterMillis("Thu, 01 Jan 1970 00:00:02 GMT", nowMs = 1_000) == 1_000L); assertions++
+        check(LrcLibLyricsSource.retryAfterMillis("Thu, 01 Jan 1970 00:00:02 GMT", nowMs = Long.MIN_VALUE) == 3_600_000L); assertions++
+        check(LrcLibLyricsSource.retryAfterMillis("broken", nowMs = 0) == null); assertions++
+        return assertions
+    }
+
+    private fun cacheEncodingChecks(root: File): Int {
+        val directory = File(root, "utf8-cache")
+        val cache = LyricsDiskCache(directory)
+        val text = "Città 東京 😀"
+        cache.write("fixture", text)
+        check(cache.read("fixture") == text)
+        val entry = checkNotNull(directory.listFiles()).single { it.extension == "json" }
+        entry.writeBytes(byteArrayOf(0xc3.toByte(), 0x28))
+        check(cache.read("fixture") == null && entry.isFile)
+        cache.write("fixture", text)
+        check(cache.read("fixture") == text)
+        return 3
+    }
+
+    /** Native metadata selection only: the independent ExoPlayer never prepares/opens audio. */
+    @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+    private suspend fun embeddedSelectionChecks(context: Context): Int = withContext(Dispatchers.Main.immediate) {
+        val player = ExoPlayer.Builder(context).build()
+        try {
+            player.setMediaItem(MediaItem.Builder().setMediaId(song.id).setUri(song.uri).build())
+            val source = EmbeddedLyricsSource(player)
+            val fallback = Lyrics(listOf(LyricsLine(null, "Fallback")), LyricsOrigin.LrcLib)
+            var assertions = 0
+            for (requested in listOf(song.copy(id = "other-canonical-id"), song.copy(uri = "probe://reindexed"))) {
+                var fallbackCalls = 0
+                val repository = LyricsRepository(source, LyricsSource { fallbackCalls++; fallback })
+                check(repository.load(requested) == LyricsResult.Found(fallback))
+                check(fallbackCalls == 1 && currentCoroutineContext().isActive)
+                assertions++
+            }
+            coroutineScope {
+                var armed = false
+                var fallbackCalls = 0
+                lateinit var job: Deferred<LyricsResult>
+                val cancelled = EmbeddedLyricsSource {
+                    if (armed) job.cancel()
+                    player
+                }
+                val repository = LyricsRepository(cancelled, LyricsSource { fallbackCalls++; fallback })
+                job = async(start = CoroutineStart.LAZY) { repository.load(song) }
+                armed = true
+                job.start()
+                try { job.await(); error("Expected real cancellation") }
+                catch (_: CancellationException) { check(job.isCancelled && fallbackCalls == 0) }
+                assertions++
+            }
+            assertions
+        } finally { player.release() }
+    }
+
+    private fun fakeUrl(host: String, path: String = "/v1/lyrics/search", open: (URL) -> URLConnection): URL =
+        URL(null, "https://$host$path", object : URLStreamHandler() {
             override fun openConnection(url: URL): URLConnection = open(url)
         })
 

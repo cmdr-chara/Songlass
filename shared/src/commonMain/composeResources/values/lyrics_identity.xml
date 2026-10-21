@@ -1,0 +1,32 @@
+<resources>
+    <string name="lyrics_identity_unavailable">Song unavailable</string>
+    <string name="lyrics_identity_unavailable_hint">Songlass cannot verify this file right now. Refresh the library and check music access, then try again. No lyrics have been attached.</string>
+    <string name="lyrics_identity_saving">Saving lyrics…</string>
+    <string name="lyrics_identity_saved">Lyrics saved for this song.</string>
+    <string name="lyrics_identity_changed">The song or saved text changed. Review the selection again before linking it.</string>
+    <string name="lyrics_identity_write_failed">The saved lyrics could not be read or updated. Existing texts have been kept. Try again.</string>
+    <string name="lyrics_identity_recover">Recover imports</string>
+    <string name="lyrics_identity_close">Close recovery</string>
+    <string name="lyrics_identity_intro">These texts have no verified link to an available song. Choose a text, check its preview and link it to the song currently open. Older imports are kept here because their original file cannot be identified safely.</string>
+    <string name="lyrics_identity_empty">No imports need a new link.</string>
+    <string name="lyrics_identity_unknown">Retained import</string>
+    <string name="lyrics_identity_invalid">This document cannot be linked because its format is damaged or unsupported. It remains stored and included in manual backups. You can import a corrected LRC, TTML or TXT file.</string>
+    <string name="lyrics_identity_target">Link to “%1$s”</string>
+    <string name="lyrics_identity_link_hint">Check that these words belong to this song. Linking changes the saved association; it does not edit the audio file.</string>
+    <string name="lyrics_identity_replace_hint">This song already has an import. Confirming replaces that import with the text below. Cancel keeps both texts as they are.</string>
+    <string name="lyrics_identity_link">Use for this song</string>
+    <string name="lyrics_identity_replace">Replace with this text</string>
+    <string name="lyrics_identity_back">Back to saved texts</string>
+    <string name="lyrics_identity_backup_count">Imported lyrics</string>
+    <string name="lyrics_identity_backup_unavailable">Lyrics without a file link</string>
+    <string name="lyrics_identity_backup_hint">These texts will be kept without attaching them to a file. Open a song’s lyrics and choose Recover imports to review and link a saved text. Damaged or unsupported documents remain preserved for backup.</string>
+    <string name="lyrics_identity_import_hint">Check these words and their destination before importing. The audio file is not edited.</string>
+    <string name="lyrics_identity_import_reading">Reading the selected document…</string>
+    <string name="lyrics_identity_import_unavailable">This song is not currently verified. Retry refreshes the library; when the song is available, review this import again. If the original song is gone, cancel and choose the intended song. Nothing is imported to the song currently playing.</string>
+    <string name="lyrics_identity_import_invalid">This document could not be read or its text is unsupported. Check access to the selected file, retry, or choose another LRC, TTML or TXT file. Existing lyrics are unchanged.</string>
+    <string name="lyrics_identity_import_cancel">Cancel import</string>
+    <string name="lyrics_identity_import_choose">Choose another file</string>
+    <string name="lyrics_identity_import_confirm">Import these lyrics</string>
+    <string name="lyrics_identity_import_done">Done</string>
+    <string name="lyrics_identity_import_start_unavailable">This import could not be started because the song has not been verified. Close this window, wait for the library to load or refresh it and check music access, then open the intended song and choose Import lyrics again. No document has been imported.</string>
+</resources>

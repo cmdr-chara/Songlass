@@ -102,6 +102,14 @@ class AppGraph(
         ),
         store,
         cacheVersion = { if (settings.state.value.amllEnabled) 1 else 0 },
+        resolveSelection = { requested ->
+            if (!isLibraryReadyForBackup() || isRestoringBackup.value) null
+            else allTracks.value.singleOrNull { it.id == requested.id }
+                ?.takeIf { source.hasStableTrackIds || it == requested }
+                ?.let { dev.cmdrchara.songlass.core.lyrics.LyricsSelection(
+                    it, canonicalId = source.hasStableTrackIds, accessGeneration = libraryAccessGeneration,
+                ) }
+        },
     )
     val autoEq = dev.cmdrchara.songlass.ui.autoEqRepository(store, equalizer)
     val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })
@@ -245,32 +253,36 @@ class AppGraph(
                 refreshMutex.withLock {
                     if (!isLibraryReadyForBackup()) throw LibrarySnapshotUnavailableException()
                     _isRestoringBackup.value = true
+                    lyrics.selectionChanged()
                     trackMarkers.writesSuspended = true
                     try {
-                        val tracks = allTracks.value
-                        val accessGeneration = libraryAccessGeneration
-                        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                            val current = dataBackup.preview(text, tracks)
-                            if (!source.hasAccess.value || accessGeneration != libraryAccessGeneration) {
-                                throw LibrarySnapshotUnavailableException()
+                        lyrics.withImportWritesPaused {
+                            val tracks = allTracks.value
+                            val accessGeneration = libraryAccessGeneration
+                            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                                val current = dataBackup.preview(text, tracks)
+                                if (!source.hasAccess.value || accessGeneration != libraryAccessGeneration) {
+                                    throw LibrarySnapshotUnavailableException()
+                                }
+                                dataBackup.applyConfirmed(reviewed, current)
                             }
-                            dataBackup.applyConfirmed(reviewed, current)
+                            settings.reload()
+                            trackMarkers.reload()
+                            homeCustomization.reload()
+                            favorites.reload()
+                            pins.reload()
+                            history.reload()
+                            userPlaylists.reload()
+                            smartPlaylists.reload()
+                            searchHistory.reload()
+                            equalizer.reload()
+                            lyrics.reload()
+                            result
                         }
-                        settings.reload()
-                        trackMarkers.reload()
-                        homeCustomization.reload()
-                        favorites.reload()
-                        pins.reload()
-                        history.reload()
-                        userPlaylists.reload()
-                        smartPlaylists.reload()
-                        searchHistory.reload()
-                        equalizer.reload()
-                        lyrics.reload()
-                        result
                     } finally {
                         _isRestoringBackup.value = false
                         trackMarkers.writesSuspended = false
+                        lyrics.selectionChanged()
                     }
                 }
             }
@@ -309,6 +321,7 @@ class AppGraph(
 
     /** Keep the displayed snapshot and open decoder, but never reopen unverified file addresses. */
     private fun invalidateLibraryAvailability() {
+        lyrics.selectionChanged()
         artworkAvailability.invalidate()
         trackMarkers.setLibrary(emptyList(), stableIds = source.hasStableTrackIds)
         controller.refreshTracks(emptyList(), stableIds = source.hasStableTrackIds)
@@ -357,6 +370,7 @@ class AppGraph(
                 _libraryRefreshFailure.value = LibraryRefreshFailure.Read
             } finally {
                 _isLibraryLoading.value = false
+                lyrics.selectionChanged()
             }
         }
     }

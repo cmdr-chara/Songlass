@@ -13,7 +13,8 @@ import dev.cmdrchara.songlass.core.lyrics.LyricsOrigin
 import dev.cmdrchara.songlass.core.lyrics.LyricsParser
 import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.model.Track
-import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.android.asCoroutineDispatcher
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -33,12 +34,17 @@ class EmbeddedLyricsSource(private val currentPlayer: () -> ExoPlayer) : LyricsS
     private val dispatcher = Handler(currentPlayer().applicationLooper).asCoroutineDispatcher("Lyrics metadata")
 
     override suspend fun load(track: Track): Lyrics? = withContext(dispatcher) {
-        requireCurrentTrack(currentPlayer(), track)
-        readMetadata(currentPlayer())?.let { return@withContext it }
-        if (currentPlayer().playbackState == Player.STATE_BUFFERING) awaitPreparation(currentPlayer(), track)
+        currentCoroutineContext().ensureActive()
+        val prepared = currentPlayer()
+        // A verified reindex can change the library URI while the old decoder finishes playing.
+        // That decoder has no usable metadata for this selection; ordinary fallback may continue.
+        if (!isCurrentTrack(prepared, track)) return@withContext null
+        readMetadata(prepared)?.let { return@withContext it }
+        if (prepared.playbackState == Player.STATE_BUFFERING) awaitPreparation(prepared, track)
+        currentCoroutineContext().ensureActive()
         // The current track may have moved to the other player while waiting.
         val player = currentPlayer()
-        requireCurrentTrack(player, track)
+        if (!isCurrentTrack(player, track)) return@withContext null
         readMetadata(player)
     }
 
@@ -50,8 +56,7 @@ class EmbeddedLyricsSource(private val currentPlayer: () -> ExoPlayer) : LyricsS
                     listener = object : Player.Listener {
                         override fun onEvents(player: Player, events: Player.Events) {
                             if (continuation.isActive &&
-                                (player.currentMediaItem?.mediaId != track.id ||
-                                    player.playbackState != Player.STATE_BUFFERING)
+                                (!isCurrentTrack(player, track) || player.playbackState != Player.STATE_BUFFERING)
                             ) continuation.resume(Unit)
                         }
                     }
@@ -64,13 +69,9 @@ class EmbeddedLyricsSource(private val currentPlayer: () -> ExoPlayer) : LyricsS
         }
     }
 
-    private fun requireCurrentTrack(player: ExoPlayer, track: Track) {
-        if (player.currentMediaItem?.mediaId != track.id ||
-            player.currentMediaItem?.localConfiguration?.uri?.toString() != track.uri
-        ) {
-            throw CancellationException("The playing track changed while reading lyrics")
-        }
-    }
+    private fun isCurrentTrack(player: Player, track: Track): Boolean =
+        player.currentMediaItem?.mediaId == track.id &&
+            player.currentMediaItem?.localConfiguration?.uri?.toString() == track.uri
 
     private fun readMetadata(player: ExoPlayer): Lyrics? {
         var plain: Lyrics? = null

@@ -96,7 +96,7 @@ class LyricsRepositoryTest {
     }
 
     @Test
-    fun importedFileWinsPersistsAndIsScopedByUriRatherThanReusedId() = runTest {
+    fun importedFileWinsPersistsAndNeverFollowsAnUnverifiedIdOrUriChange() = runTest {
         val store = InMemoryKeyValueStore()
         val local = RecordingSource { embedded }
         val remote = RecordingSource { online }
@@ -107,7 +107,8 @@ class LyricsRepositoryTest {
         assertTrue(local.calls.isEmpty())
         assertTrue(remote.calls.isEmpty())
         val restored = LyricsRepository(local, remote, store)
-        assertEquals(expected, restored.load(song.copy(id = "reindexed")))
+        assertEquals(expected, restored.load(song))
+        assertEquals(LyricsResult.Found(embedded), restored.load(song.copy(id = "replacement")))
         assertEquals(LyricsResult.Found(embedded), restored.load(song.copy(uri = "file:///another.flac")))
     }
 
@@ -123,7 +124,7 @@ class LyricsRepositoryTest {
         assertFalse(repository.import(song, "<tt><body><p>Broken</body></tt>"))
         assertEquals(expected, repository.load(song, refresh = true))
         val restored = LyricsRepository(remote = remote, store = store)
-        assertEquals(expected, restored.load(song.copy(id = "new-media-id")))
+        assertEquals(expected, restored.load(song))
         assertTrue(remote.calls.isEmpty())
     }
 
