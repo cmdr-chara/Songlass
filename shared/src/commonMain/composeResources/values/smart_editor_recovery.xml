@@ -1,0 +1,4 @@
+<resources>
+    <string name="smart_editor_source_changed">The playlist changed. Your draft is retained; discard it and reload before saving.</string>
+    <string name="smart_editor_reload_draft">Discard draft and reload</string>
+</resources>

@@ -5,6 +5,7 @@ import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.core.playlists.M3uPlaylistExport
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
+import dev.cmdrchara.songlass.core.playlists.SmartPlaylist
 import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.InfoSheet
@@ -20,7 +21,12 @@ import org.jetbrains.compose.resources.stringResource
 
 private enum class ExportStage { None, Working, Confirm, Details, Notice }
 private enum class ExportNotice { LibraryUnavailable, Changed, Empty, Failed }
-private data class PlaylistExportReview(val playlist: UserPlaylist, val source: List<Track>, val result: M3uPlaylistExport)
+private data class PlaylistExportReview(
+    val playlist: UserPlaylist,
+    val source: List<Track>,
+    val result: M3uPlaylistExport,
+    val selectionIsCurrent: () -> Boolean,
+)
 
 /** Build exports from the complete scan and ask before omitting unavailable references. */
 @Composable
@@ -28,6 +34,35 @@ internal fun rememberUserPlaylistExportAction(
     state: AppState,
     onExport: ((fileName: String, content: String) -> Unit)?,
 ): ((UserPlaylist) -> Unit)? {
+    val prepare = rememberCheckedPlaylistExportAction(state, onExport) ?: return null
+    return { playlist -> prepare(playlist) { state.userPlaylists.get(playlist.id) == playlist } }
+}
+
+/** Smart playlists export their currently visible members, without creating a user playlist. */
+@Composable
+internal fun rememberSmartPlaylistExportAction(
+    state: AppState,
+    playlist: SmartPlaylist,
+    tracks: List<Track>,
+    onExport: ((fileName: String, content: String) -> Unit)?,
+    selectionIsCurrent: () -> Boolean,
+): (() -> Unit)? {
+    val currentTracks by rememberUpdatedState(tracks)
+    val prepare = rememberCheckedPlaylistExportAction(state, onExport) ?: return null
+    return {
+        val selection = UserPlaylist(playlist.id, playlist.name, tracks.map { it.id }, 0L)
+        prepare(selection) {
+            state.smartPlaylists.get(playlist.id) == playlist && currentTracks == tracks && selectionIsCurrent()
+        }
+    }
+}
+
+/** Both saved and dynamic selections share preparation, omission review and final revalidation. */
+@Composable
+private fun rememberCheckedPlaylistExportAction(
+    state: AppState,
+    onExport: ((fileName: String, content: String) -> Unit)?,
+): ((UserPlaylist, () -> Boolean) -> Unit)? {
     val scope = rememberCoroutineScope()
     val export by rememberUpdatedState(onExport)
     var stage by remember { mutableStateOf(ExportStage.None) }
@@ -40,7 +75,7 @@ internal fun rememberUserPlaylistExportAction(
     }
     fun showNotice(value: ExportNotice) { notice = value; stage = ExportStage.Notice }
     fun isCurrent(value: PlaylistExportReview) = state.isLibraryReadyForPlaylistFiles() &&
-        state.allTracks.value === value.source && state.userPlaylists.get(value.playlist.id) == value.playlist
+        state.allTracks.value === value.source && value.selectionIsCurrent()
     fun save(value: PlaylistExportReview) {
         if (!isCurrent(value)) { showNotice(ExportNotice.Changed); return }
         stage = ExportStage.None
@@ -88,7 +123,7 @@ internal fun rememberUserPlaylistExportAction(
             ExportNotice.Failed -> Res.string.playlist_export_failed_hint
         }))),
     )
-    return if (onExport == null) null else { playlist ->
+    return if (onExport == null) null else { playlist, selectionIsCurrent ->
         job?.cancel()
         review = null
         if (!state.isLibraryReadyForPlaylistFiles()) showNotice(ExportNotice.LibraryUnavailable) else {
@@ -97,7 +132,7 @@ internal fun rememberUserPlaylistExportAction(
             job = scope.launch {
                 try {
                     val checkedExport = withContext(Dispatchers.Default) {
-                        PlaylistExportReview(playlist, source, M3u.writePlaylist(playlist, source))
+                        PlaylistExportReview(playlist, source, M3u.writePlaylist(playlist, source), selectionIsCurrent)
                     }
                     when {
                         !isCurrent(checkedExport) -> showNotice(ExportNotice.Changed)

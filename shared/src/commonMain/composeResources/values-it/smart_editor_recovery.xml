@@ -1,0 +1,4 @@
+<resources>
+    <string name="smart_editor_source_changed">La playlist è cambiata. La bozza è conservata: scartala e ricarica prima di salvare.</string>
+    <string name="smart_editor_reload_draft">Scarta bozza e ricarica</string>
+</resources>

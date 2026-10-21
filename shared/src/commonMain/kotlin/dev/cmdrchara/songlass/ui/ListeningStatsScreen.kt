@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.cmdrchara.songlass.core.history.*
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -16,6 +18,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
+import kotlinx.coroutines.delay
 import kotlin.time.Clock
 
 @Composable
@@ -23,7 +26,7 @@ fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPaddin
     val history by state.history.state.collectAsState()
     val preferences by state.settings.state.collectAsState()
     var period by remember { mutableStateOf(StatsPeriod.Month) }
-    val now = remember(history) { Clock.System.now().toEpochMilliseconds() }
+    val now = rememberStatisticsTime(period, history)
     val days = remember(history, period, now) { ListeningTrend.days(period, history, now) }
     val dayStarts = remember(days, now) { localDayStarts(now, days) }
     val stats = remember(state.library, history, period, now, dayStarts) {
@@ -130,6 +133,25 @@ fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPaddin
         item { AppText(stringResource(Res.string.stats_history_details), AppTheme.typography.footnote,
             color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(24.dp)) }
     }
+}
+
+/** A fresh period snapshot on selection/resume, then one wake-up at local midnight. */
+@Composable
+private fun rememberStatisticsTime(period: StatsPeriod, history: HistorySnapshot): Long {
+    var resumed by remember { mutableIntStateOf(0) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { resumed++ }
+    var now by remember(period, history, resumed) { mutableLongStateOf(Clock.System.now().toEpochMilliseconds()) }
+    LaunchedEffect(period, history, resumed) {
+        while (true) {
+            val current = Clock.System.now().toEpochMilliseconds()
+            now = current
+            // Calendar-based midnight handles 23/25-hour days. Resuming cancels this delay
+            // and samples the wall clock again after suspension or a time-zone change.
+            val tomorrow = localDayStarts(current, 1).last()
+            delay((tomorrow - current).coerceAtLeast(1L))
+        }
+    }
+    return now
 }
 
 private const val COLLAPSED_ENTRIES = 5

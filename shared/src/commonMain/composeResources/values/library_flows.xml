@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlist_unavailable_hint">This playlist may have been deleted or replaced by a backup. Go back to choose another playlist.</string>
+    <string name="playlist_save_failed">The playlist could not be saved. Your draft is still here; try again.</string>
+    <string name="playlist_delete_failed">The playlist could not be deleted. Try again.</string>
+    <string name="playlist_restore_busy">Wait for the backup restore to finish before changing playlists.</string>
+</resources>

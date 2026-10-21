@@ -86,6 +86,14 @@ class MusicLibrary(tracks: List<Track>) {
 
     val tracks: List<Track> = tracks.sortedWith(compareBy { it.title.sortKey() })
 
+    // Playlist shelves repeatedly resolve the same snapshot. Keep one index instead of
+    // rebuilding a full-library map for every playlist and every composition. Preserve the
+    // old associateBy contract: the last row in the visible, sorted list wins a repeated ID.
+    private val tracksById: Map<String, Track> = this.tracks.associateBy { it.id }
+
+    /** The visible track with this application ID, or null when missing or filtered out. */
+    fun track(id: String): Track? = tracksById[id]
+
     // Build each membership index once per immutable library snapshot. Missing tags do not
     // create invented credits, and one track with duplicate credits occurs once in a facet.
     private val facetsByKind: Map<LibraryFacetKind, List<LibraryFacet>> = LibraryFacetKind.entries.associateWith { kind ->

@@ -19,10 +19,7 @@ data class PlaylistAvailability(
 
 /** A unique, ordered list of track references. Unavailable references survive library refresh. */
 data class UserPlaylist(val id: String, val name: String, val trackIds: List<String>, val createdMs: Long) {
-    fun tracksIn(library: MusicLibrary): List<Track> {
-        val byId = library.tracks.associateBy { it.id }
-        return trackIds.mapNotNull { byId[it] }
-    }
+    fun tracksIn(library: MusicLibrary): List<Track> = trackIds.mapNotNull(library::track)
 
     fun availability(library: MusicLibrary, allTracks: List<Track>): PlaylistAvailability {
         val visible = library.tracks.associateBy { it.id }

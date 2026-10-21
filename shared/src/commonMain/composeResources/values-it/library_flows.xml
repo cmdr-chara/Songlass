@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="playlist_unavailable_hint">La playlist potrebbe essere stata eliminata o sostituita da un backup. Torna indietro per sceglierne un’altra.</string>
+    <string name="playlist_save_failed">Non è stato possibile salvare la playlist. La bozza è ancora qui: riprova.</string>
+    <string name="playlist_delete_failed">Non è stato possibile eliminare la playlist. Riprova.</string>
+    <string name="playlist_restore_busy">Attendi la fine del ripristino del backup prima di modificare le playlist.</string>
+</resources>

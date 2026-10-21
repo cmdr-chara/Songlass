@@ -4,8 +4,6 @@ import dev.cmdrchara.songlass.core.history.HistorySnapshot
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
-import dev.cmdrchara.songlass.core.storage.getStringList
-import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -104,8 +102,10 @@ class SmartPlaylists(private val store: KeyValueStore, private val clock: () -> 
     fun save(id: String?, name: String, rules: SmartRules): String {
         require(name.isNotBlank())
         require(rules.isValid)
-        var key = id?.takeIf { get(it) != null } ?: "s${clock()}"
-        if (id == null || get(id) == null) {
+        // An editor opened before deletion/restore must not silently recreate its old draft.
+        require(id == null || get(id) != null) { "Smart playlist is no longer available" }
+        var key = id ?: "s${clock()}"
+        if (id == null) {
             var suffix = 1
             val base = key
             while (get(key) != null) key = "$base-${suffix++}"
@@ -115,22 +115,41 @@ class SmartPlaylists(private val store: KeyValueStore, private val clock: () -> 
         return key
     }
     fun delete(id: String) {
-        store.putString("smart.$id.name", null)
-        store.putString("smart.$id.rules", null)
-        persist(_playlists.value.filterNot { it.id == id })
+        if (get(id) == null) return
+        persist(_playlists.value.filterNot { it.id == id }, clearing = id)
     }
-    private fun persist(playlists: List<SmartPlaylist>) {
-        playlists.forEach { p ->
-            val key = "smart.${p.id}."
-            store.putString(key + "name", p.name)
-            store.putString(key + "rules", SmartRulesCodec.encode(p.rules))
+    private fun persist(playlists: List<SmartPlaylist>, clearing: String? = null) {
+        if (playlists == _playlists.value && clearing == null) return
+        val writing = buildMap {
+            put(INDEX_KEY, playlists.joinToString(UNIT.toString()) { it.id })
+            playlists.forEach { p ->
+                val key = "smart.${p.id}."
+                put(key + "name", p.name)
+                put(key + "rules", SmartRulesCodec.encode(p.rules))
+            }
+            // Clear the removed content in the same ordinary batch. Empty inactive keys are
+            // ignored by load and by the backup's indexed-group allowlist; no second write or
+            // synchronous Android commit is needed on the UI thread.
+            if (clearing != null) {
+                put("smart.$clearing.name", "")
+                put("smart.$clearing.rules", "")
+            }
         }
-        store.putStringList("smart.index", playlists.map { it.id })
+        store.putStrings(writing)
         _playlists.value = playlists
     }
-    private fun load() = store.getStringList("smart.index").distinct().mapNotNull { id ->
-        val name = store.getString("smart.$id.name") ?: return@mapNotNull null
-        val rules = SmartRulesCodec.decode(store.getString("smart.$id.rules")) ?: return@mapNotNull null
-        SmartPlaylist(id, name, rules)
+    private fun load(): List<SmartPlaylist> {
+        val snapshot = store.snapshot()
+        fun read(key: String): String? = if (snapshot != null) snapshot[key] else store.getString(key)
+        return read(INDEX_KEY).orEmpty().split(UNIT).filter { it.isNotEmpty() }.distinct().mapNotNull { id ->
+            val name = read("smart.$id.name") ?: return@mapNotNull null
+            val rules = SmartRulesCodec.decode(read("smart.$id.rules")) ?: return@mapNotNull null
+            SmartPlaylist(id, name, rules)
+        }
+    }
+
+    private companion object {
+        const val INDEX_KEY = "smart.index"
+        const val UNIT = '\u001F'
     }
 }

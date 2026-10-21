@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.ui.graphics.Color
@@ -38,12 +38,21 @@ internal fun rememberPlaylistTime(): Long {
 @Composable
 fun SmartPlaylistScreen(id: String, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
     val playlists by state.smartPlaylists.playlists.collectAsState()
-    val playlist = playlists.firstOrNull { it.id == id } ?: return
+    val playlist = playlists.firstOrNull { it.id == id }
+    if (playlist == null) {
+        UnavailablePlaylistPage(backLabel, state::goBack, contentPadding)
+        return
+    }
     val history by state.history.state.collectAsState()
     val favorites by state.favorites.ids.collectAsState()
     val now = rememberPlaylistTime()
-    val tracks = remember(playlist, state.library, history, favorites, now) { playlist.rules.resolve(state.library, history, favorites.toSet(), now) }
-    val exporter = rememberPlaylistExporter()
+    val library = state.library
+    val tracks = remember(playlist, library, history, favorites, now) { playlist.rules.resolve(library, history, favorites.toSet(), now) }
+    val exporter = rememberSmartPlaylistExportAction(state, playlist, tracks, rememberPlaylistExporter()) {
+        // Use the witnesses that built this visible list, not newer values sampled by a stale
+        // click before collectAsState has delivered the next history/favorites generation.
+        state.library === library && state.history.state.value === history && state.favorites.ids.value == favorites
+    }
     ArtworkCollectionPage(
         artwork = playlist.artwork(tracks),
         kind = stringResource(Res.string.smart_title), title = playlist.name,
@@ -54,7 +63,7 @@ fun SmartPlaylistScreen(id: String, state: AppState, currentTrackId: String?, ba
         headerAction = {
             Row {
                 IconButton(AppIcons.Lyrics, stringResource(Res.string.smart_edit), { state.open(Route.SmartPlaylistEditor(id)) }, filled = true)
-                if (exporter != null) IconButton(AppIcons.ImportFile, stringResource(Res.string.playlist_export), { exporter("${playlist.name}.m3u8", M3u.write(tracks)) }, filled = true)
+                if (exporter != null) IconButton(AppIcons.ImportFile, stringResource(Res.string.playlist_export), exporter, filled = true)
                 IconButton(AppIcons.Close, stringResource(Res.string.playlist_delete), { state.askDeleteSmartPlaylist(id) }, filled = true)
             }
         },
@@ -65,17 +74,45 @@ fun SmartPlaylistScreen(id: String, state: AppState, currentTrackId: String?, ba
     }
 }
 
-private val RulesSaver = Saver<SmartRules, String>(save = { SmartRulesCodec.encode(it) }, restore = { SmartRulesCodec.decode(it) })
+private data class SmartPlaylistEditorDraftState(
+    val edit: SmartPlaylistEditDraft,
+    val editing: String? = null,
+    val value: String = "",
+    val upperValue: String = "",
+)
+
+private val EditorDraftSaver = listSaver<SmartPlaylistEditorDraftState, String>(
+    save = { SmartPlaylistEditDraftCodec.encode(it.edit) + listOf(it.editing.orEmpty(), it.value, it.upperValue) },
+    restore = { values ->
+        if (values.size != 9) null else SmartPlaylistEditDraftCodec.decode(values.take(6))?.let {
+            SmartPlaylistEditorDraftState(it, values[6].ifEmpty { null }, values[7], values[8])
+        }
+    },
+)
 
 @Composable
 fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, contentPadding: PaddingValues) {
-    val original = remember(id) { id?.let(state.smartPlaylists::get) }
-    var name by rememberSaveable(id) { mutableStateOf(original?.name.orEmpty()) }
-    var rules by rememberSaveable(id, stateSaver = RulesSaver) { mutableStateOf(original?.rules ?: SmartRules()) }
-    var editing by rememberSaveable(id) { mutableStateOf<String?>(null) }
-    var draft by rememberSaveable(id) { mutableStateOf("") }
-    var upper by rememberSaveable(id) { mutableStateOf("") }
+    val playlists by state.smartPlaylists.playlists.collectAsState()
+    val restoring by state.isRestoringBackup.collectAsState()
+    if (id != null && playlists.none { it.id == id }) {
+        UnavailablePlaylistPage(backLabel, state::goBack, contentPadding)
+        return
+    }
+    var form by rememberSaveable(id, stateSaver = EditorDraftSaver) {
+        mutableStateOf(SmartPlaylistEditorDraftState(SmartPlaylistEditDraft.open(id?.let(state.smartPlaylists::get))))
+    }
+    val name = form.edit.name
+    val rules = form.edit.rules
+    val editing = form.editing
+    val draft = form.value
+    val upper = form.upperValue
+    var completed by remember(id) { mutableStateOf(false) }
+    val sourceChanged = !completed && !form.edit.isCurrent(state.smartPlaylists, id)
+    fun setName(value: String) { form = form.copy(edit = form.edit.copy(name = value)) }
+    fun setRules(value: SmartRules) { form = form.copy(edit = form.edit.copy(rules = value)) }
+    fun setEditing(value: String?) { form = form.copy(editing = value) }
     var invalid by remember { mutableStateOf(false) }
+    var saveFailed by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf<String?>(null) }
     val history by state.history.state.collectAsState()
     val favorites by state.favorites.ids.collectAsState()
@@ -83,50 +120,66 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
     val tracks = remember(rules, state.library, history, favorites, now) { rules.resolve(state.library, history, favorites.toSet(), now) }
     val title = stringResource(if (id == null) Res.string.smart_new else Res.string.smart_edit)
     fun edit(key: String) {
-        draft = when (key) {
-            "days" -> rules.addedWithinDays?.toString().orEmpty()
-            "artist" -> rules.artist
-            "folder" -> rules.folder
-            "genre" -> rules.genre
-            "year" -> rules.yearFrom?.toString().orEmpty()
-            "duration" -> rules.durationFromSeconds?.toString().orEmpty()
-            "excludeArtist" -> rules.excludeArtist
-            "excludeFolder" -> rules.excludeFolder
-            "excludeGenre" -> rules.excludeGenre
-            "limit" -> rules.limit?.toString().orEmpty()
-            "status" -> rules.playStatus.name
+        val currentRules = form.edit.rules
+        val value = when (key) {
+            "days" -> currentRules.addedWithinDays?.toString().orEmpty()
+            "artist" -> currentRules.artist
+            "folder" -> currentRules.folder
+            "genre" -> currentRules.genre
+            "year" -> currentRules.yearFrom?.toString().orEmpty()
+            "duration" -> currentRules.durationFromSeconds?.toString().orEmpty()
+            "excludeArtist" -> currentRules.excludeArtist
+            "excludeFolder" -> currentRules.excludeFolder
+            "excludeGenre" -> currentRules.excludeGenre
+            "limit" -> currentRules.limit?.toString().orEmpty()
+            "status" -> currentRules.playStatus.name
             else -> ""
         }
-        upper = when (key) {
-            "year" -> rules.yearTo?.toString().orEmpty()
-            "duration" -> rules.durationToSeconds?.toString().orEmpty()
+        val upperValue = when (key) {
+            "year" -> currentRules.yearTo?.toString().orEmpty()
+            "duration" -> currentRules.durationToSeconds?.toString().orEmpty()
             else -> ""
         }
-        invalid = false; editing = key
+        invalid = false
+        form = form.copy(editing = key, value = value, upperValue = upperValue)
     }
-    fun remove(key: String) { rules = rules.withoutCondition(key) }
+    fun remove(key: String) { setRules(form.edit.rules.withoutCondition(key)) }
     fun save() {
-        invalid = name.isBlank()
+        if (state.isRestoringBackup.value) return
+        invalid = form.edit.name.isBlank()
         if (!invalid) {
-            val saved = state.smartPlaylists.save(id, name, rules)
+            saveFailed = false
+            val saved = try {
+                form.edit.saveTo(state.smartPlaylists, id)
+            } catch (_: SmartPlaylistChangedException) {
+                // The original remains in the saveable draft. The changed notice is derived
+                // from the current repository record, never by silently rebasing the edits.
+                return
+            } catch (_: Exception) {
+                saveFailed = true
+                return
+            }
+            completed = true
             state.goBack()
             if (id == null) state.open(Route.SmartPlaylistDetail(saved))
         }
     }
-    PlatformBackHandler(editing != null) { editing = null; invalid = false }
+    PlatformBackHandler(editing != null || menu != null) {
+        if (menu != null) menu = null else { setEditing(null); invalid = false }
+    }
     val selectedKey = editing
     val compact = LocalGlassLook.current.compactPlaylistForm
     fun apply() {
-        val next = rules.applyDraft(selectedKey ?: return, draft, upper)
+        val next = form.edit.rules.applyDraft(form.editing ?: return, form.value, form.upperValue)
         invalid = next == null
-        if (next != null) { rules = next.normalized(); editing = null }
+        if (next != null) { setRules(next.normalized()); setEditing(null) }
     }
     Column(Modifier.fillMaxSize()
         .background(if (compact) (if (AppTheme.colors.isDark) AppTheme.colors.background else AppTheme.colors.secondaryBackground) else Color.Transparent)
         .windowInsetsPadding(WindowInsets.statusBars).padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()) {
         if (compact) GlassPlaylistFormToolbar(
             backLabel = if (selectedKey == null) backLabel else title,
-            onBack = { if (selectedKey == null) state.goBack() else { editing = null; invalid = false } },
+            onBack = { if (selectedKey == null) state.goBack() else { setEditing(null); invalid = false } },
             action = stringResource(if (selectedKey == null || selectedKey == "preview") Res.string.playlist_save else Res.string.smart_builder_apply),
             onAction = { if (selectedKey == null || selectedKey == "preview") save() else apply() },
         )
@@ -135,7 +188,7 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
                 if (compact) {
                     item { GlassPlaylistFormTitle(title) }
                     item { GlassPlaylistFormGroup(Modifier.padding(horizontal = 20.dp)) {
-                        GlassPlaylistFormField(name, { name = it; invalid = false }, stringResource(Res.string.playlist_name))
+                        GlassPlaylistFormField(name, { setName(it); invalid = false }, stringResource(Res.string.playlist_name))
                     } }
                     item { GlassPlaylistFormSection(stringResource(Res.string.smart_builder_conditions)) }
                     item { GlassPlaylistFormGroup(Modifier.padding(horizontal = 20.dp)) {
@@ -161,10 +214,10 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
                     if (invalid) item { FeatureHint(stringResource(Res.string.smart_builder_name_required)) }
                 } else {
                     item { BackPageTitle(title, backLabel, state::goBack) }
-                    item { FormField(name, { name = it; invalid = false }, stringResource(Res.string.playlist_name), Modifier.padding(horizontal = pageInset)) }
+                    item { FormField(name, { setName(it); invalid = false }, stringResource(Res.string.playlist_name), Modifier.padding(horizontal = pageInset)) }
                     item { SectionTitle(stringResource(Res.string.smart_builder_conditions)) }
                     item { FilterChips(listOf(stringResource(Res.string.smart_match_all), stringResource(Res.string.smart_match_any)), rules.match.ordinal,
-                        { rules = rules.copy(match = SmartMatch.entries[it]) }, Modifier.padding(vertical = 4.dp)) }
+                        { setRules(form.edit.rules.copy(match = SmartMatch.entries[it])) }, Modifier.padding(vertical = 4.dp)) }
                     val included = rules.inclusionKeys()
                     if (included.isEmpty()) item { FeatureHint(stringResource(Res.string.smart_builder_all_songs)) }
                     item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
@@ -190,7 +243,7 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
             } else if (selectedKey == "preview") {
                 item {
                     if (compact) GlassPlaylistFormTitle(stringResource(Res.string.smart_builder_preview))
-                    else BackPageTitle(stringResource(Res.string.smart_builder_preview), title, { editing = null })
+                    else BackPageTitle(stringResource(Res.string.smart_builder_preview), title, { setEditing(null) })
                 }
                 if (tracks.isEmpty()) item { FeatureHint(stringResource(Res.string.smart_empty)) }
                 items(tracks.size, key = { tracks[it].id }) { index ->
@@ -200,21 +253,21 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
             } else {
                 item {
                     if (compact) GlassPlaylistFormTitle(conditionLabel(selectedKey))
-                    else BackPageTitle(conditionLabel(selectedKey), title, { editing = null; invalid = false })
+                    else BackPageTitle(conditionLabel(selectedKey), title, { setEditing(null); invalid = false })
                 }
                 if (selectedKey == "status") {
                     item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                         listOf(SmartPlayStatus.Any, SmartPlayStatus.Never, SmartPlayStatus.Played).forEach { status ->
-                            SettingsChoiceRow(statusLabel(status), draft == status.name, { draft = status.name })
+                            SettingsChoiceRow(statusLabel(status), draft == status.name, { form = form.copy(value = status.name) })
                         }
                     } }
                 } else {
                     if (compact) item { GlassPlaylistFormGroup(Modifier.padding(horizontal = 20.dp)) {
-                        GlassPlaylistFormField(draft, { draft = it; invalid = false }, inputLabel(selectedKey, false), numeric = selectedKey in listOf("year", "duration", "days", "limit"))
-                        if (selectedKey == "year" || selectedKey == "duration") GlassPlaylistFormField(upper, { upper = it; invalid = false }, inputLabel(selectedKey, true), numeric = true)
+                        GlassPlaylistFormField(draft, { form = form.copy(value = it); invalid = false }, inputLabel(selectedKey, false), numeric = selectedKey in listOf("year", "duration", "days", "limit"))
+                        if (selectedKey == "year" || selectedKey == "duration") GlassPlaylistFormField(upper, { form = form.copy(upperValue = it); invalid = false }, inputLabel(selectedKey, true), numeric = true)
                     } } else {
-                        item { FormField(draft, { draft = it; invalid = false }, inputLabel(selectedKey, false), Modifier.padding(horizontal = pageInset)) }
-                        if (selectedKey == "year" || selectedKey == "duration") item { FormField(upper, { upper = it; invalid = false }, inputLabel(selectedKey, true), Modifier.padding(horizontal = pageInset)) }
+                        item { FormField(draft, { form = form.copy(value = it); invalid = false }, inputLabel(selectedKey, false), Modifier.padding(horizontal = pageInset)) }
+                        if (selectedKey == "year" || selectedKey == "duration") item { FormField(upper, { form = form.copy(upperValue = it); invalid = false }, inputLabel(selectedKey, true), Modifier.padding(horizontal = pageInset)) }
                     }
                     if (selectedKey == "year" || selectedKey == "duration") item { FeatureHint(stringResource(Res.string.smart_metadata_hint)) }
                 }
@@ -222,15 +275,29 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
                 if (compact && selectedKey in (rules.inclusionKeys() + rules.exclusionKeys())) item {
                     GlassPlaylistFormGroup(Modifier.padding(horizontal = 20.dp, vertical = 24.dp)) {
                         GlassPlaylistFormRemove(stringResource(Res.string.smart_builder_remove, conditionLabel(selectedKey))) {
-                            remove(selectedKey); editing = null; invalid = false
+                            remove(selectedKey); setEditing(null); invalid = false
                         }
                     }
                 }
             }
         }
+        if (restoring || sourceChanged || saveFailed) AppText(stringResource(when {
+            restoring -> Res.string.playlist_restore_busy
+            sourceChanged -> Res.string.smart_editor_source_changed
+            else -> Res.string.playlist_save_failed
+        }), AppTheme.typography.footnote,
+            color = AppTheme.colors.secondaryLabel,
+            modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp).semantics { liveRegion = LiveRegionMode.Polite })
+        if (sourceChanged && !restoring) ActionButton(stringResource(Res.string.smart_editor_reload_draft), {
+            if (state.isRestoringBackup.value) return@ActionButton
+            val current = id?.let(state.smartPlaylists::get)
+            if (id != null && current == null) return@ActionButton
+            form = SmartPlaylistEditorDraftState(SmartPlaylistEditDraft.open(current))
+            invalid = false; saveFailed = false; menu = null; completed = false
+        }, Modifier.padding(horizontal = pageInset, vertical = 4.dp))
         if (compact) {
             if (selectedKey == null) GlassPlaylistFormRow(stringResource(Res.string.smart_builder_preview),
-                pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size), { editing = "preview" },
+                pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size), { setEditing("preview") },
                 Modifier.padding(horizontal = 4.dp).semantics { liveRegion = LiveRegionMode.Polite })
         } else if (selectedKey == null || selectedKey == "preview") {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
@@ -238,7 +305,7 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
                     modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     subtitle = stringResource(Res.string.smart_builder_preview),
                     trailing = { ActionButton(stringResource(Res.string.playlist_save), ::save) },
-                    onClick = { editing = "preview" })
+                    onClick = { setEditing("preview") })
             }
         } else {
             ActionButton(stringResource(Res.string.smart_builder_apply), ::apply, Modifier.fillMaxWidth().padding(16.dp))
@@ -252,12 +319,12 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
     ActionSheet(visible = menu != null,
         title = stringResource(if (menu == "exclude") Res.string.smart_builder_add_exclusion else if (menu == "sort") Res.string.smart_sort else if (menu == "match") Res.string.smart_builder_match else Res.string.smart_builder_add),
         cancelLabel = stringResource(Res.string.action_cancel), onDismiss = { menu = null },
-        actions = if (menu == "sort") SmartSort.entries.map { sort -> SheetAction(sortLabel(sort), AppIcons.DragHandle) { rules = rules.copy(sort = sort); menu = null } }
+        actions = if (menu == "sort") SmartSort.entries.map { sort -> SheetAction(sortLabel(sort), AppIcons.DragHandle) { setRules(form.edit.rules.copy(sort = sort)); menu = null } }
         else if (menu == "match") SmartMatch.entries.map { match -> SheetAction(stringResource(if (match == SmartMatch.All) Res.string.smart_match_all else Res.string.smart_match_any),
-            if (match == rules.match) AppIcons.Checkmark else null) { rules = rules.copy(match = match); menu = null } }
+            if (match == rules.match) AppIcons.Checkmark else null) { setRules(form.edit.rules.copy(match = match)); menu = null } }
         else choices.map { key -> SheetAction(conditionLabel(key), AppIcons.Plus) {
             menu = null
-            if (key == "favorites") rules = rules.copy(favoritesOnly = true) else edit(key)
+            if (key == "favorites") setRules(form.edit.rules.copy(favoritesOnly = true)) else edit(key)
         } })
 }
 
@@ -385,15 +452,36 @@ internal fun FeatureHint(text: String) = AppText(text, AppTheme.typography.footn
 @Composable
 fun SmartPlaylistDeleteSheet(state: AppState) {
     val playlists by state.smartPlaylists.playlists.collectAsState()
+    val restoring by state.isRestoringBackup.collectAsState()
+    var deleteFailed by remember(state.deletingSmartPlaylistId) { mutableStateOf(false) }
     var last by remember { mutableStateOf<SmartPlaylist?>(null) }
-    playlists.firstOrNull { it.id == state.deletingSmartPlaylistId }?.let { last = it }
-    val playlist = last
-    ActionSheet(visible = state.deletingSmartPlaylistId != null && playlist != null,
-        title = stringResource(Res.string.smart_delete_question), subtitle = playlist?.name,
+    val current = playlists.firstOrNull { it.id == state.deletingSmartPlaylistId }
+    current?.let { last = it }
+    // Keep the caption for its closing animation only. A different missing request must not
+    // accidentally inherit the previous dialog's destructive action.
+    val playlist = if (state.deletingSmartPlaylistId == null) last else current
+    ActionSheet(visible = state.deletingSmartPlaylistId != null,
+        title = stringResource(Res.string.smart_delete_question),
+        subtitle = when {
+            restoring -> stringResource(Res.string.playlist_restore_busy)
+            deleteFailed -> stringResource(Res.string.playlist_delete_failed)
+            playlist == null -> stringResource(Res.string.playlist_unavailable_hint)
+            else -> playlist?.name
+        },
         cancelLabel = stringResource(Res.string.action_cancel), onDismiss = state::closeDeleteSmartPlaylist,
-        actions = if (playlist == null) emptyList() else listOf(SheetAction(stringResource(Res.string.playlist_delete), AppIcons.Close) {
+        actions = if (playlist == null || restoring) emptyList() else listOf(SheetAction(stringResource(Res.string.playlist_delete), AppIcons.Close) {
+            if (state.isRestoringBackup.value) return@SheetAction
+            if (state.deletingSmartPlaylistId != playlist.id || state.smartPlaylists.get(playlist.id) != playlist) {
+                state.closeDeleteSmartPlaylist()
+                return@SheetAction
+            }
+            try {
+                state.smartPlaylists.delete(playlist.id)
+            } catch (_: Exception) {
+                deleteFailed = true
+                return@SheetAction
+            }
             state.closeDeleteSmartPlaylist()
-            state.smartPlaylists.delete(playlist.id)
             if ((state.currentRoute as? Route.SmartPlaylistDetail)?.id == playlist.id) state.goBack()
         }))
 }

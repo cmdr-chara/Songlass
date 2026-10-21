@@ -99,7 +99,11 @@ private typealias Playlist = dev.cmdrchara.songlass.core.library.Playlist
 @Composable
 fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
     val playlists by state.userPlaylists.playlists.collectAsState()
-    val playlist = playlists.firstOrNull { it.id == id } ?: return
+    val playlist = playlists.firstOrNull { it.id == id }
+    if (playlist == null) {
+        UnavailablePlaylistPage(backLabel, state::goBack, contentPadding)
+        return
+    }
     val allTracks by state.allTracks.collectAsState()
     val scanning by state.isLibraryLoading.collectAsState()
     val scanComplete by state.hasCompleteLibraryScan.collectAsState()
