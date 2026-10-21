@@ -76,23 +76,24 @@ class AppGraph(
     val tagEditor: dev.cmdrchara.songlass.core.model.FileTagEditor? = null,
     amllLyrics: LyricsSource? = null,
 ) {
-    val settings = AppSettings(store)
+    val restoreMutations = dev.cmdrchara.songlass.core.storage.RestoreMutationGate()
+    val settings = AppSettings(store, restoreMutations)
     val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
     val artworkAvailability = dev.cmdrchara.songlass.core.artwork.ArtworkAvailability()
     val controller = PlaybackController(player, scope, markers = trackMarkers,
         onUserTransport = { outputResume.cancel() }, preferences = { settings.state.value })
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
-    val favorites = Favorites(store)
-    val pins = Pins(store)
-    val searchHistory = dev.cmdrchara.songlass.core.search.SearchHistory(store)
-    val smartPlaylists = dev.cmdrchara.songlass.core.playlists.SmartPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
-    val userPlaylists = UserPlaylists(store) { Clock.System.now().toEpochMilliseconds() }
-    val homeCustomization = dev.cmdrchara.songlass.core.home.HomeCustomization(store)
+    val favorites = Favorites(store, restoreMutations)
+    val pins = Pins(store, restoreMutations)
+    val searchHistory = dev.cmdrchara.songlass.core.search.SearchHistory(store, restoreMutations)
+    val smartPlaylists = dev.cmdrchara.songlass.core.playlists.SmartPlaylists(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
+    val userPlaylists = UserPlaylists(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
+    val homeCustomization = dev.cmdrchara.songlass.core.home.HomeCustomization(store, restoreMutations)
     private val dataBackup = dev.cmdrchara.songlass.core.backup.DataBackup(store) { Clock.System.now().toEpochMilliseconds() }
     private val backupMutex = kotlinx.coroutines.sync.Mutex()
     private val _isRestoringBackup = MutableStateFlow(false)
     val isRestoringBackup: StateFlow<Boolean> = _isRestoringBackup.asStateFlow()
-    val equalizer = Equalizer(store) { Clock.System.now().toEpochMilliseconds() }
+    val equalizer = Equalizer(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
     val supportsAmllLyrics = amllLyrics != null
     val lyrics = LyricsRepository(
         localLyrics,
@@ -112,7 +113,7 @@ class AppGraph(
         },
     )
     val autoEq = dev.cmdrchara.songlass.ui.autoEqRepository(store, equalizer)
-    val history = ListeningHistory(store, clock = { Clock.System.now().toEpochMilliseconds() })
+    val history = ListeningHistory(store, restoreMutations, clock = { Clock.System.now().toEpochMilliseconds() })
     private val playCounter = PlayCounter()
     private val playbackClock = TimeSource.Monotonic.markNow()
     private val outputResume = OutputResume(
@@ -190,9 +191,10 @@ class AppGraph(
                     elapsedRealtimeMs = playbackClock.elapsedNow().inWholeMilliseconds,
                     rule = settings.state.value.playCountRule,
                 )
-                if (counted && entry != null) entry.track.id to controller.listeningContext else null
+                if (counted && entry != null) Triple(entry.track.id, controller.listeningContext,
+                    restoreMutations.ticket()) else null
             }.collect { counted ->
-                if (counted != null) {
+                if (counted != null && restoreMutations.accepts(counted.third)) {
                     history.recordPlay(counted.first, counted.second)
                 }
             }
@@ -213,31 +215,36 @@ class AppGraph(
      * music if it stopped because they had disconnected and the setting is on.
      */
     fun onOutputConnected() {
+        if (!restoreMutations.canMutate) { outputResume.cancel(); return }
         if (outputResume.onOutputConnected(settings.state.value.resumeOnReconnect)) controller.resume()
     }
 
     fun exportBackup(): dev.cmdrchara.songlass.core.backup.BackupExport {
-        if (!isLibraryReadyForBackup()) throw LibrarySnapshotUnavailableException()
+        val ticket = restoreMutations.ticket()
+        if (ticket == null || !isLibraryReadyForBackup()) throw LibrarySnapshotUnavailableException()
         val tracks = allTracks.value
         val accessGeneration = libraryAccessGeneration
         val archive = dataBackup.export(tracks)
         // Export runs off the UI thread. Do not return an archive based on identities from
         // an obsolete scan, including a revoke/grant cycle that finishes during encoding.
-        if (!isLibraryReadyForBackup() || accessGeneration != libraryAccessGeneration ||
-            tracks !== allTracks.value) throw LibrarySnapshotUnavailableException()
+        if (!restoreMutations.accepts(ticket) || !isLibraryReadyForBackup() ||
+            accessGeneration != libraryAccessGeneration || tracks !== allTracks.value) throw LibrarySnapshotUnavailableException()
         return archive
     }
 
-    fun isLibraryReadyForBackup(): Boolean = source.hasAccess.value &&
-        _hasCompleteLibraryScan.value && !_isLibraryLoading.value
+    fun isLibraryReadyForBackup(): Boolean = restoreMutations.canMutate && hasCurrentLibrarySnapshot()
+
+    private fun hasCurrentLibrarySnapshot(): Boolean = source.hasAccess.value &&
+        _hasCompleteLibraryScan.value && !_isLibraryLoading.value && _libraryRefreshFailure.value == null
 
     fun previewBackup(text: String): dev.cmdrchara.songlass.core.backup.BackupPreview {
-        if (!isLibraryReadyForBackup()) throw LibrarySnapshotUnavailableException()
+        val ticket = restoreMutations.ticket()
+        if (ticket == null || !isLibraryReadyForBackup()) throw LibrarySnapshotUnavailableException()
         val tracks = allTracks.value
         val accessGeneration = libraryAccessGeneration
         val preview = dataBackup.preview(text, tracks)
-        if (!isLibraryReadyForBackup() || accessGeneration != libraryAccessGeneration ||
-            tracks !== allTracks.value) throw LibrarySnapshotUnavailableException()
+        if (!restoreMutations.accepts(ticket) || !isLibraryReadyForBackup() ||
+            accessGeneration != libraryAccessGeneration || tracks !== allTracks.value) throw LibrarySnapshotUnavailableException()
         return preview
     }
 
@@ -247,43 +254,64 @@ class AppGraph(
         reviewed: dev.cmdrchara.songlass.core.backup.BackupPreview,
     ): dev.cmdrchara.songlass.core.backup.BackupResult =
         kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-            // Fixed lock order: a scan cannot change the identity mapping between review
-            // comparison and mutation. The scan path never takes backupMutex.
-            backupMutex.withLock {
-                refreshMutex.withLock {
-                    if (!isLibraryReadyForBackup()) throw LibrarySnapshotUnavailableException()
-                    _isRestoringBackup.value = true
-                    lyrics.selectionChanged()
-                    trackMarkers.writesSuspended = true
-                    try {
-                        lyrics.withImportWritesPaused {
+            // Owner-thread entry closes repository writers before the first lock suspension,
+            // independent of when Compose renders its modal progress surface.
+            restoreMutations.restoring {
+                _isRestoringBackup.value = true
+                outputResume.cancel()
+                trackMarkers.writesSuspended = true
+                lyrics.selectionChanged()
+                try {
+                    // Fixed lock order. Scans never take backupMutex; lyrics imports use the
+                    // same write mutex, so an already accepted import finishes before replacement.
+                    backupMutex.withLock {
+                        refreshMutex.withLock {
+                            if (!hasCurrentLibrarySnapshot()) throw LibrarySnapshotUnavailableException()
+                            libraryAccessGeneration++ // Earlier lyrics confirmations become obsolete too.
                             val tracks = allTracks.value
                             val accessGeneration = libraryAccessGeneration
-                            val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
-                                val current = dataBackup.preview(text, tracks)
-                                if (!source.hasAccess.value || accessGeneration != libraryAccessGeneration) {
-                                    throw LibrarySnapshotUnavailableException()
+                            val prepareMarkers = trackMarkers.reloadPreparation() // Capture live indexes on Main.
+                            lyrics.withImportWritesPaused {
+                                val (result, publications) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                                    val current = dataBackup.preview(text, tracks)
+                                    val staged = dev.cmdrchara.songlass.core.backup.PreparedBackupRestore(store, reviewed, current)
+                                    // Preparation can fail without changing real data or any observable
+                                    // repository. Even legacy normalizations only touch the staging map.
+                                    val prepared = listOf(
+                                        settings.prepareReload(staged.store),
+                                        prepareMarkers(staged.store),
+                                        homeCustomization.prepareReload(staged.store),
+                                        favorites.prepareReload(staged.store),
+                                        pins.prepareReload(staged.store),
+                                        history.prepareReload(staged.store),
+                                        userPlaylists.prepareReload(staged.store),
+                                        smartPlaylists.prepareReload(staged.store),
+                                        searchHistory.prepareReload(staged.store),
+                                        equalizer.prepareReload(staged.store),
+                                    )
+                                    // Permission/file identity can change while decoding on a worker.
+                                    // Recheck immediately before the sole real managed-key replacement.
+                                    if (!hasCurrentLibrarySnapshot() || accessGeneration != libraryAccessGeneration ||
+                                        tracks !== allTracks.value) throw LibrarySnapshotUnavailableException()
+                                    staged.commit() to prepared
                                 }
-                                dataBackup.applyConfirmed(reviewed, current)
+                                // No store reads, decoding or writes remain in these owner-thread
+                                // publications. EQ takes the latest device route at this boundary.
+                                publications.forEach { publish -> publish() }
+                                lyrics.reload()
+                                libraryIndex.refresh() // Finish the restored visible filter before releasing readers.
+                                result
                             }
-                            settings.reload()
-                            trackMarkers.reload()
-                            homeCustomization.reload()
-                            favorites.reload()
-                            pins.reload()
-                            history.reload()
-                            userPlaylists.reload()
-                            smartPlaylists.reload()
-                            searchHistory.reload()
-                            equalizer.reload()
-                            lyrics.reload()
-                            result
                         }
-                    } finally {
-                        _isRestoringBackup.value = false
-                        trackMarkers.writesSuspended = false
-                        lyrics.selectionChanged()
                     }
+                } finally {
+                    outputResume.cancel()
+                    // A failed attempt must also select the old profile for a route that
+                    // changed while writers were suspended; this reads no store data.
+                    equalizer.reconcileCurrentOutput()
+                    trackMarkers.writesSuspended = false
+                    _isRestoringBackup.value = false
+                    lyrics.selectionChanged()
                 }
             }
         }

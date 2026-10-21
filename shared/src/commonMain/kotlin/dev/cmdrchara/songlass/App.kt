@@ -60,6 +60,7 @@ import dev.cmdrchara.songlass.ui.EqualizerScreen
 import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
 import dev.cmdrchara.songlass.ui.NowPlayingContent
 import dev.cmdrchara.songlass.ui.PlatformBackHandler
+import dev.cmdrchara.songlass.ui.restoreInputBarrier
 import dev.cmdrchara.songlass.ui.FolderScreen
 import dev.cmdrchara.songlass.ui.SleepTimerMenu
 import dev.cmdrchara.songlass.ui.PlaylistSheets
@@ -115,6 +116,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
     }
     // Navigation state outlives a change of interface style.
     val state = remember(graph) { AppState(graph) }
+    val restoration by graph.restoreMutations.state.collectAsState()
     val playingQueue by graph.controller.queue.collectAsState()
     val visibleLibrary by graph.library.collectAsState()
     val playingTrack = playingQueue.current?.track
@@ -128,7 +130,9 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val hasLibraryAccess by graph.source.hasAccess.collectAsState()
         LaunchedEffect(library) { state.updateLibrary(library) }
         LaunchedEffect(hasLibraryAccess) { graph.refreshLibrary() }
-        PlatformBackHandler(enabled = state.canGoBack) { state.goBack() }
+        PlatformBackHandler(enabled = restoration.restoring || state.canGoBack) {
+            if (graph.restoreMutations.canMutate) state.goBack()
+        }
 
         val queue by state.controller.queue.collectAsState()
         val player by state.controller.playerState.collectAsState()
@@ -180,7 +184,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         }
 
         CompositionLocalProvider(LocalNavigationTint provides routeArtwork?.let { routeTint }) {
-        Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().restoreInputBarrier(graph.restoreMutations)
+            .then(if (restoration.restoring) Modifier.clearAndSetSemantics {} else Modifier)) {
             Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.hasOverlay) Modifier.clearAndSetSemantics {} else Modifier)) {
                 AppScaffold(
                     tabs = listOf(
@@ -296,6 +301,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         }
         }
     }
+    dev.cmdrchara.songlass.ui.RestoreProgressHost(restoration.restoring)
     }
     }
 }

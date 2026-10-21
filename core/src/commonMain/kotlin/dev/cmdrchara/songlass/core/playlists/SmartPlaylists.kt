@@ -4,6 +4,7 @@ import dev.cmdrchara.songlass.core.history.HistorySnapshot
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -90,16 +91,26 @@ data class SmartRules(
 data class SmartPlaylist(val id: String, val name: String, val rules: SmartRules)
 
 /** Only rules persist: membership is always resolved against the current visible library. */
-class SmartPlaylists(private val store: KeyValueStore, private val clock: () -> Long) {
+class SmartPlaylists(
+    private val store: KeyValueStore,
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
+    private val clock: () -> Long,
+) {
+    constructor(store: KeyValueStore, clock: () -> Long) : this(store, RestoreMutationGate(), clock)
+
     private val _playlists = MutableStateFlow(load())
     val playlists = _playlists.asStateFlow()
     fun get(id: String) = _playlists.value.firstOrNull { it.id == id }
 
     /** Re-reads the rules from [store], after something else (a backup restore) replaced them. */
-    fun reload() {
-        _playlists.value = load()
+    fun reload() = prepareReload().invoke()
+
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = load(store)
+        return { _playlists.value = loaded }
     }
     fun save(id: String?, name: String, rules: SmartRules): String {
+        mutations.requireMutable()
         require(name.isNotBlank())
         require(rules.isValid)
         // An editor opened before deletion/restore must not silently recreate its old draft.
@@ -115,6 +126,7 @@ class SmartPlaylists(private val store: KeyValueStore, private val clock: () -> 
         return key
     }
     fun delete(id: String) {
+        if (!mutations.canMutate) return
         if (get(id) == null) return
         persist(_playlists.value.filterNot { it.id == id }, clearing = id)
     }
@@ -138,7 +150,7 @@ class SmartPlaylists(private val store: KeyValueStore, private val clock: () -> 
         store.putStrings(writing)
         _playlists.value = playlists
     }
-    private fun load(): List<SmartPlaylist> {
+    private fun load(store: KeyValueStore = this.store): List<SmartPlaylist> {
         val snapshot = store.snapshot()
         fun read(key: String): String? = if (snapshot != null) snapshot[key] else store.getString(key)
         return read(INDEX_KEY).orEmpty().split(UNIT).filter { it.isNotEmpty() }.distinct().mapNotNull { id ->

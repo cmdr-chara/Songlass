@@ -30,7 +30,7 @@ private sealed interface BookmarkEdit {
     data class Rename(val id: String) : BookmarkEdit
 }
 
-private enum class BookmarkFailure { Write, Unavailable }
+private enum class BookmarkFailure { Write, Unavailable, Changed }
 
 /**
  * One shared page using the native primitives of each Songlass look. Missing files remain
@@ -52,6 +52,9 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
     val visible = remember(saved.bookmarks, track, available, libraryRevision) {
         if (track == null) saved.bookmarks else state.trackMarkers.bookmarksForDisplay(track)
     }
+    val restoration by state.restoreMutations.state.collectAsState()
+    val interactionTicket = remember(restoration) { state.restoreMutations.ticket() }
+    var editTicket by remember { mutableStateOf<dev.cmdrchara.songlass.core.storage.MutationTicket?>(null) }
     var edit by remember { mutableStateOf<BookmarkEdit?>(null) }
     var input by remember { mutableStateOf("") }
     var failure by remember { mutableStateOf<BookmarkFailure?>(null) }
@@ -65,12 +68,15 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
     }
 
     fun begin(next: BookmarkEdit, name: String = "") {
+        if (!state.restoreMutations.accepts(interactionTicket)) { fail(BookmarkFailure.Changed); return }
+        editTicket = interactionTicket
         edit = next
         input = name
         failure = null
         attention++
     }
     fun save() {
+        if (!state.restoreMutations.accepts(editTicket)) { edit = null; fail(BookmarkFailure.Changed); return }
         try {
             val success = when (val request = edit) {
                 is BookmarkEdit.Add -> {
@@ -87,16 +93,21 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
         } catch (_: Exception) { fail(BookmarkFailure.Write) }
     }
 
-    val active = isActive()
+    LaunchedEffect(restoration.revision) {
+        if (edit != null && !state.restoreMutations.accepts(editTicket)) {
+            edit = null; fail(BookmarkFailure.Changed)
+        }
+    }
+    val active = isActive() && state.restoreMutations.canMutate
     LaunchedEffect(attention, edit, failure, selection != null, active) {
-        if (!isActive()) return@LaunchedEffect
+        if (!isActive() || !state.restoreMutations.canMutate) return@LaunchedEffect
         if (failure != null) listState.scrollToItem(2)
         else if (edit != null) {
             listState.scrollToItem(if (selection != null) 3 else 2)
             withFrameNanos { }
             // Outgoing transition content may still be composed after Back/tab/player navigation.
             // Read the live destination again, as well as whether Save/Cancel removed the field.
-            if (isActive() && edit != null && failure == null) editorFocus.requestFocus()
+            if (isActive() && state.restoreMutations.canMutate && edit != null && failure == null) editorFocus.requestFocus()
         }
     }
 
@@ -109,8 +120,11 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
         if (failure != null) item(key = "bookmark-error") {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite }) {
-                AppText(stringResource(if (failure == BookmarkFailure.Unavailable)
-                    Res.string.bookmark_unavailable else Res.string.bookmark_write_failed),
+                AppText(stringResource(when (failure) {
+                    BookmarkFailure.Unavailable -> Res.string.bookmark_unavailable
+                    BookmarkFailure.Changed -> Res.string.restore_operation_retry
+                    else -> Res.string.bookmark_write_failed
+                }),
                     AppTheme.typography.footnote, Modifier.padding(12.dp))
             }
         }
@@ -155,7 +169,8 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
                     label,
                     subtitle = subtitle,
                     leading = { AppIcon(AppIcons.Bookmark, null, size = 22.dp, tint = AppTheme.colors.accent) },
-                    onClick = target?.let { ({
+                    onClick = target?.let { (click@{
+                        if (!state.restoreMutations.accepts(interactionTicket)) { fail(BookmarkFailure.Changed); return@click }
                         val latest = state.trackMarkers.state.value.bookmarks.firstOrNull { it.id == marker.id }
                         val song = latest?.let { state.trackMarkers.resolve(it.track) }
                         if (latest == null || song == null) fail(BookmarkFailure.Unavailable) else {
@@ -170,6 +185,7 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
                         begin(BookmarkEdit.Rename(marker.id), marker.title.orEmpty())
                     }, Modifier.weight(1f))
                     ActionButton(stringResource(Res.string.bookmark_delete), {
+                        if (!state.restoreMutations.accepts(interactionTicket)) { fail(BookmarkFailure.Changed); return@ActionButton }
                         try {
                             if (!state.trackMarkers.delete(marker.id)) fail(BookmarkFailure.Write)
                             else failure = null

@@ -7,16 +7,20 @@ import dev.cmdrchara.songlass.core.storage.putStringList
 import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /** Persistent preferences shared by all interfaces and platforms. */
-class AppSettings(private val store: KeyValueStore) {
+class AppSettings(
+    private val store: KeyValueStore,
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
+) {
     private val _state = MutableStateFlow(readPreferences())
 
-    private fun readPreferences(): AppPreferences = AppPreferences(
+    private fun readPreferences(store: KeyValueStore = this.store): AppPreferences = AppPreferences(
         appearance = when (store.getString(APPEARANCE_KEY)) {
             "light" -> AppearanceMode.Light
             "dark" -> AppearanceMode.Dark
@@ -62,21 +66,29 @@ class AppSettings(private val store: KeyValueStore) {
     val state: StateFlow<AppPreferences> = _state.asStateFlow()
 
     /** Refreshes the existing observable preferences after a validated backup restore. */
-    fun reload() { _state.value = readPreferences() }
+    fun reload() = prepareReload().invoke()
+
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = readPreferences(store)
+        return { _state.value = loaded }
+    }
 
     fun setCrossfadeDuration(durationMs: Long) {
+        if (!mutations.canMutate) return
         require(durationMs in 0L..12_000L)
         store.putString(CROSSFADE_KEY, durationMs.toString())
         _state.update { it.copy(crossfadeDurationMs = durationMs) }
     }
 
     fun setManualCrossfadeDuration(durationMs: Long) {
+        if (!mutations.canMutate) return
         require(parseCrossfadeDurationMs(durationMs.toString()) != null)
         store.putString(MANUAL_CROSSFADE_KEY, durationMs.toString())
         _state.update { it.copy(manualCrossfadeDurationMs = durationMs) }
     }
 
     fun setAppearance(appearance: AppearanceMode) {
+        if (!mutations.canMutate) return
         val storedValue = when (appearance) {
             AppearanceMode.System -> "system"
             AppearanceMode.Light -> "light"
@@ -87,16 +99,19 @@ class AppSettings(private val store: KeyValueStore) {
     }
 
     fun setReduceMotion(reduceMotion: Boolean) {
+        if (!mutations.canMutate) return
         store.putString(REDUCE_MOTION_KEY, reduceMotion.toString())
         _state.update { it.copy(reduceMotion = reduceMotion) }
     }
 
     fun setReduceTransparency(reduceTransparency: Boolean) {
+        if (!mutations.canMutate) return
         store.putString(REDUCE_TRANSPARENCY_KEY, reduceTransparency.toString())
         _state.update { it.copy(reduceTransparency = reduceTransparency) }
     }
 
     fun setArtworkStyle(style: ArtworkStyle) {
+        if (!mutations.canMutate) return
         store.putString(
             ARTWORK_STYLE_KEY,
             when (style) {
@@ -108,6 +123,7 @@ class AppSettings(private val store: KeyValueStore) {
     }
 
     fun setInterfaceStyle(style: InterfaceStyle) {
+        if (!mutations.canMutate) return
         store.putString(
             INTERFACE_STYLE_KEY,
             when (style) {
@@ -120,6 +136,7 @@ class AppSettings(private val store: KeyValueStore) {
     }
 
     fun setReplayGain(mode: ReplayGainMode) {
+        if (!mutations.canMutate) return
         store.putString(
             REPLAY_GAIN_KEY,
             when (mode) {
@@ -132,6 +149,7 @@ class AppSettings(private val store: KeyValueStore) {
     }
 
     fun setFolderSort(sort: FolderSort) {
+        if (!mutations.canMutate) return
         store.putString(
             FOLDER_SORT_KEY,
             when (sort) {
@@ -144,43 +162,51 @@ class AppSettings(private val store: KeyValueStore) {
     }
 
     fun setResumeOnReconnect(enabled: Boolean) {
+        if (!mutations.canMutate) return
         store.putString(RESUME_KEY, enabled.toString())
         _state.update { it.copy(resumeOnReconnect = enabled) }
     }
 
     fun setResumePerTrack(enabled: Boolean) {
+        if (!mutations.canMutate) return
         store.putString(PER_TRACK_KEY, enabled.toString())
         _state.update { it.copy(resumePerTrack = enabled) }
     }
 
     fun setLongTrackThreshold(durationMs: Long) {
+        if (!mutations.canMutate) return
         require(durationMs in LONG_TRACK_CHOICES_MS)
         store.putString(LONG_THRESHOLD_KEY, durationMs.toString())
         _state.update { it.copy(longTrackThresholdMs = durationMs) }
     }
 
     fun setAmllEnabled(enabled: Boolean) {
+        if (!mutations.canMutate) return
         store.putString(AMLL_KEY, enabled.toString())
         _state.update { it.copy(amllEnabled = enabled) }
     }
 
     fun setPlayCountRule(rule: PlayCountRule) {
+        if (!mutations.canMutate) return
         store.putString(PLAY_COUNT_RULE_KEY, rule.storageKey)
         _state.update { it.copy(playCountRule = rule) }
     }
 
     fun setAlbumLayout(layout: AlbumLayout) {
+        if (!mutations.canMutate) return
         store.putString(ALBUM_LAYOUT_KEY, if (layout == AlbumLayout.List) "list" else "grid")
         _state.update { it.copy(albumLayout = layout) }
     }
 
     fun setMinimumDuration(durationMs: Long) {
+        if (!mutations.canMutate) return
         require(durationMs in LibraryFilter.durationChoicesMs)
         store.putString(MIN_DURATION_KEY, durationMs.toString())
         _state.update { it.copy(libraryFilter = it.libraryFilter.copy(minimumDurationMs = durationMs)) }
     }
 
     fun setFolderExcluded(path: String, excluded: Boolean) {
+        if (!mutations.canMutate) return
         val folder = path.trim('/')
         if (folder.isBlank()) return
         val current = state.value.libraryFilter

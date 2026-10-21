@@ -19,6 +19,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -99,9 +101,15 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
     var importing by remember { mutableStateOf(false) }
     var importFailure by remember { mutableStateOf<ProfileImportFailure?>(null) }
     var importPreview by remember { mutableStateOf<EqualizerProfileImport?>(null) }
-    val importer = rememberTextFileImporter(TextFileKind.EqualizerProfile) { fileName, text ->
+    val restoration by equalizer.mutations.state.collectAsState()
+    val importTicket = remember(restoration) { equalizer.mutations.ticket() }
+    LaunchedEffect(restoration.revision) {
+        if (importPreview != null) { importPreview = null; importFailure = ProfileImportFailure.Changed }
+    }
+    val importer = key(importTicket) { rememberTextFileImporter(TextFileKind.EqualizerProfile) { fileName, text ->
         importFailure = null
-        if (text == null) importFailure = ProfileImportFailure.Invalid
+        if (!equalizer.mutations.accepts(importTicket)) importFailure = ProfileImportFailure.Changed
+        else if (text == null) importFailure = ProfileImportFailure.Invalid
         else if (!importing) {
             // The parser only sees this immutable revision. Persisting/applying stays on the
             // owner thread after a separate, explicit review of the destination and filters.
@@ -110,16 +118,17 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
             scope.launch {
                 try {
                     val parsed = withContext(Dispatchers.Default) {
-                        equalizer.prepareProfileImport(fileName ?: "AutoEQ", text, expectedState)
+                        equalizer.prepareProfileImport(fileName ?: "AutoEQ", text, expectedState, importTicket)
                     }
-                    if (parsed == null) importFailure = ProfileImportFailure.Invalid
+                    if (!equalizer.mutations.accepts(importTicket)) importFailure = ProfileImportFailure.Changed
+                    else if (parsed == null) importFailure = ProfileImportFailure.Invalid
                     else importPreview = parsed
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { importFailure = ProfileImportFailure.Failed }
                 finally { importing = false }
             }
         }
-    }
+    } }
     val separator = stringResource(Res.string.eq_decimal_separator)
     val bands = remember(state.gains) {
         GraphicEq.frequencies.zip(state.gains) { f, g -> EqBand(f.toFloat(), frequencyLabel(f), g.toFloat()) }
@@ -232,7 +241,10 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                     ListRow(
                         title = stringResource(Res.string.eq_headphones_import),
                         leading = { AppIcon(AppIcons.ImportFile, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
-                        onClick = if (importing) null else ({ importFailure = null; importer() }),
+                        onClick = if (importing) null else ({
+                            if (equalizer.mutations.accepts(importTicket)) { importFailure = null; importer() }
+                            else importFailure = ProfileImportFailure.Changed
+                        }),
                     )
                 }
                 state.profile?.let { profile ->

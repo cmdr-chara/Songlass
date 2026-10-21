@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.ui
 
 import androidx.compose.runtime.*
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.storage.MutationTicket
 import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.core.playlists.M3uImport
 import dev.cmdrchara.songlass.core.playlists.M3uIssueKind
@@ -25,6 +26,7 @@ private data class PlaylistImportReview(
     val source: List<Track>,
     val result: M3uImport,
     val hidden: Int,
+    val mutationTicket: MutationTicket?,
 )
 
 internal fun AppState.isLibraryReadyForPlaylistFiles(): Boolean = libraryAccess.value &&
@@ -35,6 +37,8 @@ internal fun AppState.isLibraryReadyForPlaylistFiles(): Boolean = libraryAccess.
 @Composable
 internal fun rememberPlaylistImportAction(state: AppState): (() -> Unit)? {
     val scope = rememberCoroutineScope()
+    val restoration by state.restoreMutations.state.collectAsState()
+    val importTicket = remember(restoration) { state.restoreMutations.ticket() }
     val defaultName = stringResource(Res.string.playlist_import_default_name)
     var stage by remember { mutableStateOf(ImportStage.None) }
     var notice by remember { mutableStateOf(ImportNotice.ReadFailed) }
@@ -46,10 +50,11 @@ internal fun rememberPlaylistImportAction(state: AppState): (() -> Unit)? {
     }
 
     fun showNotice(value: ImportNotice) { notice = value; stage = ImportStage.Notice }
-    val launcher = rememberPlaylistImporter { name, text ->
+    val launcher = key(importTicket) { rememberPlaylistImporter { name, text ->
         job?.cancel()
         review = null
         when {
+            !state.restoreMutations.accepts(importTicket) -> showNotice(ImportNotice.LibraryChanged)
             text == null -> showNotice(ImportNotice.ReadFailed)
             !state.isLibraryReadyForPlaylistFiles() -> showNotice(ImportNotice.LibraryUnavailable)
             else -> {
@@ -62,10 +67,11 @@ internal fun rememberPlaylistImportAction(state: AppState): (() -> Unit)? {
                             val result = M3u.resolve(M3u.parseDetailed(text), source)
                             val visibleIds = visible.mapTo(HashSet()) { it.id }
                             PlaylistImportReview(name?.take(80) ?: defaultName, source, result,
-                                result.tracks.count { it.id !in visibleIds })
+                                result.tracks.count { it.id !in visibleIds }, importTicket)
                         }
                         when {
-                            !state.isLibraryReadyForPlaylistFiles() || state.allTracks.value !== source -> showNotice(ImportNotice.LibraryChanged)
+                            !state.restoreMutations.accepts(importTicket) ||
+                                !state.isLibraryReadyForPlaylistFiles() || state.allTracks.value !== source -> showNotice(ImportNotice.LibraryChanged)
                             checked.result.failure != null -> showNotice(ImportNotice.FileLimit)
                             checked.result.tracks.isEmpty() && checked.result.issues.isEmpty() -> showNotice(ImportNotice.Empty)
                             else -> {
@@ -77,6 +83,11 @@ internal fun rememberPlaylistImportAction(state: AppState): (() -> Unit)? {
                     catch (_: Exception) { showNotice(ImportNotice.ReadFailed) }
                 }
             }
+        }
+    } }
+    LaunchedEffect(restoration.revision) {
+        if (review != null || stage == ImportStage.Working) {
+            job?.cancel(); review = null; showNotice(ImportNotice.LibraryChanged)
         }
     }
     val checked = review
@@ -92,7 +103,8 @@ internal fun rememberPlaylistImportAction(state: AppState): (() -> Unit)? {
             if (checked.result.tracks.isNotEmpty()) add(
                 SheetAction(stringResource(Res.string.playlist_import_confirm, checked.result.tracks.size), AppIcons.AddToQueue) {
                     // A permission change, rescan or restore cannot turn an old review into a new match.
-                    if (!state.isLibraryReadyForPlaylistFiles() || state.allTracks.value !== checked.source) {
+                    if (!state.restoreMutations.accepts(checked.mutationTicket) ||
+                        !state.isLibraryReadyForPlaylistFiles() || state.allTracks.value !== checked.source) {
                         showNotice(ImportNotice.LibraryChanged)
                     } else try {
                         val id = state.userPlaylists.create(checked.name, checked.result.tracks.map { it.id })
@@ -151,7 +163,8 @@ internal fun rememberPlaylistImportAction(state: AppState): (() -> Unit)? {
         {
             job?.cancel()
             stage = ImportStage.None
-            if (state.isLibraryReadyForPlaylistFiles()) open() else showNotice(ImportNotice.LibraryUnavailable)
+            if (!state.restoreMutations.accepts(importTicket)) showNotice(ImportNotice.LibraryChanged)
+            else if (state.isLibraryReadyForPlaylistFiles()) open() else showNotice(ImportNotice.LibraryUnavailable)
         }
     }
 }

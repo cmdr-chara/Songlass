@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.core.library
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import dev.cmdrchara.songlass.core.storage.getStringList
 import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,10 @@ sealed interface PinnedItem {
  * Music), newest first, at most [MAX]. Saved in [store] by [PlayContext.key], so pins survive
  * restarts; ones whose music is gone are skipped when resolved, not deleted.
  */
-class Pins(private val store: KeyValueStore = InMemoryKeyValueStore()) {
+class Pins(
+    private val store: KeyValueStore = InMemoryKeyValueStore(),
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
+) {
     private val _contexts = MutableStateFlow(store.getStringList(KEY).mapNotNull(PlayContext::fromKey).distinct())
 
     val contexts: StateFlow<List<PlayContext>> = _contexts.asStateFlow()
@@ -32,17 +36,21 @@ class Pins(private val store: KeyValueStore = InMemoryKeyValueStore()) {
     fun isPinned(context: PlayContext): Boolean = context in _contexts.value
 
     /** Re-reads the pins from [store], after something else (a backup restore) replaced them. */
-    fun reload() {
-        _contexts.value = store.getStringList(KEY).mapNotNull(PlayContext::fromKey).distinct()
+    fun reload() = prepareReload().invoke()
+
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = store.getStringList(KEY).mapNotNull(PlayContext::fromKey).distinct()
+        return { _contexts.value = loaded }
     }
 
     /** Pins [context] at the front, or unpins it. Returns whether it is now pinned. */
     fun toggle(context: PlayContext): Boolean {
+        if (!mutations.canMutate) return isPinned(context)
         val current = _contexts.value
         val nowPinned = context !in current
         val updated = if (nowPinned) (listOf(context) + current).take(MAX) else current - context
-        _contexts.value = updated
         store.putStringList(KEY, updated.map { it.key })
+        _contexts.value = updated
         return nowPinned
     }
 

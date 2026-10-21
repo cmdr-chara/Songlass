@@ -307,7 +307,7 @@ object TrackMarkersCodec {
 }
 
 class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Long = { 0L }) {
-    private fun read(): TrackMarkersState = TrackMarkersState(
+    private fun read(store: KeyValueStore = this.store): TrackMarkersState = TrackMarkersState(
         progress = runCatching { TrackMarkersCodec.decodeProgress(store.getString(TrackMarkersCodec.PROGRESS_KEY)) }.getOrDefault(emptyList()),
         bookmarks = runCatching { TrackMarkersCodec.decodeBookmarks(store.getString(TrackMarkersCodec.BOOKMARKS_KEY)) }.getOrDefault(emptyList()),
     )
@@ -324,11 +324,22 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
     /** Backup replacement owns these keys until repository reload has finished. */
     var writesSuspended: Boolean = false
 
-    fun reload() {
-        val loaded = read()
-        // Restore still owns the keys while this runs. Migration is part of reload, not a
-        // playback checkpoint, and must finish before releasing writesSuspended.
-        _state.value = if (stableIds) migrateLegacy(loaded, byId) else loaded
+    fun reload() = reloadPreparation()(store).invoke()
+
+    /**
+     * Capture indexes on the owner thread. The returned preparation decodes/migrates only the
+     * supplied staging store on a worker; its final publication is a single owner-thread assignment.
+     * Availability remains the current live index, including a permission revocation meanwhile.
+     */
+    fun reloadPreparation(): (KeyValueStore) -> (() -> Unit) {
+        val stable = stableIds
+        val index = byId
+        return { source ->
+            val loaded = read(source)
+            val next = if (stable) migrateLegacy(loaded, index, source) else loaded
+            val publish: () -> Unit = { _state.value = next }
+            publish
+        }
     }
 
     /**
@@ -363,6 +374,7 @@ class TrackMarkers(private val store: KeyValueStore, private val clock: () -> Lo
     private fun migrateLegacy(
         previous: TrackMarkersState,
         library: Map<String, List<Track>>,
+        store: KeyValueStore = this.store,
     ): TrackMarkersState {
         if (previous.progress.none { it.track.binding == MarkerBinding.Legacy } &&
             previous.bookmarks.none { it.track.binding == MarkerBinding.Legacy }) return previous

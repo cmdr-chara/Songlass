@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.history
 
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,7 +32,13 @@ data class HistorySnapshot(
  * Local listening history, saved in [store]: it never leaves the device. Feeds the Home
  * sections (recently played, most and least played).
  */
-class ListeningHistory(private val store: KeyValueStore, private val clock: () -> Long) {
+class ListeningHistory(
+    private val store: KeyValueStore,
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
+    private val clock: () -> Long,
+) {
+    constructor(store: KeyValueStore, clock: () -> Long) : this(store, RestoreMutationGate(), clock)
+
     private val _state = MutableStateFlow(load())
     val state: StateFlow<HistorySnapshot> = _state.asStateFlow()
 
@@ -40,14 +47,18 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
     }
 
     /** Re-reads everything from [store], after something else (a backup restore) replaced it. */
-    fun reload() {
-        val loaded = load()
+    fun reload() = prepareReload().invoke()
+
+    /** Normalization writes only to the supplied staging store during backup preparation. */
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = load(store)
         store.putString(STARTED_KEY, loaded.trackingStartedMs.toString())
-        _state.value = loaded
+        return { _state.value = loaded }
     }
 
     /** Records one counted play of [trackId], started from [context] (null: no specific source). */
     fun recordPlay(trackId: String, context: PlayContext?) {
+        if (!mutations.canMutate) return
         val now = clock()
         val current = _state.value
         val contexts = if (context == null) current.recentContexts else {
@@ -73,7 +84,7 @@ class ListeningHistory(private val store: KeyValueStore, private val clock: () -
         _state.value = next
     }
 
-    private fun load(): HistorySnapshot {
+    private fun load(store: KeyValueStore = this.store): HistorySnapshot {
         // Native stores expose a coherent snapshot. The fallback supports older/custom
         // stores, but cannot provide a multi-key concurrent-read guarantee on its own.
         val values = store.snapshot()

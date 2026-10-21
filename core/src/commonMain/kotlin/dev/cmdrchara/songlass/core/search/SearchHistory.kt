@@ -9,6 +9,7 @@ import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -41,13 +42,19 @@ sealed interface SearchItem {
 }
 
 /** Items actually opened from Search; newest first, deduplicated, and local to this device. */
-class SearchHistory(private val store: KeyValueStore) {
+class SearchHistory(
+    private val store: KeyValueStore,
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
+) {
     private val _targets = MutableStateFlow(decode(store.getString(KEY)).distinct().take(MAX))
     val targets = _targets.asStateFlow()
 
     /** Re-reads the list from [store], after something else (a backup restore) replaced it. */
-    fun reload() {
-        _targets.value = decode(store.getString(KEY)).distinct().take(MAX)
+    fun reload() = prepareReload().invoke()
+
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = decode(store.getString(KEY)).distinct().take(MAX)
+        return { _targets.value = loaded }
     }
 
     fun record(target: SearchTarget) = save((listOf(target) + _targets.value.filterNot { it == target }).take(MAX))
@@ -67,6 +74,7 @@ class SearchHistory(private val store: KeyValueStore) {
     }
 
     private fun save(targets: List<SearchTarget>) {
+        if (!mutations.canMutate) return
         store.putString(KEY, targets.joinToString("") { target ->
             val fields = when (target) {
                 is SearchTarget.Song -> listOf("s", target.id)

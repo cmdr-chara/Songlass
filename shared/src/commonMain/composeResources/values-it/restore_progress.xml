@@ -1,0 +1,6 @@
+<resources>
+    <string name="restore_progress_title">Ripristino del backup</string>
+    <string name="restore_progress_body">I dati salvati sono in fase di ripristino. Modifiche e navigazione saranno disponibili al termine. Puoi ancora mettere in pausa la riproduzione dai controlli di sistema.</string>
+    <string name="restore_operation_changed">Questa azione non è più valida</string>
+    <string name="restore_operation_retry">Un ripristino del backup ha interrotto questa azione. Riaprila per verificare l’elemento attuale.</string>
+</resources>

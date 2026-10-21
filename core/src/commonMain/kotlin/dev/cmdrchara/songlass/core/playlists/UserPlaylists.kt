@@ -4,13 +4,16 @@ import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 enum class PlaylistInsertion { Start, End }
 
-data class PlaylistAddResult(val added: Int, val alreadyPresent: Int, val playlistFound: Boolean = true)
+data class PlaylistAddResult(
+    val added: Int, val alreadyPresent: Int, val playlistFound: Boolean = true, val accepted: Boolean = true,
+)
 
 /** Distinguishes filters from missing files without removing either kind of stored reference. */
 data class PlaylistAvailability(
@@ -35,20 +38,27 @@ data class UserPlaylist(val id: String, val name: String, val trackIds: List<Str
 /** The user's own playlists, newest first, saved in [store]. */
 class UserPlaylists(
     private val store: KeyValueStore = InMemoryKeyValueStore(),
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
     private val clock: () -> Long = { 0L },
 ) {
+    constructor(store: KeyValueStore, clock: () -> Long) : this(store, RestoreMutationGate(), clock)
+
     private val _playlists = MutableStateFlow(load())
     val playlists: StateFlow<List<UserPlaylist>> = _playlists.asStateFlow()
 
     fun get(id: String): UserPlaylist? = _playlists.value.firstOrNull { it.id == id }
 
     /** Re-reads the playlists from [store], after something else (a backup restore) replaced them. */
-    fun reload() {
-        _playlists.value = load()
+    fun reload() = prepareReload().invoke()
+
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = load(store)
+        return { _playlists.value = loaded }
     }
 
     /** Creates a playlist named [name] (trimmed; a blank name is not allowed) and returns its id. */
     fun create(name: String, trackIds: List<String> = emptyList()): String {
+        mutations.requireMutable()
         val created = clock()
         var id = "p$created"
         var n = 1
@@ -71,6 +81,7 @@ class UserPlaylists(
 
     /** Counts unique requested tracks; existing entries keep their position even for Start. */
     fun addDetailed(id: String, trackIds: List<String>, insertion: PlaylistInsertion = PlaylistInsertion.End): PlaylistAddResult {
+        if (!mutations.canMutate) return PlaylistAddResult(0, 0, playlistFound = get(id) != null, accepted = false)
         val playlist = get(id) ?: return PlaylistAddResult(0, 0, playlistFound = false)
         val requested = trackIds.distinct()
         val existing = playlist.trackIds.toHashSet()
@@ -89,6 +100,7 @@ class UserPlaylists(
      * from the complete current scan. A later scan must not expand an approved removal set.
      */
     fun removeMissing(id: String, allTracks: List<Track>, candidateIds: Collection<String>): Int {
+        if (!mutations.canMutate) return 0
         val playlist = get(id) ?: return 0
         if (candidateIds.isEmpty()) return 0
         val candidates = candidateIds.toHashSet()
@@ -112,6 +124,7 @@ class UserPlaylists(
         save(_playlists.value.map { if (it.id == id) change(it) else it })
 
     private fun save(playlists: List<UserPlaylist>) {
+        if (!mutations.canMutate) return
         if (playlists == _playlists.value) return
         val writing = buildMap {
             put(INDEX_KEY, playlists.joinToString(SEPARATOR) { it.id })
@@ -127,7 +140,7 @@ class UserPlaylists(
         _playlists.value = playlists
     }
 
-    private fun load(): List<UserPlaylist> {
+    private fun load(store: KeyValueStore = this.store): List<UserPlaylist> {
         val snapshot = store.snapshot()
         fun value(key: String) = if (snapshot != null) snapshot[key] else store.getString(key)
         fun ids(key: String) = value(key)?.split(SEPARATOR)?.filter { it.isNotEmpty() }.orEmpty()

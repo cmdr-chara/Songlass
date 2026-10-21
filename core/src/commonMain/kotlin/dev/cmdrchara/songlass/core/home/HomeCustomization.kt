@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.core.home
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import dev.cmdrchara.songlass.core.storage.getStringList
 import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -73,13 +74,19 @@ data class HomeCustomizationSnapshot(
  * someone who never customizes keeps exactly the original Home. [reload] re-reads the store, for
  * after a backup restore.
  */
-class HomeCustomization(private val store: KeyValueStore = InMemoryKeyValueStore()) {
+class HomeCustomization(
+    private val store: KeyValueStore = InMemoryKeyValueStore(),
+    private val mutations: RestoreMutationGate = RestoreMutationGate(),
+) {
     private val _state = MutableStateFlow(load())
 
     val state: StateFlow<HomeCustomizationSnapshot> = _state.asStateFlow()
 
-    fun reload() {
-        _state.value = load()
+    fun reload() = prepareReload().invoke()
+
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = load(store)
+        return { _state.value = loaded }
     }
 
     /** Moves [section] by [offset] places (negative = earlier), staying inside the list. */
@@ -98,6 +105,7 @@ class HomeCustomization(private val store: KeyValueStore = InMemoryKeyValueStore
 
     /** Adds [context] as the last shortcut. False when it is already there or the list is full. */
     fun addShortcut(context: PlayContext): Boolean {
+        if (!mutations.canMutate) return false
         val current = _state.value.shortcuts
         if (context in current || current.size >= HomeShortcuts.MAX) return false
         update { it.copy(shortcuts = it.shortcuts + context) }
@@ -125,14 +133,15 @@ class HomeCustomization(private val store: KeyValueStore = InMemoryKeyValueStore
     fun reset() = update { HomeCustomizationSnapshot() }
 
     private fun update(change: (HomeCustomizationSnapshot) -> HomeCustomizationSnapshot) {
+        if (!mutations.canMutate) return
         val current = _state.value
         val updated = change(current).let { HomeCustomizationSnapshot.normalized(it.order, it.hidden, it.shortcuts) }
         if (updated == current) return
-        _state.value = updated
         save(updated)
+        _state.value = updated
     }
 
-    private fun load(): HomeCustomizationSnapshot = HomeCustomizationSnapshot.normalized(
+    private fun load(store: KeyValueStore = this.store): HomeCustomizationSnapshot = HomeCustomizationSnapshot.normalized(
         order = store.getStringList(SECTIONS_KEY).mapNotNull(HomeSection::fromId),
         hidden = store.getStringList(HIDDEN_KEY).mapNotNull(HomeSection::fromId),
         shortcuts = store.getStringList(SHORTCUTS_KEY).mapNotNull(PlayContext::fromKey),

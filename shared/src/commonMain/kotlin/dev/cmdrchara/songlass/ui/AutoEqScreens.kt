@@ -26,6 +26,11 @@ import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
 import kotlin.math.ceil
 
+private data class ReviewedAutoEq(
+    val correction: AutoEqCorrection,
+    val ticket: dev.cmdrchara.songlass.core.storage.MutationTicket,
+)
+
 private sealed interface AutoEqLoad<out T> {
     data object Loading : AutoEqLoad<Nothing>
     data object Failed : AutoEqLoad<Nothing>
@@ -82,9 +87,15 @@ fun AutoEqCatalogScreen(repository: AutoEqRepository, state: AppState, contentPa
 fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equalizer: Equalizer,
     onBack: () -> Unit, onApplied: () -> Unit, contentPadding: PaddingValues) {
     var retry by remember(entry.id) { mutableIntStateOf(0) }
-    val correction by produceState<AutoEqLoad<AutoEqCorrection>>(AutoEqLoad.Loading, entry.id, retry) {
+    val restoration by equalizer.mutations.state.collectAsState()
+    val correction by produceState<AutoEqLoad<ReviewedAutoEq>>(AutoEqLoad.Loading, entry.id, retry, restoration) {
         value = AutoEqLoad.Loading
-        value = try { AutoEqLoad.Ready(withContext(Dispatchers.Default) { repository.correction(entry) }) }
+        val ticket = equalizer.mutations.ticket() ?: return@produceState
+        value = try {
+            val loaded = withContext(Dispatchers.Default) { repository.correction(entry) }
+            if (equalizer.mutations.accepts(ticket)) AutoEqLoad.Ready(ReviewedAutoEq(loaded, ticket))
+            else AutoEqLoad.Failed
+        }
         catch (cancelled: CancellationException) { throw cancelled }
         catch (_: Exception) { AutoEqLoad.Failed }
     }
@@ -93,7 +104,8 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
     val outputName = output?.let { if (it.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else it.name }
     var bind by rememberSaveable(entry.id, output?.id) { mutableStateOf(false) }
     var applyFailed by remember(entry.id) { mutableStateOf(false) }
-    val current = (correction as? AutoEqLoad.Ready)?.value
+    val reviewed = (correction as? AutoEqLoad.Ready)?.value
+    val current = reviewed?.correction
     val preview = remember(current) { current?.let { EqChain(it.filters, 0.0).curve(96).map(Double::toFloat) }.orEmpty() }
     val range = remember(preview) { maxOf(12f, ceil((preview.maxOfOrNull { abs(it) } ?: 12f) / 6f) * 6f) }
     val description = stringResource(Res.string.autoeq_curve_description, entry.name)
@@ -121,7 +133,7 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
                 }
                 item { ActionButton(stringResource(Res.string.autoeq_apply), {
                     current?.let {
-                        if (equalizer.applyCatalogProfile(it, if (bind || eq.usesOutputProfile) output else null)) onApplied()
+                        if (equalizer.applyCatalogProfile(it, if (bind || eq.usesOutputProfile) output else null, reviewed?.ticket)) onApplied()
                         else applyFailed = true
                     }
                 }, Modifier.fillMaxWidth().padding(16.dp)) }

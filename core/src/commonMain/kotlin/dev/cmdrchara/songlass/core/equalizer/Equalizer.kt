@@ -2,6 +2,8 @@ package dev.cmdrchara.songlass.core.equalizer
 
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
+import dev.cmdrchara.songlass.core.storage.MutationTicket
+import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import dev.cmdrchara.songlass.core.storage.getStringList
 import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -53,6 +55,7 @@ class EqualizerProfileImport internal constructor(
     val filters: List<EqFilter>,
     val skipped: Int,
     internal val expectedState: EqualizerState,
+    internal val mutationTicket: MutationTicket?,
 ) {
     /** Only an existing automatic binding is edited; otherwise the manual fallback is selected. */
     val output: EqOutput? get() = expectedState.output.takeIf { expectedState.usesOutputProfile }
@@ -104,8 +107,11 @@ data class EqualizerState(
 /** Equalizer settings: on/off, the graphic bands and the headphone profiles, saved in [store]. */
 class Equalizer(
     private val store: KeyValueStore = InMemoryKeyValueStore(),
+    val mutations: RestoreMutationGate = RestoreMutationGate(),
     private val clock: () -> Long = { 0L },
 ) {
+    constructor(store: KeyValueStore, clock: () -> Long) : this(store, RestoreMutationGate(), clock)
+
     private val _state = MutableStateFlow(load())
     val state: StateFlow<EqualizerState> = _state.asStateFlow()
 
@@ -114,8 +120,12 @@ class Equalizer(
      * backup restore) replaced them. The output currently playing is a fact about the device,
      * not stored data, so it stays and picks its bound curve again.
      */
-    fun reload() {
-        selectOutputCurve(load().copy(output = _state.value.output))
+    fun reload() = prepareReload().invoke()
+
+    /** Decode off Main; the live device route is sampled only when publishing after commit. */
+    fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
+        val loaded = load(store)
+        return { selectOutputCurve(loaded.copy(output = _state.value.output), manual = loaded) }
     }
 
     fun setEnabled(enabled: Boolean) {
@@ -141,12 +151,13 @@ class Equalizer(
         fileName: String,
         text: String,
         expectedState: EqualizerState = _state.value,
+        mutationTicket: MutationTicket? = mutations.ticket(),
     ): EqualizerProfileImport? {
         if (fileName.length > AutoEq.MAX_FILE_NAME_CHARS) return null
         val parsed = AutoEq.parse(text)
         if (parsed.filters.isEmpty()) return null
         val name = AutoEq.nameFromFile(fileName).takeIf { it.isNotBlank() } ?: return null
-        return EqualizerProfileImport(name, parsed.filters.toList(), parsed.skipped, expectedState)
+        return EqualizerProfileImport(name, parsed.filters.toList(), parsed.skipped, expectedState, mutationTicket)
     }
 
     /**
@@ -156,7 +167,9 @@ class Equalizer(
      */
     fun confirmProfileImport(prepared: EqualizerProfileImport): EqualizerProfileImportResult {
         val state = _state.value
-        if (prepared.expectedState !== state) return EqualizerProfileImportResult.Changed
+        if (!mutations.accepts(prepared.mutationTicket) || prepared.expectedState !== state) {
+            return EqualizerProfileImportResult.Changed
+        }
         if (prepared.name.isBlank() || prepared.name.length > AutoEq.MAX_FILE_NAME_CHARS ||
             prepared.filters.isEmpty() || prepared.filters.size > AutoEq.MAX_FILTERS ||
             prepared.filters.any { !it.isSupported }) return EqualizerProfileImportResult.Invalid
@@ -201,7 +214,11 @@ class Equalizer(
         _state.value.profiles.firstOrNull { it.id == "autoeq:${entry.id}" }?.let { AutoEqCorrection(entry, it.filters) }
 
     /** Catalog identity is stable: applying again updates one saved profile instead of duplicating it. */
-    fun applyCatalogProfile(correction: AutoEqCorrection, forOutput: EqOutput? = null): Boolean {
+    fun applyCatalogProfile(
+        correction: AutoEqCorrection, forOutput: EqOutput? = null,
+        mutationTicket: MutationTicket? = mutations.ticket(),
+    ): Boolean {
+        if (!mutations.accepts(mutationTicket)) return false
         val state = _state.value
         if (forOutput != null && state.output != forOutput) return false
         if (correction.filters.isEmpty() || correction.filters.size > AutoEq.MAX_FILTERS ||
@@ -231,6 +248,7 @@ class Equalizer(
     }
 
     fun deleteProfile(id: String) {
+        if (!mutations.canMutate) return
         val profiles = _state.value.profiles.filterNot { it.id == id }
         store.putStringList(PROFILES_KEY, profiles.map { it.id })
         store.putString("$PROFILE_PREFIX$id.name", null)
@@ -251,16 +269,31 @@ class Equalizer(
     /** Route changes select an existing curve, without writing over the manual settings. */
     fun setOutput(output: EqOutput?) {
         if (_state.value.output == output) return
-        selectOutputCurve(_state.value.copy(output = output))
+        if (!mutations.canMutate) {
+            // Device facts still change during restore. Keep the audible curve until the
+            // prepared replacement can choose its binding, without reading mixed store data.
+            _state.update { it.copy(output = output) }
+        } else selectOutputCurve(_state.value.copy(output = output))
+    }
+
+    /** Finish a restore attempt, successful or failed, using only already accepted state. */
+    fun reconcileCurrentOutput() {
+        val current = _state.value
+        val manual = current.manualCurve
+        selectOutputCurve(current, current.copy(
+            enabled = manual.enabled, gains = manual.gains, profileId = manual.profileId,
+        ))
     }
 
     fun setAutomaticOutputs(enabled: Boolean) {
+        if (!mutations.canMutate) return
         store.putString("equalizer.outputs.enabled", enabled.toString())
         selectOutputCurve(_state.value.copy(automaticOutputs = enabled))
     }
 
     /** Bind the currently audible curve to this output. Further edits update this binding. */
     fun saveForCurrentOutput() {
+        if (!mutations.canMutate) return
         val state = _state.value
         val output = state.output ?: return
         val binding = OutputEqProfile(output, state.enabled, state.gains, state.profileId)
@@ -270,15 +303,15 @@ class Equalizer(
     }
 
     fun removeOutputProfile(id: String) {
+        if (!mutations.canMutate) return
         val outputs = _state.value.outputProfiles.filterNot { it.output.id == id }
         listOf("name", "enabled", "gains", "profile").forEach { store.putString("equalizer.outputs.$id.$it", null) }
         saveOutputs(outputs)
         selectOutputCurve(_state.value.copy(outputProfiles = outputs))
     }
 
-    private fun selectOutputCurve(state: EqualizerState) {
+    private fun selectOutputCurve(state: EqualizerState, manual: EqualizerState = load()) {
         val bound = state.outputProfile.takeIf { state.automaticOutputs }
-        val manual = load()
         _state.value = state.copy(
             enabled = bound?.enabled ?: manual.enabled,
             gains = bound?.gains ?: manual.gains,
@@ -289,6 +322,7 @@ class Equalizer(
     }
 
     private fun saveCurve(state: EqualizerState) {
+        if (!mutations.canMutate) return
         if (state.usesOutputProfile) {
             val output = state.output!!
             val outputs = state.outputProfiles.map { if (it.output.id == output.id)
@@ -314,7 +348,7 @@ class Equalizer(
         }
     }
 
-    private fun load(): EqualizerState {
+    private fun load(store: KeyValueStore = this.store): EqualizerState {
         val gains = decodeGains(store.getString(GAINS_KEY)) ?: GraphicEq.flat
         val profiles = store.getStringList(PROFILES_KEY).distinct().mapNotNull { id ->
             val name = store.getString("$PROFILE_PREFIX$id.name")?.takeIf(String::isNotBlank) ?: return@mapNotNull null

@@ -20,6 +20,7 @@ import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.playlists.PlaylistAddResult
 import dev.cmdrchara.songlass.core.playlists.PlaylistInsertion
 import dev.cmdrchara.songlass.AppGraph
+import dev.cmdrchara.songlass.core.storage.MutationTicket
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 
 enum class Tab { Home, Library, Search }
@@ -35,13 +36,16 @@ sealed interface PlaylistPrompt {
     data class Rename(val id: String, val currentName: String) : PlaylistPrompt
 }
 
-data class PlaylistInsertionRequest(val playlistId: String, val trackIds: List<String>)
+data class PlaylistInsertionRequest(
+    val playlistId: String, val trackIds: List<String>, val mutationTicket: MutationTicket? = null,
+)
 data class PlaylistAdditionNotice(val playlistName: String, val result: PlaylistAddResult)
 data class PlaylistRemovalRequest(
     val playlistId: String,
     val missingOnly: Boolean,
     /** Snapshot of the references the user is being asked to remove, never expanded later. */
     val missingCandidateIds: List<String> = emptyList(),
+    val mutationTicket: MutationTicket? = null,
 )
 data class AlphabetJumpRequest(val sections: List<AlphabetSection>, val onSelect: (Int) -> Unit)
 
@@ -91,6 +95,7 @@ class AppState(graph: AppGraph) {
     val sleepTimer = graph.sleepTimer
     val isLibraryLoading = graph.isLibraryLoading
     val isRestoringBackup = graph.isRestoringBackup
+    val restoreMutations = graph.restoreMutations
     val libraryRefreshFailure = graph.libraryRefreshFailure
     val requestLibraryRefresh: () -> Unit = graph::requestLibraryRefresh
     val hasCompleteLibraryScan = graph.hasCompleteLibraryScan
@@ -106,6 +111,7 @@ class AppState(graph: AppGraph) {
     var settingsPane by mutableStateOf(SettingsPane.Overview)
         private set
     fun selectSettingsPane(pane: SettingsPane) {
+        if (!restoreMutations.canMutate) return
         if (pane != SettingsPane.Playback) settingsSearch.durationDraft = null
         settingsPane = pane
     }
@@ -113,6 +119,7 @@ class AppState(graph: AppGraph) {
         private set
 
     fun openSettingsResult(target: SettingsTarget) {
+        if (!restoreMutations.canMutate) return
         settingsSearch.select(target)
         val pane = target.settingsPane
         if (pane != null) settingsPane = pane else open(target.settingsRoute)
@@ -131,6 +138,7 @@ class AppState(graph: AppGraph) {
 
     /** Consume a Search-button request once, including across result-screen navigation. */
     fun consumeSearchFocusRequest(request: Int): Boolean {
+        if (!restoreMutations.canMutate) return false
         if (tab != Tab.Search || currentRoute != null || isNowPlayingOpen || hasOverlay ||
             request != searchFocusRequest || request == consumedSearchFocusRequest) return false
         consumedSearchFocusRequest = request
@@ -188,6 +196,7 @@ class AppState(graph: AppGraph) {
     val canGoBack: Boolean get() = hasOverlay || editingPlaylistId != null || isSongInfoVisible || isArtworkExpanded || isNowPlayingOpen || currentRoute != null
 
     fun selectTab(newTab: Tab) {
+        if (!restoreMutations.canMutate) return
         closeAlphabetJump()
         if (newTab == Tab.Search) searchFocusRequest += 1
         // Tapping the current tab again returns to its root, as in iOS.
@@ -215,6 +224,7 @@ class AppState(graph: AppGraph) {
     }
 
     fun open(route: Route) {
+        if (!restoreMutations.canMutate) return
         closeAlphabetJump()
         if (route == Route.Settings) {
             settingsPane = SettingsPane.Overview
@@ -224,7 +234,9 @@ class AppState(graph: AppGraph) {
     }
 
     fun goBack() {
+        if (!restoreMutations.canMutate) return
         when {
+            playlistMutationRejected -> closePlaylistMutationNotice()
             alphabetJumpRequest != null -> closeAlphabetJump()
             playlistAdditionNotice != null -> closePlaylistAdditionNotice()
             playlistRemovalRequest != null -> closePlaylistRemoval()
@@ -251,11 +263,13 @@ class AppState(graph: AppGraph) {
     }
 
     fun openNowPlaying() {
+        if (!restoreMutations.canMutate) return
         if (!isNowPlayingOpen) playerPage = PlayerPage.Artwork
         isNowPlayingOpen = true
     }
 
     fun closeNowPlaying() {
+        if (!restoreMutations.canMutate) return
         // Keep the outgoing queue intact until the sheet has left the screen.
         isArtworkExpanded = false
         isSongInfoVisible = false
@@ -280,12 +294,14 @@ class AppState(graph: AppGraph) {
     var playlistInsertionRequest by mutableStateOf<PlaylistInsertionRequest?>(null)
         private set
     fun askPlaylistInsertion(id: String, trackIds: List<String>) {
-        playlistInsertionRequest = PlaylistInsertionRequest(id, trackIds)
+        val ticket = restoreMutations.ticket() ?: return
+        playlistInsertionRequest = PlaylistInsertionRequest(id, trackIds, ticket)
     }
     fun closePlaylistInsertion() { playlistInsertionRequest = null }
     var playlistAdditionNotice by mutableStateOf<PlaylistAdditionNotice?>(null)
         private set
     fun addToPlaylist(request: PlaylistInsertionRequest, insertion: PlaylistInsertion) {
+        if (!restoreMutations.accepts(request.mutationTicket)) { rejectPlaylistMutation(); return }
         val name = userPlaylists.get(request.playlistId)?.name.orEmpty()
         playlistAdditionNotice = PlaylistAdditionNotice(name,
             userPlaylists.addDetailed(request.playlistId, request.trackIds, insertion))
@@ -295,15 +311,17 @@ class AppState(graph: AppGraph) {
     var playlistRemovalRequest by mutableStateOf<PlaylistRemovalRequest?>(null)
         private set
     fun askPlaylistRemoval(id: String, missingOnly: Boolean = false) {
+        val ticket = restoreMutations.ticket() ?: return
         val candidates = if (missingOnly) {
             if (!libraryAccess.value || !hasCompleteLibraryScan.value || isLibraryLoading.value) return
             val playlist = userPlaylists.get(id) ?: return
             playlist.availability(library, allTracks.value).missingTrackIds.takeIf { it.isNotEmpty() } ?: return
         } else emptyList()
-        playlistRemovalRequest = PlaylistRemovalRequest(id, missingOnly, candidates)
+        playlistRemovalRequest = PlaylistRemovalRequest(id, missingOnly, candidates, ticket)
     }
     fun closePlaylistRemoval() { playlistRemovalRequest = null }
     fun removePlaylist(request: PlaylistRemovalRequest) {
+        if (!restoreMutations.accepts(request.mutationTicket)) { rejectPlaylistMutation(); return }
         if (request.missingOnly) {
             if (libraryAccess.value && hasCompleteLibraryScan.value && !isLibraryLoading.value) {
                 userPlaylists.removeMissing(request.playlistId, allTracks.value, request.missingCandidateIds)
@@ -318,8 +336,28 @@ class AppState(graph: AppGraph) {
     /** A name being asked: for a new playlist (with its first tracks) or to rename one. */
     var playlistPrompt by mutableStateOf<PlaylistPrompt?>(null)
         private set
-    fun askPlaylistName(prompt: PlaylistPrompt) { playlistPrompt = prompt }
-    fun closePlaylistPrompt() { playlistPrompt = null }
+    private var playlistPromptTicket: MutationTicket? = null
+    fun askPlaylistName(prompt: PlaylistPrompt) {
+        val ticket = restoreMutations.ticket() ?: return
+        playlistPromptTicket = ticket
+        playlistPrompt = prompt
+    }
+    fun canConfirmPlaylistPrompt(prompt: PlaylistPrompt?): Boolean {
+        val current = prompt != null && prompt === playlistPrompt && restoreMutations.accepts(playlistPromptTicket)
+        if (!current) rejectPlaylistMutation()
+        return current
+    }
+    fun closePlaylistPrompt() { playlistPrompt = null; playlistPromptTicket = null }
+
+    var playlistMutationRejected by mutableStateOf(false)
+        private set
+    fun closePlaylistMutationNotice() { playlistMutationRejected = false }
+    private fun rejectPlaylistMutation() {
+        playlistMutationRejected = true
+        closePlaylistPrompt()
+        closePlaylistInsertion()
+        closePlaylistRemoval()
+    }
 
     /** The "…" options of a user playlist page. */
     var playlistOptionsId by mutableStateOf<String?>(null)
@@ -336,7 +374,7 @@ class AppState(graph: AppGraph) {
     fun closeDeleteSmartPlaylist() { deletingSmartPlaylistId = null }
 
     val hasOverlay: Boolean
-        get() = alphabetJumpRequest != null || playlistInsertionRequest != null || playlistAdditionNotice != null || playlistRemovalRequest != null ||
+        get() = playlistMutationRejected || alphabetJumpRequest != null || playlistInsertionRequest != null || playlistAdditionNotice != null || playlistRemovalRequest != null ||
             deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
 
