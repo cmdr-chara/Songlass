@@ -89,7 +89,6 @@
     <string name="playback_artwork">Copertina dell’album</string>
     <string name="playback_expand_artwork">Espandi la copertina</string>
     <string name="playback_close_artwork">Chiudi la copertina</string>
-    <string name="playback_audio_output">Uscita audio e volume</string>
     <string name="playback_on_device">Sul dispositivo · Informazioni sul brano</string>
     <string name="playback_song_info">Informazioni sul brano</string>
     <string name="playback_info_title">Titolo</string>
@@ -150,7 +149,6 @@
     <string name="sort_most_played">Più ascoltati</string>
     <string name="action_pin">Fissa nella Libreria</string>
     <string name="action_unpin">Togli dalla Libreria</string>
-    <string name="playback_volume">Volume</string>
     <string name="sleep_title">Timer di spegnimento</string>
     <plurals name="sleep_minutes">
         <item quantity="one">%1$d minuto</item>

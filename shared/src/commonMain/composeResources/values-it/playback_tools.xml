@@ -16,4 +16,6 @@
     <string name="player_queue_short">Coda</string>
     <string name="queue_saved_playlist">Salvata: %1$s</string>
     <string name="queue_saved_open">Apri playlist</string>
+    <string name="audio_tools_output_volume">Uscita e volume</string>
+    <string name="audio_tools_output_change">Cambia</string>
 </resources>

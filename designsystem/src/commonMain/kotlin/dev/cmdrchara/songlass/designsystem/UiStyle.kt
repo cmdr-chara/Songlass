@@ -300,7 +300,7 @@ interface UiStyle {
     fun PlaybackToolsSheet(visible: Boolean, title: String, subtitle: String?, groups: List<PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, onDismiss: () -> Unit)
 
     @Composable
-    fun PlayerUtilityBar(output: dev.cmdrchara.songlass.designsystem.PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<PlayerUtilityAction>, modifier: Modifier)
+    fun PlayerUtilityBar(actions: List<PlayerUtilityAction>, modifier: Modifier)
 
     /**
      * Modal list of actions about one item (e.g. a track), shown from the bottom with a header.

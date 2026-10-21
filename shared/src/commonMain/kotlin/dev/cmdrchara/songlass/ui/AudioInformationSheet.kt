@@ -38,6 +38,8 @@ fun AudioInformationSheet(state: AppState, track: Track, player: PlayerState) {
     val equalizer by state.equalizer.state.collectAsState()
     val settings by state.settings.state.collectAsState()
     val page = state.audioInformationPage
+    // Output switching (and, with it, the volume) lives here now rather than on the player itself.
+    val outputPicker = rememberAudioOutputPicker()
     val file = stringResource(Res.string.audio_tools_file)
     val processing = stringResource(Res.string.audio_tools_processing)
     val output = stringResource(Res.string.audio_tools_output)
@@ -53,7 +55,10 @@ fun AudioInformationSheet(state: AppState, track: Track, player: PlayerState) {
                 state.showAudioInformationPage(AudioInformationPage.Output)
             },
         )),
-        PlaybackToolGroup(stringResource(Res.string.audio_tools_adjust), rows = listOf(
+        PlaybackToolGroup(stringResource(Res.string.audio_tools_adjust), rows = listOfNotNull(
+            outputPicker?.let { open ->
+                PlaybackToolRow(stringResource(Res.string.audio_tools_output_volume), stringResource(Res.string.audio_tools_output_change), AppIcons.SpeakerLow) { open() }
+            },
             PlaybackToolRow(stringResource(Res.string.eq_title), equalizerCurveLabel(equalizer.enabled, equalizer.preset, equalizer.profile?.name), AppIcons.Equalizer) {
                 state.openPlayerSettings(SettingsTarget.Equalizer)
             },

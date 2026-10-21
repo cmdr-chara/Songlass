@@ -22,10 +22,11 @@ data class PlaybackToolRow(
 data class PlaybackToolGroup(val title: String?, val rows: List<PlaybackToolRow>, val ordered: Boolean = false)
 
 @Immutable
-data class PlayerUtilityAction(val label: String, val icon: ImageVector, val selected: Boolean, val onClick: () -> Unit, val accessibilityLabel: String = label)
-
-@Immutable
-data class PlayerOutputAction(val label: String, val accessibilityLabel: String, val onClick: () -> Unit)
+/** An icon in the player's utility row. [badge] is a short live value (such as the sleep timer's minutes) shown next to it. */
+data class PlayerUtilityAction(
+    val label: String, val icon: ImageVector, val selected: Boolean, val onClick: () -> Unit,
+    val accessibilityLabel: String = label, val badge: String? = null,
+)
 
 /** A single sheet owns both overview and detail pages; changing the page does not stack overlays. */
 @Composable
@@ -40,22 +41,19 @@ fun PlaybackToolsSheet(
     onDismiss: () -> Unit,
 ) = LocalUiStyle.current.PlaybackToolsSheet(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
 
-/** Output and audio settings are separate from labelled listening actions. */
+/** One quiet row of icons under the player; the labels are the accessible names. */
 @Composable
 fun PlayerUtilityBar(
-    output: PlayerOutputAction?,
-    audioLabel: String,
-    onAudio: () -> Unit,
     actions: List<PlayerUtilityAction>,
     modifier: Modifier = Modifier,
-) = LocalUiStyle.current.PlayerUtilityBar(output, audioLabel, onAudio, actions, modifier)
+) = LocalUiStyle.current.PlayerUtilityBar(actions, modifier)
 
 /** Shared responsive allocation only; each look supplies its own control composition and shape. */
 @Composable
-fun PlayerUtilityRows(actions: List<PlayerUtilityAction>, spacing: Dp, content: @Composable RowScope.(PlayerUtilityAction, Int, Int) -> Unit) {
+fun PlayerUtilityRows(actions: List<PlayerUtilityAction>, spacing: Dp, modifier: Modifier = Modifier, content: @Composable RowScope.(PlayerUtilityAction, Int, Int) -> Unit) {
     if (actions.isEmpty()) return
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val minimumWidth = 64.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val minimumWidth = 48.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
         val columns = when {
             maxWidth >= minimumWidth * actions.size + spacing * (actions.size - 1) -> actions.size
             maxWidth >= minimumWidth * 2 + spacing -> 2

@@ -17,7 +17,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
-import dev.cmdrchara.songlass.designsystem.PlayerOutputAction
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -65,40 +64,21 @@ internal fun MiuixPlaybackTools(visible: Boolean, title: String, subtitle: Strin
     }
 }
 
-/** One compact native row for device/audio, then independent native utility buttons. */
+/** Independent native buttons, one icon each; a live value sits beside its icon. */
 @Composable
-internal fun MiuixPlayerUtilities(output: PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<PlayerUtilityAction>, modifier: Modifier) {
+internal fun MiuixPlayerUtilities(actions: List<PlayerUtilityAction>, modifier: Modifier) {
     val colors = AppTheme.colors
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        MiuixGroup({
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (output != null) {
-                    BasicComponent(Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = output.accessibilityLabel },
-                        insideMargin = PaddingValues(horizontal = 14.dp, vertical = 10.dp), onClick = output.onClick, role = Role.Button,
-                        startAction = { Box(Modifier.padding(end = 8.dp)) { AppIcon(AppIcons.AudioOutput, null, size = 22.dp) } },
-                    ) { AppText(output.label, AppTheme.typography.footnote, color = colors.secondaryLabel, modifier = Modifier.clearAndSetSemantics {}) }
-                } else Spacer(Modifier.weight(1f))
-                Button(onClick = onAudio, modifier = Modifier.padding(4.dp).heightIn(min = 48.dp), cornerRadius = 16.dp,
-                    colors = ButtonDefaults.buttonColors(color = colors.fill, contentColor = colors.label)) {
-                    AppIcon(AppIcons.Equalizer, null, size = 20.dp)
-                    Spacer(Modifier.width(6.dp))
-                    AppText(audioLabel, AppTheme.typography.subheadline)
-                }
+    PlayerUtilityRows(actions, spacing = 8.dp, modifier = modifier) { action, _, _ ->
+        Button(onClick = action.onClick, modifier = Modifier.weight(if (action.badge != null) 1.8f else 1f).heightIn(min = 48.dp).semantics { selected = action.selected; contentDescription = action.accessibilityLabel },
+            insideMargin = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
+            cornerRadius = 16.dp, colors = ButtonDefaults.buttonColors(
+                color = if (action.selected) colors.accent.copy(alpha = 0.16f) else colors.fill,
+                contentColor = if (action.selected) colors.accent else colors.label,
+            )) {
+            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(action.icon, null, size = 22.dp, tint = if (action.selected) colors.accent else colors.label)
+                action.badge?.let { AppText(it, AppTheme.typography.caption1, color = colors.accent, modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics {}, maxLines = 1) }
             }
-        }, Modifier)
-        PlayerUtilityRows(actions, spacing = 8.dp) { action, _, _ ->
-                Button(onClick = action.onClick, modifier = Modifier.weight(1f).heightIn(min = 58.dp).semantics { selected = action.selected; contentDescription = action.accessibilityLabel },
-                    insideMargin = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
-                    cornerRadius = 18.dp, colors = ButtonDefaults.buttonColors(
-                        color = if (action.selected) colors.accent.copy(alpha = 0.16f) else colors.fill,
-                        contentColor = if (action.selected) colors.accent else colors.label,
-                    )) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        AppIcon(action.icon, null, size = 22.dp, tint = if (action.selected) colors.accent else colors.label)
-                        AppText(action.label, AppTheme.typography.caption1.copy(textAlign = TextAlign.Center),
-                            color = if (action.selected) colors.accent else colors.secondaryLabel, modifier = Modifier.clearAndSetSemantics {})
-                    }
-                }
         }
     }
 }

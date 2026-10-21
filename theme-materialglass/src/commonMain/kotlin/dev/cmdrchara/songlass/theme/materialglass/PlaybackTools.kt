@@ -23,7 +23,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
-import dev.cmdrchara.songlass.designsystem.PlayerOutputAction
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -88,43 +87,23 @@ internal fun MaterialPlaybackTools(visible: Boolean, title: String, subtitle: St
     }
 }
 
-/** Separate device chip and connected, labelled listening controls; no Apple toolbar re-skin. */
+/** Connected tonal icon buttons; the selected one becomes a rounded primary-container pill. */
 @Composable
-internal fun MaterialPlayerUtilities(output: PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<PlayerUtilityAction>, modifier: Modifier, palette: SeaPalette) {
+internal fun MaterialPlayerUtilities(actions: List<PlayerUtilityAction>, modifier: Modifier, palette: SeaPalette) {
     val look = LocalGlassLook.current
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            if (output != null) {
-                Row(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp)).background(palette.containerHigh)
-                    .clickable(remember { MutableInteractionSource() }, look.pressIndication(), role = Role.Button, onClick = output.onClick).semantics { contentDescription = output.accessibilityLabel }
-                    .padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AppIcon(AppIcons.AudioOutput, null, size = 20.dp, tint = palette.primary)
-                    Spacer(Modifier.width(8.dp))
-                    AppText(output.label, AppTheme.typography.footnote, color = palette.label, modifier = Modifier.weight(1f).clearAndSetSemantics {})
-                }
-            } else Spacer(Modifier.weight(1f))
-            Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(14.dp)).background(palette.primaryContainer)
-                .clickable(remember { MutableInteractionSource() }, look.pressIndication(), role = Role.Button, onClick = onAudio)
-                .padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(AppIcons.Equalizer, null, size = 20.dp, tint = palette.onPrimaryContainer)
-                Spacer(Modifier.width(6.dp))
-                AppText(audioLabel, AppTheme.typography.subheadline, color = palette.onPrimaryContainer)
-            }
-        }
-        PlayerUtilityRows(actions, spacing = 3.dp) { action, index, rowSize ->
-                val shape = if (action.selected) RoundedCornerShape(22.dp) else RoundedCornerShape(
-                    topStart = if (index == 0) 22.dp else 6.dp, bottomStart = if (index == 0) 22.dp else 6.dp,
-                    topEnd = if (index == rowSize - 1) 22.dp else 6.dp, bottomEnd = if (index == rowSize - 1) 22.dp else 6.dp,
-                )
-                val foreground = if (action.selected) palette.onPrimaryContainer else palette.secondaryLabel
-                Column(Modifier.weight(1f).heightIn(min = 58.dp).clip(shape)
-                    .background(if (action.selected) palette.primaryContainer else palette.containerHigh)
-                    .clickable(remember { MutableInteractionSource() }, look.pressIndication(), role = Role.Button, onClick = action.onClick)
-                    .semantics { selected = action.selected; contentDescription = action.accessibilityLabel }.padding(horizontal = 6.dp, vertical = 9.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    AppIcon(action.icon, null, size = 22.dp, tint = foreground)
-                    AppText(action.label, AppTheme.typography.caption1.copy(textAlign = TextAlign.Center), color = foreground, modifier = Modifier.clearAndSetSemantics {})
-                }
+    PlayerUtilityRows(actions, spacing = 3.dp, modifier = modifier) { action, index, rowSize ->
+        val shape = if (action.selected) RoundedCornerShape(22.dp) else RoundedCornerShape(
+            topStart = if (index == 0) 22.dp else 6.dp, bottomStart = if (index == 0) 22.dp else 6.dp,
+            topEnd = if (index == rowSize - 1) 22.dp else 6.dp, bottomEnd = if (index == rowSize - 1) 22.dp else 6.dp,
+        )
+        val foreground = if (action.selected) palette.onPrimaryContainer else palette.secondaryLabel
+        Row(Modifier.weight(if (action.badge != null) 1.8f else 1f).heightIn(min = 48.dp).clip(shape)
+            .background(if (action.selected) palette.primaryContainer else palette.containerHigh)
+            .clickable(remember { MutableInteractionSource() }, look.pressIndication(), role = Role.Button, onClick = action.onClick)
+            .semantics { selected = action.selected; contentDescription = action.accessibilityLabel }.padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(action.icon, null, size = 22.dp, tint = foreground)
+            action.badge?.let { AppText(it, AppTheme.typography.caption1, color = foreground, modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics {}, maxLines = 1) }
         }
     }
 }

@@ -21,7 +21,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
-import dev.cmdrchara.songlass.designsystem.PlayerOutputAction
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -82,36 +81,17 @@ internal fun LiquidPlaybackTools(visible: Boolean, title: String, subtitle: Stri
     }
 }
 
+/** A single row of icons; a selected one gets a soft tonal backdrop, a live value sits beside its icon. */
 @Composable
-internal fun LiquidPlayerUtilities(output: PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<PlayerUtilityAction>, modifier: Modifier) {
+internal fun LiquidPlayerUtilities(actions: List<PlayerUtilityAction>, modifier: Modifier) {
     val colors = AppTheme.colors
-    Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (output != null) {
-                Row(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
-                    .clickable(role = Role.Button, onClick = output.onClick).semantics { contentDescription = output.accessibilityLabel }.padding(end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AppIcon(AppIcons.AudioOutput, null, size = 22.dp)
-                    Spacer(Modifier.width(8.dp))
-                    AppText(output.label, AppTheme.typography.footnote, modifier = Modifier.weight(1f).clearAndSetSemantics {}, color = colors.secondaryLabel)
-                }
-            } else Spacer(Modifier.weight(1f))
-            Row(Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Button, onClick = onAudio)
-                .padding(horizontal = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(AppIcons.Equalizer, null, size = 20.dp)
-                Spacer(Modifier.width(6.dp))
-                AppText(audioLabel, AppTheme.typography.subheadline)
-            }
-        }
-        PlayerUtilityRows(actions, spacing = 8.dp) { action, _, _ ->
-                Column(Modifier.weight(1f).heightIn(min = 54.dp).clip(RoundedCornerShape(14.dp))
-                    .background(if (action.selected) colors.fill else Color.Transparent)
-                    .clickable(role = Role.Button, onClick = action.onClick).semantics { selected = action.selected; contentDescription = action.accessibilityLabel }
-                    .padding(horizontal = 4.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    AppIcon(action.icon, null, size = 22.dp, tint = if (action.selected) colors.accent else colors.label)
-                    AppText(action.label, AppTheme.typography.caption1.copy(textAlign = TextAlign.Center),
-                        color = if (action.selected) colors.accent else colors.secondaryLabel, modifier = Modifier.clearAndSetSemantics {})
-                }
+    PlayerUtilityRows(actions, spacing = 4.dp, modifier = modifier) { action, _, _ ->
+        Row(Modifier.weight(if (action.badge != null) 1.8f else 1f).heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
+            .background(if (action.selected) colors.fill else Color.Transparent)
+            .clickable(role = Role.Button, onClick = action.onClick).semantics { selected = action.selected; contentDescription = action.accessibilityLabel }
+            .padding(horizontal = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(action.icon, null, size = 24.dp, tint = if (action.selected) colors.accent else colors.label)
+            action.badge?.let { AppText(it, AppTheme.typography.caption1, color = colors.accent, modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics {}, maxLines = 1) }
         }
     }
 }

@@ -42,8 +42,8 @@ object MiuixLook : GlassLook {
         MiuixPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
 
     @Composable
-    override fun PlayerUtilityBar(output: dev.cmdrchara.songlass.designsystem.PlayerOutputAction?, audioLabel: String, onAudio: () -> Unit, actions: List<PlayerUtilityAction>, modifier: Modifier) =
-        MiuixPlayerUtilities(output, audioLabel, onAudio, actions, modifier)
+    override fun PlayerUtilityBar(actions: List<PlayerUtilityAction>, modifier: Modifier) =
+        MiuixPlayerUtilities(actions, modifier)
     override val homeShortcutKindMenu = true
     override val lyricsPresentation = dev.cmdrchara.songlass.designsystem.LyricsPresentation(fontSize = 32f, lineHeight = 43f, weight = 600, verticalPadding = 12f, selectionCorner = 18f)
 

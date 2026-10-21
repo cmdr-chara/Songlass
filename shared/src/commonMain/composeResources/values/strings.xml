@@ -89,7 +89,6 @@
     <string name="playback_artwork">Album artwork</string>
     <string name="playback_expand_artwork">Expand album artwork</string>
     <string name="playback_close_artwork">Close album artwork</string>
-    <string name="playback_audio_output">Audio output and volume</string>
     <string name="playback_on_device">On this device · Song information</string>
     <string name="playback_song_info">Song Information</string>
     <string name="playback_info_title">Title</string>
@@ -150,7 +149,6 @@
     <string name="sort_most_played">Most played</string>
     <string name="action_pin">Pin to Library</string>
     <string name="action_unpin">Unpin from Library</string>
-    <string name="playback_volume">Volume</string>
     <string name="sleep_title">Sleep Timer</string>
     <plurals name="sleep_minutes">
         <item quantity="one">%1$d minute</item>

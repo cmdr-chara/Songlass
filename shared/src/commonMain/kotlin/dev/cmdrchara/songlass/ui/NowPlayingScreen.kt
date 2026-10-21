@@ -31,7 +31,6 @@ import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
-import dev.cmdrchara.songlass.designsystem.PlayerOutputAction
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityBar
 import dev.cmdrchara.songlass.designsystem.ScreenTransition
 import dev.cmdrchara.songlass.designsystem.SeekBar
@@ -58,8 +57,6 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val isLongTrack = durationForControls >= preferences.longTrackThresholdMs && durationForControls > 0L
     val secondary = LocalContentColor.current.copy(alpha = 0.72f)
     val isFavorite = track.id in favoriteIds
-    val outputPicker = rememberAudioOutputPicker()
-    val outputName = player.outputRoute?.let { audioOutputName(it) } ?: rememberAudioOutputName()
     val quality = audioQualityLabel(player.audioFormat)
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
@@ -137,7 +134,6 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                     }
                 }
                 val compact = state.playerPage == PlayerPage.Lyrics
-                val systemVolume = rememberSystemVolume()
                 val sleepTimer by state.sleepTimer.state.collectAsState()
                 // Controls take their natural height: the artwork and title get the rest.
                 Column(
@@ -185,9 +181,6 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                         }
                     }
                     SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality, isPlaying = player.isPlaying)
-                    if (!compact && systemVolume != null) {
-                        VolumeSlider(systemVolume.value, systemVolume.set, stringResource(Res.string.playback_volume))
-                    }
                     val minutesLeft = sleepMinutesLeft(sleepTimer)
                     val timerLabel = when {
                         minutesLeft != null -> stringResource(Res.string.player_timer_minutes, minutesLeft)
@@ -195,18 +188,14 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                         else -> stringResource(Res.string.player_timer_short)
                     }
                     PlayerUtilityBar(
-                        output = outputPicker?.let { PlayerOutputAction(
-                            outputName ?: stringResource(Res.string.playback_audio_output),
-                            listOfNotNull(stringResource(Res.string.playback_audio_output), outputName).joinToString(", "), it,
-                        ) },
-                        audioLabel = stringResource(Res.string.audio_tools_title),
-                        onAudio = state::showSongInfo,
                         actions = listOf(
-                            PlayerUtilityAction(timerLabel, AppIcons.Timer, sleepTimer != SleepTimerState.Off, state::openSleepMenu,
+                            PlayerUtilityAction(stringResource(Res.string.player_timer_short), AppIcons.Timer, sleepTimer != SleepTimerState.Off, state::openSleepMenu,
                                 accessibilityLabel = if (sleepTimer == SleepTimerState.Off) stringResource(Res.string.sleep_title)
-                                    else "${stringResource(Res.string.sleep_title)}, $timerLabel"),
+                                    else "${stringResource(Res.string.sleep_title)}, $timerLabel",
+                                badge = timerLabel.takeIf { sleepTimer != SleepTimerState.Off }),
                             PlayerUtilityAction(stringResource(Res.string.playback_lyrics), AppIcons.Lyrics, state.playerPage == PlayerPage.Lyrics, state::toggleLyrics),
                             PlayerUtilityAction(stringResource(Res.string.player_queue_short), AppIcons.Queue, state.isQueueVisible, state::toggleQueue),
+                            PlayerUtilityAction(stringResource(Res.string.audio_tools_title), AppIcons.Equalizer, false, state::showSongInfo),
                             PlayerUtilityAction(stringResource(Res.string.action_more), AppIcons.More, false, onClick = { state.openMenu(track) }),
                         ),
                         modifier = Modifier.padding(bottom = 8.dp),

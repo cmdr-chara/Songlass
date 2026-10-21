@@ -16,4 +16,6 @@
     <string name="player_queue_short">Queue</string>
     <string name="queue_saved_playlist">Saved: %1$s</string>
     <string name="queue_saved_open">Open playlist</string>
+    <string name="audio_tools_output_volume">Output and volume</string>
+    <string name="audio_tools_output_change">Change</string>
 </resources>
