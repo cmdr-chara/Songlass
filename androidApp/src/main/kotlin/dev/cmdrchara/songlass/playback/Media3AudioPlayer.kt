@@ -148,7 +148,7 @@ class Media3AudioPlayer(
     private var fadePlan: CrossfadePlan? = null
     private var manualPreparing: Long? = null
     private var lastCrossfadeStatus: CrossfadeStatus? = null
-    private var editingTrackId: String? = null
+    private var editingUri: String? = null
     private var resumeAfterEdit = false
     private var positionAfterEdit = 0L
     private var reportedDisconnect = false
@@ -293,10 +293,14 @@ class Media3AudioPlayer(
         returnToPrimaryIfDisabled()
         val voice = active
         voice.track = track
-        if (track.id == editingTrackId) {
+        if (track.uri == editingUri) {
             resumeAfterEdit = playWhenReady
+            if (playWhenReady) { latestDisconnect = null; reportedDisconnect = false }
             positionAfterEdit = initialPositionMs
             voice.player.stop()
+            voice.player.clearMediaItems()
+            nextPlacement = NextPlacement.None
+            publishState()
             return
         }
         voice.replayGain = null
@@ -322,7 +326,7 @@ class Media3AudioPlayer(
         // Repeated commands take control immediately; never create a third voice or let a stale
         // pending request replace the newly selected track. A file write must also remain exclusive.
         val reason = when {
-            fading != null || editingTrackId != null -> CrossfadeSkipReason.Interrupted
+            fading != null || editingUri != null -> CrossfadeSkipReason.Interrupted
             else -> decision.skipReason
         }
         if (reason != null) {
@@ -393,7 +397,7 @@ class Media3AudioPlayer(
         val voice = active
         if (voice.track?.isSameFileAs(track) != true) return
         voice.track = track
-        if (track.id == editingTrackId) return
+        if (track.uri == editingUri) return
         val player = voice.player
         if (player.currentMediaItem != null) player.replaceMediaItem(player.currentMediaItemIndex, track.toMediaItem())
     }
@@ -402,28 +406,58 @@ class Media3AudioPlayer(
      * Close readers before rewriting a file whose audio offsets may move with its tags. With an
      * overlap running or the next track prepared, every decoder that holds the file is released.
      */
-    suspend fun withFileWrite(track: Track, write: suspend () -> Unit) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-        val affected = loadedTrack?.id == track.id
-        editingTrackId = track.id
-        // An overlap holds two files open: end it if either one is the edited file.
-        if (fading != null && (affected || fading?.track?.id == track.id)) finishFade(CrossfadeSkipReason.Interrupted)
-        resumeAfterEdit = affected && active.player.playWhenReady
-        positionAfterEdit = if (affected) active.player.currentPosition else 0
-        if (affected) active.player.stop()
-        if (nextTrack?.id == track.id) {
-            // Both the second item of the active player and the prepared standby may hold the file.
-            clearSpare()
-            removeNextFromActive()
-            nextPlacement = NextPlacement.None
-            handler.removeCallbacks(trigger)
+    suspend fun withFileWriteUri(uri: String, write: suspend () -> Unit) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+        check(editingUri == null) { "A file write is already active" }
+        val affected = loadedTrack?.uri == uri
+        resumeAfterEdit = affected && (active.player.playWhenReady ||
+            (manualPreparing != null && fading?.player?.playWhenReady == true && !isManualPreparationSuppressed()))
+        positionAfterEdit = if (affected) active.player.currentPosition.coerceAtLeast(0) else 0
+        var verified = false
+        editingUri = uri
+        try {
+            // The application reconciles the controller's retained native advance immediately before
+            // this guard. Only then may replacing the active decoder invalidate buffered end events.
+            if (affected) { eventGeneration++; latestAdvance = null }
+            // An overlap holds two files open: end it if either one is the edited file.
+            if (fading != null && (affected || fading?.track?.uri == uri)) {
+                finishFade(CrossfadeSkipReason.Interrupted, continuePrepared = !affected)
+            }
+            if (affected) {
+                active.player.pause()
+                active.player.stop()
+                active.player.clearMediaItems()
+            }
+            if (affected || nextTrack?.uri == uri) {
+                // Both the second item of the active player and the prepared standby may hold the file.
+                clearSpare()
+                removeNextFromActive()
+                nextPlacement = NextPlacement.None
+                handler.removeCallbacks(trigger)
+            }
+            publishState()
+            write()
+            verified = true
         }
-        try { write() }
         finally {
-            editingTrackId = null
-            val latest = loadedTrack
-            if (latest?.id == track.id) {
-                loadAt(latest, resumeAfterEdit, positionAfterEdit)
-            } else if (nextTrack?.id == track.id) reconcileNext(force = true)
+            editingUri = null
+            if (verified) {
+                val latest = loadedTrack
+                if (latest?.uri == uri) {
+                    loadAt(latest, resumeAfterEdit, positionAfterEdit)
+                } else if (nextTrack?.uri == uri) reconcileNext(force = true)
+            } else {
+                // The URI may now name a replacement, or a recovery may still be incomplete.
+                // Do not reopen it under the old track's identity, even if rollback was attempted.
+                if (nextTrack?.uri == uri) {
+                    nextTrack = null
+                    nextEntryId = null
+                    clearSpare()
+                    removeNextFromActive()
+                    nextPlacement = NextPlacement.None
+                    handler.removeCallbacks(trigger)
+                }
+                if (loadedTrack?.uri == uri) stop() else publishState()
+            }
         }
     }
 
@@ -472,7 +506,13 @@ class Media3AudioPlayer(
     }
 
     override fun play() {
-        if (loadedTrack?.id == editingTrackId && editingTrackId != null) { resumeAfterEdit = true; return }
+        if (loadedTrack?.uri == editingUri && editingUri != null) {
+            latestDisconnect = null
+            reportedDisconnect = false
+            resumeAfterEdit = true
+            publishState()
+            return
+        }
         if (manualPreparing != null) {
             fading?.player?.play()
             scheduleManualStart()
@@ -483,7 +523,7 @@ class Media3AudioPlayer(
     }
 
     override fun pause() {
-        if (loadedTrack?.id == editingTrackId && editingTrackId != null) { resumeAfterEdit = false; return }
+        if (loadedTrack?.uri == editingUri && editingUri != null) { resumeAfterEdit = false; publishState(); return }
         active.player.pause()
         fading?.player?.pause()
         if (manualPreparing != null) {
@@ -496,7 +536,7 @@ class Media3AudioPlayer(
         if (loadedTrack == null) return
         eventGeneration++
         latestAdvance = null
-        if (loadedTrack?.id == editingTrackId && editingTrackId != null) { positionAfterEdit = positionMs.coerceAtLeast(0); return }
+        if (loadedTrack?.uri == editingUri && editingUri != null) { positionAfterEdit = positionMs.coerceAtLeast(0); publishState(); return }
         // Seeking during an overlap means the user takes over the incoming track.
         interrupt(CrossfadeInterruption.Seek)
         active.player.seekTo(positionMs.coerceAtLeast(0))
@@ -692,7 +732,7 @@ class Media3AudioPlayer(
         val current = active.track
         val next = nextTrack
         val desired = when {
-            current == null || next == null || next.id == editingTrackId -> NextPlacement.None
+            current == null || next == null || current.uri == editingUri || next.uri == editingUri -> NextPlacement.None
             wantsOverlap(current, next) -> NextPlacement.Standby
             else -> NextPlacement.Active
         }
@@ -1024,10 +1064,12 @@ class Media3AudioPlayer(
     private fun publishState() {
         if (automaticHandoverInProgress) return
         val player = active.player
+        val editing = editingUri != null && loadedTrack?.uri == editingUri
         val error: PlaybackException? = player.playerError
         val infoReady = currentTrackIsReady()
         _state.value = PlayerState(
             status = when {
+                editing -> PlayerStatus.Buffering
                 error != null -> PlayerStatus.Error
                 manualPreparing != null -> PlayerStatus.Buffering
                 player.playbackState == Player.STATE_BUFFERING -> PlayerStatus.Buffering
@@ -1035,10 +1077,10 @@ class Media3AudioPlayer(
                 player.playbackState == Player.STATE_ENDED -> PlayerStatus.Ended
                 else -> PlayerStatus.Idle
             },
-            playWhenReady = manualPreparing != null || player.playWhenReady,
-            positionMs = player.currentPosition.coerceAtLeast(0),
-            durationMs = player.duration.takeIf { it > 0 } ?: 0,
-            errorMessage = error?.message,
+            playWhenReady = if (editing) resumeAfterEdit else manualPreparing != null || player.playWhenReady,
+            positionMs = if (editing) positionAfterEdit else player.currentPosition.coerceAtLeast(0),
+            durationMs = if (editing) loadedTrack?.durationMs?.coerceAtLeast(0) ?: 0 else player.duration.takeIf { it > 0 } ?: 0,
+            errorMessage = if (editing) null else error?.message,
             audioFormat = currentSourceFormat(),
             replayGain = active.replayGain,
             crossfadeStatus = lastCrossfadeStatus,
@@ -1059,6 +1101,7 @@ class Media3AudioPlayer(
 
     private fun currentTrackIsReady(): Boolean {
         val track = loadedTrack ?: return false
+        if (track.uri == editingUri) return false
         val player = active.player
         val item = player.currentMediaItem ?: return false
         if (!item.matchesTrack(track)) return false

@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import dev.cmdrchara.songlass.core.model.FileTagEditor
 import dev.cmdrchara.songlass.core.model.TagEditRequest
 
-enum class TagSaveResult { Saved, PermissionDenied, Failed }
+enum class TagSaveResult { Saved, PermissionDenied, SourceChanged, RecoveryRequired, Failed }
 
 /** Native image picker; selecting a cover does not modify the audio file. */
 @Composable

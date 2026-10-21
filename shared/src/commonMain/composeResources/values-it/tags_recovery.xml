@@ -1,0 +1,27 @@
+<resources>
+    <string name="tags_recovery_title">Modifica dei tag interrotta</string>
+    <string name="tags_recovery_intro">Songlass non ha potuto completare in sicurezza una precedente modifica del file. Le copie audio conservate sono ancora sul dispositivo. Salva un archivio di recupero prima di decidere se chiudere questo recupero.</string>
+    <plurals name="tags_recovery_files">
+        <item quantity="one">%1$d copia audio conservata</item>
+        <item quantity="other">%1$d copie audio conservate</item>
+    </plurals>
+    <string name="tags_recovery_no_copies">Nessuna copia audio trovata. L’archivio conserverà le informazioni di recupero rimaste.</string>
+    <string name="tags_recovery_checking">Controllo dei file di recupero…</string>
+    <string name="tags_recovery_export">Salva archivio di recupero…</string>
+    <string name="tags_recovery_exporting">Salvataggio e verifica dell’archivio di recupero…</string>
+    <string name="tags_recovery_archiving">Archiviazione delle copie conservate…</string>
+    <string name="tags_recovery_saved">Archivio salvato e verificato. Contiene le copie conservate e le informazioni di recupero; questo non conferma che ogni copia audio sia riproducibile. Conservalo finché non avrai controllato la musica.</string>
+    <string name="tags_recovery_cancelled">Esportazione annullata. Il recupero e le copie private sono invariati. Nella posizione scelta potrebbe rimanere un documento incompleto.</string>
+    <string name="tags_recovery_failed">Impossibile completare o verificare l’operazione. Le copie conservate sono ancora sul dispositivo. Prova a salvare in un nuovo file nella memoria locale, ad esempio in Download.</string>
+    <string name="tags_recovery_archive">Chiudi questo recupero…</string>
+    <string name="tags_recovery_confirm">Conservare l’archivio verificato e chiudere questo recupero? Songlass manterrà le copie private e permetterà nuove modifiche ai tag. Questo non ripara né sostituisce il file musicale. Se necessario, estrai e controlla una copia originale dallo ZIP, poi ripristinala con il gestore file.</string>
+    <string name="tags_recovery_confirm_action">Conserva archivio e chiudi recupero</string>
+    <string name="tags_recovery_keep_pending">Mantieni il recupero aperto</string>
+    <string name="tags_recovery_archived">Recupero chiuso. Le copie private sono conservate e puoi modificare nuovamente i tag. Mantieni lo ZIP esportato finché non avrai controllato o ripristinato il file musicale.</string>
+    <string name="tags_recovery_cancel">Annulla esportazione</string>
+    <string name="tags_recovery_retry">Controlla di nuovo i file di recupero</string>
+    <string name="tags_recovery_unavailable">L’esportazione del recupero non è disponibile su questa piattaforma.</string>
+    <string name="tags_recovery_needed">Una precedente modifica dei tag richiede attenzione. Usa le opzioni di recupero qui sopra per salvare le copie conservate.</string>
+    <string name="tags_source_changed">Il file selezionato è cambiato. La bozza non è stata salvata. Scartala e ricarica i tag, oppure torna alla libreria per scegliere di nuovo il brano.</string>
+    <string name="tags_discard_reload">Scarta la bozza e ricarica i tag</string>
+</resources>

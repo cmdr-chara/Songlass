@@ -1,0 +1,85 @@
+Additional open-source components used by Songlass for Android
+
+This inventory accompanies the Apache License 2.0 and the additional original
+notices packaged with Songlass. Miuix, TagLib and the AutoEQ catalog have separate
+notices. Component versions below come from the resolved Android release runtime
+dependencies on 2026-10-21. Release optimization can remove unused code.
+
+AndroidX and Jetpack Compose — The Android Open Source Project
+Apache License 2.0
+https://developer.android.com/jetpack/androidx
+https://cs.android.com/androidx/platform/frameworks/support
+
+Activity 1.13.0; Annotation 1.10.0 and annotation-experimental 1.4.1;
+Architecture Components core 2.2.0; Autofill 1.0.0; Collection 1.6.0;
+Compose animation, foundation, runtime and UI 1.12.1;
+Material3 window size classes 1.5.0-alpha22; Concurrent Futures 1.2.0;
+Core and Core KTX 1.18.0, Core ViewTree 1.0.0; CustomView PoolingContainer 1.0.0;
+Emoji2 1.4.0; ExifInterface 1.3.6; Graphics Path 1.0.1; Interpolator 1.0.0;
+Lifecycle 2.11.0; Media 1.7.0; NavigationEvent 1.1.2;
+ProfileInstaller 1.4.0; SavedState 1.4.0; Startup 1.1.1;
+Tracing 2.0.3; VersionedParcelable 1.1.1; Window 1.5.0.
+
+AndroidX Media3 / ExoPlayer 1.11.1 — The Android Open Source Project
+Apache License 2.0
+Modules: common, container, database, datasource, decoder, exoplayer,
+extractor and session.
+https://github.com/androidx/media/tree/1.11.1
+
+Compose Multiplatform resources 1.12.2 — JetBrains and contributors
+Apache License 2.0
+Android forwarding modules in Compose Multiplatform 1.12.2 select the AndroidX
+implementations listed above. These versions need not be identical.
+https://github.com/JetBrains/compose-multiplatform
+
+Kotlin standard library 2.4.21 — JetBrains and Kotlin contributors
+Apache License 2.0, with the following upstream third-party portions:
+collections derived from GWT and unsigned operations derived from Guava
+(Apache License 2.0); kotlin.time portions derived from ThreeTenBP
+(BSD 3-Clause); JVM special math functions derived from Boost
+(Boost Software License 1.0).
+The original ThreeTenBP and Boost texts are packaged separately.
+https://github.com/JetBrains/kotlin/tree/v2.4.21
+https://github.com/JetBrains/kotlin/blob/v2.4.21/license/README.md
+
+kotlinx.coroutines core and Android 1.11.0 — JetBrains and contributors
+Apache License 2.0. The original library NOTICE is packaged separately.
+https://github.com/Kotlin/kotlinx.coroutines/tree/1.11.0
+
+kotlinx.serialization core 1.7.3 — JetBrains and contributors
+Apache License 2.0. The original library NOTICE is packaged separately.
+https://github.com/Kotlin/kotlinx.serialization/tree/v1.7.3
+
+MaterialKolor material-color-utilities 5.0.1
+Kotlin Multiplatform port by Jordon de Hoog and contributors of
+Google Material Color Utilities. This module is Apache License 2.0;
+its original module license, including Copyright 2021 Google LLC,
+is packaged separately.
+https://github.com/jordond/MaterialKolor/tree/5.0.1/material-color-utilities
+https://github.com/jordond/MaterialKolor/blob/5.0.1/README.md#license
+
+Haze, Haze Glass and Haze Utils 2.0.1 — Chris Banes and contributors
+Apache License 2.0
+https://github.com/chrisbanes/haze/tree/2.0.1
+
+Google Guava 33.3.1-android and failureaccess 1.0.2
+Apache License 2.0
+https://github.com/google/guava
+
+Poko annotations 0.23.1 — Drew Hamilton and contributors
+Apache License 2.0
+Only the runtime annotations are included in this inventory, not the compiler
+plugin used while building dependencies.
+https://github.com/drewhamilton/Poko/tree/0.23.1
+
+JetBrains Java annotations 23.0.0 — JetBrains
+Apache License 2.0
+https://github.com/JetBrains/java-annotations/tree/23.0.0
+
+JSpecify 1.0.0 — The JSpecify Authors
+Apache License 2.0
+https://github.com/jspecify/jspecify/tree/v1.0.0
+
+The original license and notice texts retain their upstream language,
+copyright years and wording. This inventory does not imply endorsement
+of Songlass by any upstream project or author.

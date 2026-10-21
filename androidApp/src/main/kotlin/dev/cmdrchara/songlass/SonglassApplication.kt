@@ -68,7 +68,36 @@ class SonglassApplication : Application() {
         artworkLoader = MediaStoreArtworkLoader(this)
         // The second player only exists while crossfade is on: Media3AudioPlayer builds it on demand.
         val audioPlayer = Media3AudioPlayer(exoPlayer, scope, first.equalizer, standbyFactory = { buildVoice(handleAudioFocus = false) })
-        val tagEditor = dev.cmdrchara.songlass.library.TagLibFileTagEditor(this, audioPlayer::withFileWrite) { graph.refreshLibrary() }
+        val tagEditor = dev.cmdrchara.songlass.library.TagLibFileTagEditor(this,
+            withFileWrite = { uri, write ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    graph.controller.prepareForFileWrite()
+                    try { audioPlayer.withFileWriteUri(uri, write) }
+                    catch (failure: Throwable) {
+                        // A rejected witness may mean this URI now names another recording.
+                        // Invalidate stale queue/marker opens before exposing the failure to UI.
+                        // SourceChanged is notified once by the outer editor operation, after
+                        // releasing its mutex. Other guard failures invalidate here immediately.
+                        if (failure !is dev.cmdrchara.songlass.core.model.TagEditSourceChangedException) {
+                            graph.onFileWriteFailure()
+                        }
+                        throw failure
+                    }
+                }
+            },
+            isCurrentSelection = { selected ->
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    graph.source.hasAccess.value && graph.hasCompleteLibraryScan.value &&
+                        !graph.isLibraryLoading.value && graph.libraryRefreshFailure.value == null &&
+                        dev.cmdrchara.songlass.core.tags.TagEditSelection.isCurrent(selected, graph.allTracks.value)
+                }
+            },
+            onSourceChanged = {
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    graph.onFileWriteFailure()
+                }
+            },
+        ) { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) { graph.refreshLibrary() } }
         graph = AppGraph(
             audioPlayer, musicSource, store, scope,
             // Reads the ExoPlayer of the current track, which changes when crossfade swaps players.

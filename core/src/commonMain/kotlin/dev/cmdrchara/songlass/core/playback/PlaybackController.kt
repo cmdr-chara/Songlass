@@ -9,13 +9,13 @@ import dev.cmdrchara.songlass.core.player.PlayerEvent
 import dev.cmdrchara.songlass.core.player.PlayerState
 import dev.cmdrchara.songlass.core.player.PlayerStatus
 import dev.cmdrchara.songlass.core.queue.PlaybackQueue
+import dev.cmdrchara.songlass.core.queue.QueueEntry
 import dev.cmdrchara.songlass.core.settings.AppPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlin.random.Random
@@ -46,6 +46,8 @@ class PlaybackController(
     private var loadedTrack: Track? = null
     private var libraryAvailability: TrackAvailability? = null
     private var handledAdvanceSerial = 0L
+    private var prefetchInitialized = false
+    private var prefetchedEntry: QueueEntry? = null
 
     /** Playback pauses when the current track ends (sleep timer "end of track"). */
     val stopAfterCurrent: StateFlow<Boolean> = _stopAfterCurrent.asStateFlow()
@@ -92,17 +94,33 @@ class PlaybackController(
         }
         // Keep the track that follows ready in the player, for gapless playback.
         scope.launch {
-            combine(_queue, _stopAfterCurrent) { queue, stop ->
-                if (stop) null else queue.nextIndex(userInitiated = false)?.let { queue.entries[it] }
-            }
-                .distinctUntilChanged()
-                .collect { player.setNext(it?.track, it?.id) }
+            combine(_queue, _stopAfterCurrent) { _, _ -> Unit }
+                .collect { reconcilePrefetch() }
         }
+    }
+
+    /** Re-read authoritative state: an older queued Flow emission must never re-arm a stale URI. */
+    private fun reconcilePrefetch(force: Boolean = false) {
+        val queue = _queue.value
+        val next = if (_stopAfterCurrent.value) null
+            else queue.nextIndex(userInitiated = false)?.let { queue.entries[it] }
+        if (!force && prefetchInitialized && prefetchedEntry == next) return
+        // Publish the command identity before calling a player that can emit synchronously.
+        prefetchInitialized = true
+        prefetchedEntry = next
+        player.setNext(next?.track, next?.id)
     }
 
     fun setStopAfterCurrent(enabled: Boolean) {
         synchronizeNativeAdvance()
         _stopAfterCurrent.value = enabled
+        reconcilePrefetch()
+    }
+
+    /** Main-thread boundary before a native file writer temporarily releases its decoders. */
+    fun prepareForFileWrite() {
+        synchronizeNativeAdvance()
+        checkpointCurrent(force = true)
     }
 
     fun pause() {
@@ -360,6 +378,9 @@ class PlaybackController(
         val availability = TrackAvailability(tracks, stableIds)
         libraryAvailability = availability
         _queue.update { it.withResolvedTracks(availability::resolve) }
+        // MainScope's collectors are dispatched. Do not leave an invalidated next file armed
+        // until that later message, especially after an early tag-source rejection or revoke.
+        reconcilePrefetch()
         _queue.value.current?.track?.takeIf { loadedTrack?.isSameFileAs(it) == true }?.let {
             loadedTrack = it
             player.updateMetadata(it)
@@ -484,7 +505,8 @@ class PlaybackController(
         val before = _queue.value
         val previousEntryId = before.current?.id
         val consumed = event.entryId?.let(before::indexOf)
-        val exact = consumed?.takeIf { it >= 0 && (event.track == null || before.entries[it].track.isSameFileAs(event.track)) }
+        val exact = consumed?.takeIf { it >= 0 && before.entries[it].isAvailable &&
+            (event.track == null || before.entries[it].track.isSameFileAs(event.track)) }
         if (event.entryId != null && exact == null) {
             // The decoder already advanced, but this slot was removed/remapped while its
             // event waited for the controller. Do not label a different track as that decoder.
@@ -514,9 +536,7 @@ class PlaybackController(
         // Repeat one (or a one-slot Repeat all) keeps an equal queue state. The native player
         // consumed its prepared item, so StateFlow/distinct cannot re-arm it for us.
         if (_queue.value.current?.id == previousEntryId) {
-            val queue = _queue.value
-            val next = queue.nextIndex(userInitiated = false)?.let { queue.entries[it] }
-            player.setNext(next?.track, next?.id)
+            reconcilePrefetch(force = true)
         }
     }
 

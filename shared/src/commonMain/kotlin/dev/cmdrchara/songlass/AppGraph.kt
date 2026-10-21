@@ -274,6 +274,17 @@ class AppGraph(
     /** Retry is process-scoped, so closing the reporting screen does not abandon a scan. */
     fun requestLibraryRefresh() { scope.launch { refreshLibrary() } }
 
+    /** Called on Main when a file writer rejects stale identity or cannot verify its write. */
+    fun onFileWriteFailure() {
+        // A scan already in flight may have observed the address before it changed. It must
+        // not publish after this boundary, even if read permission was never revoked.
+        libraryAccessGeneration++
+        _hasCompleteLibraryScan.value = false
+        _libraryRefreshFailure.value = LibraryRefreshFailure.Read
+        invalidateLibraryAvailability()
+        requestLibraryRefresh()
+    }
+
     /** Keep the displayed snapshot and open decoder, but never reopen unverified file addresses. */
     private fun invalidateLibraryAvailability() {
         trackMarkers.setLibrary(emptyList(), stableIds = source.hasStableTrackIds)

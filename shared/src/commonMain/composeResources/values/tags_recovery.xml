@@ -1,0 +1,27 @@
+<resources>
+    <string name="tags_recovery_title">Interrupted tag edit</string>
+    <string name="tags_recovery_intro">Songlass could not safely finish a previous file edit. Retained audio copies are still on this device. Save a recovery archive before deciding whether to close this recovery.</string>
+    <plurals name="tags_recovery_files">
+        <item quantity="one">%1$d retained audio copy</item>
+        <item quantity="other">%1$d retained audio copies</item>
+    </plurals>
+    <string name="tags_recovery_no_copies">No audio copy could be found. The archive will preserve the remaining recovery details.</string>
+    <string name="tags_recovery_checking">Checking retained recovery files…</string>
+    <string name="tags_recovery_export">Save recovery archive…</string>
+    <string name="tags_recovery_exporting">Saving and verifying the recovery archive…</string>
+    <string name="tags_recovery_archiving">Archiving the retained copies…</string>
+    <string name="tags_recovery_saved">Archive saved and verified. It contains retained copies and recovery details; this does not confirm that each audio copy is playable. Keep it until you have checked your music.</string>
+    <string name="tags_recovery_cancelled">Export cancelled. The pending recovery and private copies are unchanged. An incomplete document may remain in the location you chose.</string>
+    <string name="tags_recovery_failed">The operation could not be completed or verified. Your retained copies are still on this device. Try saving to a new file in local storage, such as Downloads.</string>
+    <string name="tags_recovery_archive">Close this recovery…</string>
+    <string name="tags_recovery_confirm">Keep the verified archive and close this recovery? Songlass will retain its private copies and allow new tag edits. This does not repair or replace the music file. If needed, extract and check an original copy from the ZIP, then restore it with your file manager.</string>
+    <string name="tags_recovery_confirm_action">Keep archive and close recovery</string>
+    <string name="tags_recovery_keep_pending">Keep recovery open</string>
+    <string name="tags_recovery_archived">Recovery closed. The private copies have been retained, and new tag edits are available. Keep your exported ZIP until you have checked or restored the music file.</string>
+    <string name="tags_recovery_cancel">Cancel export</string>
+    <string name="tags_recovery_retry">Check recovery files again</string>
+    <string name="tags_recovery_unavailable">Recovery export is not available on this platform.</string>
+    <string name="tags_recovery_needed">A previous tag edit needs recovery. Use the recovery options above to save the retained copies.</string>
+    <string name="tags_source_changed">The selected file changed. Your draft was not saved. Discard the draft and reload its tags, or return to the library to choose the song again.</string>
+    <string name="tags_discard_reload">Discard draft and reload tags</string>
+</resources>

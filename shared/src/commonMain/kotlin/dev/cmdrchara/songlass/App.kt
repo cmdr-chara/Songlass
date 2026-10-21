@@ -238,7 +238,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             )
                             Route.Backup -> dev.cmdrchara.songlass.ui.BackupScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.Backup))
                             is Route.Bookmarks -> dev.cmdrchara.songlass.ui.BookmarksScreen(route.track, state, backLabel, padding)
-                            Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(state::goBack, padding, state.settingsFocusFor(Route.About))
+                            Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.About))
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
                             Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding, backLabel, state.settingsFocusFor(Route.LibrarySettings))
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)

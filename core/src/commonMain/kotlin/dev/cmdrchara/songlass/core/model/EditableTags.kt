@@ -37,10 +37,51 @@ data class EditableTags(
         (Regex("[0-9]{1,6}(?:/[0-9]{1,6})?").matches(text.trim()) && text.trim().split('/').all { it.toInt() > 0 })
 }
 
-data class TagEditRequest(val track: Track, val original: EditableTags, val edited: EditableTags, val coverUri: String? = null)
+/**
+ * Platform-owned evidence for the file whose tags were read. The key only binds restored drafts;
+ * a writer must independently validate its own opaque witness before touching the source file.
+ */
+interface TagEditWitness { val sourceKey: String }
+
+data class TagEditSnapshot(val tags: EditableTags, val witness: TagEditWitness) {
+    val sourceKey: String get() = witness.sourceKey
+}
+
+data class TagEditRequest(
+    val track: Track,
+    val snapshot: TagEditSnapshot,
+    val edited: EditableTags,
+    val coverUri: String? = null,
+) {
+    val original: EditableTags get() = snapshot.tags
+}
+
+/** No write was authorized: the form must be reopened against the current library selection. */
+class TagEditSourceChangedException : IllegalStateException("The selected audio file changed; reopen it before editing")
 
 /** Optional platform capability. An editor is exposed only when a real file writer is installed. */
 interface FileTagEditor {
-    suspend fun read(track: Track): EditableTags
+    suspend fun read(track: Track): TagEditSnapshot
     suspend fun save(request: TagEditRequest)
+
+    /** An interrupted edit can be handled independently of a now-missing library track. */
+    suspend fun recoveryInfo(): TagRecoveryInfo? = null
+
+    /** Writes retained copies to a new user-selected document and verifies its contents. */
+    suspend fun exportRecovery(recoveryId: String, destinationUri: String) {
+        throw UnsupportedOperationException("Tag recovery export is unavailable")
+    }
+
+    /** Explicit acknowledgement after verified export. Retains private originals in an archive. */
+    suspend fun archiveRecovery(recoveryId: String) {
+        throw UnsupportedOperationException("Tag recovery archive is unavailable")
+    }
 }
+
+data class TagRecoveryInfo(
+    /** Identifies the exact journal and retained copies; an old UI request cannot close a new edit. */
+    val id: String,
+    val retainedFiles: Int,
+    val bytes: Long,
+    val hasVerifiedExport: Boolean,
+)

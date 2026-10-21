@@ -1,0 +1,26 @@
+<resources>
+    <string name="about_version_with_build">Version %1$s · Build %2$s</string>
+    <string name="about_version_name">Version %1$s</string>
+    <string name="about_version_build">Build %1$s</string>
+    <string name="about_version_loading">Reading app version…</string>
+    <string name="about_version_unavailable">The installed app version could not be read.</string>
+    <string name="about_release_retry">Try again</string>
+    <string name="about_licenses_title">Included licenses and notices</string>
+    <string name="about_licenses_body">Read the notices packaged with this version of Songlass. These documents are available offline and retain their original language.</string>
+    <string name="about_license_autoeq">AutoEQ</string>
+    <string name="about_license_miuix">Miuix</string>
+    <string name="about_license_taglib">TagLib Android and TagLib</string>
+    <string name="about_license_taglib_summary">Apache 2.0; LGPL 2.1 or MPL 1.1</string>
+    <string name="about_license_other">Other open-source components</string>
+    <string name="about_license_other_summary">AndroidX, Kotlin, Haze and other runtime libraries</string>
+    <string name="about_license_notice">Notice and source references</string>
+    <string name="about_license_mit">MIT License</string>
+    <string name="about_license_apache">Apache License 2.0</string>
+    <string name="about_license_lgpl">GNU Lesser General Public License 2.1</string>
+    <string name="about_license_mpl">Mozilla Public License 1.1</string>
+    <string name="about_license_bsd3">BSD 3-Clause License</string>
+    <string name="about_license_boost">Boost Software License 1.0</string>
+    <string name="about_license_loading">Loading the included documents…</string>
+    <string name="about_license_unavailable">The included documents could not be opened. Try again, or return to About Songlass.</string>
+    <string name="about_link_unavailable">The link could not be opened. Try again when a browser is available.</string>
+</resources>

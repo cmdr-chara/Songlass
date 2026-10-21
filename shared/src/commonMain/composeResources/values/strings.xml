@@ -317,12 +317,12 @@
     <string name="about_title">About Songlass</string>
     <string name="about_tagline">Your local music player.</string>
     <string name="about_privacy_title">Your music, your device</string>
-    <string name="about_privacy_body">Your library, playlists, favourites and listening history are stored on your device. Songlass does not upload your audio files. System backups may include app data, depending on your device settings.</string>
+    <string name="about_privacy_body">Your library, playlists, favourites and listening history are stored on your device. Online lyrics and EQ lookups do not send your audio files. On Android, Songlass excludes its private app data from automatic system cloud backups and device transfers; use the manual backup to transfer that data. Manual backups and recovery archives are not encrypted by Songlass and are saved to the location you choose, which may be a cloud provider.</string>
     <string name="about_lyrics_title">Online lyrics</string>
     <string name="about_lyrics_body">When you open Lyrics without imported or embedded lyrics and AMLL is enabled, Songlass sends the title, artist and album to api.amll.dev to look for word-timed lyrics. If AMLL is off or no results are usable, it asks LRCLIB with the same metadata and the duration. These services also receive your IP address, never audio files or library scans. Successful downloads are cached privately on your device. AMLL TTML Database and its contributors provide the additional timings. You can turn off AMLL in Settings → Lyrics.</string>
     <string name="about_lyrics_source">AMLL TTML Database</string>
     <string name="about_tags_title">Editing your files</string>
-    <string name="about_tags_body">Saving changes in the tag editor updates the selected audio file. Android may ask for permission before the change.</string>
+    <string name="about_tags_body">On Android, saving in the tag editor updates the selected audio file, with system permission when required. An interrupted edit may leave private recovery copies on this device. You can export an archive containing the available copies and recovery details and, after the export is verified, choose whether to close the recovery. Closing it retains the local copies and allows new edits; it does not repair or replace your music file.</string>
 
     <!-- AutoEQ catalog and explicit correction preview/apply. -->
     <string name="autoeq_title">Find your headphones</string>

@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import dev.cmdrchara.songlass.core.model.FileTagEditor
 import dev.cmdrchara.songlass.core.model.TagEditRequest
+import dev.cmdrchara.songlass.core.model.TagEditSourceChangedException
+import dev.cmdrchara.songlass.core.tags.TagRecoveryRequiredException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -33,6 +35,8 @@ actual fun rememberTagSaver(editor: FileTagEditor, onResult: (TagSaveResult) -> 
         else scope.launch {
             try { editor.save(request); result(TagSaveResult.Saved) }
             catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: TagEditSourceChangedException) { result(TagSaveResult.SourceChanged) }
+            catch (_: TagRecoveryRequiredException) { result(TagSaveResult.RecoveryRequired) }
             catch (_: Exception) { result(TagSaveResult.Failed) }
         }
     }
@@ -40,6 +44,8 @@ actual fun rememberTagSaver(editor: FileTagEditor, onResult: (TagSaveResult) -> 
         if (pending == null) scope.launch {
             try { editor.save(request); result(TagSaveResult.Saved) }
             catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: TagEditSourceChangedException) { result(TagSaveResult.SourceChanged) }
+            catch (_: TagRecoveryRequiredException) { result(TagSaveResult.RecoveryRequired) }
             catch (_: SecurityException) {
                 val uri = Uri.parse(request.track.uri)
                 try {

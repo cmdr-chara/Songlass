@@ -317,12 +317,12 @@
     <string name="about_title">Informazioni su Songlass</string>
     <string name="about_tagline">Il tuo lettore di musica locale.</string>
     <string name="about_privacy_title">La tua musica, sul tuo dispositivo</string>
-    <string name="about_privacy_body">Libreria, playlist, preferiti e cronologia di ascolto sono salvati sul dispositivo. Songlass non carica online i tuoi file audio. I backup di sistema possono includere i dati dell’app, secondo le impostazioni del dispositivo.</string>
+    <string name="about_privacy_body">Libreria, playlist, preferiti e cronologia di ascolto sono salvati sul dispositivo. Le ricerche online di testi e correzioni EQ non inviano file audio. Su Android, Songlass esclude i propri dati privati dai backup automatici di sistema nel cloud e dal trasferimento fra dispositivi: per trasferirli usa il backup manuale. I backup manuali e gli archivi di recupero non sono cifrati da Songlass e vengono salvati nella destinazione scelta, che può appartenere a un servizio cloud.</string>
     <string name="about_lyrics_title">Testi online</string>
     <string name="about_lyrics_body">Aprendo Testo senza testi importati o incorporati, se AMLL è attivo Songlass invia titolo, artista e album ad api.amll.dev per cercare testi con tempi di parola. Se AMLL è disattivato o non trova un risultato utilizzabile, consulta LRCLIB con gli stessi metadati e la durata. Questi servizi ricevono anche il tuo indirizzo IP, mai file audio o scansioni della raccolta. I download riusciti restano nella cache privata del dispositivo. I tempi aggiuntivi provengono da AMLL TTML Database e dai suoi contributori. Puoi disattivare AMLL in Impostazioni → Testi.</string>
     <string name="about_lyrics_source">AMLL TTML Database</string>
     <string name="about_tags_title">Modifica dei file</string>
-    <string name="about_tags_body">Salvando le modifiche nell’editor tag aggiorni il file audio selezionato. Android può chiedere il permesso prima della modifica.</string>
+    <string name="about_tags_body">Su Android, il salvataggio nell’editor tag aggiorna il file audio selezionato, con il permesso del sistema quando richiesto. Dopo una modifica interrotta possono restare copie private di recupero sul dispositivo. Puoi esportare un archivio con le copie disponibili e i dettagli del recupero e, dopo la verifica dell’esportazione, scegliere se chiudere il recupero. La chiusura conserva le copie locali e consente nuove modifiche; non ripara né sostituisce il file musicale.</string>
 
     <!-- AutoEQ catalog and explicit correction preview/apply. -->
     <string name="autoeq_title">Trova le tue cuffie</string>
