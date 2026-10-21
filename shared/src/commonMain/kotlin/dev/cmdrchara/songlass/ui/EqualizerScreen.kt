@@ -3,6 +3,13 @@ package dev.cmdrchara.songlass.ui
 import dev.cmdrchara.songlass.designsystem.BackPageTitle
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.windowInsetsPadding
@@ -16,17 +23,26 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.equalizer.EqChain
 import dev.cmdrchara.songlass.core.equalizer.EqPreset
 import dev.cmdrchara.songlass.core.equalizer.Equalizer
+import dev.cmdrchara.songlass.core.equalizer.EqualizerProfileImport
+import dev.cmdrchara.songlass.core.equalizer.EqualizerProfileImportResult
 import dev.cmdrchara.songlass.core.equalizer.GraphicEq
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.EqBand
+import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.EqualizerEditor
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.SettingsChoiceRow
@@ -56,6 +72,10 @@ import dev.cmdrchara.songlass.shared.resources.eq_preset_more_treble
 import dev.cmdrchara.songlass.shared.resources.eq_preset_voice
 import dev.cmdrchara.songlass.shared.resources.eq_presets
 import dev.cmdrchara.songlass.shared.resources.eq_title
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import kotlin.math.abs
@@ -75,9 +95,30 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         else -> null
     }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
-    var importFailed by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    var importing by remember { mutableStateOf(false) }
+    var importFailure by remember { mutableStateOf<ProfileImportFailure?>(null) }
+    var importPreview by remember { mutableStateOf<EqualizerProfileImport?>(null) }
     val importer = rememberTextFileImporter(TextFileKind.EqualizerProfile) { fileName, text ->
-        importFailed = text == null || equalizer.importProfile(fileName ?: "AutoEQ", text) == null
+        importFailure = null
+        if (text == null) importFailure = ProfileImportFailure.Invalid
+        else if (!importing) {
+            // The parser only sees this immutable revision. Persisting/applying stays on the
+            // owner thread after a separate, explicit review of the destination and filters.
+            val expectedState = equalizer.state.value
+            importing = true
+            scope.launch {
+                try {
+                    val parsed = withContext(Dispatchers.Default) {
+                        equalizer.prepareProfileImport(fileName ?: "AutoEQ", text, expectedState)
+                    }
+                    if (parsed == null) importFailure = ProfileImportFailure.Invalid
+                    else importPreview = parsed
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (_: Exception) { importFailure = ProfileImportFailure.Failed }
+                finally { importing = false }
+            }
+        }
     }
     val separator = stringResource(Res.string.eq_decimal_separator)
     val bands = remember(state.gains) {
@@ -191,7 +232,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                     ListRow(
                         title = stringResource(Res.string.eq_headphones_import),
                         leading = { AppIcon(AppIcons.ImportFile, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
-                        onClick = importer,
+                        onClick = if (importing) null else ({ importFailure = null; importer() }),
                     )
                 }
                 state.profile?.let { profile ->
@@ -203,8 +244,52 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
                 }
             }
         }
-        if (importFailed) item { Hint(stringResource(Res.string.eq_import_failed)) }
+        if (importing) item { Hint(stringResource(Res.string.eq_import_reading)) }
+        importFailure?.let { failure -> item { Hint(stringResource(when (failure) {
+            ProfileImportFailure.Invalid -> Res.string.eq_import_failed
+            ProfileImportFailure.Changed -> Res.string.eq_import_changed
+            ProfileImportFailure.Failed -> Res.string.eq_import_save_failed
+        }), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) } }
         item { Hint(stringResource(Res.string.eq_headphones_hint)) }
+    }
+    importPreview?.let { preview ->
+        ProfileImportReview(preview, onDismiss = { importPreview = null }, onConfirm = {
+            importFailure = when (equalizer.confirmProfileImport(preview)) {
+                is EqualizerProfileImportResult.Saved -> null
+                EqualizerProfileImportResult.Changed -> ProfileImportFailure.Changed
+                EqualizerProfileImportResult.Invalid -> ProfileImportFailure.Invalid
+                EqualizerProfileImportResult.Failed -> ProfileImportFailure.Failed
+            }
+            importPreview = null
+        })
+    }
+}
+
+private enum class ProfileImportFailure { Invalid, Changed, Failed }
+
+/** A platform dialog sits above navigation; every visible control still uses the active look. */
+@Composable
+private fun ProfileImportReview(preview: EqualizerProfileImport, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    val output = preview.output
+    val outputName = output?.let { if (it.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else it.name }
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(pageInset), contentAlignment = Alignment.Center) {
+            SettingsGroup(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppText(stringResource(Res.string.eq_import_review), AppTheme.typography.title3,
+                        modifier = Modifier.semantics { heading() })
+                    AppText(preview.name, AppTheme.typography.headline)
+                    AppText(stringResource(Res.string.eq_import_filter_summary, preview.filters.size, preview.skipped),
+                        AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel)
+                    AppText(if (outputName == null) stringResource(Res.string.eq_import_manual_target)
+                        else stringResource(Res.string.eq_import_output_target, outputName), AppTheme.typography.body)
+                    AppText(stringResource(Res.string.eq_import_review_hint), AppTheme.typography.subheadline,
+                        color = AppTheme.colors.secondaryLabel)
+                    ActionButton(stringResource(Res.string.eq_import_confirm), onConfirm, Modifier.fillMaxWidth())
+                    ActionButton(stringResource(Res.string.action_cancel), onDismiss, Modifier.fillMaxWidth())
+                }
+            }
+        }
     }
 }
 
@@ -239,11 +324,11 @@ private fun formatGain(db: Float, separator: String): String {
 }
 
 @Composable
-private fun Hint(text: String) {
+private fun Hint(text: String, modifier: Modifier = Modifier) {
     AppText(
         text,
         AppTheme.typography.footnote,
         color = AppTheme.colors.label.copy(alpha = 0.7f),
-        modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+        modifier = modifier.padding(horizontal = 24.dp, vertical = 8.dp),
     )
 }

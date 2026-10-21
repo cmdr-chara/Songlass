@@ -1,0 +1,11 @@
+<resources>
+    <string name="eq_import_reading">Lettura del profilo equalizzatore…</string>
+    <string name="eq_import_review">Controlla il profilo equalizzatore</string>
+    <string name="eq_import_filter_summary">Filtri: %1$d · Righe ignorate: %2$d</string>
+    <string name="eq_import_manual_target">Si applica alle impostazioni manuali dell’equalizzatore.</string>
+    <string name="eq_import_output_target">Si applica al profilo salvato per «%1$s».</string>
+    <string name="eq_import_review_hint">L’importazione aggiunge questa correzione per cuffie e attiva l’equalizzatore. Le tue bande grafiche vengono mantenute. Le righe ignorate non vengono applicate.</string>
+    <string name="eq_import_confirm">Importa</string>
+    <string name="eq_import_changed">L’uscita audio o le impostazioni dell’equalizzatore sono cambiate. Nessun profilo importato. Importa di nuovo il file per controllare la destinazione attuale.</string>
+    <string name="eq_import_save_failed">Impossibile salvare il profilo. Le impostazioni attuali dell’equalizzatore non sono cambiate. Prova a importarlo di nuovo.</string>
+</resources>

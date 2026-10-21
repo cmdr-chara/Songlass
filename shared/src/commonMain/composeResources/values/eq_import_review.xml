@@ -1,0 +1,11 @@
+<resources>
+    <string name="eq_import_reading">Reading equalizer profile…</string>
+    <string name="eq_import_review">Review equalizer profile</string>
+    <string name="eq_import_filter_summary">Filters: %1$d · Skipped lines: %2$d</string>
+    <string name="eq_import_manual_target">Applies to your manual equalizer settings.</string>
+    <string name="eq_import_output_target">Applies to the saved profile for “%1$s”.</string>
+    <string name="eq_import_review_hint">Import adds this headphone correction and enables the equalizer. Your graphic bands are kept. Skipped lines are not applied.</string>
+    <string name="eq_import_confirm">Import</string>
+    <string name="eq_import_changed">The audio output or equalizer settings changed. Nothing was imported. Import the file again to review its current destination.</string>
+    <string name="eq_import_save_failed">The profile could not be saved. Your current equalizer settings are unchanged. Try importing it again.</string>
+</resources>

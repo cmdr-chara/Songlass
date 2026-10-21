@@ -4,56 +4,87 @@ package dev.cmdrchara.songlass.core.equalizer
 data class ParametricImport(val filters: List<EqFilter>, val skipped: Int)
 
 /**
- * Reads the parametric format of Equalizer APO, which AutoEQ (autoeq.app) exports for each
- * headphone model ("… ParametricEQ.txt"):
- *
- *     Preamp: -6.2 dB
- *     Filter 1: ON LSC Fc 105 Hz Gain 5.5 dB Q 0.70
- *     Filter 2: ON PK Fc 2000 Hz Gain -3.1 dB Q 1.41
- *
- * Peaking and shelf filters are kept; other types (low/high pass, notch) and disabled filters are
- * skipped. The preamp line is ignored: [EqChain.withHeadroom] computes the attenuation itself.
+ * Reads AutoEQ's Equalizer APO parametric exports. Peaking and shelf filters are retained;
+ * unsupported/disabled filters are reported as skipped. The file's preamp is ignored because
+ * [EqChain.withHeadroom] computes attenuation for the actual combined correction and graphic EQ.
  */
 object AutoEq {
     const val MAX_FILTERS = 20
+    /** Matches the existing document picker's limit, with ample room for normal text exports. */
+    const val MAX_INPUT_CHARS = 1024 * 1024
+    /** A filter has a handful of numeric fields; long malformed lines never enter token parsing. */
+    const val MAX_LINE_CHARS = 4096
+    const val MAX_FILE_NAME_CHARS = 4096
 
     fun parse(text: String, rejectOutOfRange: Boolean = false): ParametricImport {
+        if (text.length > MAX_INPUT_CHARS) return ParametricImport(emptyList(), 1)
         val filters = mutableListOf<EqFilter>()
         var skipped = 0
+        var firstLine = true
         for (raw in text.lineSequence()) {
-            val line = raw.trim()
+            val line = (if (firstLine) raw.removePrefix("\uFEFF") else raw).trim()
+            firstLine = false
             if (!line.startsWith("Filter", ignoreCase = true)) continue
-            val match = FILTER.find(line)
-            val type = match?.groupValues?.get(2)?.let(::typeOf)
-            if (match == null || type == null || !match.groupValues[1].equals("ON", ignoreCase = true) || filters.size >= MAX_FILTERS) {
+            if (line.length > MAX_LINE_CHARS || filters.size >= MAX_FILTERS) {
                 skipped++
                 continue
             }
-            val frequency = match.groupValues[3].toDoubleOrNull()
-            val gain = match.groupValues[4].toDoubleOrNull() ?: 0.0
-            val q = match.groupValues[5].toDoubleOrNull() ?: DEFAULT_SHELF_Q
-            if (frequency == null || frequency <= 0.0 || !frequency.isFinite() || !gain.isFinite() || !q.isFinite() ||
-                (rejectOutOfRange && (frequency !in 10.0..22_000.0 || gain !in -MAX_GAIN_DB..MAX_GAIN_DB || q !in 0.1..10.0 || match.range.last != line.lastIndex))) {
+            val filter = readFilter(line)
+            if (filter == null || filter.frequencyHz <= 0 || filter.q <= 0 ||
+                !filter.frequencyHz.isFinite() || !filter.gainDb.isFinite() || !filter.q.isFinite() ||
+                (rejectOutOfRange && !filter.isSupported)) {
                 skipped++
                 continue
             }
-            filters += EqFilter(
-                type = type,
-                frequencyHz = frequency.coerceIn(10.0, 22_000.0),
-                gainDb = gain.coerceIn(-MAX_GAIN_DB, MAX_GAIN_DB),
-                q = q.coerceIn(0.1, 10.0),
+            filters += filter.copy(
+                frequencyHz = filter.frequencyHz.coerceIn(10.0, 22_000.0),
+                gainDb = filter.gainDb.coerceIn(-MAX_GAIN_DB, MAX_GAIN_DB),
+                q = filter.q.coerceIn(0.1, 10.0),
             )
         }
         return ParametricImport(filters, skipped)
     }
 
-    /** "Sennheiser HD 600 ParametricEQ.txt" → "Sennheiser HD 600". */
-    fun nameFromFile(fileName: String): String = fileName
-        .substringAfterLast('/')
-        .substringBeforeLast('.')
-        .replace(SUFFIX, "")
-        .trim()
-        .ifEmpty { fileName }
+    /**
+     * Sequential parsing avoids the old overlapping whitespace repetitions around an optional
+     * filter number. Every character is examined a bounded number of times, even on malformed input.
+     */
+    private fun readFilter(line: String): EqFilter? {
+        val cursor = FilterCursor(line)
+        if (!cursor.word("Filter")) return null
+        cursor.optionalNumber()
+        if (!cursor.character(':') || !cursor.word("ON")) return null
+        val type = cursor.readWord()?.let(::typeOf) ?: return null
+        if (!cursor.word("Fc")) return null
+        val frequency = cursor.number() ?: return null
+        if (!cursor.word("Hz")) return null
+        var gain = 0.0
+        var q = DEFAULT_SHELF_Q
+        if (cursor.nextWordIs("Gain")) {
+            cursor.word("Gain")
+            gain = cursor.number() ?: return null
+            if (!cursor.word("dB")) return null
+        }
+        if (cursor.nextWordIs("Q")) {
+            cursor.word("Q")
+            q = cursor.number() ?: return null
+        }
+        if (!cursor.finished()) return null
+        return EqFilter(type, frequency, gain, q)
+    }
+
+    /** "Sennheiser HD 600 ParametricEQ.txt" → "Sennheiser HD 600", without a suffix regex. */
+    fun nameFromFile(fileName: String): String {
+        val base = fileName.replace('\\', '/').substringAfterLast('/').substringBeforeLast('.').trim()
+        var name = base
+        if (name.endsWith("eq", ignoreCase = true)) {
+            val beforeEq = name.dropLast(2).trimEnd()
+            if (beforeEq.endsWith("parametric", ignoreCase = true)) {
+                name = beforeEq.dropLast("parametric".length).trimEnd { it.isWhitespace() || it == '_' || it == '-' }
+            }
+        }
+        return name.trim().ifEmpty { fileName }
+    }
 
     private fun typeOf(code: String): FilterType? = when (code.uppercase()) {
         "PK", "PEQ" -> FilterType.Peaking
@@ -62,11 +93,60 @@ object AutoEq {
         else -> null
     }
 
+    private class FilterCursor(private val text: String) {
+        private var at = 0
+        private fun spaces() { while (at < text.length && text[at].isWhitespace()) at++ }
+        fun optionalNumber() {
+            spaces()
+            while (at < text.length && text[at] in '0'..'9') at++
+        }
+        fun character(expected: Char): Boolean {
+            spaces()
+            if (at >= text.length || text[at] != expected) return false
+            at++
+            return true
+        }
+        fun readWord(): String? {
+            spaces()
+            val start = at
+            while (at < text.length && (text[at] in 'a'..'z' || text[at] in 'A'..'Z')) at++
+            return if (at == start) null else text.substring(start, at)
+        }
+        fun word(expected: String): Boolean = readWord()?.equals(expected, ignoreCase = true) == true
+        fun nextWordIs(expected: String): Boolean {
+            val previous = at
+            val matches = word(expected)
+            at = previous
+            return matches
+        }
+        fun number(): Double? {
+            spaces()
+            val start = at
+            if (at < text.length && (text[at] == '+' || text[at] == '-')) at++
+            var digits = 0
+            while (at < text.length && text[at] in '0'..'9') { at++; digits++ }
+            if (at < text.length && text[at] == '.') {
+                at++
+                while (at < text.length && text[at] in '0'..'9') { at++; digits++ }
+            }
+            if (digits == 0) return null
+            if (at < text.length && (text[at] == 'e' || text[at] == 'E')) {
+                at++
+                if (at < text.length && (text[at] == '+' || text[at] == '-')) at++
+                val exponent = at
+                while (at < text.length && text[at] in '0'..'9') at++
+                if (at == exponent) return null
+            }
+            if (at - start > MAX_NUMBER_CHARS) return null
+            return text.substring(start, at).toDoubleOrNull()
+        }
+        fun finished(): Boolean {
+            spaces()
+            return at == text.length || text[at] == '#'
+        }
+    }
+
     private const val MAX_GAIN_DB = 24.0
     private const val DEFAULT_SHELF_Q = 0.71
-    private val FILTER = Regex(
-        """Filter\s*\d*\s*:\s*(ON|OFF)\s+([A-Z]+)\s+Fc\s+([\d.]+)\s*Hz(?:\s+Gain\s+(-?[\d.]+)\s*dB)?(?:\s+Q\s+([\d.]+))?""",
-        RegexOption.IGNORE_CASE,
-    )
-    private val SUFFIX = Regex("""[\s_-]*parametric\s*eq\s*$""", RegexOption.IGNORE_CASE)
+    private const val MAX_NUMBER_CHARS = 64
 }

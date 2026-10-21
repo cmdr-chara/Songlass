@@ -47,6 +47,24 @@ enum class EqPreset(val gains: List<Double>) {
 /** A correction for one pair of headphones, usually imported from AutoEQ. */
 data class HeadphoneProfile(val id: String, val name: String, val filters: List<EqFilter>)
 
+/** Parsed on a worker; its immutable state snapshot is the revision reviewed by the user. */
+class EqualizerProfileImport internal constructor(
+    val name: String,
+    val filters: List<EqFilter>,
+    val skipped: Int,
+    internal val expectedState: EqualizerState,
+) {
+    /** Only an existing automatic binding is edited; otherwise the manual fallback is selected. */
+    val output: EqOutput? get() = expectedState.output.takeIf { expectedState.usesOutputProfile }
+}
+
+sealed interface EqualizerProfileImportResult {
+    data class Saved(val profile: HeadphoneProfile) : EqualizerProfileImportResult
+    data object Changed : EqualizerProfileImportResult
+    data object Invalid : EqualizerProfileImportResult
+    data object Failed : EqualizerProfileImportResult
+}
+
 /** Stable platform output identity; never a connection-session id. */
 data class EqOutput(val id: String, val name: String)
 data class OutputEqProfile(val output: EqOutput, val enabled: Boolean, val gains: List<Double>, val profileId: String?)
@@ -112,26 +130,71 @@ class Equalizer(
 
     fun applyPreset(preset: EqPreset) = saveGains(preset.gains)
 
-    /**
-     * Adds the parametric equalizer file [text] as a headphone profile named after [fileName],
-     * selects it and switches the equalizer on. Returns null when the file has no usable filter.
-     */
+    /** Compatibility entry point; UI uses prepare/confirm so file parsing never runs on Main. */
     fun importProfile(fileName: String, text: String): HeadphoneProfile? {
+        val prepared = prepareProfileImport(fileName, text) ?: return null
+        return (confirmProfileImport(prepared) as? EqualizerProfileImportResult.Saved)?.profile
+    }
+
+    /** Pure parsing: capture [expectedState] on the owner thread before calling this on a worker. */
+    fun prepareProfileImport(
+        fileName: String,
+        text: String,
+        expectedState: EqualizerState = _state.value,
+    ): EqualizerProfileImport? {
+        if (fileName.length > AutoEq.MAX_FILE_NAME_CHARS) return null
         val parsed = AutoEq.parse(text)
         if (parsed.filters.isEmpty()) return null
+        val name = AutoEq.nameFromFile(fileName).takeIf { it.isNotBlank() } ?: return null
+        return EqualizerProfileImport(name, parsed.filters.toList(), parsed.skipped, expectedState)
+    }
+
+    /**
+     * Owner-thread confirmation. A route/curve/profile change invalidates the reviewed snapshot,
+     * including A→B→A changes: StateFlow's new immutable state is a different object. No file is
+     * reparsed here, and the persisted key/value schema remains compatible with existing backups.
+     */
+    fun confirmProfileImport(prepared: EqualizerProfileImport): EqualizerProfileImportResult {
+        val state = _state.value
+        if (prepared.expectedState !== state) return EqualizerProfileImportResult.Changed
+        if (prepared.name.isBlank() || prepared.name.length > AutoEq.MAX_FILE_NAME_CHARS ||
+            prepared.filters.isEmpty() || prepared.filters.size > AutoEq.MAX_FILTERS ||
+            prepared.filters.any { !it.isSupported }) return EqualizerProfileImportResult.Invalid
         val base = "h${clock()}"
         var id = base
         var n = 1
-        while (_state.value.profiles.any { it.id == id }) id = "$base-${n++}"
-        val profile = HeadphoneProfile(id, AutoEq.nameFromFile(fileName), parsed.filters)
-        store.putString("$PROFILE_PREFIX$id.name", profile.name)
-        store.putString("$PROFILE_PREFIX$id.filters", encode(profile.filters))
-        val profiles = _state.value.profiles + profile
-        store.putStringList(PROFILES_KEY, profiles.map { it.id })
-        _state.update { it.copy(profiles = profiles) }
-        selectProfile(id)
-        setEnabled(true)
-        return profile
+        while (state.profiles.any { it.id == id }) id = "$base-${n++}"
+        val profile = HeadphoneProfile(id, prepared.name, prepared.filters.toList())
+        val profiles = state.profiles + profile
+        val writing = mutableMapOf(
+            "$PROFILE_PREFIX$id.name" to profile.name,
+            "$PROFILE_PREFIX$id.filters" to encode(profile.filters),
+            PROFILES_KEY to profiles.joinToString("\u001F") { it.id },
+        )
+        val selected = state.copy(profiles = profiles, profileId = id, enabled = true)
+        val next = if (state.usesOutputProfile) {
+            val output = state.output!!
+            val key = "equalizer.outputs.${output.id}"
+            writing["$key.enabled"] = "true"
+            writing["$key.profile"] = id
+            selected.copy(outputProfiles = state.outputProfiles.map { binding ->
+                if (binding.output.id == output.id) binding.copy(enabled = true, profileId = id) else binding
+            })
+        } else {
+            writing[ENABLED_KEY] = "true"
+            writing[GAINS_KEY] = state.gains.joinToString(",")
+            writing[SELECTED_KEY] = id
+            selected.copy(manualCurve = ManualEqCurve(true, state.gains, id))
+        }
+        return try {
+            // Native preference batching publishes the related values together without a
+            // synchronous disk commit on the owner/UI thread. This is not a durability barrier.
+            store.putStrings(writing)
+            _state.value = next
+            EqualizerProfileImportResult.Saved(profile)
+        } catch (_: Exception) {
+            EqualizerProfileImportResult.Failed
+        }
     }
 
     fun catalogCorrection(entry: AutoEqEntry): AutoEqCorrection? =
