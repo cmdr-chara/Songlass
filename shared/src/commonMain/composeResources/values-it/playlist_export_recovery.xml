@@ -1,0 +1,4 @@
+<resources>
+    <string name="playlist_export_interrupted">Richiesta di esportazione interrotta</string>
+    <string name="playlist_export_interrupted_hint">La richiesta precedente non può essere ripresa in modo sicuro. Chiudi questo messaggio ed esporta di nuovo. Un documento già creato dal provider potrebbe essere vuoto o incompleto.</string>
+</resources>

@@ -10,7 +10,14 @@ data class M3uEntry(
     val artist: String? = null,
     val durationSec: Int? = null,
     val displayLabel: String? = null,
-)
+    /** Decimal EXTINF duration, truncated only below the library's millisecond resolution. */
+    val durationMs: Long? = null,
+    /** Quantization of the source duration; integer EXTINF keeps its one-second tolerance. */
+    val durationToleranceMs: Long = 1_000,
+) {
+    internal val expectedDurationMs: Long? get() = durationMs?.takeIf { it > 0 }
+        ?: durationSec?.takeIf { it > 0 }?.toLong()?.times(1_000)
+}
 
 enum class M3uIssueKind { Missing, Ambiguous, Conflict, Unsupported, Malformed }
 data class M3uIssue(val entry: M3uEntry, val kind: M3uIssueKind)
@@ -35,6 +42,9 @@ data class M3uImport(
 data class M3uExport(val text: String, val exported: Int, val skipped: Int)
 data class M3uPlaylistExport(val output: M3uExport, val missing: Int)
 
+/** Relative output requires a caller that knows the playlist's base directory. */
+enum class M3uPathMode { LibraryRelative, Absolute }
+
 /**
  * Extended M3U for local files. Matching uses a complete library snapshot, independent of UI
  * filters. A unique path is accepted unless known recording facts conflict; relocation by tags
@@ -48,18 +58,27 @@ object M3u {
     fun write(tracks: List<Track>): String = writeDetailed(tracks).text
 
     /** Filters never remove stored playlist entries from an export. Missing references stay stored. */
-    fun writePlaylist(playlist: UserPlaylist, allTracks: List<Track>): M3uPlaylistExport {
+    fun writePlaylist(
+        playlist: UserPlaylist,
+        allTracks: List<Track>,
+        pathMode: M3uPathMode = M3uPathMode.LibraryRelative,
+    ): M3uPlaylistExport {
         val byId = allTracks.groupBy { it.id }
         val tracks = playlist.trackIds.mapNotNull { byId[it]?.singleOrNull() }
-        return M3uPlaylistExport(writeDetailed(tracks), playlist.trackIds.size - tracks.size)
+        return M3uPlaylistExport(writeDetailed(tracks, pathMode), playlist.trackIds.size - tracks.size)
     }
 
-    fun writeDetailed(tracks: List<Track>): M3uExport {
+    fun writeDetailed(tracks: List<Track>, pathMode: M3uPathMode = M3uPathMode.LibraryRelative): M3uExport {
         var exported = 0
         val text = buildString {
             append("#EXTM3U\n")
             for (track in tracks) {
-                val path = track.path?.takeIf(::exportablePath) ?: continue
+                val path = when (pathMode) {
+                    M3uPathMode.LibraryRelative -> track.path?.takeIf(::exportablePath)
+                    // A SAF document URI does not reveal its filesystem parent. Never guess a
+                    // storage root, or silently write a storage-relative path into Downloads.
+                    M3uPathMode.Absolute -> track.absoluteFilePath?.takeIf(::absoluteFilePath)
+                } ?: continue
                 val seconds = if (track.durationMs > 0) track.durationMs / 1000 else -1
                 val label = listOfNotNull(track.artist?.takeIf { it.isNotBlank() }, track.title)
                     .joinToString(" - ").singleLine()
@@ -75,8 +94,13 @@ object M3u {
         return M3uExport(text, exported, tracks.size - exported)
     }
 
-    private fun exportablePath(path: String): Boolean = path.isNotBlank() &&
+    internal fun exportablePath(path: String): Boolean = path.isNotBlank() &&
         path.length <= MAX_PATH_LENGTH && path.none { it == '\u0000' || it == '\r' || it == '\n' || it == '\\' }
+
+    internal fun absoluteFilePath(path: String): Boolean {
+        if (!exportablePath(path) || !path.startsWith('/') || path.startsWith("//")) return false
+        return when (path.substringAfterLast('/')) { "", ".", ".." -> false; else -> true }
+    }
 
     fun parse(text: String): List<M3uEntry> = parseDetailed(text).entries
 
@@ -95,13 +119,13 @@ object M3u {
                     issues += M3uIssue(pending ?: M3uEntry(""), M3uIssueKind.Malformed)
                 }
                 val body = directive.substringAfter(':')
-                val durationText = body.substringBefore(',').trim().substringBefore(' ')
-                val duration = durationText.toIntOrNull()
+                val duration = parseDuration(body.substringBefore(',').trim())
                 val label = body.substringAfter(',', "").trim()
                 val artist = label.substringBefore(" - ", "").trim().ifEmpty { null }
                 val title = (if (artist != null) label.substringAfter(" - ") else label).trim().ifEmpty { null }
-                pending = M3uEntry("", title, artist, duration?.takeIf { it > 0 }, label.ifEmpty { null })
-                invalidMetadata = !body.contains(',') || duration == null || duration < -1 || label.contains('\u0000')
+                pending = M3uEntry("", title, artist, duration?.seconds, label.ifEmpty { null },
+                    duration?.milliseconds, duration?.toleranceMs ?: 1_000)
+                invalidMetadata = !body.contains(',') || duration == null || label.contains('\u0000')
             } else if (!directive.startsWith('#')) {
                 val parsed = localM3uPath(raw)
                 val entry = (pending ?: M3uEntry("")).copy(path = parsed.path ?: raw.take(MAX_PATH_LENGTH))
@@ -161,6 +185,29 @@ object M3u {
 
     fun nameFromFile(fileName: String?): String? = fileName?.replace('\\', '/')
         ?.substringAfterLast('/')?.substringBeforeLast('.')?.singleLine()?.trim()?.ifEmpty { null }
+
+    private data class Duration(val seconds: Int? = null, val milliseconds: Long? = null, val toleranceMs: Long = 1_000)
+
+    /** Bounded fixed-point parsing avoids floating-point overflow, NaN and silent numeric prefixes. */
+    private fun parseDuration(text: String): Duration? {
+        if (text.isEmpty() || text.length > 32) return null
+        val negative = text.startsWith('-')
+        val number = if (negative || text.startsWith('+')) text.drop(1) else text
+        val whole = number.substringBefore('.')
+        val fraction = number.substringAfter('.', "")
+        if (whole.isEmpty() && fraction.isEmpty() ||
+            whole.any { it !in '0'..'9' } || fraction.any { it !in '0'..'9' }) return null
+        val seconds = (whole.ifEmpty { "0" }).toLongOrNull() ?: return null
+        if (seconds > Int.MAX_VALUE || seconds == Int.MAX_VALUE.toLong() && fraction.any { it != '0' }) return null
+        if (negative) {
+            // -1 is the unknown-length sentinel. Other negative lengths are not local durations.
+            return if (seconds <= 1 && fraction.all { it == '0' }) Duration() else null
+        }
+        if (!number.contains('.')) return Duration(seconds = seconds.toInt().takeIf { it > 0 })
+        val milliseconds = seconds * 1_000 + fraction.take(3).padEnd(3, '0').toInt()
+        val tolerance = when (fraction.length) { 0 -> 1_000L; 1 -> 100L; 2 -> 10L; else -> 1L }
+        return Duration(seconds.toInt().takeIf { it > 0 }, milliseconds.takeIf { it > 0 }, tolerance)
+    }
 }
 
 internal fun String.singleLine(): String = replace('\r', ' ').replace('\n', ' ').replace('\u0000', ' ')

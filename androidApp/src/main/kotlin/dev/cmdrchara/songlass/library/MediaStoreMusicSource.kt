@@ -47,6 +47,7 @@ class MediaStoreMusicSource(
             MediaStore.Audio.Media.CD_TRACK_NUMBER,
             MediaStore.Audio.Media.DISC_NUMBER,
             MediaStore.Audio.Media.RELATIVE_PATH,
+            MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.YEAR,
@@ -75,6 +76,7 @@ class MediaStoreMusicSource(
             val cdTrack = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.CD_TRACK_NUMBER)
             val disc = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISC_NUMBER)
             val relativePath = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.RELATIVE_PATH)
+            val absolutePath = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
             val dateAdded = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val displayName = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
             val year = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.YEAR)
@@ -114,6 +116,10 @@ class MediaStoreMusicSource(
                     // DATE_ADDED is in seconds.
                     dateAddedMs = if (cursor.isNull(dateAdded)) null else cursor.getLong(dateAdded) * 1000,
                     fileName = cursor.getString(displayName)?.takeIf { it.isNotBlank() },
+                    // Use the actual path supplied for this row, including its storage volume.
+                    // RELATIVE_PATH cannot identify an absolute address or a SAF destination.
+                    absoluteFilePath = if (absolutePath >= 0) cursor.getString(absolutePath)
+                        ?.takeIf { it.startsWith('/') && !it.startsWith("//") } else null,
                 )
             }
         } ?: throw java.io.IOException("MediaStore did not return a library cursor")

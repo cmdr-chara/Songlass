@@ -1,0 +1,4 @@
+<resources>
+    <string name="playlist_export_interrupted">Export request interrupted</string>
+    <string name="playlist_export_interrupted_hint">The previous export request cannot be resumed safely. Close this message and export again. A document already created by the provider may be empty or incomplete.</string>
+</resources>

@@ -74,15 +74,24 @@ internal class M3uLibraryIndex(tracks: List<Track>) {
     private val byName = mutableMapOf<String, MutableList<PathTrack>>()
     private val roots = mutableMapOf<String, PathNode>()
     private val exact = mutableMapOf<String, MutableList<Track>>()
+    private val absolute = mutableMapOf<String, MutableList<Track>>()
     private val fingerprints = mutableMapOf<Pair<String, String>, MutableList<Track>>()
     private val duplicateIds = tracks.groupingBy { it.id }.eachCount().filterValues { it > 1 }.keys
 
     init {
         for (track in tracks) {
-            val path = track.path
-            if (path != null && path.length <= M3u.MAX_PATH_LENGTH && path.none { it == '\\' || it == '\u0000' || it == '\r' || it == '\n' }) {
-                val parts = segments(path)
+            val relativePath = track.path?.takeIf(M3u::exportablePath)
+            val absolutePath = track.absoluteFilePath?.takeIf(M3u::absoluteFilePath)
+            if (relativePath != null) {
+                val parts = segments(relativePath)
                 exact.getOrPut(parts.joinToString("/")) { mutableListOf() }.add(track)
+            }
+            if (absolutePath != null) {
+                absolute.getOrPut(segments(absolutePath).joinToString("/")) { mutableListOf() }.add(track)
+            }
+            val path = absolutePath ?: relativePath
+            if (path != null) {
+                val parts = segments(path)
                 parts.lastOrNull()?.lowercase()?.let { name -> byName.getOrPut(name) { mutableListOf() }.add(PathTrack(track, parts)) }
             }
             if (track.title.isNotBlank() && !track.artist.isNullOrBlank() && track.durationMs > 0) {
@@ -97,6 +106,10 @@ internal class M3uLibraryIndex(tracks: List<Track>) {
             return M3uMatch(issue = M3uIssueKind.Malformed)
         }
         val parts = segments(entry.path)
+        // Equal storage-relative names on two volumes are different files. A real absolute
+        // address can identify one without relying on tags or arbitrary scan ordering.
+        val absoluteMatch = if (entry.path.startsWith('/')) absolute[parts.joinToString("/")] else null
+        if (absoluteMatch != null) return choosePath(entry, absoluteMatch)
         val direct = exact[parts.joinToString("/")]
         if (direct != null) return choosePath(entry, direct)
         val name = parts.lastOrNull()?.lowercase()
@@ -128,8 +141,8 @@ internal class M3uLibraryIndex(tracks: List<Track>) {
             if (depth >= 2 || parts.size == 1) return choosePath(entry, node.tracks)
         }
         // A common basename alone cannot override a conflicting folder. Tags must prove a
-        // unique plausible relocation, including duration (seconds are rounded down by M3U).
-        if (entry.title.isNullOrBlank() || entry.artist.isNullOrBlank() || (entry.durationSec ?: 0) <= 0) {
+        // unique plausible relocation, including the precision supplied by EXTINF.
+        if (entry.title.isNullOrBlank() || entry.artist.isNullOrBlank() || entry.expectedDurationMs == null) {
             return M3uMatch(issue = if (depth > 0) M3uIssueKind.Ambiguous else M3uIssueKind.Missing)
         }
         val candidates = fingerprints[entry.title.normalized() to entry.artist.normalized()].orEmpty()
@@ -153,7 +166,7 @@ internal class M3uLibraryIndex(tracks: List<Track>) {
         }
         // Duplicate paths and equally long suffixes remain uncertain unless all competitors
         // have known conflicting metadata. Unknown fields do not disprove another candidate.
-        if (entry.title.isNullOrBlank() || entry.artist.isNullOrBlank() || (entry.durationSec ?: 0) <= 0) {
+        if (entry.title.isNullOrBlank() || entry.artist.isNullOrBlank() || entry.expectedDurationMs == null) {
             return M3uMatch(issue = M3uIssueKind.Ambiguous)
         }
         val compatible = candidates.asSequence().filter { knownFactsAgree(entry, it) }.take(2).toList()
@@ -172,8 +185,9 @@ internal class M3uLibraryIndex(tracks: List<Track>) {
             if (!entry.title.isNullOrBlank() && track.title.isNotBlank() && entry.title.normalized() != track.title.normalized()) return false
             if (!entry.artist.isNullOrBlank() && !track.artist.isNullOrBlank() && entry.artist.normalized() != track.artist.normalized()) return false
         }
-        return entry.durationSec == null || entry.durationSec <= 0 || track.durationMs <= 0 ||
-            abs(entry.durationSec.toLong() * 1000 - track.durationMs) <= 1000
+        val expectedDuration = entry.expectedDurationMs
+        return expectedDuration == null || track.durationMs <= 0 ||
+            abs(expectedDuration - track.durationMs) <= entry.durationToleranceMs.coerceIn(1, 1_000)
     }
 }
 

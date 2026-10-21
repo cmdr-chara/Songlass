@@ -1,25 +1,34 @@
 package dev.cmdrchara.songlass.ui
 
 import android.provider.OpenableColumns
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.platform.LocalContext
 import dev.cmdrchara.songlass.core.playlists.M3u
+import dev.cmdrchara.songlass.core.playlists.M3uExportRequest
 import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.InfoSheet
 import dev.cmdrchara.songlass.shared.resources.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.stringResource
+import java.util.UUID
 
 @Composable
 actual fun rememberTextFileImporter(kind: TextFileKind, onResult: (fileName: String?, text: String?) -> Unit): (() -> Unit)? {
@@ -69,49 +78,106 @@ actual fun rememberTextFileImporter(kind: TextFileKind, onResult: (fileName: Str
     }
 }
 
+private enum class PlaylistExportNotice { Saved, Failed, Interrupted }
+
+private class PlaylistExportRegistrations {
+    var active = true
+    val launchers = mutableMapOf<M3uExportRequest, ActivityResultLauncher<String>>()
+
+    fun dispose() {
+        active = false
+        launchers.forEach { (request, launcher) -> request.invalidate(); launcher.unregister() }
+        launchers.clear()
+    }
+}
+
 @Composable
 actual fun rememberPlaylistExporter(): ((fileName: String, content: String) -> Unit)? {
+    val registry = LocalActivityResultRegistryOwner.current?.activityResultRegistry ?: return null
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var pending by remember { mutableStateOf<String?>(null) }
-    var busy by remember { mutableStateOf(false) }
-    var saved by remember { mutableStateOf<Boolean?>(null) }
-    PlatformBackHandler(saved != null) { saved = null }
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("audio/x-mpegurl")) { uri ->
-        val content = pending
-        pending = null
-        if (uri == null) { busy = false; return@rememberLauncherForActivityResult }
-        if (content == null) { busy = false; saved = false; return@rememberLauncherForActivityResult }
-        scope.launch {
-            try {
-                saved = withContext(Dispatchers.IO) {
-                    try {
-                        val stream = context.contentResolver.openOutputStream(uri, "wt") ?: return@withContext false
-                        stream.use { it.write(content.encodeToByteArray()); it.flush() }
-                        true
-                    } catch (cancelled: CancellationException) { throw cancelled }
-                    catch (_: Exception) { false }
-                }
-            } finally { busy = false }
-        }
+    // Only an identifier enters saved state. Large playlist text stays in its one-shot request.
+    // A recreated UI deliberately does not re-register the old request's ActivityResult key.
+    var unfinishedRequestId by rememberSaveable { mutableStateOf<String?>(null) }
+    val restoredRequestId = remember(registry) { unfinishedRequestId }
+    val registrations = remember(registry) { PlaylistExportRegistrations() }
+    var busy by remember(registry) { mutableStateOf(false) }
+    var saved by remember(registry) {
+        mutableStateOf(if (restoredRequestId != null) PlaylistExportNotice.Interrupted else null)
     }
+    LaunchedEffect(registry) {
+        if (unfinishedRequestId == restoredRequestId) unfinishedRequestId = null
+    }
+    DisposableEffect(registrations) { onDispose { registrations.dispose() } }
+    PlatformBackHandler(saved != null) { saved = null }
     InfoSheet(
         visible = saved != null,
         title = stringResource(Res.string.playlist_export),
         closeLabel = stringResource(Res.string.action_close),
         onDismiss = { saved = null },
         rows = listOf(InfoRow(
-            stringResource(if (saved == true) Res.string.playlist_export_saved else Res.string.playlist_export_failed),
-            stringResource(if (saved == true) Res.string.playlist_export_saved_hint else Res.string.playlist_export_failed_hint),
+            stringResource(when (saved) {
+                PlaylistExportNotice.Saved -> Res.string.playlist_export_saved
+                PlaylistExportNotice.Interrupted -> Res.string.playlist_export_interrupted
+                else -> Res.string.playlist_export_failed
+            }),
+            stringResource(when (saved) {
+                PlaylistExportNotice.Saved -> Res.string.playlist_export_saved_hint
+                PlaylistExportNotice.Interrupted -> Res.string.playlist_export_interrupted_hint
+                else -> Res.string.playlist_export_failed_hint
+            }),
         )),
     )
     return { fileName, content ->
-        if (!busy) {
+        if (registrations.active && !busy) {
+            val requestId = UUID.randomUUID().toString()
+            val request = M3uExportRequest(content)
             busy = true
             saved = null
-            pending = content
-            try { launcher.launch(M3u.exportFileName(fileName)) }
-            catch (_: Exception) { busy = false; pending = null; saved = false }
+            unfinishedRequestId = requestId
+            try {
+                // Every registration captures only its own immutable payload. A late A result
+                // cannot observe B's text, including after Activity/process recreation.
+                val launcher = registry.register(
+                    "songlass-playlist-export-$requestId",
+                    ActivityResultContracts.CreateDocument("audio/x-mpegurl"),
+                ) result@{ uri ->
+                    registrations.launchers.remove(request)?.unregister()
+                    if (!registrations.active) { request.invalidate(); return@result }
+                    val payload = request.claim() ?: return@result
+                    if (uri == null) {
+                        if (unfinishedRequestId == requestId) unfinishedRequestId = null
+                        busy = false
+                        return@result
+                    }
+                    scope.launch {
+                        try {
+                            val written = withContext(Dispatchers.IO) {
+                                try {
+                                    currentCoroutineContext().ensureActive()
+                                    val stream = context.contentResolver.openOutputStream(uri, "wt") ?: return@withContext false
+                                    stream.use { it.write(payload.encodeToByteArray()); it.flush() }
+                                    true
+                                } catch (cancelled: CancellationException) { throw cancelled }
+                                catch (_: Exception) { false }
+                            }
+                            saved = if (written) PlaylistExportNotice.Saved else PlaylistExportNotice.Failed
+                        } finally {
+                            if (unfinishedRequestId == requestId) unfinishedRequestId = null
+                            busy = false
+                        }
+                    }
+                }
+                registrations.launchers[request] = launcher
+                launcher.launch(M3u.exportFileName(fileName))
+            } catch (failure: Exception) {
+                registrations.launchers.remove(request)?.unregister()
+                request.invalidate()
+                if (unfinishedRequestId == requestId) unfinishedRequestId = null
+                busy = false
+                if (failure is CancellationException) throw failure
+                saved = PlaylistExportNotice.Failed
+            }
         }
     }
 }

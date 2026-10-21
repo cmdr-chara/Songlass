@@ -34,6 +34,8 @@ data class Track(
     val genre: String? = null,
     /** Composer credits from actual file/platform metadata; empty when unavailable. */
     val composers: List<String> = emptyList(),
+    /** Platform-reported absolute file path for playlist export; never used as a playable URI. */
+    val absoluteFilePath: String? = null,
 ) {
     /** `folder/fileName` relative to the storage root, as written in M3U playlists; null if unknown. */
     val path: String? get() = fileName?.let { name -> folder?.takeIf { it.isNotBlank() }?.let { "${it.trim('/')}/$name" } ?: name }

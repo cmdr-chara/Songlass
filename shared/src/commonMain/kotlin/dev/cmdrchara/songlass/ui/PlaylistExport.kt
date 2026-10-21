@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.runtime.*
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.playlists.M3u
+import dev.cmdrchara.songlass.core.playlists.M3uPathMode
 import dev.cmdrchara.songlass.core.playlists.M3uPlaylistExport
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 import dev.cmdrchara.songlass.core.playlists.SmartPlaylist
@@ -132,7 +133,7 @@ private fun rememberCheckedPlaylistExportAction(
             job = scope.launch {
                 try {
                     val checkedExport = withContext(Dispatchers.Default) {
-                        PlaylistExportReview(playlist, source, M3u.writePlaylist(playlist, source), selectionIsCurrent)
+                        PlaylistExportReview(playlist, source, M3u.writePlaylist(playlist, source, M3uPathMode.Absolute), selectionIsCurrent)
                     }
                     when {
                         !isCurrent(checkedExport) -> showNotice(ExportNotice.Changed)
