@@ -28,6 +28,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
+    SettingsTarget.SleepTimer -> Res.string.sleep_title
     SettingsTarget.Crossfade -> Res.string.settings_search_crossfade_automatic
     SettingsTarget.CrossfadeDuration -> Res.string.settings_search_crossfade_duration
     SettingsTarget.ManualCrossfadeDuration -> Res.string.settings_search_manual_crossfade_duration
@@ -62,7 +63,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> appearance
-            SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade,
+            SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
             SettingsTarget.Equalizer -> playback
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
@@ -119,7 +120,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             preferences.libraryFilter.excludedFolders.size, preferences.libraryFilter.excludedFolders.size)
         SettingsTarget.PlayCountRule -> playCountRuleLabel(preferences.playCountRule)
         SettingsTarget.AlbumLayout -> stringResource(if (preferences.albumLayout == AlbumLayout.List) Res.string.library_layout_list else Res.string.library_layout_grid)
-        SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About -> null
+        SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About, SettingsTarget.SleepTimer -> null
     }
 }
 

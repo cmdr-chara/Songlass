@@ -29,22 +29,43 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import dev.cmdrchara.songlass.shared.resources.*
 import kotlinx.coroutines.CancellationException
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
-/** Identity and a plain-language description of the app's current data use. */
+/** Identity, then two quiet rows; the detailed data-use text and the licenses live one level down. */
 @Composable
 fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
-    val uriHandler = LocalUriHandler.current
     val information = rememberAppInformation()
-    val listState = rememberLazyListState()
+    var page by rememberSaveable { mutableIntStateOf(AboutPage.Main.ordinal) }
     var selectedLicenseId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedLicense = information.licenses.firstOrNull { it.name == selectedLicenseId }
+    val current = AboutPage.entries[page]
+    PlatformBackHandler(current != AboutPage.Main || selectedLicense != null) {
+        if (selectedLicense != null) selectedLicenseId = null else page = AboutPage.Main.ordinal
+    }
+    LocalGlassLook.current.SettingsPage {
+        when {
+            selectedLicense != null -> LicenseReader(information, selectedLicense, contentPadding, onBack = { selectedLicenseId = null })
+            current == AboutPage.Privacy -> AboutPrivacy(graph, contentPadding) { page = AboutPage.Main.ordinal }
+            current == AboutPage.Licenses -> AboutLicenses(information, contentPadding, { selectedLicenseId = it.name }) { page = AboutPage.Main.ordinal }
+            else -> AboutMain(graph, information, contentPadding, searchFocus, onBack, { page = it.ordinal })
+        }
+    }
+}
+
+private enum class AboutPage { Main, Privacy, Licenses }
+
+@Composable
+private fun AboutMain(
+    graph: dev.cmdrchara.songlass.AppGraph, information: AppInformation, contentPadding: PaddingValues,
+    searchFocus: SettingsFocusRequest?, onBack: () -> Unit, open: (AboutPage) -> Unit,
+) {
+    val listState = rememberLazyListState()
     var version by remember(information) { mutableStateOf<VersionRead>(VersionRead.Loading) }
     var versionAttempt by remember { mutableIntStateOf(0) }
-    var linkFailed by remember { mutableStateOf(false) }
     LaunchedEffect(information, versionAttempt) {
         version = VersionRead.Loading
         version = try {
@@ -56,11 +77,6 @@ fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, cont
             VersionRead.Unavailable
         }
     }
-    PlatformBackHandler(selectedLicense != null) { selectedLicenseId = null }
-    if (selectedLicense != null) {
-        LicenseReader(information, selectedLicense, contentPadding, onBack = { selectedLicenseId = null })
-        return
-    }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, if (searchFocus?.target == SettingsTarget.About) 1 else null)
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal),
@@ -68,9 +84,9 @@ fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, cont
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { BackLink(stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), onBack) }
+        item { AboutTitle(stringResource(Res.string.about_page_title), stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), onBack) }
         item {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Image(
                     painterResource(if (AppTheme.colors.isDark) Res.drawable.songlass_brand_dark else Res.drawable.songlass_brand_light),
                     contentDescription = null,
@@ -87,6 +103,34 @@ fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, cont
                 AboutVersion(version, onRetry = { versionAttempt++ })
             }
         }
+        // Only shown when an interrupted tag edit left recovery copies behind.
+        graph.tagEditor?.let { editor -> item(key = "tag_recovery") { TagRecoveryPanel(editor) } }
+        item {
+            LocalGlassLook.current.SettingsDestinationGroup(Modifier.padding(horizontal = pageInset)) {
+                LocalGlassLook.current.SettingsDestination(stringResource(Res.string.about_data_title),
+                    stringResource(Res.string.about_data_summary), AppIcons.InfoCircle, false) { open(AboutPage.Privacy) }
+                LocalGlassLook.current.SettingsDestination(stringResource(Res.string.about_open_source),
+                    stringResource(Res.string.about_open_source_summary), AppIcons.Bookmark, false) { open(AboutPage.Licenses) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutTitle(title: String, backLabel: String, onBack: () -> Unit) =
+    LocalGlassLook.current.SettingsPageTitle(title, backLabel, onBack, Modifier)
+
+/** The facts about what stays on the device and what is sent, kept intact but off the first screen. */
+@Composable
+private fun AboutPrivacy(graph: dev.cmdrchara.songlass.AppGraph, contentPadding: PaddingValues, onBack: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    var linkFailed by remember { mutableStateOf(false) }
+    LazyColumn(
+        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item { AboutTitle(stringResource(Res.string.about_data_title), stringResource(Res.string.about_page_title), onBack) }
         item { AboutSection(stringResource(Res.string.about_privacy_title), stringResource(Res.string.about_privacy_body)) }
         item {
             AboutSection(stringResource(Res.string.about_lyrics_title), stringResource(Res.string.about_lyrics_body)) {
@@ -97,25 +141,27 @@ fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, cont
             }
         }
         item { AboutSection(stringResource(Res.string.about_autoeq_title), stringResource(Res.string.about_autoeq_body)) }
-        item { AboutSection(stringResource(Res.string.about_tags_title), stringResource(Res.string.about_tags_body)) }
-        graph.tagEditor?.let { editor ->
-            item(key = "tag_recovery") { TagRecoveryPanel(editor) }
-        }
+        if (graph.tagEditor != null) item { AboutSection(stringResource(Res.string.about_tags_title), stringResource(Res.string.about_tags_body)) }
+    }
+}
+
+@Composable
+private fun AboutLicenses(information: AppInformation, contentPadding: PaddingValues, onOpen: (BundledLicense) -> Unit, onBack: () -> Unit) {
+    LazyColumn(
+        Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
+        contentPadding = contentPadding,
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        item { AboutTitle(stringResource(Res.string.about_open_source), stringResource(Res.string.about_page_title), onBack) }
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                 Column {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AppText(stringResource(Res.string.about_licenses_title), AppTheme.typography.headline,
-                            modifier = Modifier.semantics { heading() })
-                        AppText(stringResource(Res.string.about_licenses_body), AppTheme.typography.body,
-                            color = AppTheme.colors.secondaryLabel)
-                    }
                     information.licenses.forEach { license ->
                         ListRow(
                             title = licenseTitle(license),
                             subtitle = licenseSummary(license),
                             trailing = { AppIcon(AppIcons.ChevronRight, null, tint = AppTheme.colors.tertiaryLabel) },
-                            onClick = { selectedLicenseId = license.name },
+                            onClick = { onOpen(license) },
                         )
                     }
                 }
@@ -180,11 +226,7 @@ private fun LicenseReader(information: AppInformation, license: BundledLicense, 
             contentPadding = contentPadding,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item(key = "back") { BackLink(stringResource(Res.string.about_title), onBack) }
-            item(key = "title") {
-                AppText(title, AppTheme.typography.largeTitle,
-                    modifier = Modifier.padding(horizontal = pageInset).semantics { heading() })
-            }
+            item(key = "title") { AboutTitle(title, stringResource(Res.string.about_open_source), onBack) }
             when (val current = content) {
                 LicenseRead.Loading -> item(key = "loading") {
                     AboutStatus(stringResource(Res.string.about_license_loading), Modifier.padding(horizontal = pageInset))
@@ -249,7 +291,7 @@ private fun AboutSection(title: String, body: String, announceBody: Boolean = fa
     SettingsGroup(Modifier.padding(horizontal = pageInset)) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AppText(title, AppTheme.typography.headline, modifier = Modifier.semantics { heading() })
-            AppText(body, AppTheme.typography.body, color = AppTheme.colors.secondaryLabel,
+            AppText(body, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel,
                 modifier = if (announceBody) Modifier.semantics { liveRegion = LiveRegionMode.Polite } else Modifier)
             footer?.invoke()
         }

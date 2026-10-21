@@ -65,8 +65,9 @@ fun AudioInformationSheet(state: AppState, track: Track, player: PlayerState) {
                 ReplayGainMode.Track -> Res.string.settings_replay_gain_track
                 ReplayGainMode.Album -> Res.string.settings_replay_gain_album
             }), AppIcons.SpeakerLow) { state.openPlayerSettings(SettingsTarget.ReplayGain) },
-            PlaybackToolRow(stringResource(Res.string.audio_tools_transitions), stringResource(Res.string.audio_tools_transition_summary,
-                settings.crossfadeDurationMs, settings.manualCrossfadeDurationMs), AppIcons.Next) {
+            PlaybackToolRow(stringResource(Res.string.audio_tools_transitions),
+                if (settings.crossfadeDurationMs == 0L && settings.manualCrossfadeDurationMs == 0L) stringResource(Res.string.audio_tools_transition_off)
+                else stringResource(Res.string.audio_tools_transition_summary, settings.crossfadeDurationMs, settings.manualCrossfadeDurationMs), AppIcons.Next) {
                 state.openPlayerSettings(SettingsTarget.Crossfade)
             },
         )),

@@ -19,6 +19,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import org.jetbrains.compose.resources.stringResource
 
 private enum class BackupNotice { None, Saved, Restored, Failed, Invalid, PreviewChanged, LibraryUnavailable, Interrupted }
@@ -76,11 +77,12 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
         }
     }
     val working = busy || restoring
-    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
+LocalGlassLook.current.SettingsPage {
+        LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
         item {
             SettingsSearchAnchor(SettingsTarget.Backup, searchFocus) {
-                BackPageTitle(stringResource(Res.string.backup_title),
-                    stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), { if (!working) onBack() })
+                LocalGlassLook.current.SettingsPageTitle(stringResource(Res.string.backup_title),
+                    stringResource(if (searchFocus == null) Res.string.settings_title else Res.string.settings_search_results), { if (!working) onBack() }, Modifier)
             }
         }
         item { FeatureHint(stringResource(Res.string.backup_intro)) }
@@ -199,6 +201,7 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
                 }
             }
         }
+    }
     }
 }
 

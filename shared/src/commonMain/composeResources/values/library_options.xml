@@ -3,7 +3,7 @@
     <string name="library_counting_default">30 seconds or half a short song</string>
     <string name="library_counting_half">50% of the song</string>
     <string name="library_counting_nearly_all">90% of the song</string>
-    <string name="library_counting_hint">Only time spent playing counts. Pauses, buffering and seeking do not. Changes apply when a song starts again; existing totals stay unchanged. Songs with an unknown duration use 30 seconds.</string>
+    <string name="library_counting_hint">Only listening time counts: pauses, buffering and seeking don’t. Applies from the next song; unknown duration uses 30 seconds.</string>
     <string name="stats_counting_current">Future plays: %1$s.</string>
     <string name="stats_history_details">Each playback counts at most once. Seeking within a song does not start a new count; restarting from the beginning does. Periods use dated plays retained for two years or 50,000 plays. All time also includes earlier totals. Statistics cover visible songs only. Artist credits may overlap. Everything stays on this device.</string>
     <string name="playlist_insert_title">Add songs to playlist</string>

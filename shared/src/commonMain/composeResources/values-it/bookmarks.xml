@@ -21,8 +21,8 @@
     <string name="bookmark_seek_forward_accessible">Avanti di dieci secondi</string>
     <string name="settings_long_section">Brani lunghi</string>
     <string name="settings_long_resume">Ripresa per singola traccia</string>
-    <string name="settings_long_resume_hint">Disattivata per impostazione predefinita. Se attiva, ogni brano lungo conserva un punto indipendente, anche dopo il riavvio.</string>
+    <string name="settings_long_resume_hint">Ogni brano lungo riparte da dove lo avevi lasciato.</string>
     <string name="settings_long_threshold">Durata minima del brano</string>
     <string name="settings_long_minutes">%1$d min</string>
-    <string name="settings_long_hint">La soglia controlla anche quando compaiono i pulsanti ±10 secondi. La ripresa Android dell’ultima sessione ripristina la raccolta e l’ultimo brano, indipendentemente da questa opzione.</string>
+    <string name="settings_long_hint">Da questa durata compaiono anche i pulsanti ±10 secondi.</string>
 </resources>

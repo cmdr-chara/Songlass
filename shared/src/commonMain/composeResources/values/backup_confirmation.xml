@@ -1,5 +1,5 @@
 <resources>
-    <string name="backup_preview_changed">The library changed and this backup now matches files differently. Nothing has been restored. Review the updated preview below, then confirm again if you want to continue.</string>
-    <string name="backup_library_unavailable">Backup operations need music access and a completed library scan. Finish or retry the scan before reviewing or restoring a backup. Your selected backup and existing app data are unchanged.</string>
+    <string name="backup_preview_changed">The library changed and nothing was restored. Review the updated preview and confirm again.</string>
+    <string name="backup_library_unavailable">Needs music access and a finished library scan. Try again when it’s done: your backup and current data are unchanged.</string>
     <string name="backup_review_again">Review the selected backup again</string>
 </resources>

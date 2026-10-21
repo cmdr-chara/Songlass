@@ -139,6 +139,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val queue by state.controller.queue.collectAsState()
         val player by state.controller.playerState.collectAsState()
         val favoriteIds by state.favorites.ids.collectAsState()
+        val sleepTimer by state.sleepTimer.state.collectAsState()
         val labels = playbackLabels()
         val current = queue.current?.track
         val currentId = current?.id
@@ -234,9 +235,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 preferences = preferences,
                                 supportsAmllLyrics = graph.supportsAmllLyrics,
                                 supportsCrossfade = graph.player.supportsCrossfade,
-                                crossfadeStatus = player.crossfadeStatus,
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,
+                                sleepTimer = sleepTimer,
+                                onOpenSleepTimer = state::openSleepMenu,
+                                onRestoreDefaults = state::askRestoreDefaults,
                                 onOpenEqualizer = { state.open(Route.Equalizer) },
                                 onOpenLibrary = { state.open(Route.LibrarySettings) },
                                 onOpenAbout = { state.open(Route.About) },
@@ -258,7 +261,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 isActive = { state.destination == destination && !state.isNowPlayingOpen && !state.hasOverlay })
                             Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.About))
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
-                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, padding, backLabel, state.settingsFocusFor(Route.LibrarySettings))
+                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, state::askRestoreDefaults, padding, backLabel, state.settingsFocusFor(Route.LibrarySettings))
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
                             is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)
@@ -304,6 +307,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                 if (current != null) SongInformation(state, current, player)
                 TrackMenu(state, favoriteIds)
                 SleepTimerMenu(state)
+                dev.cmdrchara.songlass.ui.RestoreDefaultsSheet(state)
                 dev.cmdrchara.songlass.ui.LibraryDurationMenu(state)
                 dev.cmdrchara.songlass.ui.LibraryAlphabetMenu(state)
                 PlaylistSheets(state, rememberPlaylistExporter())

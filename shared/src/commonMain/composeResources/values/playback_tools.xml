@@ -8,6 +8,7 @@
     <string name="audio_tools_adjust">Adjust your sound</string>
     <string name="audio_tools_transitions">Track transitions</string>
     <string name="audio_tools_transition_summary">Set to %1$d ms automatic · %2$d ms manual</string>
+    <string name="audio_tools_transition_off">Off</string>
     <string name="player_return">Now Playing</string>
     <string name="player_timer_short">Timer</string>
     <string name="player_timer_minutes">%1$d min</string>

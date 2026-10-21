@@ -20,9 +20,14 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 internal fun MiuixActions(visible: Boolean, title: String, subtitle: String?, artwork: Artwork?, actions: List<SheetAction>, closeLabel: String, dismiss: () -> Unit) {
     OverlayBottomSheet(show = visible, title = title, onDismissRequest = dismiss,
         endAction = { MiuixIconAction(AppIcons.Close, closeLabel, dismiss, false, false, Modifier) }) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (artwork != null || subtitle != null) MiuixRow(title, subtitle,
-                artwork?.let { { AlbumArt(it, Modifier.size(52.dp), cornerRadius = 16.dp) } }, null, false, null, Modifier)
+        // The sheet is drawn edge to edge: keep the last row clear of the gesture bar and let long lists scroll.
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().heightIn(max = 480.dp).verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The sheet header already carries the title; repeat it only next to an artwork.
+            if (artwork != null) MiuixRow(title, subtitle,
+                { AlbumArt(artwork, Modifier.size(52.dp), cornerRadius = 16.dp) }, null, false, null, Modifier)
+            else if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel,
+                modifier = Modifier.padding(horizontal = 4.dp))
             MiuixGroup({
                 actions.forEach { action ->
                     MiuixRow(action.label, null, action.icon?.let { { dev.cmdrchara.songlass.designsystem.foundation.AppIcon(it, null, size = 24.dp, tint = AppTheme.colors.accent) } },
@@ -37,7 +42,8 @@ internal fun MiuixActions(visible: Boolean, title: String, subtitle: String?, ar
 internal fun MiuixInfo(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, dismiss: () -> Unit) {
     OverlayBottomSheet(show = visible, title = title, onDismissRequest = dismiss,
         endAction = { MiuixIconAction(AppIcons.Close, closeLabel, dismiss, false, false, Modifier) }) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 480.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().heightIn(max = 480.dp).verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)) {
             rows.forEach { row ->
                 Column(Modifier.fillMaxWidth()) {
                     AppText(row.label, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)

@@ -1,5 +1,5 @@
 <resources>
     <string name="backup_unavailable_progress">Posizioni non disponibili</string>
     <string name="backup_unavailable_bookmarks">Segnalibri non disponibili</string>
-    <string name="backup_unavailable_markers_hint">Queste posizioni e questi segnalibri sono inclusi nei totali indicati sopra. Songlass manterrà le informazioni originali, ma non può associarli in sicurezza a un file musicale. Rimarranno non disponibili per riprendere o avviare la riproduzione, anche se altri dati del brano trovano corrispondenza.</string>
+    <string name="backup_unavailable_markers_hint">Posizioni e segnalibri senza una corrispondenza sicura restano salvati ma non si possono usare.</string>
 </resources>

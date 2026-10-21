@@ -59,13 +59,11 @@
     <string name="settings_appearance_system">Sistema</string>
     <string name="settings_appearance_light">Chiaro</string>
     <string name="settings_appearance_dark">Scuro</string>
-    <string name="settings_appearance_hint">Sistema segue l’aspetto chiaro o scuro del dispositivo.</string>
     <string name="settings_accessibility">Accessibilità</string>
     <string name="settings_reduce_motion">Riduci movimento</string>
-    <string name="settings_reduce_motion_hint">Mantieni ferme la navigazione e le copertine, con transizioni più semplici.</string>
+    <string name="settings_reduce_motion_hint">Transizioni più semplici, copertine ferme.</string>
     <string name="settings_reduce_transparency">Riduci trasparenza</string>
-    <string name="settings_reduce_transparency_hint">Usa superfici opache per rendere più leggibili testi e controlli.</string>
-    <string name="settings_accessibility_hint">Le impostazioni di accessibilità del dispositivo hanno sempre effetto. Puoi attivare queste opzioni anche solo per Songlass.</string>
+    <string name="settings_reduce_transparency_hint">Superfici opache, testi più leggibili.</string>
     <string name="settings_device_enabled">Attivo nelle impostazioni del dispositivo.</string>
     <string name="settings_ui_style">Stile interfaccia</string>
     <string name="settings_liquid_glass">Liquid Glass</string>
@@ -111,7 +109,7 @@
     <string name="settings_artwork">Copertina</string>
     <string name="settings_artwork_full">A tutta larghezza</string>
     <string name="settings_artwork_square">Riquadro</string>
-    <string name="settings_artwork_hint">Come appaiono le copertine in In riproduzione e nelle pagine di album e playlist. A tutta larghezza sfuma la copertina nello sfondo. I controlli del player seguono l’aspetto scelto.</string>
+    <string name="settings_artwork_hint">Vale per In riproduzione e per le pagine di album e playlist.</string>
     <string name="tab_home">Home</string>
     <string name="home_shuffle_all">Casuale su tutto</string>
     <string name="home_recently_added">Aggiunti di recente</string>
@@ -146,7 +144,6 @@
         <item quantity="other">%1$d cartelle</item>
     </plurals>
     <string name="settings_material_glass">Material Glass</string>
-    <string name="settings_ui_style_hint">Scegli Liquid Glass, Material Glass o Miuix. Musica e impostazioni restano le stesse.</string>
     <string name="library_pinned">Fissati</string>
     <string name="sort_name">A–Z</string>
     <string name="sort_recent">Recenti</string>
@@ -170,7 +167,7 @@
     <string name="settings_replay_gain_off">Disattivato</string>
     <string name="settings_replay_gain_track">Stesso volume per ogni brano</string>
     <string name="settings_replay_gain_album">Stesso volume per ogni album</string>
-    <string name="settings_replay_gain_hint">Usa i tag ReplayGain dei tuoi file. I brani senza restano invariati.</string>
+    <string name="settings_replay_gain_hint">Usa i tag ReplayGain dei file. Senza tag il volume non cambia.</string>
     <string name="playlist_add_to">Aggiungi a una playlist</string>
     <string name="playlist_new">Nuova playlist</string>
     <string name="playlist_import">Importa M3U</string>
@@ -212,14 +209,14 @@
         <item quantity="other">%1$d album</item>
     </plurals>
     <string name="settings_resume_reconnect">Riprendi al ricollegamento</string>
-    <string name="settings_resume_reconnect_hint">Se la musica si è fermata perché cuffie o auto si sono scollegate, riparte quando si ricollegano entro un’ora.</string>
+    <string name="settings_resume_reconnect_hint">Riparte entro un’ora se cuffie o auto si ricollegano.</string>
     <string name="library_settings">Libreria</string>
     <string name="library_filter_count">%1$d brani visibili su %2$d</string>
     <string name="library_minimum_duration">Durata minima</string>
     <string name="library_all_durations">Mostra tutti i brani</string>
     <string name="library_duration_seconds">Almeno %1$d secondi</string>
     <string name="library_excluded_folders">Cartelle escluse</string>
-    <string name="library_exclusions_hint">Scegli le cartelle da nascondere. Sono comprese le sottocartelle; i file restano sul dispositivo.</string>
+    <string name="library_exclusions_hint">Le sottocartelle sono incluse; i file restano sul dispositivo.</string>
     <string name="library_parent_excluded">Nascosta dalla cartella superiore esclusa</string>
     <string name="library_no_folders">Nessuna cartella musicale trovata.</string>
     <string name="stats_title">Il tuo ascolto</string>
@@ -317,12 +314,12 @@
     <string name="about_title">Informazioni su Songlass</string>
     <string name="about_tagline">Il tuo lettore di musica locale.</string>
     <string name="about_privacy_title">La tua musica, sul tuo dispositivo</string>
-    <string name="about_privacy_body">Libreria, playlist, preferiti e cronologia di ascolto sono salvati sul dispositivo. Le ricerche online di testi e correzioni EQ non inviano file audio. Su Android, Songlass esclude i propri dati privati dai backup automatici di sistema nel cloud e dal trasferimento fra dispositivi: per trasferirli usa il backup manuale. I backup manuali e gli archivi di recupero non sono cifrati da Songlass e vengono salvati nella destinazione scelta, che può appartenere a un servizio cloud.</string>
+    <string name="about_privacy_body">Libreria, playlist, preferiti e cronologia restano sul dispositivo e, su Android, fuori dai backup automatici. Nessun file audio viene mai inviato. I backup manuali non sono cifrati e vanno dove scegli tu, anche su un servizio cloud.</string>
     <string name="about_lyrics_title">Testi online</string>
-    <string name="about_lyrics_body">Aprendo Testo senza testi importati o incorporati, se AMLL è attivo Songlass invia titolo, artista e album ad api.amll.dev per cercare testi con tempi di parola. Se AMLL è disattivato o non trova un risultato utilizzabile, consulta LRCLIB con gli stessi metadati e la durata. Questi servizi ricevono anche il tuo indirizzo IP, mai file audio o scansioni della raccolta. I download riusciti restano nella cache privata del dispositivo. I tempi aggiuntivi provengono da AMLL TTML Database e dai suoi contributori. Puoi disattivare AMLL in Impostazioni → Testi.</string>
+    <string name="about_lyrics_body">Aprendo Testo senza testi locali, Songlass invia titolo, artista e album ad AMLL (se attivo) e a LRCLIB, che riceve anche la durata. I servizi vedono il tuo indirizzo IP, mai l’audio. Puoi disattivare AMLL in Impostazioni → Testi.</string>
     <string name="about_lyrics_source">AMLL TTML Database</string>
     <string name="about_tags_title">Modifica dei file</string>
-    <string name="about_tags_body">Su Android, il salvataggio nell’editor tag aggiorna il file audio selezionato, con il permesso del sistema quando richiesto. Dopo una modifica interrotta possono restare copie private di recupero sul dispositivo. Puoi esportare un archivio con le copie disponibili e i dettagli del recupero e, dopo la verifica dell’esportazione, scegliere se chiudere il recupero. La chiusura conserva le copie locali e consente nuove modifiche; non ripara né sostituisce il file musicale.</string>
+    <string name="about_tags_body">L’editor dei tag modifica il file audio selezionato. Se il salvataggio si interrompe, sul dispositivo restano copie di recupero: puoi esportarle e poi chiudere il recupero, che non ripara il file.</string>
 
     <!-- AutoEQ catalog and explicit correction preview/apply. -->
     <string name="autoeq_title">Trova le tue cuffie</string>
@@ -344,9 +341,9 @@
     <string name="autoeq_apply">Applica correzione</string>
     <string name="autoeq_attribution">Risultati consigliati di AutoEQ di Jaakko Pasanen (MIT). Scegli modello e variante ANC/cuscinetti esatti. La correzione è un punto di partenza: vestibilità e gusti variano.</string>
     <string name="about_autoeq_title">Profili cuffie AutoEQ</string>
-    <string name="about_autoeq_body">La ricerca delle cuffie usa un catalogo AutoEQ incluso e funziona offline. Aprendo un profilo, il file di correzione viene scaricato da GitHub, che riceve il tuo indirizzo IP e il modello scelto, senza metadati della libreria musicale. I profili validi vengono salvati sul dispositivo. AutoEQ © 2018–2022 Jaakko Pasanen, licenza MIT; licenza e riferimenti ai sorgenti sono inclusi nell’app.</string>
+    <string name="about_autoeq_body">Il catalogo delle cuffie è incluso e funziona offline. Aprendo un profilo, GitHub riceve il tuo indirizzo IP e il modello scelto, senza dati sulla tua musica. AutoEQ © 2018–2022 Jaakko Pasanen, licenza MIT.</string>
     <string name="autoeq_apply_failed">L’uscita audio è cambiata. Controlla quella selezionata e riprova.</string>
     <string name="settings_lyrics">Testi</string>
     <string name="settings_amll">Testi parola per parola da AMLL</string>
-    <string name="settings_amll_hint">Quando apri Testo, cerca su AMLL usando titolo, artista e album. Disattiva per usare solo i testi locali e LRCLIB.</string>
+    <string name="settings_amll_hint">Quando apri Testo, cerca titolo, artista e album su AMLL. Se disattivato usa solo testi locali e LRCLIB.</string>
 </resources>

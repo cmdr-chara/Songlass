@@ -1,6 +1,5 @@
 <resources>
     <string name="settings_search_placeholder">Search settings</string>
-    <string name="settings_search_hint">Find a setting by name, or try crossfade, headphones or lyrics.</string>
     <string name="settings_search_empty">No matching settings</string>
     <string name="settings_search_empty_hint">Try a different name or a shorter search. Only settings available on this device are shown.</string>
     <string name="settings_search_results">Search results</string>

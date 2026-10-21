@@ -59,13 +59,11 @@
     <string name="settings_appearance_system">System</string>
     <string name="settings_appearance_light">Light</string>
     <string name="settings_appearance_dark">Dark</string>
-    <string name="settings_appearance_hint">System matches your device’s light or dark appearance.</string>
     <string name="settings_accessibility">Accessibility</string>
     <string name="settings_reduce_motion">Reduce Motion</string>
-    <string name="settings_reduce_motion_hint">Keep navigation and artwork still, with simpler transitions.</string>
+    <string name="settings_reduce_motion_hint">Simpler transitions, still artwork.</string>
     <string name="settings_reduce_transparency">Reduce Transparency</string>
-    <string name="settings_reduce_transparency_hint">Use solid surfaces for clearer text and controls.</string>
-    <string name="settings_accessibility_hint">Your device’s accessibility settings always apply. You can also enable these options just for Songlass.</string>
+    <string name="settings_reduce_transparency_hint">Solid surfaces, clearer text.</string>
     <string name="settings_device_enabled">Enabled in device settings.</string>
     <string name="settings_ui_style">UI Style</string>
     <string name="settings_liquid_glass">Liquid Glass</string>
@@ -111,7 +109,7 @@
     <string name="settings_artwork">Artwork</string>
     <string name="settings_artwork_full">Edge to Edge</string>
     <string name="settings_artwork_square">Square</string>
-    <string name="settings_artwork_hint">How covers appear in Now Playing and on album and playlist pages. Edge to edge fades the cover into the background. Playback controls follow your chosen appearance.</string>
+    <string name="settings_artwork_hint">Applies to Now Playing and to album and playlist pages.</string>
     <string name="tab_home">Home</string>
     <string name="home_shuffle_all">Shuffle All</string>
     <string name="home_recently_added">Recently Added</string>
@@ -146,7 +144,6 @@
         <item quantity="other">%1$d folders</item>
     </plurals>
     <string name="settings_material_glass">Material Glass</string>
-    <string name="settings_ui_style_hint">Choose Liquid Glass, Material Glass or Miuix. Your music and settings stay the same.</string>
     <string name="library_pinned">Pinned</string>
     <string name="sort_name">A–Z</string>
     <string name="sort_recent">Recent</string>
@@ -170,7 +167,7 @@
     <string name="settings_replay_gain_off">Off</string>
     <string name="settings_replay_gain_track">Same loudness for every song</string>
     <string name="settings_replay_gain_album">Same loudness for every album</string>
-    <string name="settings_replay_gain_hint">Uses the ReplayGain tags in your files. Songs without them play unchanged.</string>
+    <string name="settings_replay_gain_hint">Uses ReplayGain tags in your files. Without tags, volume is unchanged.</string>
     <string name="playlist_add_to">Add to a Playlist</string>
     <string name="playlist_new">New Playlist</string>
     <string name="playlist_import">Import M3U</string>
@@ -212,14 +209,14 @@
         <item quantity="other">%1$d albums</item>
     </plurals>
     <string name="settings_resume_reconnect">Resume on Reconnect</string>
-    <string name="settings_resume_reconnect_hint">If the music stopped because headphones or the car disconnected, it continues when they connect again within an hour.</string>
+    <string name="settings_resume_reconnect_hint">Resumes within an hour if headphones or the car reconnect.</string>
     <string name="library_settings">Library</string>
     <string name="library_filter_count">%1$d of %2$d songs visible</string>
     <string name="library_minimum_duration">Minimum duration</string>
     <string name="library_all_durations">Show all songs</string>
     <string name="library_duration_seconds">At least %1$d seconds</string>
     <string name="library_excluded_folders">Excluded folders</string>
-    <string name="library_exclusions_hint">Choose the folders to hide. Subfolders are included; your files stay on the device.</string>
+    <string name="library_exclusions_hint">Subfolders are included; your files stay on the device.</string>
     <string name="library_parent_excluded">Hidden by an excluded parent folder</string>
     <string name="library_no_folders">No music folders found.</string>
     <string name="stats_title">Your listening</string>
@@ -317,12 +314,12 @@
     <string name="about_title">About Songlass</string>
     <string name="about_tagline">Your local music player.</string>
     <string name="about_privacy_title">Your music, your device</string>
-    <string name="about_privacy_body">Your library, playlists, favourites and listening history are stored on your device. Online lyrics and EQ lookups do not send your audio files. On Android, Songlass excludes its private app data from automatic system cloud backups and device transfers; use the manual backup to transfer that data. Manual backups and recovery archives are not encrypted by Songlass and are saved to the location you choose, which may be a cloud provider.</string>
+    <string name="about_privacy_body">Your library, playlists, favourites and history stay on your device and, on Android, out of automatic backups. Audio files are never sent. Manual backups are not encrypted and go wherever you choose, including a cloud service.</string>
     <string name="about_lyrics_title">Online lyrics</string>
-    <string name="about_lyrics_body">When you open Lyrics without imported or embedded lyrics and AMLL is enabled, Songlass sends the title, artist and album to api.amll.dev to look for word-timed lyrics. If AMLL is off or no results are usable, it asks LRCLIB with the same metadata and the duration. These services also receive your IP address, never audio files or library scans. Successful downloads are cached privately on your device. AMLL TTML Database and its contributors provide the additional timings. You can turn off AMLL in Settings → Lyrics.</string>
+    <string name="about_lyrics_body">When you open Lyrics without local lyrics, Songlass sends title, artist and album to AMLL (if on) and to LRCLIB, which also gets the duration. Both see your IP address, never your audio. You can turn AMLL off in Settings → Lyrics.</string>
     <string name="about_lyrics_source">AMLL TTML Database</string>
     <string name="about_tags_title">Editing your files</string>
-    <string name="about_tags_body">On Android, saving in the tag editor updates the selected audio file, with system permission when required. An interrupted edit may leave private recovery copies on this device. You can export an archive containing the available copies and recovery details and, after the export is verified, choose whether to close the recovery. Closing it retains the local copies and allows new edits; it does not repair or replace your music file.</string>
+    <string name="about_tags_body">The tag editor changes the selected audio file. If saving is interrupted, recovery copies stay on the device: you can export them, then close the recovery, which does not repair the file.</string>
 
     <!-- AutoEQ catalog and explicit correction preview/apply. -->
     <string name="autoeq_title">Find your headphones</string>
@@ -344,9 +341,9 @@
     <string name="autoeq_apply">Apply correction</string>
     <string name="autoeq_attribution">Recommended results from AutoEQ by Jaakko Pasanen (MIT). Choose the exact model and ANC/pad variant. Corrections are a starting point; fit and taste vary.</string>
     <string name="about_autoeq_title">AutoEQ headphone profiles</string>
-    <string name="about_autoeq_body">Headphone search uses an included AutoEQ catalog and works offline. Opening a profile downloads its correction file from GitHub; GitHub receives your IP address and the selected model, but no music-library metadata. Valid profiles are saved on your device. AutoEQ © 2018–2022 Jaakko Pasanen, MIT license; license and source notice are included in the app.</string>
+    <string name="about_autoeq_body">The headphone catalog is built in and works offline. Opening a profile downloads it from GitHub, which receives your IP address and the model you chose, but nothing about your music. AutoEQ © 2018–2022 Jaakko Pasanen, MIT license.</string>
     <string name="autoeq_apply_failed">The audio output changed. Check the selected output and try again.</string>
     <string name="settings_lyrics">Lyrics</string>
     <string name="settings_amll">AMLL word-timed lyrics</string>
-    <string name="settings_amll_hint">When you open Lyrics, searches AMLL using the song title, artist and album. Turn off to use only local lyrics and LRCLIB.</string>
+    <string name="settings_amll_hint">When you open Lyrics, looks up title, artist and album on AMLL. Off uses only local lyrics and LRCLIB.</string>
 </resources>

@@ -8,6 +8,7 @@
     <string name="audio_tools_adjust">Regola il suono</string>
     <string name="audio_tools_transitions">Passaggi tra brani</string>
     <string name="audio_tools_transition_summary">Impostati: %1$d ms automatico · %2$d ms manuale</string>
+    <string name="audio_tools_transition_off">Disattivati</string>
     <string name="player_return">In riproduzione</string>
     <string name="player_timer_short">Timer</string>
     <string name="player_timer_minutes">%1$d min</string>

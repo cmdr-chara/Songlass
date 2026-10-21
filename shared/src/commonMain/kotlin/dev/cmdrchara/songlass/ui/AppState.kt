@@ -24,6 +24,7 @@ import dev.cmdrchara.songlass.core.playlists.PlaylistInsertion
 import dev.cmdrchara.songlass.core.queue.QueuePlaylistSnapshot
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.storage.MutationTicket
+import dev.cmdrchara.songlass.core.settings.SettingsArea
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 
 enum class Tab { Home, Library, Search }
@@ -183,6 +184,10 @@ class AppState(graph: AppGraph) {
         alphabetJumpRequest = AlphabetJumpRequest(sections, onSelect)
     }
     fun closeAlphabetJump() { alphabetJumpRequest = null }
+    var restoreDefaultsArea by mutableStateOf<SettingsArea?>(null)
+        private set
+    fun askRestoreDefaults(area: SettingsArea) { restoreDefaultsArea = area }
+    fun closeRestoreDefaults() { restoreDefaultsArea = null }
     var isSleepMenuOpen by mutableStateOf(false)
         private set
     fun openSleepMenu() { isSleepMenuOpen = true }
@@ -304,6 +309,7 @@ class AppState(graph: AppGraph) {
             addToPlaylistTracks != null -> closeAddToPlaylist()
             playlistOptionsId != null -> closePlaylistOptions()
             isLibraryDurationPickerOpen -> closeLibraryDurationPicker()
+            restoreDefaultsArea != null -> closeRestoreDefaults()
             isSleepMenuOpen -> closeSleepMenu()
             menuTrack != null -> closeMenu()
             isSongInfoVisible -> backFromAudioInformation()
@@ -476,7 +482,7 @@ class AppState(graph: AppGraph) {
 
     val hasOverlay: Boolean
         get() = playlistMutationRejected || alphabetJumpRequest != null || playlistInsertionRequest != null || playlistAdditionNotice != null || playlistRemovalRequest != null ||
-            deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
+            deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || restoreDefaultsArea != null || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
 
     fun openBookmarks(track: Track? = null) {

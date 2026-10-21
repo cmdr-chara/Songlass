@@ -109,8 +109,9 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
                 AppText(summary, AppTheme.typography.subheadline, color = colors.secondaryLabel)
             } else {
                 AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f), color = colors.label)
+                // Measured before the weighted title, so a short value ("Liquid Glass · Sistema") is never cut at half width.
                 if (summaryIsValue) AppText(summary, AppTheme.typography.subheadline,
-                    modifier = Modifier.weight(1f), color = colors.secondaryLabel, maxLines = 1, textAlign = TextAlign.End)
+                    modifier = Modifier.widthIn(max = 200.dp), color = colors.secondaryLabel, maxLines = 1, textAlign = TextAlign.End)
             }
             AppIcon(AppIcons.ChevronRight, null, size = 13.dp, tint = colors.tertiaryLabel)
         }

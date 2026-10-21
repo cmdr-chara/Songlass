@@ -340,4 +340,73 @@ class AppSettingsTest {
         AppSettings(store).setFolderSort(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed)
         assertEquals(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed, AppSettings(store).state.value.folderSort)
     }
+
+    private fun changedSettings(store: InMemoryKeyValueStore) = AppSettings(store).apply {
+        setInterfaceStyle(InterfaceStyle.Miuix); setAppearance(AppearanceMode.Dark); setArtworkStyle(ArtworkStyle.Square)
+        setReplayGain(dev.cmdrchara.songlass.core.player.ReplayGainMode.Album); setResumeOnReconnect(true)
+        setCrossfadeDuration(4_000L); setManualCrossfadeDuration(400L); setResumePerTrack(true); setLongTrackThreshold(1_200_000L)
+        setAmllEnabled(false); setReduceMotion(true); setReduceTransparency(true)
+        setPlayCountRule(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll); setAlbumLayout(AlbumLayout.List)
+        setMinimumDuration(30_000L); setFolderExcluded("Music/Voice", true)
+        setFolderSort(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed)
+    }
+
+    @Test
+    fun restoringOnePageDefaultsOnlyItsPreferencesAndSurvivesRestart() {
+        val store = InMemoryKeyValueStore().apply { putString("history.counts", "kept") }
+        val settings = changedSettings(store)
+        val before = settings.state.value
+        settings.resetToDefaults(SettingsArea.Playback)
+        val after = settings.state.value
+        val defaults = AppPreferences()
+        assertEquals(defaults.replayGain, after.replayGain)
+        assertEquals(defaults.resumeOnReconnect, after.resumeOnReconnect)
+        assertEquals(0L, after.crossfadeDurationMs)
+        assertEquals(0L, after.manualCrossfadeDurationMs)
+        assertEquals(defaults.resumePerTrack, after.resumePerTrack)
+        assertEquals(defaults.longTrackThresholdMs, after.longTrackThresholdMs)
+        // Everything on the other pages is untouched.
+        assertEquals(before.copy(replayGain = defaults.replayGain, resumeOnReconnect = defaults.resumeOnReconnect,
+            crossfadeDurationMs = 0L, manualCrossfadeDurationMs = 0L, resumePerTrack = defaults.resumePerTrack,
+            longTrackThresholdMs = defaults.longTrackThresholdMs), after)
+        assertEquals(after, AppSettings(store).state.value)
+        assertEquals("kept", store.getString("history.counts"))
+        assertEquals(null, store.getString(AppSettings.CROSSFADE_KEY))
+    }
+
+    @Test
+    fun everyPageRestoresItsOwnDefaults() {
+        for (area in SettingsArea.entries) {
+            val store = InMemoryKeyValueStore()
+            val settings = changedSettings(store)
+            settings.resetToDefaults(area)
+            val state = settings.state.value
+            val defaults = AppPreferences()
+            when (area) {
+                SettingsArea.Appearance -> assertEquals(Triple(defaults.interfaceStyle, defaults.appearance, defaults.artworkStyle),
+                    Triple(state.interfaceStyle, state.appearance, state.artworkStyle))
+                SettingsArea.Lyrics -> assertEquals(defaults.amllEnabled, state.amllEnabled)
+                SettingsArea.Accessibility -> assertEquals(false to false, state.reduceMotion to state.reduceTransparency)
+                SettingsArea.Library -> {
+                    assertEquals(defaults.libraryFilter, state.libraryFilter)
+                    assertEquals(defaults.playCountRule, state.playCountRule)
+                    assertEquals(defaults.albumLayout, state.albumLayout)
+                    // Folder sort is a library-page choice, not part of the settings page.
+                    assertEquals(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed, state.folderSort)
+                }
+                SettingsArea.Playback -> assertEquals(defaults.longTrackThresholdMs, state.longTrackThresholdMs)
+            }
+            assertEquals(state, AppSettings(store).state.value, area.name)
+        }
+    }
+
+    @Test
+    fun restoringDefaultsIsIgnoredWhileABackupRestoreOwnsTheData() = runTest {
+        val store = InMemoryKeyValueStore()
+        val gate = dev.cmdrchara.songlass.core.storage.RestoreMutationGate()
+        val settings = AppSettings(store, gate)
+        settings.setReduceMotion(true)
+        gate.restoring { settings.resetToDefaults(SettingsArea.Accessibility) }
+        assertEquals(true, settings.state.value.reduceMotion)
+    }
 }

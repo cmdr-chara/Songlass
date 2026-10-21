@@ -15,6 +15,10 @@
     <string name="settings_crossfade_custom">Personalizzato…</string>
     <string name="settings_crossfade_custom_value">Personalizzato · %1$d ms</string>
     <string name="settings_crossfade_ms_label">Durata (ms)</string>
-    <string name="settings_crossfade_ms_hint">Inserisci da %1$d a %2$d ms. Usa 0 per disattivare il crossfade.</string>
-    <string name="settings_crossfade_ms_invalid">Inserisci un numero intero da %1$d a %2$d ms, oppure 0 per disattivarlo.</string>
+    <string name="settings_crossfade_ms_hint">Da %1$d a %2$d ms. Usa 0 per disattivare.</string>
+    <string name="settings_crossfade_ms_invalid">Inserisci un numero da %1$d a %2$d ms, oppure 0.</string>
+    <string name="settings_restore_defaults">Ripristina predefiniti</string>
+    <string name="settings_restore_title">Ripristinare i predefiniti?</string>
+    <string name="settings_restore_hint">Cambia solo le impostazioni di questa pagina.</string>
+    <string name="settings_restore_action">Ripristina</string>
 </resources>

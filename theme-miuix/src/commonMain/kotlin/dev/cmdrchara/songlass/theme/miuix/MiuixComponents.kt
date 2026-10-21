@@ -97,8 +97,7 @@ internal fun MiuixToggle(title: String, subtitle: String?, checked: Boolean, onC
 
 @Composable
 internal fun MiuixSegments(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
-    top.yukonga.miuix.kmp.basic.TabRow(options, selectedIndex, onSelect, modifier,
-        minWidth = 56.dp, maxWidth = 160.dp, height = 48.dp)
+    MiuixContourSegments(options, selectedIndex, onSelect, modifier)
 
 }
 

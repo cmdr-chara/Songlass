@@ -30,6 +30,15 @@ class SettingsSearchTest {
         assertEquals(listOf(SettingsTarget.LongTrackThreshold), index.search("soglia brani lunghi", true))
     }
 
+    @Test
+    fun sleepTimerIsSearchableInBothLanguages() {
+        val documents = SettingsTarget.entries.map { SettingsSearchDocument(it, "Control ${it.name}", "Settings") }
+        val index = SettingsSearchIndex(documents)
+        for (query in listOf("sleep timer", "timer di spegnimento", "timer", "spegnimento", "fine brano")) {
+            assertEquals(SettingsTarget.SleepTimer, index.search(query, true).first(), query)
+        }
+    }
+
     private val documents = SettingsTarget.entries.map { target ->
         SettingsSearchDocument(target, "Control ${target.name}", "Settings")
     }

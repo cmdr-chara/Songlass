@@ -6,7 +6,7 @@
     <string name="settings_home_customization">Personalizza Home</string>
     <string name="settings_backup">Backup e ripristino</string>
     <string name="backup_title">Backup e ripristino</string>
-    <string name="backup_intro">Salva preferiti, playlist, cronologia degli ascolti, disposizione della Home, impostazioni e profili dell’equalizzatore in un file a tua scelta. Musica e download nella cache sono esclusi.</string>
+    <string name="backup_intro">Salva preferiti, playlist, cronologia, Home, impostazioni e profili EQ in un file. Musica e cache non sono incluse.</string>
     <string name="backup_export">Crea backup</string>
     <string name="backup_import">Apri backup</string>
     <string name="backup_unavailable">L’accesso ai file non è ancora disponibile su questa piattaforma.</string>
@@ -16,20 +16,20 @@
     <string name="backup_failed">Operazione non riuscita. I dati esistenti sono stati conservati.</string>
     <string name="backup_invalid">Il file non è un backup Songlass valido e supportato. Nessun dato è stato modificato.</string>
     <string name="backup_preview">Anteprima del ripristino</string>
-    <string name="backup_preview_hint">Il ripristino sostituisce i dati attuali dell’app con quelli del backup. I file musicali restano invariati.</string>
+    <string name="backup_preview_hint">Il ripristino sostituisce i dati attuali dell’app. La musica non cambia.</string>
     <string name="backup_entries">Voci salvate</string>
     <string name="backup_matched">Brani trovati nella libreria</string>
     <string name="backup_missing">Brani attualmente non disponibili</string>
-    <string name="backup_missing_hint">I brani non disponibili non possono essere riprodotti qui. Sono segnalati per permetterti di controllare la libreria prima del ripristino.</string>
+    <string name="backup_missing_hint">Questi brani non si possono riprodurre qui. Controlla la libreria prima di ripristinare.</string>
     <string name="backup_restore">Ripristina questo backup</string>
     <string name="backup_cancel">Annulla</string>
     <string name="backup_confirm_title">Sostituire i dati dell’app?</string>
-    <string name="backup_confirm_hint">Sostituisci preferiti, playlist, cronologia, impostazioni e disposizione della Home con i dati di questo backup.</string>
+    <string name="backup_confirm_hint">Sostituisce preferiti, playlist, cronologia, impostazioni e Home con i dati del backup.</string>
     <string name="backup_library_loading">Attendi la fine della scansione della libreria prima di creare o ripristinare un backup.</string>
     <string name="backup_playlists">Playlist</string>
     <string name="backup_history">Ascolti con data</string>
     <string name="backup_profiles">Profili dell’equalizzatore</string>
     <string name="backup_conflicting">Brani con corrispondenza incerta</string>
-    <string name="backup_conflict_hint">I riferimenti incerti verranno esclusi dalle liste e dalla cronologia ripristinate per evitare di associare i tuoi dati a un altro brano.</string>
+    <string name="backup_conflict_hint">I riferimenti incerti vengono esclusi da liste e cronologia, per non collegarli al brano sbagliato.</string>
     <string name="backup_omitted_lyrics">Alcuni testi importati superano lo spazio disponibile per questo backup. Gli altri dati dell’app sono inclusi.</string>
 </resources>

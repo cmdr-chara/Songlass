@@ -19,7 +19,7 @@
     <string name="lyrics_identity_back">Back to saved texts</string>
     <string name="lyrics_identity_backup_count">Imported lyrics</string>
     <string name="lyrics_identity_backup_unavailable">Lyrics without a file link</string>
-    <string name="lyrics_identity_backup_hint">These texts will be kept without attaching them to a file. Open a song’s lyrics and choose Recover imports to review and link a saved text. Damaged or unsupported documents remain preserved for backup.</string>
+    <string name="lyrics_identity_backup_hint">Kept without a link to a file. Open a song’s lyrics and choose Recover imports to link them.</string>
     <string name="lyrics_identity_import_hint">Check these words and their destination before importing. The audio file is not edited.</string>
     <string name="lyrics_identity_import_reading">Reading the selected document…</string>
     <string name="lyrics_identity_import_unavailable">This song is not currently verified. Retry refreshes the library; when the song is available, review this import again. If the original song is gone, cancel and choose the intended song. Nothing is imported to the song currently playing.</string>

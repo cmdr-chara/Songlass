@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -79,6 +80,51 @@ internal fun MiuixSearch(query: String, onQueryChange: (String) -> Unit, placeho
             }
         },
     )
+}
+
+/**
+ * Equal-width contour tabs for short exclusive choices. Same tonal selection as [MiuixFilters];
+ * the native control insets its contour by 5 dp, so it is widened to keep the visible edges on the column.
+ */
+@Composable
+internal fun MiuixContourSegments(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
+    val colors = AppTheme.colors
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val labelStyle = MiuixTheme.textStyles.body2.copy(fontWeight = FontWeight.Bold)
+    val contourInset = 5.dp
+    val spacing = 8.dp
+    val labelWidth = remember(options, labelStyle, density, textMeasurer) {
+        with(density) { (options.maxOfOrNull { textMeasurer.measure(it, labelStyle, maxLines = 1).size.width } ?: 0).toDp() + 28.dp }
+    }
+    val height = with(density) { maxOf(48.dp, labelStyle.fontSize.toDp() + 24.dp) } + contourInset * 2
+    BoxWithConstraints(modifier.layout { measurable, constraints ->
+        val extra = (contourInset * 2).roundToPx()
+        val placeable = measurable.measure(constraints.copy(minWidth = constraints.maxWidth + extra, maxWidth = constraints.maxWidth + extra))
+        layout(constraints.maxWidth, placeable.height) { placeable.place(-extra / 2, 0) }
+    }) {
+        val equal = (maxWidth - contourInset * 2 - spacing * (options.size - 1)) / options.size
+        // Labels that do not fit an equal share keep their width and the row scrolls.
+        val tabWidth = maxOf(equal, labelWidth)
+        TabRowWithContour(
+            tabs = options,
+            selectedTabIndex = selectedIndex,
+            onTabSelected = onSelect,
+            modifier = Modifier.fillMaxWidth(),
+            colors = TabRowDefaults.tabRowColors(
+                backgroundColor = Color.Transparent,
+                contentColor = colors.secondaryLabel,
+                selectedBackgroundColor = colors.accent.copy(alpha = if (colors.isDark) 0.18f else 0.10f)
+                    .compositeOver(colors.background),
+                selectedContentColor = colors.accent,
+            ),
+            minWidth = tabWidth,
+            maxWidth = tabWidth,
+            height = height,
+            cornerRadius = 18.dp,
+            itemSpacing = spacing,
+        )
+    }
 }
 
 /** Native contour tabs: one tonal selection, no opaque strip behind the other filters. */

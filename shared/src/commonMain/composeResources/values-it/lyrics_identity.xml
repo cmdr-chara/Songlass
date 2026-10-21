@@ -19,7 +19,7 @@
     <string name="lyrics_identity_back">Torna ai testi salvati</string>
     <string name="lyrics_identity_backup_count">Testi importati</string>
     <string name="lyrics_identity_backup_unavailable">Testi senza collegamento al file</string>
-    <string name="lyrics_identity_backup_hint">Questi testi saranno conservati senza associarli a un file. Apri i testi di un brano e scegli Recupera importazioni per controllare e collegare un testo salvato. I documenti danneggiati o non supportati restano conservati per il backup.</string>
+    <string name="lyrics_identity_backup_hint">Restano salvati senza collegamento a un file. Apri i testi di un brano e scegli Recupera importazioni per collegarli.</string>
     <string name="lyrics_identity_import_hint">Controlla le parole e il brano destinatario prima di importare. Il file audio non viene modificato.</string>
     <string name="lyrics_identity_import_reading">Lettura del documento selezionato…</string>
     <string name="lyrics_identity_import_unavailable">Questo brano non è attualmente verificato. Riprova aggiorna la libreria; quando il brano sarà disponibile, controlla di nuovo l’importazione. Se il brano originale non esiste più, annulla e scegli quello desiderato. Il testo non viene importato nel brano attualmente in riproduzione.</string>

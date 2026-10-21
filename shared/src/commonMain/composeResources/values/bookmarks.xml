@@ -21,8 +21,8 @@
     <string name="bookmark_seek_forward_accessible">Forward ten seconds</string>
     <string name="settings_long_section">Long tracks</string>
     <string name="settings_long_resume">Resume each track</string>
-    <string name="settings_long_resume_hint">Off by default. When enabled, each long track remembers its own position across sessions.</string>
+    <string name="settings_long_resume_hint">Each long track resumes where you left off.</string>
     <string name="settings_long_threshold">Minimum track duration</string>
     <string name="settings_long_minutes">%1$d min</string>
-    <string name="settings_long_hint">This duration also controls when the optional ±10-second buttons appear. Android's last-session playback resumption still restores the last collection and track, independently of this setting.</string>
+    <string name="settings_long_hint">From this length, the ±10-second buttons also appear.</string>
 </resources>

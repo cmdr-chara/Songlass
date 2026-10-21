@@ -5,7 +5,7 @@ enum class SettingsTarget {
     InterfaceStyle, Appearance, ArtworkStyle, ResumeOnReconnect, ReplayGain, Crossfade,
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
-    HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout,
+    HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -124,6 +124,8 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "album art|artwork|cover|copertine|full bleed|tutto schermo|square|quadrata")
     SettingsTarget.ResumeOnReconnect -> terms("Resume on reconnect", "Riprendi al ricollegamento",
         aliases = "headphones|cuffie|bluetooth|wired|cavo|usb|car|auto|reconnect|ricollega|ripresa|disconnessione")
+    SettingsTarget.SleepTimer -> terms("Sleep timer", "Timer di spegnimento", "Timer",
+        aliases = "sleep|sonno|dormire|spegnimento|stop music|ferma musica|end of track|fine brano|minutes|minuti|night|notte|bedtime")
     SettingsTarget.ReplayGain -> terms("ReplayGain", "Volume normalization", "Normalizza volume", "Normalizzazione",
         aliases = "loudness|gain|guadagno|track|album|brano|volume|clipping|normalize|normalise")
     SettingsTarget.Crossfade -> terms("Crossfade", "Automatic crossfade", "Crossfade automatico", "Sfumatura tra brani",

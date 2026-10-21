@@ -205,6 +205,37 @@ class AppSettings(
         _state.update { it.copy(libraryFilter = it.libraryFilter.copy(minimumDurationMs = durationMs)) }
     }
 
+    /**
+     * Removes the stored values of one settings page, so every default stays "absent" as for a fresh
+     * install. Only that page's preferences change: other settings, playlists, history and the equalizer are kept.
+     */
+    fun resetToDefaults(area: SettingsArea) {
+        if (!mutations.canMutate) return
+        val keys = when (area) {
+            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY)
+            SettingsArea.Playback -> setOf(REPLAY_GAIN_KEY, RESUME_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY)
+            SettingsArea.Lyrics -> setOf(AMLL_KEY)
+            SettingsArea.Accessibility -> setOf(REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
+            SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
+        }
+        store.updateStrings(removing = keys, writing = emptyMap())
+        val defaults = readPreferences()
+        _state.update { current ->
+            when (area) {
+                SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
+                    appearance = defaults.appearance, artworkStyle = defaults.artworkStyle)
+                SettingsArea.Playback -> current.copy(replayGain = defaults.replayGain, resumeOnReconnect = defaults.resumeOnReconnect,
+                    crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
+                    resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs)
+                SettingsArea.Lyrics -> current.copy(amllEnabled = defaults.amllEnabled)
+                SettingsArea.Accessibility -> current.copy(reduceMotion = defaults.reduceMotion,
+                    reduceTransparency = defaults.reduceTransparency)
+                SettingsArea.Library -> current.copy(libraryFilter = defaults.libraryFilter,
+                    playCountRule = defaults.playCountRule, albumLayout = defaults.albumLayout)
+            }
+        }
+    }
+
     fun setFolderExcluded(path: String, excluded: Boolean) {
         if (!mutations.canMutate) return
         val folder = path.trim('/')

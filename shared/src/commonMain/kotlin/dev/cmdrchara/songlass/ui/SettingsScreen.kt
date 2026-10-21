@@ -21,12 +21,11 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import dev.cmdrchara.songlass.core.player.Crossfade
 import dev.cmdrchara.songlass.core.player.CrossfadeKind
-import dev.cmdrchara.songlass.core.player.CrossfadeSkipReason
-import dev.cmdrchara.songlass.core.player.CrossfadeStatus
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.equalizer.Equalizer
+import dev.cmdrchara.songlass.core.playback.SleepTimerState
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 import dev.cmdrchara.songlass.core.settings.*
 import dev.cmdrchara.songlass.designsystem.*
@@ -48,9 +47,11 @@ fun SettingsScreen(
     preferences: AppPreferences,
     supportsAmllLyrics: Boolean,
     supportsCrossfade: Boolean,
-    crossfadeStatus: CrossfadeStatus?,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
+    sleepTimer: SleepTimerState,
+    onOpenSleepTimer: () -> Unit,
+    onRestoreDefaults: (SettingsArea) -> Unit,
     pane: SettingsPane,
     search: SettingsSearchSession,
     onSearchResult: (SettingsTarget) -> Unit,
@@ -151,14 +152,13 @@ fun SettingsScreen(
                         if (searching) settingsSearchResults(results, documents, preferences, eqState, systemAccessibility) {
                             focus.clearFocus(); keyboard?.hide(); onSearchResult(it)
                         } else {
-                            item(key = "search-hint") { SettingsHint(stringResource(Res.string.settings_search_hint)) }
                             overviewSettings(preferences, supportsAmllLyrics, onPaneChanged,
                                 onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
                         }
                     }
                     SettingsPane.Appearance -> appearanceSettings(settings, preferences, request)
-                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer,
-                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, crossfadeStatus,
+                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
+                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
                     SettingsPane.Lyrics -> if (supportsAmllLyrics) {
                         item {
@@ -173,6 +173,14 @@ fun SettingsScreen(
                     }
                     SettingsPane.Accessibility -> accessibilitySettings(settings, preferences, systemAccessibility, request)
                 }
+                val restoreArea = when (page) {
+                    SettingsPane.Overview -> null
+                    SettingsPane.Appearance -> SettingsArea.Appearance
+                    SettingsPane.Playback -> SettingsArea.Playback
+                    SettingsPane.Lyrics -> if (supportsAmllLyrics) SettingsArea.Lyrics else null
+                    SettingsPane.Accessibility -> SettingsArea.Accessibility
+                }
+                if (restoreArea != null) item(key = "restore-defaults") { RestoreDefaultsButton(restoreArea, onRestoreDefaults) }
                 item(key = "end") { Spacer(Modifier.height(20.dp)) }
             }
         }
@@ -249,7 +257,6 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
             }
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_ui_style_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_appearance)) }
     item {
         SettingsSearchAnchor(SettingsTarget.Appearance, request) {
@@ -258,7 +265,6 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
             }
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_appearance_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_artwork)) }
     item {
         SettingsSearchAnchor(SettingsTarget.ArtworkStyle, request) {
@@ -352,10 +358,11 @@ private fun LazyListScope.playbackSettings(
     settings: AppSettings,
     preferences: AppPreferences,
     equalizer: Equalizer,
+    sleepTimer: SleepTimerState,
+    openSleepTimer: () -> Unit,
     openEq: () -> Unit,
     request: SettingsFocusRequest?,
     supportsCrossfade: Boolean,
-    crossfadeStatus: CrossfadeStatus?,
     draft: SettingsDurationDraft?,
     openDuration: (CrossfadeKind) -> Unit,
     closeDuration: () -> Unit,
@@ -367,6 +374,14 @@ private fun LazyListScope.playbackSettings(
             SettingsLink(stringResource(Res.string.eq_title),
                 if (!eq.enabled) stringResource(Res.string.eq_off) else listOfNotNull(stringResource(Res.string.eq_on), eq.profile?.name).joinToString(" · "),
                 AppIcons.Equalizer, summaryIsValue = true, onClick = openEq)
+            SettingsSearchAnchor(SettingsTarget.SleepTimer, request) {
+                val minutesLeft = sleepMinutesLeft(sleepTimer)
+                SettingsLink(stringResource(Res.string.sleep_title), when {
+                    sleepTimer is SleepTimerState.EndOfTrack -> stringResource(Res.string.player_timer_track_end)
+                    minutesLeft != null -> stringResource(Res.string.player_timer_minutes, minutesLeft)
+                    else -> stringResource(Res.string.eq_off)
+                }, AppIcons.Timer, summaryIsValue = true, onClick = openSleepTimer)
+            }
             SettingsSearchAnchor(SettingsTarget.ResumeOnReconnect, request) {
                 SettingsToggleRow(stringResource(Res.string.settings_resume_reconnect), preferences.resumeOnReconnect,
                     settings::setResumeOnReconnect, subtitle = stringResource(Res.string.settings_resume_reconnect_hint))
@@ -400,7 +415,8 @@ private fun LazyListScope.playbackSettings(
     }
     item(key = "long-duration-threshold") {
         SettingsSearchAnchor(SettingsTarget.LongTrackThreshold, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            // A gap, not a seam: two rounded cards touching leave dark wedges at their corners.
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset).padding(top = 12.dp)) {
                 AppText(stringResource(Res.string.settings_long_threshold), AppTheme.typography.subheadline,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 AppSettings.LONG_TRACK_CHOICES_MS.forEach { duration ->
@@ -436,12 +452,7 @@ private fun LazyListScope.playbackSettings(
         }
     }
     item(key = "manual-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_manual_hint)) }
-    item(key = "crossfade-limits") {
-        SettingsHint(stringResource(if (supportsCrossfade) Res.string.settings_crossfade_limits else Res.string.settings_crossfade_unsupported))
-    }
-    item(key = "crossfade-status") {
-        if (supportsCrossfade) CrossfadeStatusNote(crossfadeStatus)
-    }
+    if (!supportsCrossfade) item(key = "crossfade-unsupported") { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
 }
 
 @Composable
@@ -489,8 +500,6 @@ private fun CrossfadeDurationEditor(draft: SettingsDurationDraft, onSave: (Long)
             modifier = Modifier.semantics {
                 error(validation); liveRegion = LiveRegionMode.Polite
             })
-        AppText(stringResource(Res.string.settings_crossfade_presets_hint), AppTheme.typography.footnote,
-            color = AppTheme.colors.secondaryLabel)
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             val presets = if (draft.kind == CrossfadeKind.Automatic) crossfadePresets else manualCrossfadePresets
             presets.forEach { duration ->
@@ -511,40 +520,6 @@ private fun CrossfadeDurationEditor(draft: SettingsDurationDraft, onSave: (Long)
     }
 }
 
-/** Reports the player's last attempt, separately from the durations currently configured above. */
-@Composable
-private fun CrossfadeStatusNote(status: CrossfadeStatus?) {
-    if (status == null) {
-        SettingsHint(stringResource(Res.string.settings_crossfade_no_status))
-        return
-    }
-    val title = stringResource(if (status.kind == CrossfadeKind.Automatic) Res.string.settings_crossfade_last_automatic else Res.string.settings_crossfade_last_manual)
-    val reason = status.skipReason
-    val outcome = if (reason == null && status.effectiveDurationMs > 0) {
-        stringResource(Res.string.settings_crossfade_applied, status.requestedDurationMs, status.effectiveDurationMs)
-    } else if (reason == null) stringResource(Res.string.settings_crossfade_no_status) else {
-        stringResource(when (reason) {
-            CrossfadeSkipReason.Disabled -> Res.string.settings_crossfade_reason_disabled
-            CrossfadeSkipReason.Unsupported -> Res.string.settings_crossfade_reason_unsupported
-            CrossfadeSkipReason.NotPlaying -> Res.string.settings_crossfade_reason_not_playing
-            CrossfadeSkipReason.SameTrack -> Res.string.settings_crossfade_reason_same_track
-            CrossfadeSkipReason.UnknownDuration -> Res.string.settings_crossfade_reason_unknown_duration
-            CrossfadeSkipReason.TooShort -> Res.string.settings_crossfade_reason_too_short
-            CrossfadeSkipReason.NotReady -> Res.string.settings_crossfade_reason_not_ready
-            CrossfadeSkipReason.PrepareFailed -> Res.string.settings_crossfade_reason_prepare_failed
-            CrossfadeSkipReason.Interrupted -> Res.string.settings_crossfade_reason_interrupted
-        })
-    }
-    SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            AppText(title, AppTheme.typography.subheadline, color = AppTheme.colors.label)
-            AppText(outcome, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-            if (reason != null) AppText(stringResource(Res.string.settings_crossfade_requested, status.requestedDurationMs),
-                AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-        }
-    }
-}
-
 private fun LazyListScope.accessibilitySettings(settings: AppSettings, preferences: AppPreferences, system: UiAccessibility, request: SettingsFocusRequest?) {
     item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
     item {
@@ -561,7 +536,6 @@ private fun LazyListScope.accessibilitySettings(settings: AppSettings, preferenc
             }
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_accessibility_hint)) }
 }
 
 @Composable

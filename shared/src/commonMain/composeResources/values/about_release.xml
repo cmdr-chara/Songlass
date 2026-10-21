@@ -5,8 +5,6 @@
     <string name="about_version_loading">Reading app version…</string>
     <string name="about_version_unavailable">The installed app version could not be read.</string>
     <string name="about_release_retry">Try again</string>
-    <string name="about_licenses_title">Included licenses and notices</string>
-    <string name="about_licenses_body">Read the notices packaged with this version of Songlass. These documents are available offline and retain their original language.</string>
     <string name="about_license_autoeq">AutoEQ</string>
     <string name="about_license_miuix">Miuix</string>
     <string name="about_license_taglib">TagLib Android and TagLib</string>
@@ -23,4 +21,9 @@
     <string name="about_license_loading">Loading the included documents…</string>
     <string name="about_license_unavailable">The included documents could not be opened. Try again, or return to About Songlass.</string>
     <string name="about_link_unavailable">The link could not be opened. Try again when a browser is available.</string>
+    <string name="about_page_title">About</string>
+    <string name="about_data_title">Privacy and data</string>
+    <string name="about_data_summary">What stays on your device and what is sent</string>
+    <string name="about_open_source">Open-source licenses</string>
+    <string name="about_open_source_summary">AutoEQ, Miuix, TagLib and more</string>
 </resources>

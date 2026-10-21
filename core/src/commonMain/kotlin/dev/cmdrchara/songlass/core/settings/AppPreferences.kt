@@ -28,6 +28,9 @@ enum class InterfaceStyle {
     Miuix,
 }
 
+/** The preferences one settings page restores together with "Restore defaults". */
+enum class SettingsArea { Appearance, Playback, Lyrics, Accessibility, Library }
+
 data class AppPreferences(
     val appearance: AppearanceMode = AppearanceMode.System,
     val reduceMotion: Boolean = false,

@@ -15,6 +15,10 @@
     <string name="settings_crossfade_custom">Custom…</string>
     <string name="settings_crossfade_custom_value">Custom · %1$d ms</string>
     <string name="settings_crossfade_ms_label">Duration (ms)</string>
-    <string name="settings_crossfade_ms_hint">Enter %1$d–%2$d ms. Use 0 to turn crossfade off.</string>
-    <string name="settings_crossfade_ms_invalid">Enter a whole number from %1$d to %2$d ms, or 0 to turn it off.</string>
+    <string name="settings_crossfade_ms_hint">%1$d–%2$d ms. Use 0 to turn off.</string>
+    <string name="settings_crossfade_ms_invalid">Enter a number from %1$d to %2$d ms, or 0.</string>
+    <string name="settings_restore_defaults">Restore defaults</string>
+    <string name="settings_restore_title">Restore defaults?</string>
+    <string name="settings_restore_hint">Only this page’s settings change.</string>
+    <string name="settings_restore_action">Restore</string>
 </resources>

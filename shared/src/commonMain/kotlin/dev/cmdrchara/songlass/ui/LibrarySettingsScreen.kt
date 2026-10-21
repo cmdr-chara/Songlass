@@ -20,10 +20,11 @@ import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
 import org.jetbrains.compose.resources.pluralStringResource
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: () -> Unit, contentPadding: PaddingValues, backLabel: String, searchFocus: SettingsFocusRequest? = null) {
+fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: () -> Unit, onRestoreDefaults: (dev.cmdrchara.songlass.core.settings.SettingsArea) -> Unit, contentPadding: PaddingValues, backLabel: String, searchFocus: SettingsFocusRequest? = null) {
     val preferences by graph.settings.state.collectAsState()
     val refreshFailure by graph.libraryRefreshFailure.collectAsState()
     val loading by graph.isLibraryLoading.collectAsState()
@@ -46,9 +47,10 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
         if (duration == 0L) stringResource(Res.string.library_all_durations)
         else stringResource(Res.string.library_duration_seconds, (duration / 1000).toInt())
     }
-    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
-        item { BackPageTitle(stringResource(Res.string.library_settings),
-            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
+LocalGlassLook.current.SettingsPage {
+        LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
+        item { LocalGlassLook.current.SettingsPageTitle(stringResource(Res.string.library_settings),
+            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack, Modifier) }
         item { LibraryHint(stringResource(Res.string.library_filter_count, library.tracks.size, tracks.size)) }
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
@@ -122,6 +124,8 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
         if (refreshFailure != null) item {
             LibraryRefreshNotice(refreshFailure, loading, graph::requestLibraryRefresh)
         }
+        item(key = "restore-defaults") { RestoreDefaultsButton(dev.cmdrchara.songlass.core.settings.SettingsArea.Library, onRestoreDefaults) }
+    }
     }
 }
 

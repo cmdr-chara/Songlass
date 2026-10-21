@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.InfoRow
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -265,7 +266,7 @@ private fun ActionSheetContent(
                     }
                     Spacer(Modifier.height(8.dp))
                     Box(Modifier.fillMaxWidth().shadow(16.dp, SheetShape).clip(SheetShape).background(surface)) {
-                        SheetRow(cancelLabel, icon = null, bold = true, onClick = onDismiss)
+                        SheetRow(cancelLabel, icon = null, bold = true, centered = true, onClick = onDismiss)
                     }
                 }
             }
@@ -279,7 +280,7 @@ private fun Separator() {
 }
 
 @Composable
-private fun SheetRow(label: String, icon: ImageVector?, bold: Boolean = false, onClick: () -> Unit) {
+private fun SheetRow(label: String, icon: ImageVector?, bold: Boolean = false, centered: Boolean = false, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val background by animateColorAsState(
@@ -297,7 +298,8 @@ private fun SheetRow(label: String, icon: ImageVector?, bold: Boolean = false, o
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val style = AppTheme.typography.body.let { if (bold) it.copy(fontWeight = FontWeight.SemiBold) else it }
-        AppText(label, style, color = AppTheme.colors.accent, modifier = Modifier.weight(1f), maxLines = 1)
+        AppText(label, style, color = AppTheme.colors.accent, modifier = Modifier.weight(1f), maxLines = 1,
+            textAlign = if (centered) TextAlign.Center else null)
         if (icon != null) AppIcon(icon, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent)
     }
 }
