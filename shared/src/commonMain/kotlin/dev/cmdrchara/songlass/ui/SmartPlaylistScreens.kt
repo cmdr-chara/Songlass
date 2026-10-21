@@ -466,7 +466,7 @@ fun SmartPlaylistDeleteSheet(state: AppState) {
             restoring -> stringResource(Res.string.playlist_restore_busy)
             deleteFailed -> stringResource(Res.string.playlist_delete_failed)
             playlist == null -> stringResource(Res.string.playlist_unavailable_hint)
-            else -> playlist?.name
+            else -> playlist.name
         },
         cancelLabel = stringResource(Res.string.action_cancel), onDismiss = state::closeDeleteSmartPlaylist,
         actions = if (playlist == null || restoring) emptyList() else listOf(SheetAction(stringResource(Res.string.playlist_delete), AppIcons.Close) {
