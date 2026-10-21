@@ -90,6 +90,7 @@ class AppState(graph: AppGraph) {
     val userPlaylists = graph.userPlaylists
     val sleepTimer = graph.sleepTimer
     val isLibraryLoading = graph.isLibraryLoading
+    val isRestoringBackup = graph.isRestoringBackup
     val libraryRefreshFailure = graph.libraryRefreshFailure
     val requestLibraryRefresh: () -> Unit = graph::requestLibraryRefresh
     val hasCompleteLibraryScan = graph.hasCompleteLibraryScan

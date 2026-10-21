@@ -4,8 +4,6 @@ import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
-import dev.cmdrchara.songlass.core.storage.getStringList
-import dev.cmdrchara.songlass.core.storage.putStringList
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -117,27 +115,39 @@ class UserPlaylists(
         save(_playlists.value.map { if (it.id == id) change(it) else it })
 
     private fun save(playlists: List<UserPlaylist>) {
-        _playlists.value = playlists
-        store.putStringList(INDEX_KEY, playlists.map { it.id })
-        for (playlist in playlists) {
-            store.putString("$PREFIX${playlist.id}.name", playlist.name)
-            store.putString("$PREFIX${playlist.id}.created", playlist.createdMs.toString())
-            store.putStringList("$PREFIX${playlist.id}.tracks", playlist.trackIds)
+        if (playlists == _playlists.value) return
+        val writing = buildMap {
+            put(INDEX_KEY, playlists.joinToString(SEPARATOR) { it.id })
+            for (playlist in playlists) {
+                put("$PREFIX${playlist.id}.name", playlist.name)
+                put("$PREFIX${playlist.id}.created", playlist.createdMs.toString())
+                put("$PREFIX${playlist.id}.tracks", playlist.trackIds.joinToString(SEPARATOR))
+            }
         }
+        // One native preference batch; Android schedules disk persistence asynchronously.
+        // Publish only after the batch is accepted, never an in-memory-only successful create.
+        store.putStrings(writing)
+        _playlists.value = playlists
     }
 
-    private fun load(): List<UserPlaylist> = store.getStringList(INDEX_KEY).distinct().mapNotNull { id ->
-        val name = store.getString("$PREFIX$id.name") ?: return@mapNotNull null
-        UserPlaylist(
-            id = id,
-            name = name,
-            trackIds = store.getStringList("$PREFIX$id.tracks").distinct(),
-            createdMs = store.getString("$PREFIX$id.created")?.toLongOrNull() ?: 0L,
-        )
+    private fun load(): List<UserPlaylist> {
+        val snapshot = store.snapshot()
+        fun value(key: String) = if (snapshot != null) snapshot[key] else store.getString(key)
+        fun ids(key: String) = value(key)?.split(SEPARATOR)?.filter { it.isNotEmpty() }.orEmpty()
+        return ids(INDEX_KEY).distinct().mapNotNull { id ->
+            val name = value("$PREFIX$id.name") ?: return@mapNotNull null
+            UserPlaylist(
+                id = id,
+                name = name,
+                trackIds = ids("$PREFIX$id.tracks").distinct(),
+                createdMs = value("$PREFIX$id.created")?.toLongOrNull() ?: 0L,
+            )
+        }
     }
 
     private companion object {
         const val INDEX_KEY = "playlists.index"
         const val PREFIX = "playlists."
+        const val SEPARATOR = "\u001F"
     }
 }

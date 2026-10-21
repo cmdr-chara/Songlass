@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
-import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 import dev.cmdrchara.songlass.core.playlists.PlaylistInsertion
 import dev.cmdrchara.songlass.designsystem.ActionButton
@@ -286,6 +285,7 @@ private val PlaylistTileSize: Dp = 112.dp
 fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: String) -> Unit)?) {
     val playlists by state.userPlaylists.playlists.collectAsState()
     val cancel = stringResource(Res.string.action_cancel)
+    val exportPlaylist = rememberUserPlaylistExportAction(state, onExport)
 
     // Keep the last values while sheets animate out.
     var lastTracks by remember { mutableStateOf<List<Track>>(emptyList()) }
@@ -382,9 +382,9 @@ fun PlaylistSheets(state: AppState, onExport: ((fileName: String, content: Strin
         actions = if (options == null) emptyList() else buildList {
             add(SheetAction(stringResource(Res.string.playlist_edit), AppIcons.DragHandle) { state.editingPlaylistId = options.id })
             add(SheetAction(stringResource(Res.string.playlist_rename), AppIcons.Lyrics) { state.askPlaylistName(PlaylistPrompt.Rename(options.id, options.name)) })
-            if (onExport != null) add(
+            if (exportPlaylist != null) add(
                 SheetAction(stringResource(Res.string.playlist_export), AppIcons.ImportFile) {
-                    onExport("${options.name}.m3u8", M3u.write(options.tracksIn(state.library)))
+                    exportPlaylist(options)
                 },
             )
             add(

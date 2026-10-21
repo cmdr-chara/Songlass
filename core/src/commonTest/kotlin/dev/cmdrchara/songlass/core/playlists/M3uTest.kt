@@ -40,7 +40,8 @@ class M3uTest {
 
     @Test
     fun fallsBackToTitleAndArtist() {
-        val text = "#EXTINF:10,Y - Beta\nsomewhere/else/renamed.mp3\n"
+        // Relocation needs the recording's actual duration as well as its title/artist.
+        val text = "#EXTINF:180,Y - Beta\nsomewhere/else/renamed.mp3\n"
         assertEquals(listOf("b"), M3u.resolve(M3u.parse(text), library).tracks.map { it.id })
     }
 

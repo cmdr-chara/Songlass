@@ -21,7 +21,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.cmdrchara.songlass.core.library.FolderSort
-import dev.cmdrchara.songlass.core.playlists.M3u
 import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.AlphabeticalIndex
@@ -133,14 +132,7 @@ fun LibraryScreen(
 ) {
     val library = state.library
     val refreshFailure by state.libraryRefreshFailure.collectAsState()
-    val onImportPlaylist = rememberPlaylistImporter { name, text ->
-        val entries = text?.let(M3u::parse).orEmpty()
-        val imported = M3u.resolve(entries, state.library)
-        if (imported.tracks.isNotEmpty()) {
-            val id = state.userPlaylists.create(name ?: "Playlist", imported.tracks.map { it.id })
-            state.open(Route.UserPlaylistDetail(id))
-        }
-    }
+    val onImportPlaylist = rememberPlaylistImportAction(state)
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
     val pinContexts by state.pins.contexts.collectAsState()
     val pinnedItems = remember(pinContexts, library) { state.pins.resolve(library) }
@@ -172,6 +164,9 @@ fun LibraryScreen(
             LibraryRefreshNotice(refreshFailure, loading, state.requestLibraryRefresh)
         }
         if (!hasAccess || library.tracks.isEmpty()) {
+            // Playlist management remains reachable when filters hide every song or access is absent.
+            item { SectionTitle(stringResource(Res.string.library_playlists)) }
+            item { UserPlaylistRow(state, onImportPlaylist) }
             if (hasAccess && refreshFailure != null) return@LazyColumn
             item {
                     val loading by state.isLibraryLoading.collectAsState()
