@@ -39,6 +39,24 @@ class SettingsSearchTest {
         }
     }
 
+    @Test
+    fun queueAndShuffleSettingsAreSearchableInBothLanguages() {
+        val documents = SettingsTarget.entries.map { SettingsSearchDocument(it, "Control ${it.name}", "Settings") }
+        val index = SettingsSearchIndex(documents)
+        assertEquals(SettingsTarget.TrackClickAction, index.search("azione al tocco", true).first())
+        assertEquals(SettingsTarget.TrackClickAction, index.search("tap action", true).first())
+        assertEquals(SettingsTarget.QueueStart, index.search("quando partono le aggiunte", true).first())
+        assertEquals(SettingsTarget.QueueEnd, index.search("fine delle aggiunte", true).first())
+        assertEquals(SettingsTarget.QueueAddOrder, index.search("order of additions", true).first())
+        assertEquals(SettingsTarget.QueueReplaces, index.search("sostituisci le aggiunte", true).first())
+        assertEquals(SettingsTarget.ShuffleBias, index.search("meno ascoltati", true).first())
+        assertEquals(SettingsTarget.KeepShuffle, index.search("no reshuffle", true).first())
+        assertTrue(SettingsTarget.ShuffleBias in index.search("shuffle", true))
+        assertTrue(SettingsTarget.KeepShuffle in index.search("shuffle", true))
+        // The queue words must not hijack the existing settings.
+        assertEquals(SettingsTarget.SleepTimer, index.search("fine brano", true).first())
+    }
+
     private val documents = SettingsTarget.entries.map { target ->
         SettingsSearchDocument(target, "Control ${target.name}", "Settings")
     }

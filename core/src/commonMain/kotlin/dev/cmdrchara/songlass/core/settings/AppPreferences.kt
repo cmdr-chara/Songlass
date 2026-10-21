@@ -29,7 +29,7 @@ enum class InterfaceStyle {
 }
 
 /** The preferences one settings page restores together with "Restore defaults". */
-enum class SettingsArea { Appearance, Playback, Lyrics, Accessibility, Library }
+enum class SettingsArea { Appearance, Playback, Queue, Lyrics, Accessibility, Library }
 
 data class AppPreferences(
     val appearance: AppearanceMode = AppearanceMode.System,
@@ -57,4 +57,13 @@ data class AppPreferences(
     /** A comfortable single-column alternative to the cover grid, useful with large text. */
     val albumLayout: AlbumLayout = AlbumLayout.Grid,
     val libraryFilter: dev.cmdrchara.songlass.core.library.LibraryFilter = dev.cmdrchara.songlass.core.library.LibraryFilter(),
+    val trackClickAction: TrackClickAction = TrackClickAction.PlayList,
+    val queueStart: QueueStart = QueueStart.AfterCurrent,
+    val queueEnd: QueueEnd = QueueEnd.ReturnToCollection,
+    val queueAddOrder: QueueAddOrder = QueueAddOrder.End,
+    /** Each "Add to queue" replaces the additions still waiting instead of joining them. */
+    val queueReplaces: Boolean = false,
+    val shuffleBias: ShuffleBias = ShuffleBias.Random,
+    /** Picking a song while shuffle is on keeps shuffling the list, with that song first. */
+    val keepShuffleOnSelection: Boolean = false,
 )

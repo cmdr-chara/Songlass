@@ -11,7 +11,13 @@ import dev.cmdrchara.songlass.core.player.PlayerStatus
 import dev.cmdrchara.songlass.core.queue.PlaybackQueue
 import dev.cmdrchara.songlass.core.queue.QueueEntry
 import dev.cmdrchara.songlass.core.queue.RepeatMode
+import dev.cmdrchara.songlass.core.queue.TemporaryPlacement
+import dev.cmdrchara.songlass.core.queue.shuffledBy
 import dev.cmdrchara.songlass.core.settings.AppPreferences
+import dev.cmdrchara.songlass.core.settings.QueueAddOrder
+import dev.cmdrchara.songlass.core.settings.QueueEnd
+import dev.cmdrchara.songlass.core.settings.QueueStart
+import dev.cmdrchara.songlass.core.settings.ShuffleBias
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +40,9 @@ class PlaybackController(
     private val random: Random = Random,
     private val markers: TrackMarkers? = null,
     private val onUserTransport: () -> Unit = {},
+    /** Counted plays of a song, for a shuffle that favours the songs played least. */
+    private val playCountOf: (Track) -> Int = { 0 },
+    // Last, so existing callers can keep passing it as a trailing lambda.
     private val preferences: () -> AppPreferences = { AppPreferences() },
 ) {
     private val _queue = MutableStateFlow(PlaybackQueue())
@@ -118,8 +127,9 @@ class PlaybackController(
     /** Re-read authoritative state: an older queued Flow emission must never re-arm a stale URI. */
     private fun reconcilePrefetch(force: Boolean = false) {
         val queue = _queue.value
-        val next = if (_stopAfterCurrent.value) null
-            else queue.nextIndex(userInitiated = false)?.let { queue.entries[it] }
+        val nextIndex = queue.nextIndex(userInitiated = false)
+        val next = if (_stopAfterCurrent.value || stopsAtQueueEnd(queue, nextIndex)) null
+            else nextIndex?.let { queue.entries[it] }
         if (!force && prefetchInitialized && prefetchedEntry == next) return
         // Publish the command identity before calling a player that can emit synchronously.
         prefetchInitialized = true
@@ -180,8 +190,11 @@ class PlaybackController(
         if (tracks.isNotEmpty() && availability != null &&
             availability.resolve(tracks.getOrNull(startIndex) ?: return) == null) return
         this.context = context
-        replaceQueue(PlaybackQueue.of(tracks, startIndex, shuffle = false, _queue.value.repeatMode, random,
-            firstEntryId = _queue.value.nextEntryId), positionOverrideMs = startPositionMs?.coerceAtLeast(0))
+        // Choosing a song normally ends shuffle; "keep shuffle" reshuffles the new list with that song first.
+        val keepShuffle = preferences().keepShuffleOnSelection && _queue.value.isShuffled
+        replaceQueue(PlaybackQueue.of(tracks, startIndex, shuffle = keepShuffle, _queue.value.repeatMode, random,
+            firstEntryId = _queue.value.nextEntryId, weight = shuffleWeight()),
+            positionOverrideMs = startPositionMs?.coerceAtLeast(0))
     }
 
     /** Replaces the queue with [tracks] in random order (the "Shuffle" button on an album or playlist). */
@@ -191,10 +204,12 @@ class PlaybackController(
         val availability = libraryAvailability
         val candidates = tracks.indices.filter { availability == null || availability.resolve(tracks[it]) != null }
         if (candidates.isEmpty()) return
-        val start = candidates[random.nextInt(candidates.size)]
+        val weight = shuffleWeight()
+        val start = if (weight == null) candidates[random.nextInt(candidates.size)]
+            else candidates.shuffledBy(random) { weight(tracks[it]) }.first()
         this.context = context
         replaceQueue(PlaybackQueue.of(tracks, start, shuffle = true, _queue.value.repeatMode, random,
-            firstEntryId = _queue.value.nextEntryId), positionOverrideMs = startPositionMs?.coerceAtLeast(0))
+            firstEntryId = _queue.value.nextEntryId, weight = weight), positionOverrideMs = startPositionMs?.coerceAtLeast(0))
     }
 
     fun togglePlayPause() {
@@ -323,7 +338,7 @@ class PlaybackController(
 
     fun setShuffle(enabled: Boolean) {
         synchronizeNativeAdvance()
-        _queue.update { it.withShuffle(enabled, random) }
+        _queue.update { it.withShuffle(enabled, random, shuffleWeight()) }
         reconcilePrefetch()
     }
 
@@ -341,7 +356,34 @@ class PlaybackController(
 
     fun playNext(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks, playNext = true) }
 
-    fun addToQueue(tracks: List<Track>) = addTracks { it.enqueueTemporary(tracks) }
+    /**
+     * Adds [tracks] as one-shot additions, following the queue rules: replace the waiting additions,
+     * where to place them, whether they start right away, and in what order they join the waiting ones.
+     */
+    fun addToQueue(tracks: List<Track>) {
+        val rules = preferences()
+        val before = _queue.value.nextEntryId
+        addTracks { queue ->
+            (if (rules.queueReplaces) queue.clearTemporary() else queue).enqueueTemporary(
+                tracks,
+                placement = if (rules.queueStart == QueueStart.AfterCollection) TemporaryPlacement.AfterCollection else TemporaryPlacement.AfterCurrent,
+                shuffleAdded = rules.queueAddOrder == QueueAddOrder.Shuffled,
+                random = random,
+            )
+        }
+        val queue = _queue.value
+        if (rules.queueStart == QueueStart.Immediately && queue.nextEntryId > before && queue.current?.isTemporary != true) {
+            queue.upNext.firstOrNull { it.isTemporary && it.isAvailable }?.let { skipTo(it.id) }
+        }
+    }
+
+    private fun shuffleWeight(): ((Track) -> Double)? =
+        if (preferences().shuffleBias == ShuffleBias.LeastPlayed) { track -> 1.0 / (1 + playCountOf(track)) } else null
+
+    /** With "stop at the end of the additions", the collection waits instead of carrying on by itself. */
+    private fun stopsAtQueueEnd(queue: PlaybackQueue, nextIndex: Int?): Boolean =
+        preferences().queueEnd == QueueEnd.Stop && queue.current?.isTemporary == true &&
+            nextIndex != null && nextIndex != queue.currentIndex && !queue.entries[nextIndex].isTemporary
 
     fun clearTemporaryQueue() {
         synchronizeNativeAdvance()
@@ -526,7 +568,7 @@ class PlaybackController(
             if (queue.current?.isTemporary == true) leaveTemporarySegment(manual = false)
             return
         }
-        if (_stopAfterCurrent.value) {
+        if (_stopAfterCurrent.value || stopsAtQueueEnd(queue, index)) {
             // Ready on the next track, paused, as when a sleep timer ends a song.
             _stopAfterCurrent.value = false
             return moveTo(index, playWhenReady = false)

@@ -363,7 +363,7 @@ private fun TrackShelf(tracks: List<Track>, currentTrackId: String?, state: AppS
                 Column(Modifier.width(if (columns.size == 1) fullWidth else columnWidth)) {
                     column.forEachIndexed { row, track ->
                         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                            state.controller.playTracks(tracks, columnIndex * ShelfRows + row)
+                            state.tapTrack(tracks, columnIndex * ShelfRows + row)
                         }
                     }
                 }
@@ -380,7 +380,7 @@ private fun openItem(item: HomeItem, state: AppState) {
         is HomeItem.PlaylistItem -> state.openPlaylist(item.playlist)
         is HomeItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
         is HomeItem.FacetItem -> state.open(Route.FacetDetail(item.facet.context))
-        is HomeItem.TrackItem -> state.controller.playTracks(listOf(item.track))
+        is HomeItem.TrackItem -> state.tapTrack(listOf(item.track), 0)
         is HomeItem.FavoritesItem -> state.controller.playTracks(item.tracks, context = PlayContext.Favorites)
         is HomeItem.UserPlaylistItem -> state.open(Route.UserPlaylistDetail(item.playlist.id))
         is HomeItem.SmartPlaylistItem -> state.open(Route.SmartPlaylistDetail(item.playlist.id))

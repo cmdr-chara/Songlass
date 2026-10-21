@@ -98,7 +98,7 @@ fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPaddin
                     leading = { AlbumArt(ranked.track.artwork(), Modifier.size(48.dp), cornerRadius = 8.dp) },
                     value = pluralStringResource(Res.plurals.stats_play_count, ranked.plays, ranked.plays),
                     highlighted = ranked.track.id == currentTrackId,
-                    onClick = { state.controller.playTracks(stats.tracks.map { it.track }, stats.tracks.indexOf(ranked)) },
+                    onClick = { state.tapTrack(stats.tracks.map { it.track }, stats.tracks.indexOf(ranked)) },
                 )
             }
             rankedSection("a", titles.getValue("a"), stats.artists, expanded, { expanded = expanded.toggled("a") }) { ranked ->

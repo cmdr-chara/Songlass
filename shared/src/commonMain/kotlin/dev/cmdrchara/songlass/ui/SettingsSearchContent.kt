@@ -29,6 +29,13 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
     SettingsTarget.SleepTimer -> Res.string.sleep_title
+    SettingsTarget.TrackClickAction -> Res.string.queue_click_section
+    SettingsTarget.QueueStart -> Res.string.queue_start_section
+    SettingsTarget.QueueAddOrder -> Res.string.queue_order_section
+    SettingsTarget.QueueReplaces -> Res.string.queue_replaces
+    SettingsTarget.QueueEnd -> Res.string.queue_end_section
+    SettingsTarget.ShuffleBias -> Res.string.shuffle_bias_title
+    SettingsTarget.KeepShuffle -> Res.string.shuffle_keep
     SettingsTarget.Crossfade -> Res.string.settings_search_crossfade_automatic
     SettingsTarget.CrossfadeDuration -> Res.string.settings_search_crossfade_duration
     SettingsTarget.ManualCrossfadeDuration -> Res.string.settings_search_manual_crossfade_duration
@@ -57,6 +64,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     val appearance = stringResource(Res.string.settings_appearance)
     val playback = stringResource(Res.string.settings_playback)
     val equalizer = stringResource(Res.string.eq_title)
+    val queue = stringResource(Res.string.settings_queue)
     val library = stringResource(Res.string.library_settings)
     val lyrics = stringResource(Res.string.settings_lyrics)
     val accessibility = stringResource(Res.string.settings_accessibility)
@@ -66,6 +74,8 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
             SettingsTarget.Equalizer -> playback
+            SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
+            SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> queue
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$playback › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
@@ -120,6 +130,13 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             preferences.libraryFilter.excludedFolders.size, preferences.libraryFilter.excludedFolders.size)
         SettingsTarget.PlayCountRule -> playCountRuleLabel(preferences.playCountRule)
         SettingsTarget.AlbumLayout -> stringResource(if (preferences.albumLayout == AlbumLayout.List) Res.string.library_layout_list else Res.string.library_layout_grid)
+        SettingsTarget.TrackClickAction -> clickActionLabel(preferences.trackClickAction)
+        SettingsTarget.QueueStart -> queueStartLabel(preferences.queueStart)
+        SettingsTarget.QueueAddOrder -> queueOrderLabel(preferences.queueAddOrder)
+        SettingsTarget.QueueReplaces -> enabled(preferences.queueReplaces)
+        SettingsTarget.QueueEnd -> queueEndLabel(preferences.queueEnd)
+        SettingsTarget.ShuffleBias -> shuffleBiasLabel(preferences.shuffleBias)
+        SettingsTarget.KeepShuffle -> enabled(preferences.keepShuffleOnSelection)
         SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About, SettingsTarget.SleepTimer -> null
     }
 }

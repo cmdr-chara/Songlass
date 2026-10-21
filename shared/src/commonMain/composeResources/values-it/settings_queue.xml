@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_queue">Coda e shuffle</string>
+    <string name="settings_queue_summary">Clic sui brani, aggiunte e shuffle</string>
+    <string name="queue_click_section">Quando tocchi un brano</string>
+    <string name="queue_click_play">Riproduci la lista</string>
+    <string name="queue_click_play_open">Riproduci e apri il player</string>
+    <string name="queue_click_enqueue">Aggiungi alla coda</string>
+    <string name="queue_start_section">Aggiunte alla coda</string>
+    <string name="queue_start_after_current">Dopo il brano in corso</string>
+    <string name="queue_start_after_collection">Dopo l’album o la playlist</string>
+    <string name="queue_start_immediately">Subito</string>
+    <string name="queue_order_section">Ordine delle aggiunte</string>
+    <string name="queue_order_end">In fondo alla coda</string>
+    <string name="queue_order_shuffled">In ordine casuale</string>
+    <string name="queue_replaces">Sostituisci le aggiunte in attesa</string>
+    <string name="queue_end_section">Quando finiscono le aggiunte</string>
+    <string name="queue_end_return">Continua con l’album o la playlist</string>
+    <string name="queue_end_stop">Fermati</string>
+    <string name="shuffle_section">Shuffle</string>
+    <string name="shuffle_bias_title">Casualità dello shuffle</string>
+    <string name="shuffle_bias_random">Completamente casuale</string>
+    <string name="shuffle_bias_least_played">Prima i meno ascoltati</string>
+    <string name="shuffle_keep">Mantieni lo shuffle quando scegli un brano</string>
+</resources>

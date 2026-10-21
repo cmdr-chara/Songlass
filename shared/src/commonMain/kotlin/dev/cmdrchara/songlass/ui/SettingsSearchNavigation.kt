@@ -80,6 +80,8 @@ internal val SettingsTarget.settingsPane: SettingsPane?
         SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
         SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration,
         SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold -> SettingsPane.Playback
+        SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
+        SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> SettingsPane.Queue
         SettingsTarget.AmllLyrics -> SettingsPane.Lyrics
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> SettingsPane.Accessibility
         else -> null
@@ -103,7 +105,13 @@ internal val SettingsTarget.settingsItemIndex: Int?
         SettingsTarget.InterfaceStyle -> 2
         SettingsTarget.Appearance -> 5
         SettingsTarget.ArtworkStyle -> 8
-        SettingsTarget.ResumeOnReconnect, SettingsTarget.SleepTimer -> 2
+        SettingsTarget.ResumeOnReconnect, SettingsTarget.SleepTimer, SettingsTarget.TrackClickAction -> 2
+        SettingsTarget.QueueStart -> 4
+        SettingsTarget.QueueAddOrder -> 6
+        SettingsTarget.QueueReplaces -> 7
+        SettingsTarget.QueueEnd -> 9
+        SettingsTarget.ShuffleBias -> 11
+        SettingsTarget.KeepShuffle -> 12
         SettingsTarget.ReplayGain -> 4
         SettingsTarget.ResumePerTrack -> 7
         SettingsTarget.LongTrackThreshold -> 8

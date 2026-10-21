@@ -99,7 +99,7 @@ fun LibraryFacetScreen(context: PlayContext.Facet, state: AppState, currentTrack
         backLabel = backLabel, contentPadding = contentPadding,
     ) { index, track ->
         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(facet.tracks, index, facet.context)
+            state.tapTrack(facet.tracks, index, facet.context)
         }
     }
 }

@@ -81,7 +81,8 @@ class AppGraph(
     val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
     val artworkAvailability = dev.cmdrchara.songlass.core.artwork.ArtworkAvailability()
     val controller = PlaybackController(player, scope, markers = trackMarkers,
-        onUserTransport = { outputResume.cancel() }, preferences = { settings.state.value })
+        onUserTransport = { outputResume.cancel() }, preferences = { settings.state.value },
+        playCountOf = { track -> history.state.value.playCounts[track.id] ?: 0 })
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store, restoreMutations)
     val pins = Pins(store, restoreMutations)

@@ -39,7 +39,7 @@ import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import org.jetbrains.compose.resources.stringResource
 
 /** UI navigation only: preference values and persistence remain in core. */
-enum class SettingsPane { Overview, Appearance, Playback, Lyrics, Accessibility }
+enum class SettingsPane { Overview, Appearance, Playback, Queue, Lyrics, Accessibility }
 
 @Composable
 fun SettingsScreen(
@@ -127,6 +127,7 @@ fun SettingsScreen(
                         SettingsPane.Overview -> Res.string.settings_title
                         SettingsPane.Appearance -> Res.string.settings_appearance
                         SettingsPane.Playback -> Res.string.settings_playback
+                        SettingsPane.Queue -> Res.string.settings_queue
                         SettingsPane.Lyrics -> Res.string.settings_lyrics
                         SettingsPane.Accessibility -> Res.string.settings_accessibility
                     }
@@ -160,6 +161,7 @@ fun SettingsScreen(
                     SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
                         { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
+                    SettingsPane.Queue -> queueSettings(settings, preferences, request)
                     SettingsPane.Lyrics -> if (supportsAmllLyrics) {
                         item {
                             SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
@@ -177,6 +179,7 @@ fun SettingsScreen(
                     SettingsPane.Overview -> null
                     SettingsPane.Appearance -> SettingsArea.Appearance
                     SettingsPane.Playback -> SettingsArea.Playback
+                    SettingsPane.Queue -> SettingsArea.Queue
                     SettingsPane.Lyrics -> if (supportsAmllLyrics) SettingsArea.Lyrics else null
                     SettingsPane.Accessibility -> SettingsArea.Accessibility
                 }
@@ -212,6 +215,8 @@ private fun LazyListScope.overviewSettings(
         SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
             SettingsLink(stringResource(Res.string.settings_playback),
                 stringResource(Res.string.settings_playback_summary), AppIcons.Equalizer) { open(SettingsPane.Playback) }
+            SettingsLink(stringResource(Res.string.settings_queue),
+                stringResource(Res.string.settings_queue_summary), AppIcons.Queue) { open(SettingsPane.Queue) }
             SettingsLink(stringResource(Res.string.library_settings),
                 stringResource(Res.string.settings_library_summary), AppIcons.Library, onClick = onLibrary)
             if (supportsAmll) SettingsLink(stringResource(Res.string.settings_lyrics),
@@ -348,6 +353,86 @@ private fun ArtworkPreview(style: ArtworkStyle) {
             Brush.verticalGradient(listOf(Color.Transparent, colors.background))))
         Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 7.dp).width(34.dp).height(4.dp)
             .background(colors.label.copy(alpha = .65f), RoundedCornerShape(2.dp)))
+    }
+}
+
+/** One exclusive choice per row, like the other settings lists. */
+@Composable
+private fun <T> SettingsChoices(options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) =
+    SettingsFormGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+        options.forEach { option -> SettingsChoiceRow(label(option), option == selected, { onSelect(option) }) }
+    }
+
+@Composable
+internal fun clickActionLabel(action: TrackClickAction) = stringResource(when (action) {
+    TrackClickAction.PlayList -> Res.string.queue_click_play
+    TrackClickAction.PlayListAndOpenPlayer -> Res.string.queue_click_play_open
+    TrackClickAction.AddToQueue -> Res.string.queue_click_enqueue
+})
+
+@Composable
+internal fun queueStartLabel(start: QueueStart) = stringResource(when (start) {
+    QueueStart.AfterCurrent -> Res.string.queue_start_after_current
+    QueueStart.AfterCollection -> Res.string.queue_start_after_collection
+    QueueStart.Immediately -> Res.string.queue_start_immediately
+})
+
+@Composable
+internal fun queueOrderLabel(order: QueueAddOrder) = stringResource(
+    if (order == QueueAddOrder.End) Res.string.queue_order_end else Res.string.queue_order_shuffled)
+
+@Composable
+internal fun queueEndLabel(end: QueueEnd) = stringResource(
+    if (end == QueueEnd.ReturnToCollection) Res.string.queue_end_return else Res.string.queue_end_stop)
+
+@Composable
+internal fun shuffleBiasLabel(bias: ShuffleBias) = stringResource(
+    if (bias == ShuffleBias.Random) Res.string.shuffle_bias_random else Res.string.shuffle_bias_least_played)
+
+private fun LazyListScope.queueSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?) {
+    item { SettingsSection(stringResource(Res.string.queue_click_section)) }
+    item {
+        SettingsSearchAnchor(SettingsTarget.TrackClickAction, request) {
+            SettingsChoices(TrackClickAction.entries, preferences.trackClickAction, { clickActionLabel(it) }, settings::setTrackClickAction)
+        }
+    }
+    item { SettingsSection(stringResource(Res.string.queue_start_section)) }
+    item {
+        SettingsSearchAnchor(SettingsTarget.QueueStart, request) {
+            SettingsChoices(QueueStart.entries, preferences.queueStart, { queueStartLabel(it) }, settings::setQueueStart)
+        }
+    }
+    item { SettingsSection(stringResource(Res.string.queue_order_section)) }
+    item {
+        SettingsSearchAnchor(SettingsTarget.QueueAddOrder, request) {
+            SettingsChoices(QueueAddOrder.entries, preferences.queueAddOrder, { queueOrderLabel(it) }, settings::setQueueAddOrder)
+        }
+    }
+    item {
+        SettingsSearchAnchor(SettingsTarget.QueueReplaces, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
+                SettingsToggleRow(stringResource(Res.string.queue_replaces), preferences.queueReplaces, settings::setQueueReplaces)
+            }
+        }
+    }
+    item { SettingsSection(stringResource(Res.string.queue_end_section)) }
+    item {
+        SettingsSearchAnchor(SettingsTarget.QueueEnd, request) {
+            SettingsChoices(QueueEnd.entries, preferences.queueEnd, { queueEndLabel(it) }, settings::setQueueEnd)
+        }
+    }
+    item { SettingsSection(stringResource(Res.string.shuffle_section)) }
+    item {
+        SettingsSearchAnchor(SettingsTarget.ShuffleBias, request) {
+            SettingsChoices(ShuffleBias.entries, preferences.shuffleBias, { shuffleBiasLabel(it) }, settings::setShuffleBias)
+        }
+    }
+    item {
+        SettingsSearchAnchor(SettingsTarget.KeepShuffle, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
+                SettingsToggleRow(stringResource(Res.string.shuffle_keep), preferences.keepShuffleOnSelection, settings::setKeepShuffleOnSelection)
+            }
+        }
     }
 }
 

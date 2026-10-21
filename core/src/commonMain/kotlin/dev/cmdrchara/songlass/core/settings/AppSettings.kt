@@ -55,6 +55,13 @@ class AppSettings(
         albumLayout = if (store.getString(ALBUM_LAYOUT_KEY) == "list") AlbumLayout.List else AlbumLayout.Grid,
         resumePerTrack = store.getString(PER_TRACK_KEY)?.toBooleanStrictOrNull() ?: false,
         longTrackThresholdMs = store.getString(LONG_THRESHOLD_KEY)?.toLongOrNull()?.takeIf { it in LONG_TRACK_CHOICES_MS } ?: 10 * 60_000L,
+        trackClickAction = TrackClickAction.fromStorage(store.getString(TRACK_CLICK_KEY)),
+        queueStart = QueueStart.fromStorage(store.getString(QUEUE_START_KEY)),
+        queueEnd = QueueEnd.fromStorage(store.getString(QUEUE_END_KEY)),
+        queueAddOrder = QueueAddOrder.fromStorage(store.getString(QUEUE_ORDER_KEY)),
+        queueReplaces = store.getString(QUEUE_REPLACES_KEY)?.toBooleanStrictOrNull() ?: false,
+        shuffleBias = ShuffleBias.fromStorage(store.getString(SHUFFLE_BIAS_KEY)),
+        keepShuffleOnSelection = store.getString(KEEP_SHUFFLE_KEY)?.toBooleanStrictOrNull() ?: false,
         libraryFilter = LibraryFilter(
             excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
                 .filter { it.isNotBlank() }.toSet(),
@@ -180,6 +187,48 @@ class AppSettings(
         _state.update { it.copy(longTrackThresholdMs = durationMs) }
     }
 
+    fun setTrackClickAction(action: TrackClickAction) {
+        if (!mutations.canMutate) return
+        store.putString(TRACK_CLICK_KEY, action.storageKey)
+        _state.update { it.copy(trackClickAction = action) }
+    }
+
+    fun setQueueStart(start: QueueStart) {
+        if (!mutations.canMutate) return
+        store.putString(QUEUE_START_KEY, start.storageKey)
+        _state.update { it.copy(queueStart = start) }
+    }
+
+    fun setQueueEnd(end: QueueEnd) {
+        if (!mutations.canMutate) return
+        store.putString(QUEUE_END_KEY, end.storageKey)
+        _state.update { it.copy(queueEnd = end) }
+    }
+
+    fun setQueueAddOrder(order: QueueAddOrder) {
+        if (!mutations.canMutate) return
+        store.putString(QUEUE_ORDER_KEY, order.storageKey)
+        _state.update { it.copy(queueAddOrder = order) }
+    }
+
+    fun setQueueReplaces(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(QUEUE_REPLACES_KEY, enabled.toString())
+        _state.update { it.copy(queueReplaces = enabled) }
+    }
+
+    fun setShuffleBias(bias: ShuffleBias) {
+        if (!mutations.canMutate) return
+        store.putString(SHUFFLE_BIAS_KEY, bias.storageKey)
+        _state.update { it.copy(shuffleBias = bias) }
+    }
+
+    fun setKeepShuffleOnSelection(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(KEEP_SHUFFLE_KEY, enabled.toString())
+        _state.update { it.copy(keepShuffleOnSelection = enabled) }
+    }
+
     fun setAmllEnabled(enabled: Boolean) {
         if (!mutations.canMutate) return
         store.putString(AMLL_KEY, enabled.toString())
@@ -214,6 +263,7 @@ class AppSettings(
         val keys = when (area) {
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY)
             SettingsArea.Playback -> setOf(REPLAY_GAIN_KEY, RESUME_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY)
+            SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Lyrics -> setOf(AMLL_KEY)
             SettingsArea.Accessibility -> setOf(REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -227,6 +277,9 @@ class AppSettings(
                 SettingsArea.Playback -> current.copy(replayGain = defaults.replayGain, resumeOnReconnect = defaults.resumeOnReconnect,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs)
+                SettingsArea.Queue -> current.copy(trackClickAction = defaults.trackClickAction, queueStart = defaults.queueStart,
+                    queueEnd = defaults.queueEnd, queueAddOrder = defaults.queueAddOrder, queueReplaces = defaults.queueReplaces,
+                    shuffleBias = defaults.shuffleBias, keepShuffleOnSelection = defaults.keepShuffleOnSelection)
                 SettingsArea.Lyrics -> current.copy(amllEnabled = defaults.amllEnabled)
                 SettingsArea.Accessibility -> current.copy(reduceMotion = defaults.reduceMotion,
                     reduceTransparency = defaults.reduceTransparency)
@@ -265,5 +318,12 @@ class AppSettings(
         const val AMLL_KEY = "settings.amll_enabled"
         const val PLAY_COUNT_RULE_KEY = "settings.play_count_rule"
         const val ALBUM_LAYOUT_KEY = "library.album_layout"
+        const val TRACK_CLICK_KEY = "settings.track_click_action"
+        const val QUEUE_START_KEY = "settings.queue_start"
+        const val QUEUE_END_KEY = "settings.queue_end"
+        const val QUEUE_ORDER_KEY = "settings.queue_add_order"
+        const val QUEUE_REPLACES_KEY = "settings.queue_replaces"
+        const val SHUFFLE_BIAS_KEY = "settings.shuffle_bias"
+        const val KEEP_SHUFFLE_KEY = "settings.keep_shuffle"
     }
 }

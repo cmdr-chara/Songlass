@@ -183,7 +183,7 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
     ) { index, track ->
         if (!editing) {
             TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track, fromPlaylist = id) }) {
-                state.controller.playTracks(tracks, index, context)
+                state.tapTrack(tracks, index, context)
             }
             return@ArtworkCollectionPage
         }

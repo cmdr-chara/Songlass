@@ -69,7 +69,7 @@ fun SmartPlaylistScreen(id: String, state: AppState, currentTrackId: String?, ba
         },
     ) { index, track ->
         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(tracks, index, PlayContext.SmartPlaylist(id))
+            state.tapTrack(tracks, index, PlayContext.SmartPlaylist(id))
         }
     }
 }

@@ -353,7 +353,7 @@ fun LibraryCategoryScreen(
                 item { PlayShuffleRow(library.tracks, null, state) }
                 itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
                     TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                        state.controller.playTracks(library.tracks, index)
+                        state.tapTrack(library.tracks, index)
                     }
                 }
             }
@@ -370,7 +370,7 @@ fun LibraryCategoryScreen(
                 item { PlayShuffleRow(favoriteTracks, PlayContext.Favorites, state) }
                 itemsIndexed(favoriteTracks, key = { _, t -> t.id }) { index, track ->
                     TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-                        state.controller.playTracks(favoriteTracks, index, PlayContext.Favorites)
+                        state.tapTrack(favoriteTracks, index, PlayContext.Favorites)
                     }
                 }
             }
@@ -472,7 +472,7 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
         },
     ) { index, track ->
         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(artist.tracks, index, context)
+            state.tapTrack(artist.tracks, index, context)
         }
     }
 }
@@ -588,7 +588,7 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
                 MoreButton { state.openMenu(track) }
             },
             highlighted = track.id == currentTrackId,
-            onClick = { state.controller.playTracks(album.tracks, index, album.playContext()) },
+            onClick = { state.tapTrack(album.tracks, index, album.playContext()) },
         )
     }
 }
@@ -623,7 +623,7 @@ fun FolderScreen(folder: Folder, state: AppState, currentTrackId: String?, backL
     ) { index, track ->
         // The folder's own songs come first in allTracks, so the index carries over.
         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
-            state.controller.playTracks(folder.allTracks, index, context)
+            state.tapTrack(folder.allTracks, index, context)
         }
     }
 }

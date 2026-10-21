@@ -348,6 +348,9 @@ class AppSettingsTest {
         setAmllEnabled(false); setReduceMotion(true); setReduceTransparency(true)
         setPlayCountRule(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll); setAlbumLayout(AlbumLayout.List)
         setMinimumDuration(30_000L); setFolderExcluded("Music/Voice", true)
+        setTrackClickAction(TrackClickAction.AddToQueue); setQueueStart(QueueStart.Immediately); setQueueEnd(QueueEnd.Stop)
+        setQueueAddOrder(QueueAddOrder.Shuffled); setQueueReplaces(true); setShuffleBias(ShuffleBias.LeastPlayed)
+        setKeepShuffleOnSelection(true)
         setFolderSort(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed)
     }
 
@@ -385,6 +388,10 @@ class AppSettingsTest {
             when (area) {
                 SettingsArea.Appearance -> assertEquals(Triple(defaults.interfaceStyle, defaults.appearance, defaults.artworkStyle),
                     Triple(state.interfaceStyle, state.appearance, state.artworkStyle))
+                SettingsArea.Queue -> assertEquals(defaults.copy(), defaults.copy(
+                    trackClickAction = state.trackClickAction, queueStart = state.queueStart, queueEnd = state.queueEnd,
+                    queueAddOrder = state.queueAddOrder, queueReplaces = state.queueReplaces,
+                    shuffleBias = state.shuffleBias, keepShuffleOnSelection = state.keepShuffleOnSelection))
                 SettingsArea.Lyrics -> assertEquals(defaults.amllEnabled, state.amllEnabled)
                 SettingsArea.Accessibility -> assertEquals(false to false, state.reduceMotion to state.reduceTransparency)
                 SettingsArea.Library -> {
@@ -408,5 +415,47 @@ class AppSettingsTest {
         settings.setReduceMotion(true)
         gate.restoring { settings.resetToDefaults(SettingsArea.Accessibility) }
         assertEquals(true, settings.state.value.reduceMotion)
+    }
+
+    @Test
+    fun queueRulesPersistAreBackedUpAndUnknownValuesFallBack() {
+        val store = InMemoryKeyValueStore()
+        changedSettings(store)
+        val reloaded = AppSettings(store).state.value
+        assertEquals(TrackClickAction.AddToQueue, reloaded.trackClickAction)
+        assertEquals(QueueStart.Immediately, reloaded.queueStart)
+        assertEquals(QueueEnd.Stop, reloaded.queueEnd)
+        assertEquals(QueueAddOrder.Shuffled, reloaded.queueAddOrder)
+        assertEquals(true, reloaded.queueReplaces)
+        assertEquals(ShuffleBias.LeastPlayed, reloaded.shuffleBias)
+        assertEquals(true, reloaded.keepShuffleOnSelection)
+        // Backups carry every "settings." key, so these travel with the other preferences.
+        val keys = listOf(AppSettings.TRACK_CLICK_KEY, AppSettings.QUEUE_START_KEY, AppSettings.QUEUE_END_KEY,
+            AppSettings.QUEUE_ORDER_KEY, AppSettings.QUEUE_REPLACES_KEY, AppSettings.SHUFFLE_BIAS_KEY, AppSettings.KEEP_SHUFFLE_KEY)
+        keys.forEach { assertEquals(true, it.startsWith("settings."), it) }
+        keys.forEach { store.putString(it, "something from the future") }
+        val fallback = AppSettings(store).state.value
+        assertEquals(TrackClickAction.PlayList, fallback.trackClickAction)
+        assertEquals(QueueStart.AfterCurrent, fallback.queueStart)
+        assertEquals(QueueEnd.ReturnToCollection, fallback.queueEnd)
+        assertEquals(QueueAddOrder.End, fallback.queueAddOrder)
+        assertEquals(false, fallback.queueReplaces)
+        assertEquals(ShuffleBias.Random, fallback.shuffleBias)
+        assertEquals(false, fallback.keepShuffleOnSelection)
+    }
+
+    @Test
+    fun restoringTheQueuePageKeepsEveryOtherPreference() {
+        val store = InMemoryKeyValueStore()
+        val settings = changedSettings(store)
+        val before = settings.state.value
+        settings.resetToDefaults(SettingsArea.Queue)
+        val defaults = AppPreferences()
+        assertEquals(before.copy(
+            trackClickAction = defaults.trackClickAction, queueStart = defaults.queueStart, queueEnd = defaults.queueEnd,
+            queueAddOrder = defaults.queueAddOrder, queueReplaces = defaults.queueReplaces,
+            shuffleBias = defaults.shuffleBias, keepShuffleOnSelection = defaults.keepShuffleOnSelection,
+        ), settings.state.value)
+        assertEquals(settings.state.value, AppSettings(store).state.value)
     }
 }

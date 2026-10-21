@@ -94,7 +94,7 @@ fun SearchScreen(
         keyboard?.hide()
         state.searchHistory.record(item.target)
         when (item) {
-            is SearchItem.Song -> state.controller.playTracks(listOf(item.track), 0)
+            is SearchItem.Song -> state.tapTrack(listOf(item.track), 0)
             is SearchItem.AlbumItem -> state.open(Route.AlbumDetail(item.album))
             is SearchItem.ArtistItem -> state.open(Route.ArtistDetail(item.artist))
             is SearchItem.FolderItem -> state.openPlaylist(item.playlist)
@@ -243,7 +243,7 @@ fun SearchScreen(
                     itemsIndexed(tracks, key = { _, t -> t.id }) { index, track ->
                         TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                             state.searchHistory.record(SearchItem.Song(track).target)
-                            state.controller.playTracks(results.tracks, index)
+                            state.tapTrack(results.tracks, index)
                         }
                     }
                 }

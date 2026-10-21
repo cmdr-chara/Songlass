@@ -6,6 +6,7 @@ enum class SettingsTarget {
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
+    TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -124,6 +125,20 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "album art|artwork|cover|copertine|full bleed|tutto schermo|square|quadrata")
     SettingsTarget.ResumeOnReconnect -> terms("Resume on reconnect", "Riprendi al ricollegamento",
         aliases = "headphones|cuffie|bluetooth|wired|cavo|usb|car|auto|reconnect|ricollega|ripresa|disconnessione")
+    SettingsTarget.TrackClickAction -> terms("Tap action", "Song tap action", "Azione al tocco", "Tocco su un brano",
+        aliases = "click|clic|tap|tocca|riproduci|play|enqueue|accoda|apri player|open player|lista|list")
+    SettingsTarget.QueueStart -> terms("Queue start", "When additions play", "Quando partono le aggiunte",
+        aliases = "queue|coda|accoda|add|aggiungi|subito|immediately|right away|dopo|after|next|prossimo|album|playlist")
+    SettingsTarget.QueueAddOrder -> terms("Order of additions", "Ordine delle aggiunte",
+        aliases = "queue|coda|shuffle|casuale|random|fondo|end|ordine|order")
+    SettingsTarget.QueueReplaces -> terms("Replace queue additions", "Sostituisci le aggiunte", "Clear queue on add",
+        aliases = "queue|coda|svuota|clear|replace|sostituisci|attesa|waiting")
+    SettingsTarget.QueueEnd -> terms("End of additions", "Fine delle aggiunte", "Queue end",
+        aliases = "queue|coda|stop|fermati|torna|return|continue|continua|album|playlist")
+    SettingsTarget.ShuffleBias -> terms("Shuffle randomness", "Casualità dello shuffle", "Least played first",
+        aliases = "shuffle|casuale|random|meno ascoltati|least played|bias|ascolti|plays|preferisci")
+    SettingsTarget.KeepShuffle -> terms("Keep shuffle", "Mantieni lo shuffle", "No reshuffle",
+        aliases = "shuffle|casuale|random|scegli|pick|selezione|selection|reshuffle|rimescola")
     SettingsTarget.SleepTimer -> terms("Sleep timer", "Timer di spegnimento", "Timer",
         aliases = "sleep|sonno|dormire|spegnimento|stop music|ferma musica|end of track|fine brano|minutes|minuti|night|notte|bedtime")
     SettingsTarget.ReplayGain -> terms("ReplayGain", "Volume normalization", "Normalizza volume", "Normalizzazione",

@@ -26,6 +26,7 @@ import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.storage.MutationTicket
 import dev.cmdrchara.songlass.core.settings.SettingsArea
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
+import dev.cmdrchara.songlass.core.settings.TrackClickAction
 
 enum class Tab { Home, Library, Search }
 
@@ -329,6 +330,15 @@ class AppState(graph: AppGraph) {
                     settingsSearch.returnToResults()
                 }
             }
+        }
+    }
+
+    /** A tap on a song row: [index] in [tracks], handled as the user chose in Settings > Queue and shuffle. */
+    fun tapTrack(tracks: List<Track>, index: Int, context: PlayContext? = null) {
+        when (settings.state.value.trackClickAction) {
+            TrackClickAction.PlayList -> controller.playTracks(tracks, index, context)
+            TrackClickAction.PlayListAndOpenPlayer -> { controller.playTracks(tracks, index, context); openNowPlaying() }
+            TrackClickAction.AddToQueue -> tracks.getOrNull(index)?.let { controller.addToQueue(listOf(it)) }
         }
     }
 
