@@ -34,6 +34,7 @@ import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.ActionButton
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.ArtworkShelf
 import dev.cmdrchara.songlass.designsystem.HomeHighlight
 import dev.cmdrchara.songlass.designsystem.HomeHighlights
@@ -213,14 +214,14 @@ private fun LazyListScope.onThisDaySection(anniversaries: OnThisDay, state: AppS
             AppText(stringResource(Res.string.home_release_anniversaries), AppTheme.typography.subheadline,
                 color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = pageInset, vertical = 4.dp))
         }
-        item(key = "home.on_this_day.releases.row") { HomeItemRow(anniversaries.releases.map(HomeItem::TrackItem), state, tileWidth) }
+        item(key = "home.on_this_day.releases.row") { HomeItemRow(anniversaries.releases.map(HomeItem::TrackItem), state, tileWidth, compactSingle = true) }
     }
     if (anniversaries.memories.isNotEmpty()) {
         item(key = "home.on_this_day.memories.label") {
             AppText(stringResource(Res.string.home_listening_memories), AppTheme.typography.subheadline,
                 color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = pageInset, vertical = 4.dp))
         }
-        item(key = "home.on_this_day.memories.row") { HomeItemRow(anniversaries.memories.map(HomeItem::TrackItem), state, tileWidth) }
+        item(key = "home.on_this_day.memories.row") { HomeItemRow(anniversaries.memories.map(HomeItem::TrackItem), state, tileWidth, compactSingle = true) }
     }
 }
 
@@ -389,7 +390,19 @@ private fun openItem(item: HomeItem, state: AppState) {
 
 /** Horizontal carousel of albums, playlists, artists and songs. */
 @Composable
-private fun HomeItemRow(items: List<HomeItem>, state: AppState, tileWidth: Dp) {
+private fun HomeItemRow(items: List<HomeItem>, state: AppState, tileWidth: Dp, compactSingle: Boolean = false) {
+    if (compactSingle && items.size == 1) {
+        val item = items.single()
+        val tile = tileContent(item)
+        ListRow(
+            title = tile.title,
+            subtitle = tile.subtitle,
+            leading = { AlbumArt(tile.artwork, Modifier.size(64.dp), cornerRadius = 8.dp) },
+            onClick = { openItem(item, state) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        return
+    }
     val shelf = items.map { item ->
         val tile = tileContent(item)
         ShelfItem(
