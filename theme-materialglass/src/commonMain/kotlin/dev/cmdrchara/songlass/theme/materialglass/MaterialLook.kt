@@ -164,11 +164,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     @Composable
     override fun navigationSelectionSurface(modifier: Modifier, shape: RoundedCornerShape): Modifier {
         val palette = palette()
-        return modifier.clip(shape).background(Brush.verticalGradient(listOf(
-            androidx.compose.ui.graphics.lerp(palette.primaryContainer, Color.White, if (palette.dark) 0.04f else 0.015f),
-            palette.primaryContainer,
-        )))
-            .border(0.75.dp, palette.primary.copy(alpha = 0.12f), shape)
+        return modifier.clip(shape).background(palette.secondaryContainer)
     }
 
     @OptIn(ExperimentalHazeApi::class)
@@ -183,7 +179,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
                 .border(0.75.dp, palette.secondaryLabel.copy(alpha = 0.12f), shape)
             else modifier.seaDecor(shape, palette, glow = edges, base = colors.secondaryBackground)
         }
-        val style = remember(shape, palette.hue, palette.dark, edges, navigationBar) {
+        val style = remember(shape, palette, edges, navigationBar) {
             GlassStyle.regular.then {
                 shape(shape)
                 backgroundColor(colors.background)
@@ -192,8 +188,8 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
                         depth = OpticalSizeValue.Fixed(1f),
                         // Stronger than the file's look: over busy covers the labels must stay legible.
                         blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 22.dp else 36.dp),
-                        refractionDisplacement = if (!edges) 0.dp else if (navigationBar) 12.dp else 14.dp,
-                        refractionStrength = if (!edges) 0f else if (navigationBar) 0.35f else 0.42f,
+                        refractionDisplacement = if (!edges) 0.dp else if (navigationBar) 6.dp else 14.dp,
+                        refractionStrength = if (!edges) 0f else if (navigationBar) 0.18f else 0.42f,
                     ),
                 )
                 // Fill 2: the surface colour (33% in the file, raised for legibility); fill 1 (white,
@@ -201,15 +197,15 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
                 // A tonal backing stabilizes label contrast; the stronger lens remains at the rim.
                 tint(if (navigationBar) palette.containerHigh.copy(alpha = if (palette.dark) 0.80f else 0.86f)
                     else palette.vivid.copy(alpha = if (palette.dark) 0.55f else 0.5f))
-                whitePoint(if (navigationBar) { if (palette.dark) -0.1f else 0.28f } else { if (palette.dark) -0.05f else 0.4f })
+                whitePoint(if (navigationBar) { if (palette.dark) -0.04f else 0.10f } else { if (palette.dark) -0.05f else 0.4f })
                 chromaMultiplier(if (navigationBar) 1.05f else 1.15f)
                 contentNormalBlend(0f)
                 // The file's glass has no specular or reflection of its own: light comes from the
                 // inner shadows drawn below.
-                specularIntensity(if (navigationBar) 0.2f else 0f)
+                specularIntensity(if (navigationBar) 0.08f else 0f)
                 ambientResponse(if (navigationBar) 0.12f else 0.08f)
                 edgeShadow(Color.Transparent)
-                chromaticAberrationStrength(if (!edges) 0f else if (navigationBar) 0.25f else 0.5f)
+                chromaticAberrationStrength(if (!edges) 0f else if (navigationBar) 0.025f else 0.5f)
                 pressed { lightingIntensity(0.35f) }
             }
         }
@@ -299,7 +295,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     // and M3 selection controls. The glass stays the file's.
     @Composable
     override fun navigationBarHeight(): Dp = with(androidx.compose.ui.platform.LocalDensity.current) {
-        maxOf(72.dp, 44.dp + 16.sp.toDp())
+        maxOf(64.dp, 48.dp + 16.sp.toDp())
     }
 
     override val minimizesOnScroll: Boolean get() = false

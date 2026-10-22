@@ -84,6 +84,9 @@ internal class SeaPalette(val hue: Float, val dark: Boolean, private val system:
     val onPrimary: Color = system?.onPrimary ?: if (dark) tone(0.7f, 0.16f) else Color.White
     val primaryContainer: Color = system?.primaryContainer ?: if (dark) tone(0.45f, 0.28f) else tone(0.85f, 0.86f)
     val onPrimaryContainer: Color = system?.onPrimaryContainer ?: if (dark) tone(0.85f, 0.9f) else tone(0.65f, 0.17f)
+    val secondary: Color = system?.secondary ?: if (dark) tone(0.24f, 0.80f) else tone(0.24f, 0.40f)
+    val secondaryContainer: Color = system?.secondaryContainer ?: if (dark) tone(0.20f, 0.28f) else tone(0.28f, 0.90f)
+    val onSecondaryContainer: Color = system?.onSecondaryContainer ?: if (dark) tone(0.24f, 0.92f) else tone(0.24f, 0.16f)
     val label: Color = system?.label ?: if (dark) tone(0.25f, 0.94f) else tone(0.3f, 0.1f)
     val secondaryLabel: Color = system?.secondaryLabel ?: if (dark) tone(0.15f, 0.74f) else tone(0.15f, 0.36f)
 

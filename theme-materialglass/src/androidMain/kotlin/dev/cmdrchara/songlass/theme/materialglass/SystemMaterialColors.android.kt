@@ -16,6 +16,9 @@ internal actual fun platformMaterialColors(dark: Boolean): SystemMaterialColors?
             onPrimary = colorResource(if (dark) android.R.color.system_on_primary_dark else android.R.color.system_on_primary_light),
             primaryContainer = colorResource(if (dark) android.R.color.system_primary_container_dark else android.R.color.system_primary_container_light),
             onPrimaryContainer = colorResource(if (dark) android.R.color.system_on_primary_container_dark else android.R.color.system_on_primary_container_light),
+            secondary = colorResource(if (dark) android.R.color.system_secondary_dark else android.R.color.system_secondary_light),
+            secondaryContainer = colorResource(if (dark) android.R.color.system_secondary_container_dark else android.R.color.system_secondary_container_light),
+            onSecondaryContainer = colorResource(if (dark) android.R.color.system_on_secondary_container_dark else android.R.color.system_on_secondary_container_light),
             label = colorResource(if (dark) android.R.color.system_on_surface_dark else android.R.color.system_on_surface_light),
             secondaryLabel = colorResource(if (dark) android.R.color.system_on_surface_variant_dark else android.R.color.system_on_surface_variant_light),
         )
@@ -29,6 +32,9 @@ internal actual fun platformMaterialColors(dark: Boolean): SystemMaterialColors?
         onPrimary = colorResource(if (dark) android.R.color.system_accent1_800 else android.R.color.system_accent1_0),
         primaryContainer = colorResource(if (dark) android.R.color.system_accent1_700 else android.R.color.system_accent1_100),
         onPrimaryContainer = colorResource(if (dark) android.R.color.system_accent1_100 else android.R.color.system_accent1_900),
+        secondary = colorResource(if (dark) android.R.color.system_accent2_200 else android.R.color.system_accent2_600),
+        secondaryContainer = colorResource(if (dark) android.R.color.system_accent2_700 else android.R.color.system_accent2_100),
+        onSecondaryContainer = colorResource(if (dark) android.R.color.system_accent2_100 else android.R.color.system_accent2_900),
         label = colorResource(if (dark) android.R.color.system_neutral1_100 else android.R.color.system_neutral1_900),
         secondaryLabel = colorResource(if (dark) android.R.color.system_neutral2_200 else android.R.color.system_neutral2_700),
     )

@@ -14,6 +14,9 @@ internal data class SystemMaterialColors(
     val onPrimary: Color,
     val primaryContainer: Color,
     val onPrimaryContainer: Color,
+    val secondary: Color,
+    val secondaryContainer: Color,
+    val onSecondaryContainer: Color,
     val label: Color,
     val secondaryLabel: Color,
 )
