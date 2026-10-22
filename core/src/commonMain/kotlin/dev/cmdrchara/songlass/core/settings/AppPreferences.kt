@@ -31,6 +31,9 @@ enum class InterfaceStyle {
 /** The preferences one settings page restores together with "Restore defaults". */
 enum class SettingsArea { Appearance, Playback, Queue, Lyrics, Accessibility, Library }
 
+/** The style whose launcher icon should be showing, or null for the default icon. */
+fun AppPreferences.launcherIconStyle(): InterfaceStyle? = interfaceStyle.takeIf { iconFollowsStyle }
+
 data class AppPreferences(
     val appearance: AppearanceMode = AppearanceMode.System,
     val reduceMotion: Boolean = false,
@@ -66,4 +69,6 @@ data class AppPreferences(
     val shuffleBias: ShuffleBias = ShuffleBias.Random,
     /** Picking a song while shuffle is on keeps shuffling the list, with that song first. */
     val keepShuffleOnSelection: Boolean = false,
+    /** The launcher icon matches the interface style. Off by default: some launchers move the icon on the home screen when it changes. */
+    val iconFollowsStyle: Boolean = false,
 )

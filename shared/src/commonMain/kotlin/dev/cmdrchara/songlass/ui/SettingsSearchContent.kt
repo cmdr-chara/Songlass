@@ -29,6 +29,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
     SettingsTarget.SleepTimer -> Res.string.sleep_title
+    SettingsTarget.AppIcon -> Res.string.settings_icon_follows_style
     SettingsTarget.TrackClickAction -> Res.string.queue_click_section
     SettingsTarget.QueueStart -> Res.string.queue_start_section
     SettingsTarget.QueueAddOrder -> Res.string.queue_order_section
@@ -70,7 +71,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     val accessibility = stringResource(Res.string.settings_accessibility)
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
-            SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> appearance
+            SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> appearance
             SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
             SettingsTarget.Equalizer -> playback
@@ -137,6 +138,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.QueueEnd -> queueEndLabel(preferences.queueEnd)
         SettingsTarget.ShuffleBias -> shuffleBiasLabel(preferences.shuffleBias)
         SettingsTarget.KeepShuffle -> enabled(preferences.keepShuffleOnSelection)
+        SettingsTarget.AppIcon -> enabled(preferences.iconFollowsStyle)
         SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About, SettingsTarget.SleepTimer -> null
     }
 }

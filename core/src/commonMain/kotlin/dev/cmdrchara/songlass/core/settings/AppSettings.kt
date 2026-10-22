@@ -62,6 +62,7 @@ class AppSettings(
         queueReplaces = store.getString(QUEUE_REPLACES_KEY)?.toBooleanStrictOrNull() ?: false,
         shuffleBias = ShuffleBias.fromStorage(store.getString(SHUFFLE_BIAS_KEY)),
         keepShuffleOnSelection = store.getString(KEEP_SHUFFLE_KEY)?.toBooleanStrictOrNull() ?: false,
+        iconFollowsStyle = store.getString(ICON_FOLLOWS_KEY)?.toBooleanStrictOrNull() ?: false,
         libraryFilter = LibraryFilter(
             excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
                 .filter { it.isNotBlank() }.toSet(),
@@ -223,6 +224,12 @@ class AppSettings(
         _state.update { it.copy(shuffleBias = bias) }
     }
 
+    fun setIconFollowsStyle(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(ICON_FOLLOWS_KEY, enabled.toString())
+        _state.update { it.copy(iconFollowsStyle = enabled) }
+    }
+
     fun setKeepShuffleOnSelection(enabled: Boolean) {
         if (!mutations.canMutate) return
         store.putString(KEEP_SHUFFLE_KEY, enabled.toString())
@@ -261,7 +268,7 @@ class AppSettings(
     fun resetToDefaults(area: SettingsArea) {
         if (!mutations.canMutate) return
         val keys = when (area) {
-            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY)
+            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, ICON_FOLLOWS_KEY)
             SettingsArea.Playback -> setOf(REPLAY_GAIN_KEY, RESUME_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Lyrics -> setOf(AMLL_KEY)
@@ -273,7 +280,7 @@ class AppSettings(
         _state.update { current ->
             when (area) {
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
-                    appearance = defaults.appearance, artworkStyle = defaults.artworkStyle)
+                    appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, iconFollowsStyle = defaults.iconFollowsStyle)
                 SettingsArea.Playback -> current.copy(replayGain = defaults.replayGain, resumeOnReconnect = defaults.resumeOnReconnect,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs)
@@ -325,5 +332,6 @@ class AppSettings(
         const val QUEUE_REPLACES_KEY = "settings.queue_replaces"
         const val SHUFFLE_BIAS_KEY = "settings.shuffle_bias"
         const val KEEP_SHUFFLE_KEY = "settings.keep_shuffle"
+        const val ICON_FOLLOWS_KEY = "settings.icon_follows_style"
     }
 }

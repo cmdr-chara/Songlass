@@ -76,7 +76,7 @@ class SettingsFocusRequest(val target: SettingsTarget, val id: Int) {
 
 internal val SettingsTarget.settingsPane: SettingsPane?
     get() = when (this) {
-        SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle -> SettingsPane.Appearance
+        SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> SettingsPane.Appearance
         SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
         SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration,
         SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold -> SettingsPane.Playback
@@ -103,8 +103,9 @@ internal val SettingsTarget.settingsRoute: Route
 internal val SettingsTarget.settingsItemIndex: Int?
     get() = when (this) {
         SettingsTarget.InterfaceStyle -> 2
-        SettingsTarget.Appearance -> 5
-        SettingsTarget.ArtworkStyle -> 8
+        SettingsTarget.Appearance -> 4
+        SettingsTarget.ArtworkStyle -> 6
+        SettingsTarget.AppIcon -> 8
         SettingsTarget.ResumeOnReconnect, SettingsTarget.SleepTimer, SettingsTarget.TrackClickAction -> 2
         SettingsTarget.QueueStart -> 4
         SettingsTarget.QueueAddOrder -> 6

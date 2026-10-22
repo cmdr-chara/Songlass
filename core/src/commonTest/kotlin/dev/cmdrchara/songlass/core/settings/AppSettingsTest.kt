@@ -8,6 +8,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AppSettingsTest {
@@ -457,5 +458,21 @@ class AppSettingsTest {
             shuffleBias = defaults.shuffleBias, keepShuffleOnSelection = defaults.keepShuffleOnSelection,
         ), settings.state.value)
         assertEquals(settings.state.value, AppSettings(store).state.value)
+    }
+
+    @Test
+    fun theLauncherIconFollowsTheStyleOnlyWhenAskedAndIsRestoredWithTheAppearancePage() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        settings.setInterfaceStyle(InterfaceStyle.Miuix)
+        assertEquals(null, settings.state.value.launcherIconStyle(), "off by default: the icon is not touched")
+        settings.setIconFollowsStyle(true)
+        assertEquals(InterfaceStyle.Miuix, settings.state.value.launcherIconStyle())
+        settings.setInterfaceStyle(InterfaceStyle.MaterialGlass)
+        assertEquals(InterfaceStyle.MaterialGlass, AppSettings(store).state.value.launcherIconStyle())
+        assertTrue(AppSettings.ICON_FOLLOWS_KEY.startsWith("settings."), "travels with the other preferences in a backup")
+        settings.resetToDefaults(SettingsArea.Appearance)
+        assertEquals(null, settings.state.value.launcherIconStyle())
+        assertEquals(false, AppSettings(store).state.value.iconFollowsStyle)
     }
 }

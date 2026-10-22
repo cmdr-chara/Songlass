@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass
 
 import kotlinx.coroutines.flow.distinctUntilChanged
+import dev.cmdrchara.songlass.core.settings.launcherIconStyle
 
 import kotlinx.coroutines.flow.map
 
@@ -77,6 +78,8 @@ class AppGraph(
     amllLyrics: LyricsSource? = null,
     /** The phone this runs on; null switches the first-run welcome off. */
     device: dev.cmdrchara.songlass.core.onboarding.DeviceInfo? = null,
+    /** Applies the launcher icon of a style (null: the default one). Null where the platform cannot switch icons. */
+    private val applyLauncherIcon: ((dev.cmdrchara.songlass.core.settings.InterfaceStyle?) -> Unit)? = null,
 ) {
     // First, so a fresh install's style is in the store before the settings read it.
     val onboarding = dev.cmdrchara.songlass.core.onboarding.Onboarding(store, device)
@@ -100,6 +103,7 @@ class AppGraph(
     val isRestoringBackup: StateFlow<Boolean> = _isRestoringBackup.asStateFlow()
     val equalizer = Equalizer(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
     val supportsAmllLyrics = amllLyrics != null
+    val supportsStyleIcons = applyLauncherIcon != null
     val lyrics = LyricsRepository(
         localLyrics,
         if (amllLyrics == null) remoteLyrics else PreferWordTimedLyricsSource(
@@ -141,6 +145,12 @@ class AppGraph(
     val library: StateFlow<MusicLibrary> = libraryIndex.state
 
     init {
+        applyLauncherIcon?.let { apply ->
+            // Also runs once at start, so a stale alias from an earlier choice is put right.
+            scope.launch {
+                settings.state.map { it.launcherIconStyle() }.distinctUntilChanged().collect { apply(it) }
+            }
+        }
         scope.launch {
             source.hasAccess.collect { access -> if (!access) {
                 libraryAccessGeneration++

@@ -6,7 +6,7 @@ enum class SettingsTarget {
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
-    TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle,
+    TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -139,6 +139,8 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "shuffle|casuale|random|meno ascoltati|least played|bias|ascolti|plays|preferisci")
     SettingsTarget.KeepShuffle -> terms("Keep shuffle", "Mantieni lo shuffle", "No reshuffle",
         aliases = "shuffle|casuale|random|scegli|pick|selezione|selection|reshuffle|rimescola")
+    SettingsTarget.AppIcon -> terms("App icon", "Icon follows style", "Icona dell’app", "L’icona segue lo stile",
+        aliases = "launcher|home|schermata home|icone|icons|logo|stile|style|theme|tema")
     SettingsTarget.SleepTimer -> terms("Sleep timer", "Timer di spegnimento", "Timer",
         aliases = "sleep|sonno|dormire|spegnimento|stop music|ferma musica|end of track|fine brano|minutes|minuti|night|notte|bedtime")
     SettingsTarget.ReplayGain -> terms("ReplayGain", "Volume normalization", "Normalizza volume", "Normalizzazione",

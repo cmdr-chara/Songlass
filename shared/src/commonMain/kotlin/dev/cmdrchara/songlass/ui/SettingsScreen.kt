@@ -47,6 +47,7 @@ fun SettingsScreen(
     preferences: AppPreferences,
     supportsAmllLyrics: Boolean,
     supportsCrossfade: Boolean,
+    supportsStyleIcons: Boolean,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
     sleepTimer: SleepTimerState,
@@ -157,7 +158,7 @@ fun SettingsScreen(
                                 onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
                         }
                     }
-                    SettingsPane.Appearance -> appearanceSettings(settings, preferences, request)
+                    SettingsPane.Appearance -> appearanceSettings(settings, preferences, request, supportsStyleIcons)
                     SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
                         { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
@@ -251,7 +252,7 @@ private fun SettingsDestinations(modifier: Modifier, content: @Composable () -> 
 @Composable
 private fun SettingsSection(title: String) = LocalGlassLook.current.SettingsSectionTitle(title)
 
-private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?) {
+private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?, supportsStyleIcons: Boolean) {
     item { SettingsSection(stringResource(Res.string.settings_ui_style)) }
     item {
         SettingsSearchAnchor(SettingsTarget.InterfaceStyle, request) {
@@ -282,6 +283,14 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
+    if (supportsStyleIcons) item {
+        SettingsSearchAnchor(SettingsTarget.AppIcon, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
+                SettingsToggleRow(stringResource(Res.string.settings_icon_follows_style), preferences.iconFollowsStyle,
+                    settings::setIconFollowsStyle, subtitle = stringResource(Res.string.settings_icon_follows_hint))
+            }
+        }
+    }
 }
 
 /** Small related choices fit a native segmented control; large text gets full-width rows. */
