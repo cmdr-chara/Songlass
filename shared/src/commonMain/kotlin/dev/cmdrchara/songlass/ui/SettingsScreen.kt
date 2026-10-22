@@ -628,7 +628,7 @@ private fun SettingsHint(text: String) = AppText(text, AppTheme.typography.footn
     color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = pageInset + 4.dp, vertical = 8.dp))
 
 @Composable
-private fun styleName(style: InterfaceStyle): String = stringResource(when (style) {
+internal fun styleName(style: InterfaceStyle): String = stringResource(when (style) {
     InterfaceStyle.LiquidGlass -> Res.string.settings_liquid_glass
     InterfaceStyle.MaterialGlass -> Res.string.settings_material_glass
     InterfaceStyle.Miuix -> Res.string.settings_miuix

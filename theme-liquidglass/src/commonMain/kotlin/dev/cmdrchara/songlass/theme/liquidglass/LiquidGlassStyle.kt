@@ -169,6 +169,9 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.PlaybackToolsSheet(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
 
     @Composable
+    override fun Welcome(model: dev.cmdrchara.songlass.designsystem.WelcomeModel) = LocalGlassLook.current.Welcome(model)
+
+    @Composable
     override fun PlayerUtilityBar(actions: List<dev.cmdrchara.songlass.designsystem.PlayerUtilityAction>, modifier: Modifier) =
         LocalGlassLook.current.PlayerUtilityBar(actions, modifier)
 

@@ -297,6 +297,9 @@ interface UiStyle {
     fun InfoSheet(visible: Boolean, title: String, rows: List<InfoRow>, closeLabel: String, onDismiss: () -> Unit)
 
     @Composable
+    fun Welcome(model: WelcomeModel)
+
+    @Composable
     fun PlaybackToolsSheet(visible: Boolean, title: String, subtitle: String?, groups: List<PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, onDismiss: () -> Unit)
 
     @Composable

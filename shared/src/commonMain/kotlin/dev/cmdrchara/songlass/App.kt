@@ -127,6 +127,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
     PrefetchArtwork(ambientArtwork, LARGE_ARTWORK_PX)
     CompositionLocalProvider(LocalAmbientArtwork provides ambientArtwork, LocalMusicLibrary provides visibleLibrary) {
     InterfaceTheme(preferences.interfaceStyle, darkTheme, accessibility) {
+    val welcome by graph.onboarding.visible.collectAsState()
+    if (welcome) {
+        dev.cmdrchara.songlass.ui.WelcomeFlow(graph, onRequestLibraryAccess)
+        return@InterfaceTheme
+    }
     dev.cmdrchara.songlass.ui.LyricsImportHost(graph.lyrics, graph::requestLibraryRefresh) {
         val library by graph.library.collectAsState()
         val hasLibraryAccess by graph.source.hasAccess.collectAsState()

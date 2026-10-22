@@ -79,6 +79,9 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         MaterialPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss, palette())
 
     @Composable
+    override fun Welcome(model: dev.cmdrchara.songlass.designsystem.WelcomeModel) = MaterialWelcome(model, palette())
+
+    @Composable
     override fun PlayerUtilityBar(actions: List<dev.cmdrchara.songlass.designsystem.PlayerUtilityAction>, modifier: Modifier) =
         MaterialPlayerUtilities(actions, modifier, palette())
     override val lyricsPresentation = dev.cmdrchara.songlass.designsystem.LyricsPresentation(fontSize = 32f, lineHeight = 42f, weight = 700, verticalPadding = 16f, selectionCorner = 28f)

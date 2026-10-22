@@ -16,5 +16,8 @@
         <receiver android:name=".debug.FeatureProbeReceiver" android:exported="true" android:permission="android.permission.DUMP">
             <intent-filter><action android:name="dev.cmdrchara.songlass.debug.FEATURE_PROBE" /></intent-filter>
         </receiver>
+        <receiver android:name=".debug.WelcomeReceiver" android:exported="true" android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="dev.cmdrchara.songlass.debug.WELCOME" /></intent-filter>
+        </receiver>
     </application>
 </manifest>

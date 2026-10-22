@@ -92,6 +92,9 @@ interface GlassLook {
         LiquidPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
 
     @Composable
+    fun Welcome(model: dev.cmdrchara.songlass.designsystem.WelcomeModel) = LiquidWelcome(model)
+
+    @Composable
     fun PlayerUtilityBar(actions: List<dev.cmdrchara.songlass.designsystem.PlayerUtilityAction>, modifier: Modifier) =
         LiquidPlayerUtilities(actions, modifier)
 

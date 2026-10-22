@@ -42,6 +42,9 @@ object MiuixLook : GlassLook {
         MiuixPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss)
 
     @Composable
+    override fun Welcome(model: dev.cmdrchara.songlass.designsystem.WelcomeModel) = MiuixWelcome(model)
+
+    @Composable
     override fun PlayerUtilityBar(actions: List<PlayerUtilityAction>, modifier: Modifier) =
         MiuixPlayerUtilities(actions, modifier)
     override val homeShortcutKindMenu = true

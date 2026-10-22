@@ -13,7 +13,7 @@ import platform.UIKit.addChildViewController
 import platform.UIKit.didMoveToParentViewController
 
 // iOS still uses the demo library and silent player until AVFoundation playback is added.
-private val graph by lazy { AppGraph.demo(MainScope(), UserDefaultsStore()) }
+private val graph by lazy { AppGraph.demo(MainScope(), UserDefaultsStore(), device = dev.cmdrchara.songlass.core.onboarding.DeviceInfo.Apple) }
 
 fun MainViewController(): UIViewController = SonglassViewController()
 

@@ -104,6 +104,7 @@ class SonglassApplication : Application() {
             remoteLyrics = LrcLibLyricsSource(this),
             amllLyrics = AmllLyricsSource(this),
             tagEditor = tagEditor,
+            device = dev.cmdrchara.songlass.core.onboarding.DeviceInfo.android(android.os.Build.MANUFACTURER, android.os.Build.BRAND),
         )
         // The loader uses the graph's verified snapshot and current read readiness.
         artworkLoader = MediaStoreArtworkLoader(this)

@@ -75,7 +75,11 @@ class AppGraph(
     remoteLyrics: LyricsSource = LyricsSource.Empty,
     val tagEditor: dev.cmdrchara.songlass.core.model.FileTagEditor? = null,
     amllLyrics: LyricsSource? = null,
+    /** The phone this runs on; null switches the first-run welcome off. */
+    device: dev.cmdrchara.songlass.core.onboarding.DeviceInfo? = null,
 ) {
+    // First, so a fresh install's style is in the store before the settings read it.
+    val onboarding = dev.cmdrchara.songlass.core.onboarding.Onboarding(store, device)
     val restoreMutations = dev.cmdrchara.songlass.core.storage.RestoreMutationGate()
     val settings = AppSettings(store, restoreMutations)
     val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
@@ -408,8 +412,8 @@ class AppGraph(
         private const val DEMO_TICK_MS = 250L
 
         /** Fictional library and silent player, for platforms without real playback yet. */
-        fun demo(scope: CoroutineScope, store: KeyValueStore = InMemoryKeyValueStore()) =
-            AppGraph(FakeAudioPlayer(), DemoMusicSource, store, scope)
+        fun demo(scope: CoroutineScope, store: KeyValueStore = InMemoryKeyValueStore(), device: dev.cmdrchara.songlass.core.onboarding.DeviceInfo? = null) =
+            AppGraph(FakeAudioPlayer(), DemoMusicSource, store, scope, device = device)
     }
 }
 

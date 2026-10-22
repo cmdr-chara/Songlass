@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="welcome_title">Benvenuto in Songlass</string>
+    <string name="welcome_style_body">Tre stili, la stessa musica. Abbiamo scelto %1$s, quello del tuo telefono. Puoi cambiarlo quando vuoi in Impostazioni.</string>
+    <string name="welcome_continue">Continua</string>
+    <string name="welcome_access_title">La tua musica</string>
+    <string name="welcome_access_body">Songlass legge i file audio del telefono. Restano sul dispositivo e non vengono inviati da nessuna parte.</string>
+    <string name="welcome_access_allow">Consenti l’accesso</string>
+    <string name="welcome_not_now">Non ora</string>
+    <string name="welcome_ready_title">Tutto pronto</string>
+    <string name="welcome_ready_body">Songlass è pronto. La musica la trovi nella Libreria.</string>
+    <string name="welcome_ready_searching">Sto cercando la tua musica…</string>
+    <string name="welcome_ready_no_access">Puoi dare l’accesso alla musica più tardi dalla Libreria.</string>
+    <string name="welcome_ready_empty">Nessun brano trovato per ora.</string>
+    <string name="welcome_start">Inizia</string>
+    <string name="welcome_step">Passo %1$d di %2$d</string>
+    <plurals name="welcome_ready_found">
+        <item quantity="one">%1$d brano trovato</item>
+        <item quantity="other">%1$d brani trovati</item>
+    </plurals>
+</resources>
