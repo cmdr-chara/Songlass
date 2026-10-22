@@ -21,9 +21,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import dev.cmdrchara.songlass.core.player.Crossfade
 import dev.cmdrchara.songlass.core.player.CrossfadeKind
 import dev.cmdrchara.songlass.core.player.TransportFadeSettings
+import dev.cmdrchara.songlass.core.player.ReplayGainSettings
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -53,6 +55,7 @@ fun SettingsScreen(
     supportsOnlineLyrics: Boolean,
     supportsCrossfade: Boolean,
     supportsTransportFades: Boolean,
+    supportsReplayGainProcessing: Boolean,
     supportsAppIconChoice: Boolean,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
@@ -117,8 +120,8 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades) {
-        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades)
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing)
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -172,7 +175,7 @@ fun SettingsScreen(
                     }
                     SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
                     SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
-                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades,
+                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
                     SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics)
                     SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
@@ -508,6 +511,7 @@ private fun SettingsItems.soundSettings(
     request: SettingsFocusRequest?,
     supportsCrossfade: Boolean,
     supportsTransportFades: Boolean,
+    supportsReplayGainProcessing: Boolean,
     draft: SettingsDurationDraft?,
     openDuration: (SettingsTarget) -> Unit,
     closeDuration: () -> Unit,
@@ -546,7 +550,45 @@ private fun SettingsItems.soundSettings(
             SettingsOptions(shortLabels, preferences.replayGain.ordinal, labels) { settings.setReplayGain(ReplayGainMode.entries[it]) }
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_replay_gain_hint)) }
+    item { SettingsHint(stringResource(if (preferences.replayGainSettings.enabled)
+        Res.string.settings_rg_fallback_hint else Res.string.settings_replay_gain_hint)) }
+    mark(SettingsTarget.ReplayGainProcessing)
+    item(key = "rg-processing") {
+        SettingsSearchAnchor(SettingsTarget.ReplayGainProcessing, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsToggleRow(stringResource(Res.string.settings_rg_processing), preferences.replayGainSettings.enabled,
+                    settings::setReplayGainProcessing, enabled = supportsReplayGainProcessing,
+                    subtitle = stringResource(Res.string.settings_rg_processing_short))
+            }
+        }
+    }
+    item { SettingsHint(stringResource(Res.string.settings_rg_processing_hint)) }
+    mark(SettingsTarget.ReplayGainPreamp)
+    item(key = "rg-preamp") {
+        SettingsSearchAnchor(SettingsTarget.ReplayGainPreamp, request) {
+            ReplayGainPreampControl(stringResource(Res.string.settings_rg_preamp), preferences.replayGainSettings.preampDb,
+                supportsReplayGainProcessing, settings::setReplayGainPreamp)
+        }
+    }
+    mark(SettingsTarget.ReplayGainMissingPreamp)
+    item(key = "rg-missing-preamp") {
+        SettingsSearchAnchor(SettingsTarget.ReplayGainMissingPreamp, request) {
+            ReplayGainPreampControl(stringResource(Res.string.settings_rg_missing_preamp), preferences.replayGainSettings.missingPreampDb,
+                supportsReplayGainProcessing, settings::setReplayGainMissingPreamp)
+        }
+    }
+    mark(SettingsTarget.ReplayGainLimiter)
+    item(key = "rg-limiter") {
+        SettingsSearchAnchor(SettingsTarget.ReplayGainLimiter, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsToggleRow(stringResource(Res.string.settings_rg_limiter), preferences.replayGainSettings.limiter,
+                    settings::setReplayGainLimiter, enabled = supportsReplayGainProcessing,
+                    subtitle = stringResource(Res.string.settings_rg_limiter_short))
+            }
+        }
+    }
+    item { SettingsHint(stringResource(Res.string.settings_rg_limiter_hint)) }
+    if (!supportsReplayGainProcessing) item { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
     item(key = "crossfade-title") { SettingsSection(stringResource(Res.string.settings_crossfade)) }
     mark(SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration)
     item(key = "automatic-crossfade") {
@@ -673,6 +715,26 @@ private fun SettingsItems.playerSettings(
                 if (supportsOnline) SettingsSearchAnchor(SettingsTarget.LrclibLyrics, request) {
                     SettingsToggleRow(stringResource(Res.string.settings_lrclib), preferences.lrclibEnabled,
                         settings::setLrclibEnabled, subtitle = stringResource(Res.string.settings_lrclib_hint))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReplayGainPreampControl(title: String, db: Int, enabled: Boolean, onChange: (Int) -> Unit) {
+    val value = stringResource(Res.string.settings_rg_db, db)
+    SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppText(title, AppTheme.typography.body)
+            AppText(value, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+            if (enabled) {
+                LocalGlassLook.current.VolumeSlider((db + 20) / 40f,
+                    { onChange(ReplayGainSettings.preampFromSlider(it)) }, title,
+                    Modifier.fillMaxWidth().semantics { stateDescription = value })
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionButton(stringResource(Res.string.settings_rg_less), { onChange((db - 1).coerceAtLeast(-20)) }, Modifier.weight(1f))
+                    ActionButton(stringResource(Res.string.settings_rg_more), { onChange((db + 1).coerceAtMost(20)) }, Modifier.weight(1f))
                 }
             }
         }

@@ -52,6 +52,7 @@ data class AppPreferences(
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
+    val replayGainSettings: dev.cmdrchara.songlass.core.player.ReplayGainSettings = dev.cmdrchara.songlass.core.player.ReplayGainSettings(),
     /** Optional overlap at the natural end of a track; zero preserves gapless playback. */
     val crossfadeDurationMs: Long = 0,
     /** Independent overlap for explicit track changes. Off preserves the existing immediate change. */

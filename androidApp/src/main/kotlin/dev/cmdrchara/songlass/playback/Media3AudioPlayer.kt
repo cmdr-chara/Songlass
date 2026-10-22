@@ -15,6 +15,9 @@ import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import dev.cmdrchara.songlass.core.player.ReplayGainTags
 import dev.cmdrchara.songlass.core.player.ReplayGain
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
+import dev.cmdrchara.songlass.core.player.ReplayGainSettings
+import dev.cmdrchara.songlass.core.player.ReplayGainPlan
+import dev.cmdrchara.songlass.core.player.EqualizerProcessing
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.core.equalizer.EqChain
@@ -49,6 +52,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
@@ -145,6 +149,8 @@ class Media3AudioPlayer(
     private var initialPositionMs = 0L
     private var outputVolume = 1f
     private var replayGainMode = ReplayGainMode.Off
+    private var replayGainSettings = ReplayGainSettings()
+    override val supportsReplayGainProcessing: Boolean get() = primary.equalizer != null
     private var replayGainSnapshot = ReplayGainApplication(ReplayGainMode.Off, 1f)
     private var replayGainSnapshotTags: ReplayGainTags? = null
     private var outputRoute = AudioOutputRoute()
@@ -178,8 +184,13 @@ class Media3AudioPlayer(
         // Processor configuration also updates information while paused, without another poller.
         processingJob = scope.launch {
             activePlayer.collectLatest { observedPlayer ->
-                active.equalizer?.processingInfo?.collect {
-                    if (active.player === observedPlayer) publishState()
+                active.equalizer?.let { processor ->
+                    combine(processor.processingInfo, processor.replayGainApplication) { _, _ -> Unit }.collect {
+                        if (active.player === observedPlayer) {
+                            updateBaseVolume(active)
+                            publishState()
+                        }
+                    }
                 }
             }
         }
@@ -326,6 +337,7 @@ class Media3AudioPlayer(
             return
         }
         voice.replayGain = null
+        updateBaseVolume(voice)
         _state.value = _state.value.copy(audioFormat = null, replayGain = null)
         voice.player.setMediaItem(track.toMediaItem(), initialPositionMs)
         // setMediaItem dropped whatever followed the old track.
@@ -499,6 +511,13 @@ class Media3AudioPlayer(
         publishState()
     }
 
+    override fun setReplayGainSettings(settings: ReplayGainSettings) {
+        replayGainSettings = settings
+        updateBaseVolume(primary)
+        secondary?.let(::updateBaseVolume)
+        publishState()
+    }
+
     override fun setOutputRoute(route: AudioOutputRoute) {
         if (outputRoute == route) return
         outputRoute = route
@@ -506,7 +525,11 @@ class Media3AudioPlayer(
     }
 
     private fun updateBaseVolume(voice: PlayerVoice) {
-        voice.baseVolume = outputVolume * ReplayGain.volumeFor(voice.replayGain, replayGainMode)
+        val pcm = replayGainSettings.enabled && voice.equalizer != null &&
+            voice.equalizer.processingInfo.value?.equalizer != EqualizerProcessing.Unsupported
+        voice.equalizer?.setReplayGain(if (pcm) ReplayGainPlan.from(voice.replayGain, replayGainMode, replayGainSettings)
+            else ReplayGainPlan(ReplayGainMode.Off, 1.0))
+        voice.baseVolume = outputVolume * if (pcm) 1f else ReplayGain.volumeFor(voice.replayGain, replayGainMode)
         voice.applyVolume()
     }
 
@@ -919,6 +942,7 @@ class Media3AudioPlayer(
         if (!force && voice.track?.isSameFileAs(next) == true && player.mediaItemCount > 0 && player.playerError == null) return
         voice.track = next
         voice.replayGain = null
+        updateBaseVolume(voice)
         // Silent before anything is decoded, so the first buffers never play at full volume.
         voice.envelope = 0f
         voice.applyVolume()
@@ -1032,7 +1056,7 @@ class Media3AudioPlayer(
         val advance = try {
             // The standby decoder already knows this file's own loudness tags.
             incoming.transportGain = transport.gain
-            incoming.baseVolume = outputVolume * ReplayGain.volumeFor(incoming.replayGain, replayGainMode)
+            updateBaseVolume(incoming)
             incoming.envelope = if (overlap != null) 0f else 1f
             incoming.applyVolume()
             active = incoming
@@ -1154,6 +1178,7 @@ class Media3AudioPlayer(
             nextEntryId = null
             nextPlacement = NextPlacement.None
             voice.replayGain = null
+            updateBaseVolume(voice)
             val index = voice.player.currentMediaItemIndex
             if (index > 0) voice.player.removeMediaItems(0, index)
             PlayerEvent.AdvancedToNext(consumedGeneration, consumedId, next, ++advanceSerial).also {
@@ -1233,7 +1258,10 @@ class Media3AudioPlayer(
         )
     }
 
-    private fun currentReplayGainApplication(): ReplayGainApplication {
+    private fun currentReplayGainApplication(): ReplayGainApplication? {
+        active.equalizer?.takeIf { replayGainSettings.enabled && it.processingInfo.value?.equalizer != EqualizerProcessing.Unsupported }?.let {
+            return it.observedReplayGain(ReplayGainPlan.from(active.replayGain, replayGainMode, replayGainSettings))
+        }
         val tags = active.replayGain
         if (replayGainSnapshot.mode != replayGainMode || replayGainSnapshotTags != tags) {
             replayGainSnapshotTags = tags

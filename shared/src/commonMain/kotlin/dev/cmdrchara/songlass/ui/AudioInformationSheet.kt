@@ -147,7 +147,7 @@ private fun processingInformationRows(player: PlayerState, equalizer: EqualizerS
     })
     val adjustment = when {
         application == null -> unknown
-        mode != ReplayGainMode.Off && player.replayGain?.isEmpty != false -> stringResource(Res.string.audio_rg_no_tags)
+        mode != ReplayGainMode.Off && player.replayGain?.isEmpty != false && application.preampDb == 0 -> stringResource(Res.string.audio_rg_no_tags)
         else -> application.gainDb?.let { audioGainLabel(it, decimal) } ?: stringResource(Res.string.audio_rg_zero)
     }
     val transition = player.crossfadeStatus
@@ -181,7 +181,10 @@ private fun processingInformationRows(player: PlayerState, equalizer: EqualizerS
         InfoRow(stringResource(Res.string.audio_rg_applied), adjustment),
         player.replayGain?.trackGainDb?.takeIf(Float::isFinite)?.let { InfoRow(stringResource(Res.string.audio_rg_track_tag), audioGainLabel(it.toDouble(), decimal)) },
         player.replayGain?.albumGainDb?.takeIf(Float::isFinite)?.let { InfoRow(stringResource(Res.string.audio_rg_album_tag), audioGainLabel(it.toDouble(), decimal)) },
-        InfoRow(stringResource(Res.string.audio_rg_note), stringResource(Res.string.audio_rg_behavior)),
+        application?.let { InfoRow(stringResource(Res.string.settings_rg_limiter),
+            stringResource(if (it.limiterEnabled) Res.string.eq_on else Res.string.eq_off)) },
+        InfoRow(stringResource(Res.string.audio_rg_note), stringResource(if (settings.replayGainSettings.enabled)
+            Res.string.audio_rg_processing_behavior else Res.string.audio_rg_behavior)),
         InfoRow(stringResource(Res.string.audio_transition_automatic), stringResource(Res.string.audio_transition_duration, settings.crossfadeDurationMs)),
         InfoRow(stringResource(Res.string.audio_transition_manual), stringResource(Res.string.audio_transition_duration, settings.manualCrossfadeDurationMs)),
         transitionResult?.let {

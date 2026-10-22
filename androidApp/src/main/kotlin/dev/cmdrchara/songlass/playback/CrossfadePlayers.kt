@@ -75,6 +75,7 @@ class PlayerVoice(
     fun reset() {
         track = null
         replayGain = null
+        equalizer?.setReplayGain(dev.cmdrchara.songlass.core.player.ReplayGainPlan(dev.cmdrchara.songlass.core.player.ReplayGainMode.Off, 1.0))
         envelope = 1f
         transportGain = 1f
         player.pause()

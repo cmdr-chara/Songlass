@@ -1,0 +1,15 @@
+<resources>
+    <string name="settings_rg_processing">ReplayGain avanzato</string>
+    <string name="settings_rg_processing_hint">Attiva per usare guadagni positivi, preamplificazione e limitatore. Vale solo nelle modalità Brano o Album. Da spento conserva la precedente sola attenuazione.</string>
+    <string name="settings_rg_preamp">Preamplificazione con tag ReplayGain</string>
+    <string name="settings_rg_missing_preamp">Preamplificazione senza tag ReplayGain</string>
+    <string name="settings_rg_limiter">Limitatore ReplayGain</string>
+    <string name="settings_rg_limiter_hint">Usa i picchi noti del file e limita i picchi dei campioni PCM dopo l’EQ, con canali collegati. Da spento i guadagni positivi possono saturare. Non garantisce il true peak.</string>
+    <string name="settings_rg_db">%1$d dB</string>
+    <string name="settings_rg_less">−1 dB</string>
+    <string name="settings_rg_more">+1 dB</string>
+    <string name="audio_rg_processing_behavior">La regolazione è il guadagno PCM prima della limitazione dinamica. I picchi noti possono ridurlo; il limitatore a canali collegati segue l’EQ. Volume, focus e dissolvenze restano separati. I picchi tra campioni non sono misurati.</string>
+    <string name="settings_rg_fallback_hint">I tag Brano e Album si usano come alternativa reciproca. Se mancano entrambi, si applica la preamplificazione separata per i file senza tag.</string>
+    <string name="settings_rg_processing_short">Guadagni positivi e controlli PCM nelle modalità Brano o Album.</string>
+    <string name="settings_rg_limiter_short">Riduce i picchi dei campioni PCM con canali collegati.</string>
+</resources>

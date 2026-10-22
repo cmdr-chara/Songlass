@@ -42,6 +42,12 @@ class AppSettings(
             "album" -> ReplayGainMode.Album
             else -> ReplayGainMode.Off
         },
+        replayGainSettings = dev.cmdrchara.songlass.core.player.ReplayGainSettings(
+            enabled = store.getString(RG_PROCESSING_KEY)?.toBooleanStrictOrNull() ?: false,
+            preampDb = store.getString(RG_PREAMP_KEY)?.toIntOrNull()?.takeIf { it in -20..20 } ?: 0,
+            missingPreampDb = store.getString(RG_MISSING_PREAMP_KEY)?.toIntOrNull()?.takeIf { it in -20..20 } ?: 0,
+            limiter = store.getString(RG_LIMITER_KEY)?.toBooleanStrictOrNull() ?: true,
+        ),
         folderSort = when (store.getString(FOLDER_SORT_KEY)) {
             "recent" -> FolderSort.RecentlyAdded
             "most_played" -> FolderSort.MostPlayed
@@ -175,6 +181,25 @@ class AppSettings(
             },
         )
         _state.update { it.copy(replayGain = mode) }
+    }
+
+    fun setReplayGainProcessing(enabled: Boolean) = updateReplayGainSettings(RG_PROCESSING_KEY, enabled.toString()) { copy(enabled = enabled) }
+    fun setReplayGainLimiter(enabled: Boolean) = updateReplayGainSettings(RG_LIMITER_KEY, enabled.toString()) { copy(limiter = enabled) }
+    fun setReplayGainPreamp(db: Int) {
+        require(db in -20..20)
+        updateReplayGainSettings(RG_PREAMP_KEY, db.toString()) { copy(preampDb = db) }
+    }
+    fun setReplayGainMissingPreamp(db: Int) {
+        require(db in -20..20)
+        updateReplayGainSettings(RG_MISSING_PREAMP_KEY, db.toString()) { copy(missingPreampDb = db) }
+    }
+    private fun updateReplayGainSettings(key: String, value: String,
+        update: dev.cmdrchara.songlass.core.player.ReplayGainSettings.() -> dev.cmdrchara.songlass.core.player.ReplayGainSettings) {
+        if (!mutations.canMutate) return
+        val current = state.value.replayGainSettings
+        if (current.update() == current) return
+        store.putString(key, value)
+        _state.update { it.copy(replayGainSettings = it.replayGainSettings.update()) }
     }
 
     fun setFolderSort(sort: FolderSort) {
@@ -314,7 +339,7 @@ class AppSettings(
         if (!mutations.canMutate) return
         val keys = when (area) {
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
-            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY)
+            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY)
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -326,7 +351,7 @@ class AppSettings(
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
                     appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
-                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain,
+                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, transportFades = defaults.transportFades)
                 SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,
@@ -363,6 +388,10 @@ class AppSettings(
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"
         const val ARTWORK_STYLE_KEY = "settings.artwork_style"
         const val INTERFACE_STYLE_KEY = "settings.interface_style"
+        const val RG_PROCESSING_KEY = "settings.replay_gain_processing"
+        const val RG_PREAMP_KEY = "settings.replay_gain_preamp_db"
+        const val RG_MISSING_PREAMP_KEY = "settings.replay_gain_missing_preamp_db"
+        const val RG_LIMITER_KEY = "settings.replay_gain_limiter"
         const val REPLAY_GAIN_KEY = "settings.replay_gain"
         const val FOLDER_SORT_KEY = "library.folder_sort"
         const val RESUME_KEY = "settings.resume_on_reconnect"

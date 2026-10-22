@@ -5,6 +5,10 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import dev.cmdrchara.songlass.core.equalizer.EqChain
+import dev.cmdrchara.songlass.core.player.ReplayGainPlan
+import dev.cmdrchara.songlass.core.player.ReplayGainMode
+import dev.cmdrchara.songlass.core.player.ReplayGainDsp
+import dev.cmdrchara.songlass.core.player.ReplayGainApplication
 import dev.cmdrchara.songlass.core.player.AudioProcessingInfo
 import dev.cmdrchara.songlass.core.player.EqualizerProcessing
 import dev.cmdrchara.songlass.core.player.PcmEncoding
@@ -26,6 +30,15 @@ class EqualizerProcessor : BaseAudioProcessor() {
     @Volatile
     private var pending: EqChain = EqChain.Flat
     private var applied: EqChain? = null
+    @Volatile private var pendingReplayGain = ReplayGainPlan(ReplayGainMode.Off, 1.0)
+    private var appliedReplayGain: ReplayGainPlan? = null
+    private var replayGainDsp: ReplayGainDsp? = null
+    private var frame = DoubleArray(0)
+    private val _replayGainApplication = MutableStateFlow<ReplayGainApplication?>(null)
+    val replayGainApplication: StateFlow<ReplayGainApplication?> = _replayGainApplication.asStateFlow()
+    fun setReplayGain(plan: ReplayGainPlan) { pendingReplayGain = plan }
+    fun observedReplayGain(plan: ReplayGainPlan): ReplayGainApplication? =
+        _replayGainApplication.value?.takeIf { appliedReplayGain == plan }
     private var preamp = 1.0
     private var coefficients = DoubleArray(0)
     private var memory = DoubleArray(0)
@@ -44,6 +57,10 @@ class EqualizerProcessor : BaseAudioProcessor() {
             else -> null
         }
         applied = null
+        appliedReplayGain = null
+        _replayGainApplication.value = null
+        replayGainDsp = ReplayGainDsp(inputAudioFormat.sampleRate)
+        frame = DoubleArray(inputAudioFormat.channelCount)
         _processingInfo.value = AudioProcessingInfo(
             sampleRateHz = inputAudioFormat.sampleRate,
             channelCount = inputAudioFormat.channelCount,
@@ -61,20 +78,26 @@ class EqualizerProcessor : BaseAudioProcessor() {
         if (size == 0) return
         val chain = pending
         if (chain !== applied) prepare(chain)
+        val plan = pendingReplayGain
+        if (plan != appliedReplayGain) {
+            appliedReplayGain = plan
+            _replayGainApplication.value = plan.application
+        }
         val output = replaceOutputBuffer(size)
         val channels = inputAudioFormat.channelCount
-        when {
-            filterCount == 0 && preamp == 1.0 -> output.put(inputBuffer)
-            inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT -> while (inputBuffer.remaining() >= 4 * channels) {
-                for (channel in 0 until channels) {
-                    output.putFloat(process(inputBuffer.getFloat().toDouble(), channel).coerceIn(-1.0, 1.0).toFloat())
-                }
+        val floating = inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT
+        val frameBytes = (if (floating) 4 else 2) * channels
+        if (filterCount == 0 && preamp == 1.0 && plan.gain == 1.0 && !plan.limiter) {
+            output.put(inputBuffer)
+        } else while (inputBuffer.remaining() >= frameBytes) {
+            for (channel in 0 until channels) {
+                val sample = if (floating) inputBuffer.getFloat().toDouble() else inputBuffer.getShort() / 32768.0
+                frame[channel] = process(sample, channel)
             }
-            else -> while (inputBuffer.remaining() >= 2 * channels) {
-                for (channel in 0 until channels) {
-                    val y = process(inputBuffer.getShort() / 32768.0, channel) * 32768.0
-                    output.putShort(y.coerceIn(-32768.0, 32767.0).toInt().toShort())
-                }
+            replayGainDsp?.processFrame(frame, plan)
+            for (channel in 0 until channels) {
+                if (floating) output.putFloat(frame[channel].coerceIn(-1.0, 1.0).toFloat())
+                else output.putShort((frame[channel] * 32768.0).coerceIn(-32768.0, 32767.0).toInt().toShort())
             }
         }
         inputBuffer.position(inputBuffer.limit())
@@ -127,12 +150,17 @@ class EqualizerProcessor : BaseAudioProcessor() {
 
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
         memory.fill(0.0)
+        replayGainDsp?.reset()
     }
 
     override fun onReset() {
         applied = null
         memory = DoubleArray(0)
         filterCount = 0
+        appliedReplayGain = null
+        _replayGainApplication.value = null
+        replayGainDsp = null
+        frame = DoubleArray(0)
         _processingInfo.value = null
     }
 }

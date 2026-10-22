@@ -28,6 +28,10 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
+    SettingsTarget.ReplayGainProcessing -> Res.string.settings_rg_processing
+    SettingsTarget.ReplayGainPreamp -> Res.string.settings_rg_preamp
+    SettingsTarget.ReplayGainMissingPreamp -> Res.string.settings_rg_missing_preamp
+    SettingsTarget.ReplayGainLimiter -> Res.string.settings_rg_limiter
     SettingsTarget.SleepTimer -> Res.string.sleep_title
     SettingsTarget.AppIcon -> Res.string.settings_app_icon
     SettingsTarget.AudioFocus -> Res.string.settings_audio_focus
@@ -80,6 +84,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> appearance
+            SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter,
             SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer, SettingsTarget.AudioFocus,
             SettingsTarget.Equalizer -> sound
             SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
@@ -124,6 +129,10 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             ReplayGainMode.Track -> Res.string.settings_replay_gain_track_short
             ReplayGainMode.Album -> Res.string.settings_replay_gain_album_short
         })
+        SettingsTarget.ReplayGainProcessing -> enabled(preferences.replayGainSettings.enabled)
+        SettingsTarget.ReplayGainPreamp -> stringResource(Res.string.settings_rg_db, preferences.replayGainSettings.preampDb)
+        SettingsTarget.ReplayGainMissingPreamp -> stringResource(Res.string.settings_rg_db, preferences.replayGainSettings.missingPreampDb)
+        SettingsTarget.ReplayGainLimiter -> enabled(preferences.replayGainSettings.limiter)
         SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> if (preferences.crossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)
             else stringResource(Res.string.settings_search_duration_value, preferences.crossfadeDurationMs)
         SettingsTarget.ManualCrossfadeDuration -> if (preferences.manualCrossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)

@@ -151,6 +151,8 @@ interface AudioPlayer {
     val handlesReplayGain: Boolean get() = false
 
     fun setReplayGainMode(mode: ReplayGainMode) {}
+    fun setReplayGainSettings(settings: ReplayGainSettings) {}
+    val supportsReplayGainProcessing: Boolean get() = false
 
     /** Updates the route observed by the platform's existing output monitor. */
     fun setOutputRoute(route: AudioOutputRoute) {}

@@ -7,6 +7,13 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.util.Log
 import androidx.media3.common.Player
+import androidx.media3.common.C
+import androidx.media3.common.audio.AudioProcessor
+import dev.cmdrchara.songlass.core.player.ReplayGainPlan
+import dev.cmdrchara.songlass.core.player.ReplayGainSettings
+import dev.cmdrchara.songlass.core.player.ReplayGainMode
+import dev.cmdrchara.songlass.core.player.ReplayGainTags
+import kotlin.math.abs
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -50,6 +57,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 withTimeout(35_000) {
                     when (val probe = intent.getStringExtra("case")) {
                         "audio" -> audio(context, scope)
+                        "audio-replaygain" -> audio(context, scope, replayGainOnly = true)
                         "audio-transport" -> audio(context, scope, transportOnly = true)
                         "audio-manual" -> audio(context, scope, manualOnly = true)
                         "audio-manual-resume" -> audio(context, scope, manualResumeOnly = true)
@@ -103,7 +111,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -153,6 +161,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (replayGainOnly) {
+                replayGainAudio(graph, audio, session, voices, tracks)
+                return
+            }
             if (transportOnly) {
                 transportAudio(context, graph, audio, session, voices, tracks)
                 return
@@ -227,6 +239,85 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     /** Transient focus suppression after both real decoders started, not while preparing. */
+    private suspend fun replayGainAudio(
+        graph: AppGraph,
+        audio: Media3AudioPlayer,
+        session: QueueForwardingPlayer,
+        voices: List<PlayerVoice>,
+        tracks: List<Track>,
+    ) {
+        for (encoding in listOf(C.ENCODING_PCM_16BIT, C.ENCODING_PCM_FLOAT)) {
+            val processor = EqualizerProcessor()
+            val format = AudioProcessor.AudioFormat(48_000, 2, encoding)
+            processor.configure(format)
+            processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            fun frame(left: Double, right: Double): DoubleArray {
+                val floating = encoding == C.ENCODING_PCM_FLOAT
+                val input = ByteBuffer.allocateDirect(if (floating) 8 else 4).order(ByteOrder.nativeOrder())
+                for (sample in listOf(left, right)) {
+                    if (floating) input.putFloat(sample.toFloat()) else input.putShort((sample * 32768).toInt().toShort())
+                }
+                input.flip()
+                processor.queueInput(input)
+                val output = processor.output.order(ByteOrder.nativeOrder())
+                check(output.remaining() == if (floating) 8 else 4)
+                return DoubleArray(2) { if (floating) output.float.toDouble() else output.short / 32768.0 }
+            }
+            val plan = ReplayGainPlan(ReplayGainMode.Track, 2.0, limiter = true)
+            processor.setReplayGain(plan)
+            check(processor.observedReplayGain(plan) == null)
+            val limited = frame(.9, .45)
+            check(abs(limited[0] - 1.0) < .0001 && abs(limited[1] - .5) < .0001) { "PCM limiter did not link channels: $encoding" }
+            check(processor.observedReplayGain(plan)?.limiterEnabled == true)
+            check(frame(.1, .05)[0] < .15) { "Limiter did not retain release across buffers" }
+            processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            check(abs(frame(.1, .05)[0] - .2) < .0001) { "Flush retained old limiter memory" }
+            val attenuated = ReplayGainPlan(ReplayGainMode.Track, .5)
+            processor.setReplayGain(attenuated)
+            check(processor.observedReplayGain(attenuated) == null)
+            val result = frame(.5, -.25)
+            check(abs(result[0] - .25) < .0001 && abs(result[1] + .125) < .0001)
+            processor.reset()
+            Log.i("SonglassFeatures", "replaygain pcm=$encoding linkedLimiter=true releaseAcrossBuffers=true flush=true observedAfterBuffer=true attenuation=true")
+        }
+
+        audio.setVolume(.05f)
+        graph.settings.apply {
+            setReplayGain(ReplayGainMode.Track)
+            setReplayGainProcessing(true)
+            setReplayGainPreamp(6)
+            setReplayGainMissingPreamp(12)
+        }
+        delay(50)
+        graph.controller.playTracks(tracks)
+        await { audio.exoPlayer.isPlaying && audio.state.value.replayGainApplication?.preampDb == 12 }
+        check(audio.state.value.replayGainApplication!!.linearGain > 3.9f)
+        check(abs(audio.exoPlayer.volume - .05f) < .0001f) { "PCM ReplayGain was also applied to player volume" }
+        graph.settings.setReplayGainMissingPreamp(-6)
+        await { audio.state.value.replayGainApplication?.preampDb == -6 }
+        check(abs(audio.state.value.replayGainApplication!!.linearGain - .5011872f) < .0001f)
+        check(abs(audio.exoPlayer.volume - .05f) < .0001f)
+        graph.settings.setManualCrossfadeDuration(1_250)
+        delay(50)
+        graph.controller.skipToNext()
+        await { voices.count { it.player.isPlaying } == 2 }
+        val plan = ReplayGainPlan.from(null, ReplayGainMode.Track, ReplayGainSettings(true, 6, -6))
+        await { voices.filter { it.player.isPlaying }.all { it.equalizer?.observedReplayGain(plan) != null } }
+        check(voices.count { it.player.isPlaying } == 2)
+        await { audio.diagnostics().stage != CrossfadeStage.Fading }
+        val current = voices.first { it.player === audio.exoPlayer }
+        // The fixture has no tags: inject one only for the native volume/PCM hand-off check.
+        current.replayGain = ReplayGainTags(trackGainDb = -6.0206f)
+        audio.setReplayGainMode(ReplayGainMode.Track)
+        await { audio.state.value.replayGainApplication?.preampDb == 6 }
+        graph.settings.setReplayGainProcessing(false)
+        await { abs(audio.exoPlayer.volume - .025f) < .0001f }
+        check(audio.state.value.replayGainApplication?.limiterEnabled == false)
+        session.stop()
+        check(voices.none { it.player.playWhenReady })
+        Log.i("SonglassFeatures", "replaygain nativePcmBoost=true missingTagPreamp=true noDoubleGain=true bothOverlapVoices=true legacyPathRestored=true")
+    }
+
     private suspend fun transportAudio(
         context: Context,
         graph: AppGraph,

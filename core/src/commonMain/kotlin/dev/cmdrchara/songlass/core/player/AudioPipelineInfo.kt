@@ -33,8 +33,9 @@ data class AudioProcessingInfo(
 }
 
 /** ReplayGain's own multiplier, excluding device volume, audio focus and a crossfade envelope. */
-data class ReplayGainApplication(val mode: ReplayGainMode, val linearGain: Float) {
-    init { require(linearGain.isFinite() && linearGain in 0f..1f) }
+data class ReplayGainApplication(val mode: ReplayGainMode, val linearGain: Float,
+    val preampDb: Int = 0, val limiterEnabled: Boolean = false) {
+    init { require(linearGain.isFinite() && linearGain in 0f..ReplayGainPlan.MAX_GAIN.toFloat() && preampDb in -20..20) }
 
     /** Null means the applied multiplier is zero; never expose an infinite numeric dB label. */
     val gainDb: Double? get() = linearGain.takeIf { it > 0f }?.let { 20.0 * log10(it.toDouble()) }
