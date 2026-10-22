@@ -29,7 +29,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
     SettingsTarget.SleepTimer -> Res.string.sleep_title
-    SettingsTarget.AppIcon -> Res.string.settings_icon_follows_style
+    SettingsTarget.AppIcon -> Res.string.settings_app_icon
     SettingsTarget.TrackClickAction -> Res.string.queue_click_section
     SettingsTarget.QueueStart -> Res.string.queue_start_section
     SettingsTarget.QueueAddOrder -> Res.string.queue_order_section
@@ -138,7 +138,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.QueueEnd -> queueEndLabel(preferences.queueEnd)
         SettingsTarget.ShuffleBias -> shuffleBiasLabel(preferences.shuffleBias)
         SettingsTarget.KeepShuffle -> enabled(preferences.keepShuffleOnSelection)
-        SettingsTarget.AppIcon -> enabled(preferences.iconFollowsStyle)
+        SettingsTarget.AppIcon -> stringResource(if (preferences.appIcon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
         SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About, SettingsTarget.SleepTimer -> null
     }
 }

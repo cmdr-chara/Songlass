@@ -240,7 +240,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 preferences = preferences,
                                 supportsAmllLyrics = graph.supportsAmllLyrics,
                                 supportsCrossfade = graph.player.supportsCrossfade,
-                                supportsStyleIcons = graph.supportsStyleIcons,
+                                supportsAppIconChoice = graph.supportsAppIconChoice,
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,
                                 sleepTimer = sleepTimer,

@@ -38,6 +38,7 @@ class SonglassApplication : Application() {
     @OptIn(UnstableApi::class)
     override fun onCreate() {
         super.onCreate()
+        LauncherIcons.watch(this)
         val scope = MainScope()
         // The equalizer runs inside ExoPlayer's audio sink, so it works the same on every device
         // (android.media.audiofx.Equalizer bands and quality depend on the manufacturer).
@@ -105,7 +106,7 @@ class SonglassApplication : Application() {
             amllLyrics = AmllLyricsSource(this),
             tagEditor = tagEditor,
             device = dev.cmdrchara.songlass.core.onboarding.DeviceInfo.android(android.os.Build.MANUFACTURER, android.os.Build.BRAND),
-            applyLauncherIcon = { style -> LauncherIcons.apply(this, style) },
+            applyLauncherIcon = { icon -> LauncherIcons.apply(this, icon) },
         )
         // The loader uses the graph's verified snapshot and current read readiness.
         artworkLoader = MediaStoreArtworkLoader(this)

@@ -38,11 +38,11 @@ import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.WelcomeModel
 import dev.cmdrchara.songlass.designsystem.WelcomePages
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.foundation.SonglassMark
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.rememberWelcomeBeat
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
-import dev.cmdrchara.songlass.designsystem.welcomeBar
 import dev.cmdrchara.songlass.designsystem.welcomeEnter
 
 /**
@@ -121,7 +121,7 @@ internal fun MaterialWelcome(model: WelcomeModel, palette: SeaPalette) {
     }
 }
 
-/** A large shape, a different one on each page, turning slowly behind the five moving bars. */
+/** A large shape, a different one on each page, turning slowly behind the Songlass mark. */
 @Composable
 private fun ExpressiveMark(step: Int, palette: SeaPalette, room: androidx.compose.ui.unit.Dp) {
     val beat = rememberWelcomeBeat()
@@ -137,16 +137,7 @@ private fun ExpressiveMark(step: Int, palette: SeaPalette, room: androidx.compos
             .clip(shapes[(step + 1) % shapes.size]).background(palette.vivid.copy(alpha = 0.9f)))
         Box(Modifier.align(Alignment.BottomStart).padding(bottom = 10.dp, start = 4.dp).size(room * 0.2f).graphicsLayer { rotationZ = turn * 2f }
             .clip(shapes[(step + 3) % shapes.size]).background(palette.containerHigh))
-        Canvas(Modifier.size(room * 0.46f)) {
-            val u = size.width / 56f
-            val width = 6.4f * u
-            val gap = 3.8f * u
-            val startX = size.width / 2 - (5 * width + 4 * gap) / 2
-            for (i in 0 until 5) {
-                val h = 50f * u * welcomeBar(i, beat.value, animated)
-                drawRoundRect(palette.primary, Offset(startX + i * (width + gap), size.height / 2 - h / 2), Size(width, h), CornerRadius(width / 2))
-            }
-        }
+        SonglassMark(room * 0.56f, bars = palette.primary, heart = palette.vivid)
     }
 }
 

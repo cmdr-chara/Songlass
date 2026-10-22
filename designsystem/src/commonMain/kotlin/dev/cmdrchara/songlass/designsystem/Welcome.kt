@@ -98,12 +98,6 @@ fun rememberWelcomeBeat(periodMs: Int = 2600): State<Float> {
     )
 }
 
-private val BarBase = floatArrayOf(0.4f, 0.7f, 1f, 0.7f, 0.4f)
-
-/** The height of one of the five bars as a fraction of the tallest one: the app mark, gently moving like a level meter. */
-fun welcomeBar(index: Int, phase: Float, animated: Boolean): Float =
-    BarBase[index.coerceIn(0, 4)] * if (animated) 0.76f + 0.24f * sin(2.0 * PI * (phase + index * 0.21)).toFloat() else 1f
-
 /** Fades and floats an element in, [index] steps after the first; instant with reduced motion. */
 @Composable
 fun Modifier.welcomeEnter(index: Int = 0): Modifier {

@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -36,6 +37,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.UiAccessibility
 import dev.cmdrchara.songlass.shared.resources.*
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** UI navigation only: preference values and persistence remain in core. */
@@ -47,7 +49,7 @@ fun SettingsScreen(
     preferences: AppPreferences,
     supportsAmllLyrics: Boolean,
     supportsCrossfade: Boolean,
-    supportsStyleIcons: Boolean,
+    supportsAppIconChoice: Boolean,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
     sleepTimer: SleepTimerState,
@@ -158,7 +160,7 @@ fun SettingsScreen(
                                 onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
                         }
                     }
-                    SettingsPane.Appearance -> appearanceSettings(settings, preferences, request, supportsStyleIcons)
+                    SettingsPane.Appearance -> appearanceSettings(settings, preferences, request, supportsAppIconChoice)
                     SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
                         { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
@@ -252,7 +254,7 @@ private fun SettingsDestinations(modifier: Modifier, content: @Composable () -> 
 @Composable
 private fun SettingsSection(title: String) = LocalGlassLook.current.SettingsSectionTitle(title)
 
-private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?, supportsStyleIcons: Boolean) {
+private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?, supportsAppIconChoice: Boolean) {
     item { SettingsSection(stringResource(Res.string.settings_ui_style)) }
     item {
         SettingsSearchAnchor(SettingsTarget.InterfaceStyle, request) {
@@ -283,13 +285,28 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
-    if (supportsStyleIcons) item {
-        SettingsSearchAnchor(SettingsTarget.AppIcon, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
-                SettingsToggleRow(stringResource(Res.string.settings_icon_follows_style), preferences.iconFollowsStyle,
-                    settings::setIconFollowsStyle, subtitle = stringResource(Res.string.settings_icon_follows_hint))
+    if (supportsAppIconChoice) {
+        item { SettingsSection(stringResource(Res.string.settings_app_icon)) }
+        item {
+            SettingsSearchAnchor(SettingsTarget.AppIcon, request) {
+                PreviewChoices(AppIconChoice.entries.size) { index, modifier ->
+                    val icon = AppIconChoice.entries[index]
+                    val title = stringResource(if (icon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
+                    LocalGlassLook.current.SettingsPreviewChoice(title, preferences.appIcon == icon,
+                        { settings.setAppIcon(icon) }, modifier) { AppIconPreview(icon) }
+                }
             }
         }
+        item { SettingsHint(stringResource(Res.string.settings_app_icon_hint)) }
+    }
+}
+
+@Composable
+private fun AppIconPreview(icon: AppIconChoice) {
+    Box(Modifier.fillMaxWidth().height(76.dp).clearAndSetSemantics { }.clip(RoundedCornerShape(12.dp))
+        .background(AppTheme.colors.background), contentAlignment = Alignment.Center) {
+        Image(painterResource(if (icon == AppIconChoice.Violet) Res.drawable.songlass_brand_light else Res.drawable.songlass_icon_night),
+            contentDescription = null, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(14.dp)))
     }
 }
 

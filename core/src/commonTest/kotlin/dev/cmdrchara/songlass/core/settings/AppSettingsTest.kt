@@ -461,18 +461,20 @@ class AppSettingsTest {
     }
 
     @Test
-    fun theLauncherIconFollowsTheStyleOnlyWhenAskedAndIsRestoredWithTheAppearancePage() {
+    fun theLauncherIconIsTheSameForEveryStyleUnlessAnotherOneIsChosenAndIsRestoredWithTheAppearancePage() {
         val store = InMemoryKeyValueStore()
         val settings = AppSettings(store)
         settings.setInterfaceStyle(InterfaceStyle.Miuix)
-        assertEquals(null, settings.state.value.launcherIconStyle(), "off by default: the icon is not touched")
-        settings.setIconFollowsStyle(true)
-        assertEquals(InterfaceStyle.Miuix, settings.state.value.launcherIconStyle())
+        assertEquals(AppIconChoice.Violet, settings.state.value.appIcon, "the default icon does not depend on the style")
+        settings.setAppIcon(AppIconChoice.Night)
         settings.setInterfaceStyle(InterfaceStyle.MaterialGlass)
-        assertEquals(InterfaceStyle.MaterialGlass, AppSettings(store).state.value.launcherIconStyle())
-        assertTrue(AppSettings.ICON_FOLLOWS_KEY.startsWith("settings."), "travels with the other preferences in a backup")
+        assertEquals(AppIconChoice.Night, AppSettings(store).state.value.appIcon)
+        assertTrue(AppSettings.APP_ICON_KEY.startsWith("settings."), "travels with the other preferences in a backup")
+        store.putString(AppSettings.APP_ICON_KEY, "from-the-future")
+        assertEquals(AppIconChoice.Violet, AppSettings(store).state.value.appIcon, "unknown values fall back to the default")
+        settings.setAppIcon(AppIconChoice.Night)
         settings.resetToDefaults(SettingsArea.Appearance)
-        assertEquals(null, settings.state.value.launcherIconStyle())
-        assertEquals(false, AppSettings(store).state.value.iconFollowsStyle)
+        assertEquals(AppIconChoice.Violet, settings.state.value.appIcon)
+        assertEquals(null, store.getString(AppSettings.APP_ICON_KEY))
     }
 }

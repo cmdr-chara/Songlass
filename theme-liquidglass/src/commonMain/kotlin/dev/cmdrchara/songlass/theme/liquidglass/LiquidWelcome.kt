@@ -39,11 +39,11 @@ import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.WelcomeModel
 import dev.cmdrchara.songlass.designsystem.WelcomePages
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.foundation.SonglassMark
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.rememberWelcomeBeat
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
-import dev.cmdrchara.songlass.designsystem.welcomeBar
 import dev.cmdrchara.songlass.designsystem.welcomeEnter
 
 private val Pill = RoundedCornerShape(percent = 50)
@@ -140,28 +140,13 @@ internal fun LiquidWelcome(model: WelcomeModel) {
     }
 }
 
-/** The app icon, large: violet glass with five glass bars that rise and fall. */
+/** The app icon, large: the flat violet tile with its bars and heart. */
 @Composable
 private fun GlassMark(markSize: androidx.compose.ui.unit.Dp) {
-    val beat = rememberWelcomeBeat()
-    val animated = !AppTheme.accessibility.reduceMotion
-    Canvas(Modifier.size(markSize).welcomeEnter().shadow(28.dp, RoundedCornerShape(42.dp), ambientColor = Color(0xFF7A3BF2), spotColor = Color(0xFF7A3BF2)).clip(RoundedCornerShape(42.dp))) {
-        val u = size.width / 108f
-        drawRect(Brush.linearGradient(listOf(Color(0xFFB57BFF), Color(0xFF7A3BF2), Color(0xFF4A1CCB)), Offset(20 * u, 0f), Offset(88 * u, 108 * u)))
-        drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent), Offset(40 * u, 8 * u), 78 * u))
-        val width = 7.2f * u
-        val gap = 4.2f * u
-        val startX = size.width / 2 - (5 * width + 4 * gap) / 2
-        for (i in 0 until 5) {
-            val h = 40f * u * welcomeBar(i, beat.value, animated)
-            val left = startX + i * (width + gap)
-            val top = size.height / 2 - h / 2
-            val radius = CornerRadius(width / 2)
-            drawRoundRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.4f)), top, top + h),
-                Offset(left, top), Size(width, h), radius)
-            drawRoundRect(Brush.linearGradient(listOf(Color.White, Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.95f)), Offset(left, top), Offset(left + width, top + h)),
-                Offset(left, top), Size(width, h), radius, style = Stroke(1.1f * u))
-        }
+    val tile = RoundedCornerShape(markSize * 0.24f)
+    Box(Modifier.size(markSize).welcomeEnter().shadow(28.dp, tile, ambientColor = Color(0xFF6C3BEE), spotColor = Color(0xFF6C3BEE))
+        .clip(tile).background(Color(0xFF6C3BEE)), contentAlignment = Alignment.Center) {
+        SonglassMark(markSize, bars = Color.White, heart = Color(0xFFFFD23F))
     }
 }
 

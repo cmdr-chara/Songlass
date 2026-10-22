@@ -31,8 +31,18 @@ enum class InterfaceStyle {
 /** The preferences one settings page restores together with "Restore defaults". */
 enum class SettingsArea { Appearance, Playback, Queue, Lyrics, Accessibility, Library }
 
-/** The style whose launcher icon should be showing, or null for the default icon. */
-fun AppPreferences.launcherIconStyle(): InterfaceStyle? = interfaceStyle.takeIf { iconFollowsStyle }
+/** The launcher icon. The same one for every interface style; the alternative is a matter of taste. */
+enum class AppIconChoice(val storageKey: String) {
+    /** White bars and a yellow heart on violet (default). */
+    Violet("violet"),
+
+    /** Gold bars and a red heart on near-black. */
+    Night("night");
+
+    companion object {
+        fun fromStorageKey(key: String?): AppIconChoice = entries.firstOrNull { it.storageKey == key } ?: Violet
+    }
+}
 
 data class AppPreferences(
     val appearance: AppearanceMode = AppearanceMode.System,
@@ -69,6 +79,5 @@ data class AppPreferences(
     val shuffleBias: ShuffleBias = ShuffleBias.Random,
     /** Picking a song while shuffle is on keeps shuffling the list, with that song first. */
     val keepShuffleOnSelection: Boolean = false,
-    /** The launcher icon matches the interface style. Off by default: some launchers move the icon on the home screen when it changes. */
-    val iconFollowsStyle: Boolean = false,
+    val appIcon: AppIconChoice = AppIconChoice.Violet,
 )

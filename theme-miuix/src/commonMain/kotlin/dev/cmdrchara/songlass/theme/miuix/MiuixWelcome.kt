@@ -32,11 +32,11 @@ import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.WelcomeModel
 import dev.cmdrchara.songlass.designsystem.WelcomePages
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.foundation.SonglassMark
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.rememberWelcomeBeat
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
-import dev.cmdrchara.songlass.designsystem.welcomeBar
 import dev.cmdrchara.songlass.designsystem.welcomeEnter
 
 private val BrandBlue = Color(0xFF4B6BFF)
@@ -106,22 +106,11 @@ internal fun MiuixWelcome(model: WelcomeModel) {
     }
 }
 
-/** The app icon as a flat tile; the bars are bold and move like a level meter. */
+/** The app icon as a flat tile. */
 @Composable
 private fun BarTile(tile: androidx.compose.ui.unit.Dp) {
-    val beat = rememberWelcomeBeat()
-    val animated = !AppTheme.accessibility.reduceMotion
-    Canvas(Modifier.size(tile).welcomeEnter().clip(RoundedCornerShape(36.dp))) {
-        val u = size.width / 108f
-        drawRect(Brush.linearGradient(listOf(Color(0xFF9A74FF), Color(0xFF4B3BF0)), Offset(10 * u, 0f), Offset(98 * u, 108 * u)))
-        drawRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent), 0f, 54 * u))
-        val width = 7f * u
-        val gap = 4.6f * u
-        val startX = size.width / 2 - (5 * width + 4 * gap) / 2
-        for (i in 0 until 5) {
-            val h = 50f * u * welcomeBar(i, beat.value, animated)
-            drawRoundRect(Color.White, Offset(startX + i * (width + gap), size.height / 2 - h / 2), Size(width, h), CornerRadius(width / 2))
-        }
+    Box(Modifier.size(tile).welcomeEnter().clip(RoundedCornerShape(tile * 0.24f)).background(Color(0xFF6C3BEE)), contentAlignment = Alignment.Center) {
+        SonglassMark(tile, bars = Color.White, heart = Color(0xFFFFD23F))
     }
 }
 

@@ -22,6 +22,8 @@
     <string name="shuffle_bias_random">Completamente casuale</string>
     <string name="shuffle_bias_least_played">Prima i meno ascoltati</string>
     <string name="shuffle_keep">Mantieni lo shuffle quando scegli un brano</string>
-    <string name="settings_icon_follows_style">L’icona segue lo stile</string>
-    <string name="settings_icon_follows_hint">Alcuni launcher spostano l’icona sulla Home quando cambia.</string>
+    <string name="settings_app_icon">Icona dell’app</string>
+    <string name="settings_app_icon_violet">Viola</string>
+    <string name="settings_app_icon_night">Notte</string>
+    <string name="settings_app_icon_hint">Un’unica icona per tutti gli stili. L’alternativa è per chi ne preferisce una scura. La Home cambia quando esci dall’app.</string>
 </resources>
