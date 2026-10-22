@@ -1,0 +1,7 @@
+<resources>
+    <string name="settings_focus_ducking">Volume during short interruptions</string>
+    <string name="settings_focus_resume">Resume on focus gain</string>
+    <string name="settings_call_resume">Resume after calls</string>
+    <string name="settings_focus_pause">Pause</string>
+    <string name="settings_focus_policy_hint">The percentage is the remaining player volume during notifications or navigation. Calls and voice chats pause playback when Android reports a call audio mode. Their resume option is independent of other interruptions. Manual pause, stop, disconnect or an interrupted crossfade cancels automatic resumption. These options require Audio focus.</string>
+</resources>

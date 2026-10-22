@@ -244,6 +244,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 supportsTransportFades = graph.player.supportsTransportFades,
                                 supportsReplayGainProcessing = graph.player.supportsReplayGainProcessing,
                                 supportsAudioEffects = graph.player.supportsAudioEffects,
+                                supportsAudioFocusSettings = graph.player.supportsAudioFocusSettings,
                                 supportsAppIconChoice = graph.supportsAppIconChoice,
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,

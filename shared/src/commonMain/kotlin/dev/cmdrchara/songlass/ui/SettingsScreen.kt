@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.core.player.FocusDucking
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -58,6 +60,7 @@ fun SettingsScreen(
     supportsTransportFades: Boolean,
     supportsReplayGainProcessing: Boolean,
     supportsAudioEffects: Boolean,
+    supportsAudioFocusSettings: Boolean,
     supportsAppIconChoice: Boolean,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
@@ -122,8 +125,8 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects) {
-        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects)
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings)
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -177,7 +180,7 @@ fun SettingsScreen(
                     }
                     SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
                     SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
-                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects,
+                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
                     SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics)
                     SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
@@ -515,6 +518,7 @@ private fun SettingsItems.soundSettings(
     supportsTransportFades: Boolean,
     supportsReplayGainProcessing: Boolean,
     supportsAudioEffects: Boolean,
+    supportsAudioFocusSettings: Boolean,
     draft: SettingsDurationDraft?,
     openDuration: (SettingsTarget) -> Unit,
     closeDuration: () -> Unit,
@@ -671,7 +675,42 @@ private fun SettingsItems.soundSettings(
             }
         }
     }
+    mark(SettingsTarget.FocusDucking)
+    item(key = "focus-ducking") {
+        SettingsSearchAnchor(SettingsTarget.FocusDucking, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                Column(Modifier.padding(vertical = 16.dp)) {
+                    AppText(stringResource(Res.string.settings_focus_ducking), AppTheme.typography.body, modifier = Modifier.padding(horizontal = 16.dp))
+                    if (supportsAudioFocusSettings && preferences.handleAudioFocus) {
+                        val choices = FocusDucking.entries
+                        FilterChips(choices.map { focusDuckingLabel(it) }, choices.indexOf(preferences.audioFocus.ducking),
+                            { settings.setFocusDucking(choices[it]) })
+                    } else ListRow(focusDuckingLabel(preferences.audioFocus.ducking))
+                }
+            }
+        }
+    }
+    listOf(SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall).forEach { target ->
+        mark(target)
+        item(key = "focus-${target.name}") {
+            SettingsSearchAnchor(target, request) {
+                SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                    val value = if (target == SettingsTarget.ResumeAfterCall) preferences.audioFocus.resumeAfterCall else preferences.audioFocus.resumeOnFocusGain
+                    if (supportsAudioFocusSettings && preferences.handleAudioFocus) SettingsToggleRow(settingsTargetTitle(target), value,
+                        { if (target == SettingsTarget.ResumeAfterCall) settings.setResumeAfterCall(it) else settings.setResumeOnFocusGain(it) })
+                    else ListRow(settingsTargetTitle(target), subtitle = stringResource(if (value) Res.string.eq_on else Res.string.eq_off))
+                }
+            }
+        }
+    }
+    item(key = "focus-policy-hint") { SettingsHint(stringResource(Res.string.settings_focus_policy_hint)) }
+    if (!supportsAudioFocusSettings) item { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
 }
+
+@Composable
+internal fun focusDuckingLabel(value: FocusDucking): String =
+    if (value == FocusDucking.Pause) stringResource(Res.string.settings_focus_pause)
+    else "${(value.volume * 100).toInt()}%"
 
 private fun SettingsItems.playerSettings(
     settings: AppSettings,

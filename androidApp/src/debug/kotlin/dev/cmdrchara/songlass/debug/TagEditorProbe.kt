@@ -79,7 +79,7 @@ object TagEditorProbe {
     @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
     private suspend fun fileWriteGuardProbe(context: Context, root: File) = withContext(Dispatchers.Main) {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-        val audio = Media3AudioPlayer(ExoPlayer.Builder(context).build(), scope)
+        val audio = Media3AudioPlayer(ExoPlayer.Builder(context).build(), scope, context = context)
         val first = Track("guard-a", "A", Uri.fromFile(File(root, "fixture.wav")).toString(), durationMs = 60_000)
         val second = Track("guard-b", "B", Uri.fromFile(File(root, "fixture.flac")).toString(), durationMs = 60_000)
         try {

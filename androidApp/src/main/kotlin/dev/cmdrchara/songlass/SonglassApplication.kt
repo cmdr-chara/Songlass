@@ -43,7 +43,7 @@ class SonglassApplication : Application() {
         // The equalizer runs inside ExoPlayer's audio sink, so it works the same on every device
         // (android.media.audiofx.Equalizer bands and quality depend on the manufacturer).
         // Crossfade overlaps two tracks on two players, each with its own equalizer instance and
-        // the same full-quality processing. Only the first player handles audio focus: two
+        // the same full-quality processing. One session request handles audio focus: two
         // players asking for it would take it from one another in the middle of an overlap.
         fun buildVoice(handleAudioFocus: Boolean): PlayerVoice {
             val equalizer = EqualizerProcessor()
@@ -56,7 +56,7 @@ class SonglassApplication : Application() {
                         .build()
             }
             val player = ExoPlayer.Builder(this, renderers)
-                .setAudioAttributes(PlaybackAudioAttributes, handleAudioFocus)
+                .setAudioAttributes(PlaybackAudioAttributes, false)
                 // Pause when headphones are unplugged (HIG "Playing audio", same rule on Android).
                 .setHandleAudioBecomingNoisy(true)
                 .build()
@@ -67,7 +67,7 @@ class SonglassApplication : Application() {
         val store = SharedPreferencesStore(this)
         musicSource = MediaStoreMusicSource(this, dev.cmdrchara.songlass.core.library.TrackIdentityRegistry(store))
         // The second player only exists while crossfade is on: Media3AudioPlayer builds it on demand.
-        val audioPlayer = Media3AudioPlayer(exoPlayer, scope, first.equalizer, standbyFactory = { buildVoice(handleAudioFocus = false) })
+        val audioPlayer = Media3AudioPlayer(exoPlayer, scope, first.equalizer, this, standbyFactory = { buildVoice(handleAudioFocus = false) })
         val tagEditor = dev.cmdrchara.songlass.library.TagLibFileTagEditor(this,
             withFileWrite = { uri, write ->
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {

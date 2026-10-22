@@ -1,5 +1,8 @@
 package dev.cmdrchara.songlass.debug
 
+import dev.cmdrchara.songlass.core.player.FocusDucking
+import dev.cmdrchara.songlass.core.player.FocusChange
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -66,6 +69,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 withTimeout(35_000) {
                     when (val probe = intent.getStringExtra("case")) {
                         "audio" -> audio(context, scope)
+                        "audio-focus" -> audio(context, scope, focusOnly = true)
                         "audio-equalizer" -> audio(context, scope, equalizerOnly = true)
                         "audio-effects" -> audio(context, scope, effectsOnly = true)
                         "audio-replaygain" -> audio(context, scope, replayGainOnly = true)
@@ -122,7 +126,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false, equalizerOnly: Boolean = false) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false, equalizerOnly: Boolean = false, focusOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -135,7 +139,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                     DefaultAudioSink.Builder(context).setEnableFloatOutput(enableFloatOutput)
                         .setEnableAudioTrackPlaybackParams(enableAudioTrackPlaybackParams).setAudioProcessors(arrayOf(eq)).build()
             }
-            val builder = ExoPlayer.Builder(context, renderers).setAudioAttributes(PlaybackAudioAttributes, focus)
+            val builder = ExoPlayer.Builder(context, renderers).setAudioAttributes(PlaybackAudioAttributes, false)
                 .setHandleAudioBecomingNoisy(true)
             if (!focus && prepareGate != null) {
                 val upstream = DefaultDataSource.Factory(context)
@@ -161,7 +165,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             return PlayerVoice(builder.build(), eq, focus).also { voices += it }
         }
         val first = voice(true)
-        val audio = Media3AudioPlayer(first.player, scope, first.equalizer) { voice(false) }
+        val audio = Media3AudioPlayer(first.player, scope, first.equalizer, context) { voice(false) }
         val tracks = listOf(Track("tone-1", "Probe one", file.toURI().toString(), durationMs = 6_000),
             Track("tone-2", "Probe two", file.toURI().toString(), durationMs = 6_000))
         val graph = AppGraph(audio, ProbeSource(tracks), InMemoryKeyValueStore(), scope)
@@ -172,6 +176,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (focusOnly) {
+                focusAudio(context, graph, audio, session, voices, tracks)
+                return
+            }
             if (equalizerOnly) {
                 equalizerTuningAudio(graph, audio, session, voices, tracks)
                 return
@@ -257,7 +265,107 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         }
     }
 
-    /** Transient focus suppression after both real decoders started, not while preparing. */
+    private suspend fun focusAudio(context: Context, graph: AppGraph, audio: Media3AudioPlayer,
+        session: QueueForwardingPlayer, voices: List<PlayerVoice>, tracks: List<Track>) {
+        val manager = context.getSystemService(AudioManager::class.java)
+        var held: AudioFocusRequest? = null
+        suspend fun interrupt(kind: Int) {
+            val before = audio.focusChangeSerial
+            val request = AudioFocusRequest.Builder(kind)
+                .setAudioAttributes(android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                .setOnAudioFocusChangeListener { }.build()
+            check(manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            held = request
+            await { audio.focusChangeSerial > before }
+        }
+        suspend fun regain() {
+            val before = audio.focusChangeSerial
+            manager.abandonAudioFocusRequest(checkNotNull(held)); held = null
+            await { audio.focusChangeSerial > before && audio.lastFocusChange == FocusChange.Gain }
+        }
+        suspend fun start() {
+            graph.controller.playTracks(tracks)
+            await { audio.exoPlayer.isPlaying }
+        }
+        try {
+            audio.setVolume(.05f)
+            start()
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            check(audio.lastFocusChange == FocusChange.Duck)
+            check(audio.exoPlayer.isPlaying && kotlin.math.abs(audio.exoPlayer.volume - .01f) < .0001f)
+            for (mode in listOf(FocusDucking.Quiet, FocusDucking.Soft)) {
+                graph.settings.setFocusDucking(mode)
+                await { audio.appliedFocusSettings.ducking == mode }
+                check(audio.exoPlayer.isPlaying && kotlin.math.abs(audio.exoPlayer.volume - .05f * mode.volume) < .0001f)
+            }
+            regain()
+            check(audio.exoPlayer.isPlaying && kotlin.math.abs(audio.exoPlayer.volume - .05f) < .0001f)
+            graph.settings.setFocusDucking(FocusDucking.Pause)
+            await { audio.appliedFocusSettings.ducking == FocusDucking.Pause }
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            await { !audio.exoPlayer.playWhenReady }
+            check(!session.playWhenReady)
+            regain(); await { audio.exoPlayer.isPlaying }
+            graph.settings.setResumeOnFocusGain(false)
+            await { !audio.appliedFocusSettings.resumeOnFocusGain }
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            await { !audio.exoPlayer.playWhenReady }
+            regain(); delay(150)
+            check(!audio.exoPlayer.playWhenReady && !session.playWhenReady)
+            session.play(); await { audio.exoPlayer.isPlaying }
+            graph.settings.setResumeOnFocusGain(true)
+            await { audio.appliedFocusSettings.resumeOnFocusGain }
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            await { !audio.exoPlayer.playWhenReady }
+            session.pause()
+            regain(); delay(150)
+            check(!audio.exoPlayer.playWhenReady)
+            session.play(); await { audio.exoPlayer.isPlaying }
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            await { !audio.exoPlayer.playWhenReady }
+            session.stop()
+            manager.abandonAudioFocusRequest(checkNotNull(held)); held = null
+            delay(150)
+            check(audio.exoPlayer.mediaItemCount == 0 && !session.playWhenReady)
+            Log.i("SonglassFeatures", "focus nativeDucking10_20_50=true liveLevels=true pauseMode=true singleResume=true resumeDisabled=true userPauseCancels=true stopCancels=true")
+
+            graph.settings.setFocusDucking(FocusDucking.Normal)
+            graph.settings.setManualCrossfadeDuration(2_000)
+            await { audio.appliedFocusSettings.ducking == FocusDucking.Normal && audio.diagnostics().manualConfiguredMs == 2_000L }
+            start(); graph.controller.skipToNext()
+            await { audio.diagnostics().stage == CrossfadeStage.Fading && voices.count { it.player.isPlaying } == 2 }
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            check(voices.count { it.player.isPlaying } == 2)
+            delay(300)
+            val ducked = audio.diagnostics()
+            val expected = dev.cmdrchara.songlass.core.player.Crossfade.gains(ducked.progress)
+            check(kotlin.math.abs(ducked.incomingVolume - .01f * expected.incoming) < .0004f)
+            check(kotlin.math.abs(ducked.outgoingVolume - .01f * expected.outgoing) < .0004f)
+            check(kotlin.math.abs(ducked.incomingVolume + ducked.outgoingVolume - .01f) < .0001f)
+            regain()
+            check(kotlin.math.abs(audio.diagnostics().incomingVolume + audio.diagnostics().outgoingVolume - .05f) < .0001f)
+            interrupt(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            await { voices.none { it.player.playWhenReady } && audio.diagnostics().stage != CrossfadeStage.Fading }
+            regain(); delay(150)
+            check(voices.none { it.player.playWhenReady })
+            check(graph.controller.queue.value.currentIndex == 1)
+            session.play(); await { audio.exoPlayer.isPlaying }
+            check(voices.count { it.player.isPlaying } == 1)
+            Log.i("SonglassFeatures", "focus bothVoicesDuckOnce=true overlapTransientCancels=true noOverlapAutoResume=true queueStable=true explicitPlayWorks=true callHardwareNotTested=true")
+            interrupt(AudioManager.AUDIOFOCUS_GAIN)
+            check(audio.lastFocusChange == FocusChange.PermanentLoss)
+            await { !audio.exoPlayer.playWhenReady }
+            manager.abandonAudioFocusRequest(checkNotNull(held)); held = null
+            delay(150)
+            check(!audio.exoPlayer.playWhenReady)
+            session.play(); await { audio.exoPlayer.isPlaying }
+            Log.i("SonglassFeatures", "focus nativePermanentLossPauses=true noPermanentAutoResume=true freshExplicitRequestWorks=true")
+        } finally { held?.let(manager::abandonAudioFocusRequest) }
+    }
+
+    /** Transient focus interruption after both real decoders started, not while preparing. */
     private suspend fun replayGainAudio(
         graph: AppGraph,
         audio: Media3AudioPlayer,
@@ -655,15 +763,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         graph.controller.playTracks(tracks)
         await { audio.exoPlayer.isPlaying && (!automatic || audio.diagnostics().standbyReady) }
         val outgoing = audio.exoPlayer
-        var transientSuppressionObserved = false
-        val listener = object : Player.Listener {
-            override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
-                if (playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
-                    transientSuppressionObserved = true
-                }
-            }
-        }
-        outgoing.addListener(listener)
+        val beforeFocus = audio.focusChangeSerial
         val focusChanges = mutableListOf<Int>()
         val manager = context.getSystemService(AudioManager::class.java)
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -684,7 +784,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             check(manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "Probe transient focus was denied" }
             focusHeld = true
             await {
-                transientSuppressionObserved && audio.diagnostics().stage != CrossfadeStage.Fading &&
+                audio.focusChangeSerial > beforeFocus && audio.lastFocusChange == FocusChange.TransientLoss && audio.diagnostics().stage != CrossfadeStage.Fading &&
                     voices.none { it.player.playWhenReady || it.player.isPlaying }
             }
             check(audio.state.value.crossfadeStatus?.skipReason == CrossfadeSkipReason.Interrupted)
@@ -706,7 +806,6 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             Log.i("SonglassFeatures", "overlap kind=$kind transientFocusObserved=true bothPaused=true focusNotReclaimed=true noAutomaticResume=true explicitPlayWorks=true")
         } finally {
             if (focusHeld) manager.abandonAudioFocusRequest(request)
-            outgoing.removeListener(listener)
         }
     }
 
@@ -725,15 +824,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         graph.controller.playTracks(tracks)
         await { audio.exoPlayer.isPlaying }
         val outgoing = audio.exoPlayer
-        var transientSuppressionObserved = false
-        val listener = object : Player.Listener {
-            override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
-                if (playbackSuppressionReason == Player.PLAYBACK_SUPPRESSION_REASON_TRANSIENT_AUDIO_FOCUS_LOSS) {
-                    transientSuppressionObserved = true
-                }
-            }
-        }
-        outgoing.addListener(listener)
+        val beforeFocus = audio.focusChangeSerial
         val focusChanges = mutableListOf<Int>()
         val manager = context.getSystemService(AudioManager::class.java)
         val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
@@ -750,7 +841,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             check(manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { "Probe transient focus was denied" }
             focusHeld = true
             await { !audio.isPreparingManualTransition }
-            check(transientSuppressionObserved) { "Probe did not observe real transient focus suppression" }
+            check(audio.focusChangeSerial > beforeFocus && audio.lastFocusChange == FocusChange.TransientLoss) { "Probe did not observe a native transient focus callback" }
             check(voices.none { it.player.playWhenReady || it.player.isPlaying })
             check(!session.playWhenReady && graph.controller.queue.value.currentIndex == 1)
             check(audio.state.value.crossfadeStatus?.skipReason == CrossfadeSkipReason.Interrupted)
@@ -771,7 +862,6 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         } finally {
             prepareGate.countDown()
             if (focusHeld) manager.abandonAudioFocusRequest(request)
-            outgoing.removeListener(listener)
         }
     }
 

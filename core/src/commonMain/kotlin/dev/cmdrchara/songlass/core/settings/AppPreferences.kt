@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.player.AudioFocusSettings
+
 import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
@@ -89,6 +91,7 @@ data class AppPreferences(
     val appIcon: AppIconChoice = AppIconChoice.Violet,
     /** Pause for calls and let other apps take over; off plays over everything else. */
     val handleAudioFocus: Boolean = true,
+    val audioFocus: AudioFocusSettings = AudioFocusSettings(),
     /** Pause when headphones are unplugged or Bluetooth drops, so the speaker does not start. */
     val pauseOnDisconnect: Boolean = true,
     /** Two headset presses skip forward and three go back; off makes every press play/pause at once. */

@@ -178,6 +178,9 @@ class AppGraph(
                 .collect { (focus, noisy) -> player.setInterruptionPolicy(focus, noisy) }
         }
         scope.launch {
+            settings.state.map { it.audioFocus }.distinctUntilChanged().collect(player::setAudioFocusSettings)
+        }
+        scope.launch {
             settings.state.map { it.manualCrossfadeDurationMs }.distinctUntilChanged().collect(player::setManualCrossfade)
         }
         scope.launch {

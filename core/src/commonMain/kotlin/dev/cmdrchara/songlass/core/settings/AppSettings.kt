@@ -1,5 +1,8 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.player.AudioFocusSettings
+import dev.cmdrchara.songlass.core.player.FocusDucking
+
 import dev.cmdrchara.songlass.core.library.LibraryFilter
 import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.storage.getStringList
@@ -83,6 +86,7 @@ class AppSettings(
         keepShuffleOnSelection = store.getString(KEEP_SHUFFLE_KEY)?.toBooleanStrictOrNull() ?: false,
         appIcon = AppIconChoice.fromStorageKey(store.getString(APP_ICON_KEY)),
         handleAudioFocus = store.getString(AUDIO_FOCUS_KEY)?.toBooleanStrictOrNull() ?: true,
+        audioFocus = AudioFocusSettings.read(store),
         pauseOnDisconnect = store.getString(PAUSE_DISCONNECT_KEY)?.toBooleanStrictOrNull() ?: true,
         headsetMultiPress = store.getString(MULTI_PRESS_KEY)?.toBooleanStrictOrNull() ?: true,
         libraryFilter = LibraryFilter(
@@ -259,6 +263,21 @@ class AppSettings(
         _state.update { it.copy(lrclibEnabled = enabled) }
     }
 
+    fun setFocusDucking(value: FocusDucking) = setAudioFocus(
+        AudioFocusSettings.DUCKING_KEY, value.name) { it.copy(ducking = value) }
+    fun setResumeOnFocusGain(value: Boolean) = setAudioFocus(
+        AudioFocusSettings.RESUME_KEY, value.toString()) { it.copy(resumeOnFocusGain = value) }
+    fun setResumeAfterCall(value: Boolean) = setAudioFocus(
+        AudioFocusSettings.CALL_RESUME_KEY, value.toString()) { it.copy(resumeAfterCall = value) }
+    private fun setAudioFocus(key: String, value: String,
+        change: (AudioFocusSettings) -> AudioFocusSettings) {
+        if (!mutations.canMutate) return
+        val next = change(_state.value.audioFocus)
+        if (next == _state.value.audioFocus) return
+        store.putString(key, value)
+        _state.update { it.copy(audioFocus = next) }
+    }
+
     fun setHandleAudioFocus(enabled: Boolean) {
         if (!mutations.canMutate) return
         store.putString(AUDIO_FOCUS_KEY, enabled.toString())
@@ -374,7 +393,7 @@ class AppSettings(
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
-                dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY)
+                dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY) + AudioFocusSettings.keys
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -388,7 +407,7 @@ class AppSettings(
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
                 SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects, equalizerTuning = defaults.equalizerTuning,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
-                    handleAudioFocus = defaults.handleAudioFocus, transportFades = defaults.transportFades)
+                    handleAudioFocus = defaults.handleAudioFocus, audioFocus = defaults.audioFocus, transportFades = defaults.transportFades)
                 SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,
                     pauseOnDisconnect = defaults.pauseOnDisconnect, headsetMultiPress = defaults.headsetMultiPress,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs,

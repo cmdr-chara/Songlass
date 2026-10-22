@@ -42,6 +42,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ReplayGainLimiter -> Res.string.settings_rg_limiter
     SettingsTarget.SleepTimer -> Res.string.sleep_title
     SettingsTarget.AppIcon -> Res.string.settings_app_icon
+    SettingsTarget.FocusDucking -> Res.string.settings_focus_ducking
+    SettingsTarget.ResumeOnFocusGain -> Res.string.settings_focus_resume
+    SettingsTarget.ResumeAfterCall -> Res.string.settings_call_resume
     SettingsTarget.AudioFocus -> Res.string.settings_audio_focus
     SettingsTarget.PauseOnDisconnect -> Res.string.settings_pause_disconnect
     SettingsTarget.HeadsetMultiPress -> Res.string.settings_headset_multi
@@ -94,6 +97,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> appearance
             SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb,
             SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter,
+            SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall,
             SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer, SettingsTarget.AudioFocus,
             SettingsTarget.Equalizer -> sound
             SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
@@ -184,6 +188,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.ShuffleBias -> shuffleBiasLabel(preferences.shuffleBias)
         SettingsTarget.KeepShuffle -> enabled(preferences.keepShuffleOnSelection)
         SettingsTarget.AppIcon -> stringResource(if (preferences.appIcon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
+        SettingsTarget.FocusDucking -> focusDuckingLabel(preferences.audioFocus.ducking)
+        SettingsTarget.ResumeOnFocusGain -> enabled(preferences.audioFocus.resumeOnFocusGain)
+        SettingsTarget.ResumeAfterCall -> enabled(preferences.audioFocus.resumeAfterCall)
         SettingsTarget.AudioFocus -> enabled(preferences.handleAudioFocus)
         SettingsTarget.PauseOnDisconnect -> enabled(preferences.pauseOnDisconnect)
         SettingsTarget.HeadsetMultiPress -> enabled(preferences.headsetMultiPress)

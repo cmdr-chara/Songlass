@@ -9,6 +9,7 @@ enum class SettingsTarget {
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
     ReplayGainProcessing, ReplayGainPreamp, ReplayGainMissingPreamp, ReplayGainLimiter,
     Balance, StereoExpand, Tempo, Reverb, EqualizerBass, EqualizerTreble, EqualizerBands,
+    FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
 }
 
@@ -33,7 +34,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true, supportsAudioFocusSettings: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
@@ -43,6 +44,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
             if (!supportsCrossfade && entry.target in crossfadeTargets) return@mapIndexedNotNull null
             if (!supportsTransportFades && entry.target in transportFadeTargets) return@mapIndexedNotNull null
             if (!supportsReplayGainProcessing && entry.target in replayGainProcessingTargets) return@mapIndexedNotNull null
+            if (!supportsAudioFocusSettings && entry.target in setOf(SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall)) return@mapIndexedNotNull null
             if (!supportsAudioEffects && entry.target in audioEffectTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
         }.sortedWith(compareBy<Match> { it.priority }.thenBy { it.cost }.thenBy { it.order })
@@ -153,6 +155,12 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "launcher|home|schermata home|icone|icons|logo|dark|scura|nera|black|heart|cuore|gold|oro")
     SettingsTarget.LrclibLyrics -> terms("LRCLIB lyrics", "Online lyrics", "Testi LRCLIB", "Testi online",
         aliases = "lyrics|testi|synced|sincronizzati|internet|rete|privacy|network|fonti|sources")
+    SettingsTarget.FocusDucking -> terms("Short interruptions", "Volume durante le interruzioni", "Ducking volume",
+        aliases = "ducking|abbassamento|notifiche|notifications|navigatore|navigator|attenuazione|attenuation|pausa breve|short pause")
+    SettingsTarget.ResumeOnFocusGain -> terms("Resume on focus gain", "Riprendi al ritorno del focus",
+        aliases = "ripresa focus|focus resume|interruzioni brevi|short interruptions|audio focus|altre app|other apps")
+    SettingsTarget.ResumeAfterCall -> terms("Resume after call", "Riprendi dopo le chiamate",
+        aliases = "chiamata|call|hang up|riaggancio|telefonata|phone|voip|conversazione|communication")
     SettingsTarget.AudioFocus -> terms("Audio focus", "Pause for calls", "Focus audio", "Interruzioni",
         aliases = "calls|chiamate|notifications|notifiche|duck|abbassa|interruption|interruzioni|other apps|altre app|mix|sovrapponi|navigator|navigatore")
     SettingsTarget.PauseOnDisconnect -> terms("Pause when disconnected", "Pausa allo scollegamento", "Pause on unplug",

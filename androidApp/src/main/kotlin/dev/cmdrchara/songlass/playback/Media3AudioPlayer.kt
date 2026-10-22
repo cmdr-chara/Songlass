@@ -1,5 +1,11 @@
 package dev.cmdrchara.songlass.playback
 
+import dev.cmdrchara.songlass.core.player.AudioFocusPolicy
+import dev.cmdrchara.songlass.core.player.AudioFocusSettings
+import dev.cmdrchara.songlass.core.player.FocusChange
+import dev.cmdrchara.songlass.core.player.FocusDecision
+import dev.cmdrchara.songlass.core.player.FocusPlaybackAction
+
 import android.net.Uri
 import android.os.Handler
 import android.os.SystemClock
@@ -75,14 +81,14 @@ import kotlinx.coroutines.launch
  * Whenever an overlap is not possible (unknown or short durations, a standby that fails or is late,
  * repeat one) the next track is joined gaplessly in the active player, exactly as with crossfade off.
  *
- * [primaryPlayer] must handle audio focus; players from [standbyFactory] must not (focus moves to the
- * active player when an overlap ends, see [PlayerVoice]).
+ * Every decoder leaves native focus to one session request, shared across overlap handovers.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3AudioPlayer(
     primaryPlayer: ExoPlayer,
     private val scope: CoroutineScope,
     equalizer: EqualizerProcessor? = null,
+    context: android.content.Context,
     private val standbyFactory: (() -> PlayerVoice)? = null,
 ) : AudioPlayer {
     override var eventGeneration: Long = 0
@@ -122,6 +128,73 @@ class Media3AudioPlayer(
     val isPreparingManualTransition: Boolean get() = manualPreparing != null
 
     private val handler = Handler(primaryPlayer.applicationLooper)
+    private val focusPolicy = AudioFocusPolicy()
+    private var applyingFocus = false
+    private val nativeFocus = AndroidAudioFocus(context, handler, ::onFocusChanged, ::onCallChanged) {
+        if (pauseOnDisconnect) focusPolicy.cancelResume()
+    }
+    override val supportsAudioFocusSettings: Boolean get() = true
+    val focusGain: Float get() = focusPolicy.gain
+    val appliedFocusSettings get() = focusPolicy.settings
+    var lastFocusChange: FocusChange? = null
+        private set
+    var focusChangeSerial = 0L
+        private set
+    private val playbackIntent: Boolean get() = !hasPendingTransportIntent &&
+        active.player.playerError == null &&
+        (resumeAfterEdit || active.player.playWhenReady || fading?.player?.playWhenReady == true)
+
+    private fun acquireFocusForPlay(): Boolean {
+        applyFocusDecision(focusPolicy.callChanged(handleAudioFocus && nativeFocus.callActive, playbackIntent,
+            fading == null && !hasPendingTransportIntent && editingUri == null))
+        if (!focusPolicy.explicitPlay()) return false
+        if (!handleAudioFocus) return true
+        if (!nativeFocus.acquire()) return false
+        applyFocusDecision(focusPolicy.changed(FocusChange.Gain, playing = false))
+        return true
+    }
+
+    private fun onFocusChanged(change: FocusChange) {
+        if (!handleAudioFocus) return
+        lastFocusChange = change
+        focusChangeSerial++
+        // Reading the current mode also covers focus/mode callback ordering on the application loop.
+        val wasPlaying = playbackIntent
+        val resumable = fading == null && !hasPendingTransportIntent && editingUri == null
+        val inCall = nativeFocus.callActive
+        if (inCall) applyFocusDecision(focusPolicy.callChanged(true, wasPlaying, resumable))
+        applyFocusDecision(focusPolicy.changed(change, wasPlaying, resumable))
+        if (!inCall) applyFocusDecision(focusPolicy.callChanged(false, playing = false))
+    }
+
+    private fun onCallChanged(active: Boolean) {
+        if (!handleAudioFocus) return
+        applyFocusDecision(focusPolicy.callChanged(active, playbackIntent,
+            fading == null && !hasPendingTransportIntent && editingUri == null))
+    }
+
+    private fun applyFocusDecision(decision: FocusDecision) {
+        val previous = applyingFocus
+        applyingFocus = true
+        try {
+            when (decision.action) {
+                FocusPlaybackAction.Pause -> {
+                    resumeAfterEdit = false
+                    interruptTransport()
+                    if (fading != null) cancelTransitionInPause() else pauseImmediately()
+                }
+                FocusPlaybackAction.Resume -> {
+                    if (loadedTrack != null && editingUri == null && fading == null) active.player.play()
+                }
+                FocusPlaybackAction.None -> Unit
+            }
+            primary.focusGain = decision.gain
+            primary.applyVolume()
+            secondary?.let { it.focusGain = decision.gain; it.applyVolume() }
+            publishState()
+        } finally { applyingFocus = previous }
+    }
+
 
     private enum class NextPlacement {
         /** Nothing follows, or the next track is not held anywhere yet. */
@@ -183,6 +256,7 @@ class Media3AudioPlayer(
     private val loadedTrack: Track? get() = active.track
 
     init {
+        primary.applyInterruptionPolicy(true)
         attach(primary)
         // Follow the current voice, cancelling the old subscription on each crossfade handover.
         // Processor configuration also updates information while paused, without another poller.
@@ -217,6 +291,8 @@ class Media3AudioPlayer(
             }
 
             override fun onPlayWhenReadyChanged(playWhenReady: Boolean, reason: Int) {
+                if (!applyingFocus && !playWhenReady && voice === active &&
+                    reason == Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST) focusPolicy.cancelResume()
                 if (playWhenReady && (voice === active || voice === fading)) {
                     latestDisconnect = null
                     reportedDisconnect = false
@@ -225,6 +301,7 @@ class Media3AudioPlayer(
                 // which otherwise turns the active voice's later callback into a no-op.
                 if (!playWhenReady && reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY &&
                     (voice === active || voice === fading) && !reportedDisconnect) {
+                    focusPolicy.cancelResume()
                     reportedDisconnect = true
                     latestDisconnect = OutputDisconnect(++disconnectOccurrence, monotonicTimeMs)
                     _events.tryEmit(PlayerEvent.PausedByDisconnect)
@@ -293,7 +370,11 @@ class Media3AudioPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
-                if (voice === active) cancelTransport()
+                if (voice === active) {
+                    focusPolicy.cancelResume()
+                    nativeFocus.abandon()
+                    cancelTransport()
+                }
                 // The active player's error reaches the app through the state; a fading player is
                 // dropped by the fade itself. Only a prepared next track needs handling here.
                 if (voice === active && fading != null) {
@@ -323,6 +404,8 @@ class Media3AudioPlayer(
     }
 
     override fun load(track: Track, playWhenReady: Boolean) {
+        focusPolicy.cancelResume()
+        val acceptedPlay = playWhenReady && acquireFocusForPlay()
         cancelTransport()
         eventGeneration++
         latestAdvance = null
@@ -331,8 +414,8 @@ class Media3AudioPlayer(
         val voice = active
         voice.track = track
         if (track.uri == editingUri) {
-            resumeAfterEdit = playWhenReady
-            if (playWhenReady) { latestDisconnect = null; reportedDisconnect = false }
+            resumeAfterEdit = acceptedPlay
+            if (acceptedPlay) { latestDisconnect = null; reportedDisconnect = false }
             positionAfterEdit = initialPositionMs
             voice.player.stop()
             voice.player.clearMediaItems()
@@ -348,11 +431,13 @@ class Media3AudioPlayer(
         nextPlacement = NextPlacement.None
         reconcileNext()
         voice.player.prepare()
-        voice.player.playWhenReady = playWhenReady
+        voice.player.playWhenReady = acceptedPlay
         publishState()
     }
 
     override fun transitionTo(track: Track, playWhenReady: Boolean) {
+        focusPolicy.cancelResume()
+        if (playWhenReady && !acquireFocusForPlay()) { load(track, false); return }
         // A newly selected track replaces any pending pause/stop/seek before it can fire.
         cancelTransport()
         val outgoing = active
@@ -563,10 +648,24 @@ class Media3AudioPlayer(
     private var pauseOnDisconnect = true
 
     override fun setInterruptionPolicy(handleAudioFocus: Boolean, pauseOnDisconnect: Boolean) {
+        val focusHandlingChanged = this.handleAudioFocus != handleAudioFocus
         this.handleAudioFocus = handleAudioFocus
         this.pauseOnDisconnect = pauseOnDisconnect
-        primary.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
-        secondary?.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
+        primary.applyInterruptionPolicy(pauseOnDisconnect)
+        secondary?.applyInterruptionPolicy(pauseOnDisconnect)
+        if (!focusHandlingChanged) return
+        focusPolicy.cancelResume()
+        if (!handleAudioFocus) {
+            nativeFocus.abandon()
+            focusPolicy.callChanged(false, playing = false)
+            applyFocusDecision(focusPolicy.changed(FocusChange.Gain, playing = false))
+        } else if (playbackIntent && !acquireFocusForPlay()) {
+            applyFocusDecision(focusPolicy.changed(FocusChange.PermanentLoss, playing = true))
+        }
+    }
+
+    override fun setAudioFocusSettings(settings: AudioFocusSettings) {
+        applyFocusDecision(focusPolicy.configure(settings, playbackIntent, fading == null && !hasPendingTransportIntent && editingUri == null))
     }
 
     override fun setTransportFades(settings: TransportFadeSettings) {
@@ -589,6 +688,7 @@ class Media3AudioPlayer(
     }
 
     override fun play() {
+        if (!acquireFocusForPlay()) { publishState(); return }
         if (loadedTrack?.uri == editingUri && editingUri != null) {
             latestDisconnect = null
             reportedDisconnect = false
@@ -609,6 +709,7 @@ class Media3AudioPlayer(
     }
 
     override fun pause() {
+        focusPolicy.cancelResume()
         if (loadedTrack?.uri == editingUri && editingUri != null) { resumeAfterEdit = false; publishState(); return }
         beginTransport(TransportAction.Pause, transportSettings.pauseMs)
     }
@@ -630,12 +731,15 @@ class Media3AudioPlayer(
     }
 
     override fun stop() {
+        focusPolicy.cancelResume()
         eventGeneration++
         latestAdvance = null
         beginTransport(TransportAction.Stop, transportSettings.stopMs)
     }
 
     private fun stopImmediately() {
+        focusPolicy.cancelResume()
+        nativeFocus.abandon()
         interrupt(CrossfadeInterruption.Stop)
         active.track = null
         active.player.pause()
@@ -724,6 +828,8 @@ class Media3AudioPlayer(
     }
 
     override fun release() {
+        focusPolicy.cancelResume()
+        nativeFocus.release()
         cancelTransport()
         eventGeneration++
         latestAdvance = null
@@ -945,7 +1051,8 @@ class Media3AudioPlayer(
 
     private fun createSecondary(): PlayerVoice? {
         val voice = standbyFactory?.invoke() ?: return null
-        voice.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
+        voice.applyInterruptionPolicy(pauseOnDisconnect)
+        voice.focusGain = focusPolicy.gain
         applyAudioEffects(voice)
         // The equalizer must be right before the first buffer, not after a moment of flat sound.
         voice.equalizer?.setChain(chain)
@@ -1227,6 +1334,8 @@ class Media3AudioPlayer(
                 skipReason = nextSkipReason ?: CrossfadeSkipReason.NotReady)
             publishState()
         }
+        focusPolicy.cancelResume()
+        nativeFocus.abandon()
         _events.tryEmit(PlayerEvent.TrackEnded(endedGeneration))
     }
 

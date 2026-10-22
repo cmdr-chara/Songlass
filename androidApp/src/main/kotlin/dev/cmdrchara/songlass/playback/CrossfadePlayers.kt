@@ -7,7 +7,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.ReplayGainTags
 
-/** Attributes shared by every player, so audio focus can move between them with the same request. */
+/** Attributes shared by every decoder and the session focus request. */
 val PlaybackAudioAttributes: AudioAttributes = AudioAttributes.Builder()
     .setUsage(C.USAGE_MEDIA)
     .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -21,9 +21,8 @@ val PlaybackAudioAttributes: AudioAttributes = AudioAttributes.Builder()
  * Every voice runs the full equalizer in double precision on its own audio; nothing is bypassed
  * during an overlap.
  *
- * Audio focus belongs to exactly one voice at a time ([ownsFocus]): two players that each asked for
- * focus would take it from one another and the first would pause itself in the middle of the overlap.
- * Build the first voice with `handleAudioFocus = true` and every other one with `false`.
+ * Native audio focus belongs to the session. [ownsFocus] only identifies the current logical
+ * owner for transition diagnostics; no voice requests focus independently.
  */
 @androidx.annotation.OptIn(UnstableApi::class)
 class PlayerVoice(
@@ -43,31 +42,22 @@ class PlayerVoice(
     /** User transport envelope, multiplied independently of ReplayGain and track overlap. */
     var transportGain = 1f
 
+    /** Session focus attenuation, identical on both voices and independent of every envelope. */
+    var focusGain = 1f
+
     var ownsFocus = focusOwner
         private set
 
-    val volume: Float get() = (baseVolume * envelope * transportGain).coerceIn(0f, 1f)
+    val volume: Float get() = (baseVolume * envelope * transportGain * focusGain).coerceIn(0f, 1f)
 
     fun applyVolume() {
         player.volume = volume
     }
 
-    /** The user can switch focus handling off; the owner then plays over other apps. */
-    private var focusEnabled = true
+    fun setFocusOwner(owner: Boolean) { ownsFocus = owner }
 
-    /** Moves audio focus handling to or from this player. ExoPlayer requests or abandons it at once. */
-    fun setFocusOwner(owner: Boolean) {
-        if (owner == ownsFocus) return
-        ownsFocus = owner
-        player.setAudioAttributes(PlaybackAudioAttributes, owner && focusEnabled)
-    }
-
-    /** Applies the interruption policy chosen in Settings to this player. */
-    fun applyInterruptionPolicy(handleAudioFocus: Boolean, pauseOnDisconnect: Boolean) {
-        if (handleAudioFocus != focusEnabled) {
-            focusEnabled = handleAudioFocus
-            player.setAudioAttributes(PlaybackAudioAttributes, ownsFocus && handleAudioFocus)
-        }
+    fun applyInterruptionPolicy(pauseOnDisconnect: Boolean) {
+        player.setAudioAttributes(PlaybackAudioAttributes, false)
         player.setHandleAudioBecomingNoisy(pauseOnDisconnect)
     }
 
