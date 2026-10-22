@@ -95,11 +95,11 @@ internal fun Modifier.appleGlass(
             // content underneath by default, which scatters highlights over text and covers.
             contentNormalBlend(0f)
             // A crisp rim highlight and a gentle Fresnel lift at the edges, not a broad glare.
-            specularIntensity(if (navigationBar) 0.30f else if (colors.isDark) 0.55f else 0.5f)
+            specularIntensity(if (navigationBar) 0.24f else if (colors.isDark) 0.55f else 0.5f)
             specularExponent(24f)
             ambientResponse(if (colors.isDark) 0.16f else 0.15f)
             fresnelExponent(2.2f)
-            chromaticAberrationStrength(if (navigationBar) 0.05f else 0.15f)
+            chromaticAberrationStrength(if (navigationBar) 0.035f else 0.15f)
             // Press motion comes from liquidPress (whole element); the material only brightens a little.
             pressed {
                 lightingIntensity(0.4f)
@@ -123,20 +123,35 @@ internal fun Modifier.appleGlass(
             }
         }
     }
-    // Hairline inner rim, lit from above, that defines the edge like on iOS.
-    val rimBrush = Brush.verticalGradient(
-        listOf(Color.White.copy(alpha = if (navigationBar) { if (colors.isDark) 0.24f else 0.48f } else { if (colors.isDark) 0.28f else 0.6f }),
-            Color.White.copy(alpha = if (navigationBar) { if (colors.isDark) 0.05f else 0.12f } else { if (colors.isDark) 0.06f else 0.15f })),
-    )
-    // Soft light from above inside the body gives the curved, raised look of iOS glass.
-    val sheen = Brush.verticalGradient(
-        0f to Color.White.copy(alpha = if (colors.isDark) 0.09f else 0.22f),
-        0.55f to Color.White.copy(alpha = 0f),
-    )
+    // One lighting profile for the capsule and connecting waist, with a narrow rim
+    // and a restrained body reflection. Keep the mini player's separate recipe.
+    val rimBrush = remember(colors.isDark, navigationBar) {
+        if (navigationBar) liquidNavigationRim(colors.isDark)
+        else Brush.verticalGradient(listOf(
+            Color.White.copy(alpha = if (colors.isDark) 0.28f else 0.6f),
+            Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.15f),
+        ))
+    }
+    val sheen = remember(colors.isDark, navigationBar) {
+        Brush.verticalGradient(
+            0f to Color.White.copy(alpha = if (navigationBar) {
+                if (colors.isDark) 0.05f else 0.10f
+            } else if (colors.isDark) 0.09f else 0.22f),
+            0.55f to Color.Transparent,
+        )
+    }
     val glass = hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
         .background(sheen, shape)
     return if (edges) glass.border(if (navigationBar) 0.65.dp else 0.75.dp, rimBrush, shape) else glass
 }
+
+/** Original navigation lighting shared by the capsule and its connecting waist. */
+internal fun liquidNavigationRim(isDark: Boolean): Brush = Brush.verticalGradient(
+    0f to Color.White.copy(alpha = if (isDark) 0.30f else 0.42f),
+    0.36f to Color.White.copy(alpha = if (isDark) 0.06f else 0.10f),
+    0.70f to Color.White.copy(alpha = if (isDark) 0.03f else 0.05f),
+    1f to Color.White.copy(alpha = if (isDark) 0.17f else 0.23f),
+)
 
 /** Independent lens over the same page source, never a blur of the bar or its labels. */
 @OptIn(ExperimentalHazeApi::class)
@@ -164,20 +179,20 @@ internal fun Modifier.navigationLens(shape: RoundedCornerShape): Modifier {
             whitePoint(if (colors.isDark) -0.02f else 0.24f)
             chromaMultiplier(1.05f)
             contentNormalBlend(0f)
-            specularIntensity(0.62f)
+            specularIntensity(0.48f)
             specularExponent(20f)
             ambientResponse(0.18f)
             fresnelExponent(2.5f)
-            chromaticAberrationStrength(0.08f)
+            chromaticAberrationStrength(0.05f)
         }
     }
     val rim = Brush.linearGradient(listOf(
-        Color.White.copy(alpha = if (colors.isDark) 0.52f else 0.78f),
+        Color.White.copy(alpha = if (colors.isDark) 0.40f else 0.60f),
         colors.label.copy(alpha = 0.10f),
-        Color.White.copy(alpha = if (colors.isDark) 0.26f else 0.48f),
+        Color.White.copy(alpha = if (colors.isDark) 0.24f else 0.36f),
     ))
     val sheen = Brush.verticalGradient(listOf(
-        Color.White.copy(alpha = if (colors.isDark) 0.09f else 0.18f),
+        Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.11f),
         Color.Transparent,
         Color.Black.copy(alpha = if (colors.isDark) 0.10f else 0.035f),
     ))

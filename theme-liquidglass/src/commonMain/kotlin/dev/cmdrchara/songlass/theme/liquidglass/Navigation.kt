@@ -593,12 +593,9 @@ private fun LiquidBridge(link: LiquidLink) {
             } else IntRect(0, 0, fullWidth, height)
         }
     }
-    // Both edges of the waist need a rim as visible as the outlines of the two shapes, otherwise
-    // only the upper curve shows and reads as two spikes.
-    val rimTop = Color.White.copy(alpha = if (dark) 0.42f else 0.65f)
-    val rimBottom = Color.White.copy(alpha = if (dark) 0.3f else 0.45f)
-    // The bare material lacks the edge lighting that lifts the shapes' bodies a little.
-    val lift = Color.White.copy(alpha = if (dark) 0.05f else 0.08f)
+    // Use the capsule's lighting across the complete slot. A separate white fill
+    // would brighten only the waist and reveal the join over colourful content.
+    val rim = remember(dark) { liquidNavigationRim(dark) }
     Box(
         Modifier
             .width(width)
@@ -619,10 +616,9 @@ private fun LiquidBridge(link: LiquidLink) {
                 drawContent()
                 val n = neck ?: return@drawWithContent
                 translate(left = -viewport.left.toFloat()) {
-                    drawPath(n.fill, lift)
                     // Continue the rim of the two shapes along the waist.
-                    drawPath(n.top, rimTop, style = Stroke(1.dp.toPx()))
-                    drawPath(n.bottom, rimBottom, style = Stroke(1.dp.toPx()))
+                    drawPath(n.top, rim, style = Stroke(0.65.dp.toPx()))
+                    drawPath(n.bottom, rim, style = Stroke(0.65.dp.toPx()))
                 }
             },
     )
