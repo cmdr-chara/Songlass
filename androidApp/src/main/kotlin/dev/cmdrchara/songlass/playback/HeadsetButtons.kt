@@ -12,16 +12,19 @@ internal class HeadsetButtons(
     private val scheduler: HeadsetButtonScheduler = MainThreadHeadsetScheduler(),
     /** When false, every press toggles play/pause at once instead of counting presses. */
     private val multiPress: () -> Boolean = { true },
+    private val ignoreCommand: (Long) -> Boolean = { false },
+    private val connectionRevision: () -> Long = { 0L },
 ) {
     private var presses = 0
     private var intentRevision = 0L
+    private var gestureConnection = 0L
     private var closed = false
     private val resolve = Runnable {
         val count = presses
         presses = 0
         // Clearing the queue while a gesture waits is a newer intent. Do not resurrect it.
         if (!closed && controller.queue.value.current != null &&
-            intentRevision == controller.transportIntentRevision) when (count) {
+            intentRevision == controller.transportIntentRevision && gestureConnection == connectionRevision()) when (count) {
             1 -> controller.togglePlayPause()
             2 -> controller.skipToNext()
             in 3..Int.MAX_VALUE -> controller.skipToPrevious()
@@ -31,6 +34,10 @@ internal class HeadsetButtons(
     fun handle(intent: Intent): Boolean {
         if (closed) return false
         val event = intent.getParcelableExtra(Intent.EXTRA_KEY_EVENT, KeyEvent::class.java) ?: return false
+        if (event.keyCode in TRANSPORT_KEYS && !intent.getBooleanExtra(LOCAL_WIDGET, false) && ignoreCommand(event.eventTime)) {
+            cancelPending()
+            return true
+        }
         if (event.keyCode != KeyEvent.KEYCODE_HEADSETHOOK && event.keyCode != KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             cancelPending()
             return false
@@ -48,7 +55,10 @@ internal class HeadsetButtons(
         }
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             if (presses > 0 && intentRevision != controller.transportIntentRevision) cancelPending()
-            if (presses == 0) intentRevision = controller.transportIntentRevision
+            if (presses == 0) {
+                intentRevision = controller.transportIntentRevision
+                gestureConnection = connectionRevision()
+            }
             presses++
             scheduler.remove(resolve)
             scheduler.post(resolve, TAP_WINDOW_MS)
@@ -66,8 +76,14 @@ internal class HeadsetButtons(
         presses = 0
     }
 
-    private companion object {
-        const val TAP_WINDOW_MS = 400L
+    companion object {
+        const val LOCAL_WIDGET = "dev.cmdrchara.songlass.LOCAL_WIDGET_MEDIA_BUTTON"
+        private const val TAP_WINDOW_MS = 400L
+        private val TRANSPORT_KEYS = setOf(KeyEvent.KEYCODE_HEADSETHOOK, KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
+            KeyEvent.KEYCODE_MEDIA_PLAY, KeyEvent.KEYCODE_MEDIA_PAUSE, KeyEvent.KEYCODE_MEDIA_STOP,
+            KeyEvent.KEYCODE_MEDIA_NEXT, KeyEvent.KEYCODE_MEDIA_PREVIOUS, KeyEvent.KEYCODE_MEDIA_FAST_FORWARD,
+            KeyEvent.KEYCODE_MEDIA_REWIND)
+
     }
 }
 

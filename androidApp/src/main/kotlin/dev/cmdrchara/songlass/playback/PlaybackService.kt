@@ -55,9 +55,15 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         graph = (application as SonglassApplication).graph
-        buttons = HeadsetButtons(graph.controller, multiPress = { graph.settings.state.value.headsetMultiPress })
+        buttons = HeadsetButtons(graph.controller, multiPress = { graph.settings.state.value.headsetMultiPress },
+            ignoreCommand = { eventUptime ->
+                val elapsed = dev.cmdrchara.songlass.core.playback.BluetoothCommandFilter.elapsedKeyTime(eventUptime,
+                    android.os.SystemClock.uptimeMillis(), android.os.SystemClock.elapsedRealtime())
+                graph.ignoreHeadsetCommand(elapsed)
+            }, connectionRevision = { graph.headsetConnectionRevision })
         val audio = graph.player as Media3AudioPlayer
-        forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio)
+        forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio,
+            ignoreTransport = { graph.ignoreBluetoothController(session?.controllerForCurrentRequest?.packageName) })
         session = MediaLibrarySession.Builder(this, forwardingPlayer, LibraryCallback())
             .setBitmapLoader(EmbeddedArtworkBitmapLoader(this))
             .build()
@@ -163,16 +169,21 @@ class PlaybackService : MediaLibraryService() {
             mediaItems: MutableList<MediaItem>,
             startIndex: Int,
             startPositionMs: Long,
-        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> = withPlaybackTree { tree ->
-            val item = mediaItems.getOrNull(startIndex) ?: mediaItems.firstOrNull()
-            val request = item?.mediaId?.takeIf { it.isNotEmpty() }?.let(tree::resolvePlay)
-                ?: item?.requestMetadata?.searchQuery?.let(tree::resolveQuery)
-                ?: throw IllegalArgumentException("The requested library item is unavailable")
-            // The forwarder acknowledges resolved items without reopening native media.
-            // Apply an explicit position with the accepted selection, never as a later
-            // seek that could affect the old decoder after a rejected library request.
-            graph.controller.play(request, startPositionMs.takeIf { it >= 0 })
-            MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex.coerceAtLeast(0), startPositionMs)
+        ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            if (graph.ignoreBluetoothController(controller.packageName)) return ignoredBluetoothRequest()
+            val connection = graph.headsetConnectionRevision
+            return withPlaybackTree { tree ->
+                check(graph.acceptsBluetoothRequest(controller.packageName, connection)) { "Bluetooth command superseded" }
+                val item = mediaItems.getOrNull(startIndex) ?: mediaItems.firstOrNull()
+                val request = item?.mediaId?.takeIf { it.isNotEmpty() }?.let(tree::resolvePlay)
+                    ?: item?.requestMetadata?.searchQuery?.let(tree::resolveQuery)
+                    ?: throw IllegalArgumentException("The requested library item is unavailable")
+                // The forwarder acknowledges resolved items without reopening native media.
+                // Apply an explicit position with the accepted selection, never as a later
+                // seek that could affect the old decoder after a rejected library request.
+                graph.controller.play(request, startPositionMs.takeIf { it >= 0 })
+                MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex.coerceAtLeast(0), startPositionMs)
+            }
         }
 
         /**
@@ -184,8 +195,12 @@ class PlaybackService : MediaLibraryService() {
             controller: MediaSession.ControllerInfo,
             isForPlayback: Boolean,
         ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+            if (graph.ignoreBluetoothController(controller.packageName))
+                return forwardingPlayer.acknowledgeResumptionResult(ignoredBluetoothRequest())
             if (!isForPlayback) return Futures.immediateFailedFuture(UnsupportedOperationException("No resumption card"))
+            val connection = graph.headsetConnectionRevision
             return forwardingPlayer.acknowledgeResumptionResult(withPlaybackTree { tree ->
+                check(graph.acceptsBluetoothRequest(controller.packageName, connection)) { "Bluetooth command superseded" }
                 graph.controller.resumeForExternalPlayback {
                     tree.resume(graph.history.state.value.recentPlays.firstOrNull())
                 }
@@ -196,6 +211,9 @@ class PlaybackService : MediaLibraryService() {
         override fun onMediaButtonEvent(session: MediaSession, controllerInfo: MediaSession.ControllerInfo, intent: Intent): Boolean =
             buttons.handle(intent)
     }
+
+    private fun ignoredBluetoothRequest(): ListenableFuture<MediaSession.MediaItemsWithStartPosition> =
+        Futures.immediateFailedFuture(UnsupportedOperationException("Bluetooth command window"))
 
     /** Runs [block] on the main thread with a tree of the current library, loading it first after a cold start. */
     private fun <T> withTree(block: (BrowseTree) -> T): ListenableFuture<T> = scopeResult(scope) {

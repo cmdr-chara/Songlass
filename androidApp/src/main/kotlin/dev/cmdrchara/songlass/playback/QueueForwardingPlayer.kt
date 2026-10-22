@@ -24,6 +24,7 @@ class QueueForwardingPlayer(
     player: Player,
     private val controller: PlaybackController,
     private val audio: dev.cmdrchara.songlass.core.player.AudioPlayer? = null,
+    private val ignoreTransport: () -> Boolean = { false },
 ) : ForwardingSimpleBasePlayer(player) {
     private val completionHandler = Handler(player.applicationLooper)
     private var acknowledgingPlaybackCompletion = false
@@ -65,6 +66,7 @@ class QueueForwardingPlayer(
     fun refreshPlaybackIntent() { invalidateState() }
 
     override fun handleSetPlayWhenReady(playWhenReady: Boolean): ListenableFuture<*> {
+        if (ignoreTransport()) return Futures.immediateVoidFuture()
         if (playWhenReady && acknowledgingPlaybackCompletion) return Futures.immediateVoidFuture()
         if (playWhenReady) controller.resume() else controller.pause()
         refreshPlaybackIntent()
@@ -77,12 +79,14 @@ class QueueForwardingPlayer(
         if (acknowledgingPlaybackCompletion) Futures.immediateVoidFuture() else unsupportedMutation()
 
     override fun handleStop(): ListenableFuture<*> {
+        if (ignoreTransport()) return Futures.immediateVoidFuture()
         controller.stop()
         refreshPlaybackIntent()
         return Futures.immediateVoidFuture()
     }
 
     override fun handleSetRepeatMode(repeatMode: Int): ListenableFuture<*> {
+        if (ignoreTransport()) return Futures.immediateVoidFuture()
         val mode = when (repeatMode) {
             Player.REPEAT_MODE_OFF -> RepeatMode.Off
             Player.REPEAT_MODE_ALL -> RepeatMode.All
@@ -95,6 +99,7 @@ class QueueForwardingPlayer(
     }
 
     override fun handleSetShuffleModeEnabled(shuffleModeEnabled: Boolean): ListenableFuture<*> {
+        if (ignoreTransport()) return Futures.immediateVoidFuture()
         controller.setShuffle(shuffleModeEnabled)
         refreshPlaybackIntent()
         return Futures.immediateVoidFuture()
@@ -168,6 +173,7 @@ class QueueForwardingPlayer(
     override fun handleSetPlaybackParameters(playbackParameters: PlaybackParameters): ListenableFuture<*> = unsupportedMutation()
 
     override fun handleSeek(mediaItemIndex: Int, positionMs: Long, seekCommand: Int): ListenableFuture<*> {
+        if (ignoreTransport()) return Futures.immediateVoidFuture()
         if (acknowledgingPlaybackCompletion) return Futures.immediateVoidFuture()
         when (seekCommand) {
             Player.COMMAND_SEEK_TO_NEXT, Player.COMMAND_SEEK_TO_NEXT_MEDIA_ITEM -> controller.skipToNext()

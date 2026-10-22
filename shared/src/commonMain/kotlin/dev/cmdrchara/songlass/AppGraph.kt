@@ -1,5 +1,8 @@
 package dev.cmdrchara.songlass
 
+import dev.cmdrchara.songlass.core.playback.HeadphoneKind
+import dev.cmdrchara.songlass.core.playback.BluetoothCommandFilter
+
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 import kotlinx.coroutines.flow.map
@@ -128,6 +131,7 @@ class AppGraph(
     val history = ListeningHistory(store, restoreMutations, clock = { Clock.System.now().toEpochMilliseconds() })
     private val playCounter = PlayCounter()
     private val playbackClock = TimeSource.Monotonic.markNow()
+    private val bluetoothCommands = BluetoothCommandFilter { player.monotonicTimeMs }
     private val outputResume = OutputResume(
         clock = { player.monotonicTimeMs }, latestDisconnect = { player.latestDisconnect },
     )
@@ -172,6 +176,9 @@ class AppGraph(
         }
         scope.launch {
             settings.state.map { it.crossfadeDurationMs }.distinctUntilChanged().collect(player::setCrossfade)
+        }
+        scope.launch {
+            settings.state.map { it.headphones.bluetoothCommandDelayMs }.distinctUntilChanged().collect(bluetoothCommands::configure)
         }
         scope.launch {
             settings.state.map { it.handleAudioFocus to it.pauseOnDisconnect }.distinctUntilChanged()
@@ -251,10 +258,29 @@ class AppGraph(
      * Headphones, a headset or a car's audio connected (reported by the platform). Resumes the
      * music if it stopped because they had disconnected and the setting is on.
      */
-    fun onOutputConnected() {
+    fun onOutputsConnected(kinds: Set<HeadphoneKind>) {
+        if (kinds.isEmpty()) return
+        val preferences = settings.state.value.headphones
+        bluetoothCommands.configure(preferences.bluetoothCommandDelayMs)
+        if (HeadphoneKind.Bluetooth in kinds) bluetoothCommands.connected()
         if (!restoreMutations.canMutate) { outputResume.cancel(); return }
-        if (outputResume.onOutputConnected(settings.state.value.resumeOnReconnect)) controller.resume()
+        if (outputResume.onOutputConnected(kinds.any(preferences::resumes))) controller.resume()
     }
+
+    val headsetConnectionRevision: Long get() {
+        bluetoothCommands.configure(settings.state.value.headphones.bluetoothCommandDelayMs)
+        return bluetoothCommands.revision
+    }
+    fun ignoreHeadsetCommand(eventTimeMs: Long? = null): Boolean {
+        bluetoothCommands.configure(settings.state.value.headphones.bluetoothCommandDelayMs)
+        return bluetoothCommands.shouldIgnore(eventTimeMs)
+    }
+    fun acceptsBluetoothRequest(packageName: String?, capturedRevision: Long): Boolean {
+        bluetoothCommands.configure(settings.state.value.headphones.bluetoothCommandDelayMs)
+        return bluetoothCommands.acceptsControllerRequest(packageName, capturedRevision)
+    }
+    fun ignoreBluetoothController(packageName: String?): Boolean =
+        BluetoothCommandFilter.isBluetoothController(packageName) && ignoreHeadsetCommand()
 
     fun exportBackup(): dev.cmdrchara.songlass.core.backup.BackupExport {
         val ticket = restoreMutations.ticket()

@@ -1,0 +1,9 @@
+<resources>
+    <string name="settings_resume_wired">Resume on wired headset</string>
+    <string name="settings_resume_bluetooth">Resume on Bluetooth</string>
+    <string name="settings_headphone_resume_hint">Resume only if playback stopped because the output disconnected within the last hour. A manual pause or stop cancels resumption. Wired includes USB headsets.</string>
+    <string name="settings_bluetooth_command_filter">Bluetooth command filter</string>
+    <string name="settings_bluetooth_command_filter_hint">Ignore headset buttons and Bluetooth transport commands for the selected time after a new Bluetooth connection. Helps avoid stray commands from headphones and car systems. Player, notification and widget controls stay usable. Changes apply to the next connection.</string>
+    <string name="settings_bluetooth_filter_off">Off</string>
+    <string name="settings_bluetooth_filter_seconds">%1$s s</string>
+</resources>

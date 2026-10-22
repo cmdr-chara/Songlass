@@ -141,6 +141,7 @@ interface AudioPlayer {
     fun setInterruptionPolicy(handleAudioFocus: Boolean, pauseOnDisconnect: Boolean) {}
     fun setAudioFocusSettings(settings: AudioFocusSettings) {}
     val supportsAudioFocusSettings: Boolean get() = false
+    val supportsHeadphoneSettings: Boolean get() = false
 
     /** Independent overlap for [transitionTo], off by default. Never changes automatic joins. */
     fun setManualCrossfade(durationMs: Long) {}

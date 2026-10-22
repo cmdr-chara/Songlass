@@ -68,6 +68,8 @@ class FeatureProbeReceiver : BroadcastReceiver() {
             try {
                 withTimeout(35_000) {
                     when (val probe = intent.getStringExtra("case")) {
+                        "headphones" -> HeadphoneProbe.run(context, scope)
+                        "headphone-state" -> HeadphoneProbe.observe(context)
                         "audio" -> audio(context, scope)
                         "audio-focus" -> audio(context, scope, focusOnly = true)
                         "audio-equalizer" -> audio(context, scope, equalizerOnly = true)

@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.core.playback.HeadphoneSettings
+
 import dev.cmdrchara.songlass.core.player.FocusDucking
 
 import androidx.compose.foundation.background
@@ -61,6 +63,7 @@ fun SettingsScreen(
     supportsReplayGainProcessing: Boolean,
     supportsAudioEffects: Boolean,
     supportsAudioFocusSettings: Boolean,
+    supportsHeadphoneSettings: Boolean,
     supportsAppIconChoice: Boolean,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
@@ -125,8 +128,8 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings) {
-        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings)
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings)
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -182,7 +185,7 @@ fun SettingsScreen(
                     SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
                         { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
-                    SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics)
+                    SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics, supportsHeadphoneSettings)
                     SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
                 }
                 val restoreArea = when (page) {
@@ -712,20 +715,31 @@ internal fun focusDuckingLabel(value: FocusDucking): String =
     if (value == FocusDucking.Pause) stringResource(Res.string.settings_focus_pause)
     else "${(value.volume * 100).toInt()}%"
 
+@Composable
+internal fun bluetoothCommandDelayLabel(ms: Long): String =
+    stringResource(if (ms == 0L) Res.string.settings_bluetooth_filter_off else Res.string.settings_bluetooth_filter_seconds, (ms / 1000).toString())
+
 private fun SettingsItems.playerSettings(
     settings: AppSettings,
     preferences: AppPreferences,
     request: SettingsFocusRequest?,
     supportsAmll: Boolean,
     supportsOnline: Boolean,
+    supportsHeadphones: Boolean,
 ) {
     item { SettingsSection(stringResource(Res.string.settings_headset)) }
-    mark(SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress)
+    mark(SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress)
     item {
         SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
             SettingsSearchAnchor(SettingsTarget.ResumeOnReconnect, request) {
-                SettingsToggleRow(stringResource(Res.string.settings_resume_reconnect), preferences.resumeOnReconnect,
-                    settings::setResumeOnReconnect, subtitle = stringResource(Res.string.settings_resume_reconnect_hint))
+                if (supportsHeadphones) SettingsToggleRow(stringResource(Res.string.settings_resume_wired), preferences.headphones.resumeWired,
+                    settings::setResumeWired)
+                else ListRow(stringResource(Res.string.settings_resume_wired), subtitle = stringResource(if (preferences.headphones.resumeWired) Res.string.eq_on else Res.string.eq_off))
+            }
+            SettingsSearchAnchor(SettingsTarget.ResumeBluetooth, request) {
+                if (supportsHeadphones) SettingsToggleRow(stringResource(Res.string.settings_resume_bluetooth), preferences.headphones.resumeBluetooth,
+                    settings::setResumeBluetooth)
+                else ListRow(stringResource(Res.string.settings_resume_bluetooth), subtitle = stringResource(if (preferences.headphones.resumeBluetooth) Res.string.eq_on else Res.string.eq_off))
             }
             SettingsSearchAnchor(SettingsTarget.PauseOnDisconnect, request) {
                 SettingsToggleRow(stringResource(Res.string.settings_pause_disconnect), preferences.pauseOnDisconnect,
@@ -737,6 +751,23 @@ private fun SettingsItems.playerSettings(
             }
         }
     }
+    item(key = "headphone-resume-hint") { SettingsHint(stringResource(Res.string.settings_headphone_resume_hint)) }
+    mark(SettingsTarget.BluetoothCommandDelay)
+    item(key = "bluetooth-command-delay") {
+        SettingsSearchAnchor(SettingsTarget.BluetoothCommandDelay, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                Column(Modifier.padding(vertical = 16.dp)) {
+                    AppText(stringResource(Res.string.settings_bluetooth_command_filter), AppTheme.typography.body, modifier = Modifier.padding(horizontal = 16.dp))
+                    val choices = HeadphoneSettings.delayChoicesMs
+                    if (supportsHeadphones) FilterChips(choices.map { bluetoothCommandDelayLabel(it) },
+                        choices.indexOf(preferences.headphones.bluetoothCommandDelayMs), { settings.setBluetoothCommandDelay(choices[it]) })
+                    else ListRow(bluetoothCommandDelayLabel(preferences.headphones.bluetoothCommandDelayMs))
+                }
+            }
+        }
+    }
+    item(key = "bluetooth-filter-hint") { SettingsHint(stringResource(Res.string.settings_bluetooth_command_filter_hint)) }
+    if (!supportsHeadphones) item { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
     item(key = "long-tracks-title") { SettingsSection(stringResource(Res.string.settings_long_section)) }
     mark(SettingsTarget.ResumePerTrack)
     item(key = "per-track-resume") {

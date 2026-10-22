@@ -27,7 +27,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.InterfaceStyle -> Res.string.settings_ui_style
     SettingsTarget.Appearance -> Res.string.settings_appearance
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
-    SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
+    SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_wired
+    SettingsTarget.ResumeBluetooth -> Res.string.settings_resume_bluetooth
+    SettingsTarget.BluetoothCommandDelay -> Res.string.settings_bluetooth_command_filter
     SettingsTarget.EqualizerBass -> Res.string.eq_tone_bass
     SettingsTarget.EqualizerTreble -> Res.string.eq_tone_treble
     SettingsTarget.EqualizerBands -> Res.string.eq_band_count
@@ -100,7 +102,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall,
             SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer, SettingsTarget.AudioFocus,
             SettingsTarget.Equalizer -> sound
-            SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
+            SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
             SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> playback
             SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
@@ -134,7 +136,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             AppearanceMode.Dark -> Res.string.settings_appearance_dark
         })
         SettingsTarget.ArtworkStyle -> stringResource(if (preferences.artworkStyle == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
-        SettingsTarget.ResumeOnReconnect -> enabled(preferences.resumeOnReconnect)
+        SettingsTarget.ResumeOnReconnect -> enabled(preferences.headphones.resumeWired)
+        SettingsTarget.ResumeBluetooth -> enabled(preferences.headphones.resumeBluetooth)
+        SettingsTarget.BluetoothCommandDelay -> bluetoothCommandDelayLabel(preferences.headphones.bluetoothCommandDelayMs)
         SettingsTarget.ResumePerTrack -> enabled(preferences.resumePerTrack)
         SettingsTarget.LongTrackThreshold -> stringResource(Res.string.settings_long_minutes,
             (preferences.longTrackThresholdMs / 60_000L).toInt())

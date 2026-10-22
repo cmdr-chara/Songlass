@@ -384,7 +384,7 @@ class AppSettingsTest {
         val before = settings.state.value
         settings.resetToDefaults(SettingsArea.Player)
         val after = settings.state.value
-        assertEquals(before.copy(resumeOnReconnect = false, pauseOnDisconnect = true, headsetMultiPress = true,
+        assertEquals(before.copy(headphones = dev.cmdrchara.songlass.core.playback.HeadphoneSettings(), pauseOnDisconnect = true, headsetMultiPress = true,
             resumePerTrack = false, longTrackThresholdMs = 10 * 60_000L, amllEnabled = true, lrclibEnabled = true), after)
         assertEquals(after, AppSettings(store).state.value)
         for (key in listOf(AppSettings.PAUSE_DISCONNECT_KEY, AppSettings.MULTI_PRESS_KEY, AppSettings.AUDIO_FOCUS_KEY, AppSettings.LRCLIB_KEY))

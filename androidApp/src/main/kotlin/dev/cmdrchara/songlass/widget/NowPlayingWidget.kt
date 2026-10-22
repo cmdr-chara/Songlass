@@ -189,6 +189,7 @@ object NowPlayingWidgets {
     private fun mediaKey(context: Context, keyCode: Int): PendingIntent = PendingIntent.getForegroundService(
         context, keyCode,
         Intent(Intent.ACTION_MEDIA_BUTTON)
+            .putExtra(dev.cmdrchara.songlass.playback.HeadsetButtons.LOCAL_WIDGET, true)
             .setComponent(ComponentName(context, PlaybackService::class.java))
             .putExtra(Intent.EXTRA_KEY_EVENT, KeyEvent(KeyEvent.ACTION_DOWN, keyCode)),
         PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,

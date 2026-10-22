@@ -1,5 +1,9 @@
 package dev.cmdrchara.songlass
 
+import dev.cmdrchara.songlass.core.playback.HeadphoneConnections
+import dev.cmdrchara.songlass.core.playback.HeadphoneConnection
+import dev.cmdrchara.songlass.core.playback.HeadphoneKind
+
 import android.app.Application
 import android.content.res.Configuration
 import dev.cmdrchara.songlass.widget.NowPlayingWidgets
@@ -128,28 +132,27 @@ class SonglassApplication : Application() {
      */
     private fun watchAudioOutputs() {
         val audio = getSystemService(AudioManager::class.java)
+        val connections = HeadphoneConnections()
         audio.registerAudioDeviceCallback(object : AudioDeviceCallback() {
-            private var initial = true
-
             override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
-                if (initial) {
-                    initial = false
-                    return
-                }
-                if (addedDevices.any { it.isSink && it.type in PERSONAL_OUTPUTS }) graph.onOutputConnected()
+                graph.onOutputsConnected(connections.added(addedDevices.mapNotNull(::headphoneConnection).toSet()))
+            }
+            override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+                connections.removed(removedDevices.map { it.id }.toSet())
             }
         }, Handler(Looper.getMainLooper()))
     }
+}
 
-    private companion object {
-        val PERSONAL_OUTPUTS = setOf(
-            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
-            AudioDeviceInfo.TYPE_BLE_HEADSET,
-            AudioDeviceInfo.TYPE_BLE_SPEAKER,
-            AudioDeviceInfo.TYPE_WIRED_HEADSET,
-            AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
-            AudioDeviceInfo.TYPE_USB_HEADSET,
-            AudioDeviceInfo.TYPE_HEARING_AID,
-        )
+/** IDs only deduplicate a connection session; no address or product name is persisted. */
+internal fun headphoneConnection(device: AudioDeviceInfo): HeadphoneConnection? {
+    if (!device.isSink) return null
+    val kind = when (device.type) {
+        AudioDeviceInfo.TYPE_BLUETOOTH_A2DP, AudioDeviceInfo.TYPE_BLE_HEADSET,
+        AudioDeviceInfo.TYPE_BLE_SPEAKER, AudioDeviceInfo.TYPE_HEARING_AID -> HeadphoneKind.Bluetooth
+        AudioDeviceInfo.TYPE_WIRED_HEADSET, AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+        AudioDeviceInfo.TYPE_USB_HEADSET -> HeadphoneKind.Wired
+        else -> return null
     }
+    return HeadphoneConnection(device.id, kind)
 }

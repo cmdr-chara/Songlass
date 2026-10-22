@@ -134,6 +134,7 @@ class Media3AudioPlayer(
         if (pauseOnDisconnect) focusPolicy.cancelResume()
     }
     override val supportsAudioFocusSettings: Boolean get() = true
+    override val supportsHeadphoneSettings: Boolean get() = true
     val focusGain: Float get() = focusPolicy.gain
     val appliedFocusSettings get() = focusPolicy.settings
     var lastFocusChange: FocusChange? = null

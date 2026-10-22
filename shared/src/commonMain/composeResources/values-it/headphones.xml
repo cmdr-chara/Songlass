@@ -1,0 +1,9 @@
+<resources>
+    <string name="settings_resume_wired">Riprendi con cuffie cablate</string>
+    <string name="settings_resume_bluetooth">Riprendi con Bluetooth</string>
+    <string name="settings_headphone_resume_hint">Riprende solo se la musica si è fermata per uno scollegamento nell’ultima ora. Pausa o stop manuali annullano la ripresa. Il cavo comprende le cuffie USB.</string>
+    <string name="settings_bluetooth_command_filter">Filtro comandi Bluetooth</string>
+    <string name="settings_bluetooth_command_filter_hint">Ignora tasti delle cuffie e comandi di riproduzione Bluetooth per il tempo scelto dopo una nuova connessione Bluetooth. Evita comandi involontari da cuffie e impianti dell’auto. Player, notifica e widget restano utilizzabili. Le modifiche valgono dalla prossima connessione.</string>
+    <string name="settings_bluetooth_filter_off">Spento</string>
+    <string name="settings_bluetooth_filter_seconds">%1$s s</string>
+</resources>

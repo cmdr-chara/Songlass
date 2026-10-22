@@ -150,7 +150,7 @@ class SettingsSearchTest {
             assertFalse(SettingsTarget.ManualCrossfadeDuration in results, query)
         }
         assertEquals(listOf(SettingsTarget.ReplayGain, SettingsTarget.ReplayGainProcessing), index.search("normalizzazione", true, false))
-        assertEquals(listOf(SettingsTarget.ResumeOnReconnect), index.search("resume on reconnect", true, false))
+        assertEquals(listOf(SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth), index.search("resume on reconnect", true, false))
         assertEquals(listOf(SettingsTarget.ManualCrossfadeDuration), index.search("manual crossfade", true, true))
     }
 

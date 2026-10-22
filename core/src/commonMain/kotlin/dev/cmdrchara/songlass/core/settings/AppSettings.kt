@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.playback.HeadphoneSettings
+
 import dev.cmdrchara.songlass.core.player.AudioFocusSettings
 import dev.cmdrchara.songlass.core.player.FocusDucking
 
@@ -63,7 +65,7 @@ class AppSettings(
             "most_played" -> FolderSort.MostPlayed
             else -> FolderSort.Name
         },
-        resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
+        headphones = HeadphoneSettings.read(store),
         crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
         manualCrossfadeDurationMs = store.getString(MANUAL_CROSSFADE_KEY)?.let(::parseCrossfadeDurationMs) ?: 0L,
         transportFades = dev.cmdrchara.songlass.core.player.TransportFadeSettings(
@@ -253,8 +255,29 @@ class AppSettings(
 
     fun setResumeOnReconnect(enabled: Boolean) {
         if (!mutations.canMutate) return
-        store.putString(RESUME_KEY, enabled.toString())
-        _state.update { it.copy(resumeOnReconnect = enabled) }
+        // Compatibility entry point: a single accepted batch resets both independent overrides.
+        store.updateStrings(removing = setOf(HeadphoneSettings.WIRED_KEY,
+            HeadphoneSettings.BLUETOOTH_KEY), writing = mapOf(RESUME_KEY to enabled.toString()))
+        _state.update { it.copy(headphones = it.headphones.copy(resumeWired = enabled, resumeBluetooth = enabled)) }
+    }
+
+    fun setResumeWired(enabled: Boolean) = setHeadphoneSetting(
+        HeadphoneSettings.WIRED_KEY, enabled.toString()) { it.copy(resumeWired = enabled) }
+    fun setResumeBluetooth(enabled: Boolean) = setHeadphoneSetting(
+        HeadphoneSettings.BLUETOOTH_KEY, enabled.toString()) { it.copy(resumeBluetooth = enabled) }
+    fun setBluetoothCommandDelay(durationMs: Long) {
+        require(durationMs in HeadphoneSettings.delayChoicesMs)
+        setHeadphoneSetting(HeadphoneSettings.COMMAND_DELAY_KEY, durationMs.toString()) {
+            it.copy(bluetoothCommandDelayMs = durationMs)
+        }
+    }
+    private fun setHeadphoneSetting(key: String, value: String,
+        change: (HeadphoneSettings) -> HeadphoneSettings) {
+        if (!mutations.canMutate) return
+        val next = change(state.value.headphones)
+        if (next == state.value.headphones) return
+        store.putString(key, value)
+        _state.update { it.copy(headphones = next) }
     }
 
     fun setLrclibEnabled(enabled: Boolean) {
@@ -394,7 +417,7 @@ class AppSettings(
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY) + AudioFocusSettings.keys
-            SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
+            SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY) + HeadphoneSettings.keys
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
         }
@@ -408,7 +431,7 @@ class AppSettings(
                 SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects, equalizerTuning = defaults.equalizerTuning,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, audioFocus = defaults.audioFocus, transportFades = defaults.transportFades)
-                SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,
+                SettingsArea.Player -> current.copy(headphones = defaults.headphones,
                     pauseOnDisconnect = defaults.pauseOnDisconnect, headsetMultiPress = defaults.headsetMultiPress,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs,
                     amllEnabled = defaults.amllEnabled, lrclibEnabled = defaults.lrclibEnabled)

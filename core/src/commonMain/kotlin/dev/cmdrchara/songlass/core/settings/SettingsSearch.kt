@@ -9,6 +9,7 @@ enum class SettingsTarget {
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
     ReplayGainProcessing, ReplayGainPreamp, ReplayGainMissingPreamp, ReplayGainLimiter,
     Balance, StereoExpand, Tempo, Reverb, EqualizerBass, EqualizerTreble, EqualizerBands,
+    ResumeBluetooth, BluetoothCommandDelay,
     FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
 }
@@ -34,7 +35,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true, supportsAudioFocusSettings: Boolean = true): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true, supportsAudioFocusSettings: Boolean = true, supportsHeadphoneSettings: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
@@ -44,6 +45,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
             if (!supportsCrossfade && entry.target in crossfadeTargets) return@mapIndexedNotNull null
             if (!supportsTransportFades && entry.target in transportFadeTargets) return@mapIndexedNotNull null
             if (!supportsReplayGainProcessing && entry.target in replayGainProcessingTargets) return@mapIndexedNotNull null
+            if (!supportsHeadphoneSettings && entry.target in setOf(SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay)) return@mapIndexedNotNull null
             if (!supportsAudioFocusSettings && entry.target in setOf(SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall)) return@mapIndexedNotNull null
             if (!supportsAudioEffects && entry.target in audioEffectTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
@@ -135,8 +137,12 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "dark mode|modalità scura|light mode|modalità chiara|automatic|automatico|system|sistema|colori|colours|colors")
     SettingsTarget.ArtworkStyle -> terms("Artwork style", "Cover layout", "Stile copertina",
         aliases = "album art|artwork|cover|copertine|full bleed|tutto schermo|square|quadrata")
-    SettingsTarget.ResumeOnReconnect -> terms("Resume on reconnect", "Riprendi al ricollegamento",
-        aliases = "headphones|cuffie|bluetooth|wired|cavo|usb|car|auto|reconnect|ricollega|ripresa|disconnessione")
+    SettingsTarget.ResumeOnReconnect -> terms("Resume on reconnect", "Riprendi al ricollegamento", "Resume on wired headset", "Riprendi con cuffie cablate",
+        aliases = "headphones|cuffie|wired|cavo|usb|reconnect|ricollega|ripresa|disconnessione|jack")
+    SettingsTarget.ResumeBluetooth -> terms("Resume on Bluetooth", "Riprendi con Bluetooth",
+        aliases = "headphones|cuffie|car|auto|earbuds|auricolari|a2dp|ble|ricollegamento bluetooth|bluetooth reconnect")
+    SettingsTarget.BluetoothCommandDelay -> terms("Bluetooth command filter", "Filtro comandi Bluetooth", "Ignore Bluetooth commands",
+        aliases = "tasti|buttons|headset|cuffie|headunit|auto|car|ritardo|delay|filtro|filter|connessione|connection|ignore|ignora")
     SettingsTarget.TrackClickAction -> terms("Tap action", "Song tap action", "Azione al tocco", "Tocco su un brano",
         aliases = "click|clic|tap|tocca|riproduci|play|enqueue|accoda|apri player|open player|lista|list")
     SettingsTarget.QueueStart -> terms("Queue start", "When additions play", "Quando partono le aggiunte",
@@ -214,7 +220,7 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "eq|presets|preimpostazioni|flat|piatto|voice|voce|more bass|bassi")
     SettingsTarget.OutputProfiles -> terms("Output profiles", "Profili per uscita",
         aliases = "equalizer|equalizzatore|eq|device|dispositivo|headphones|cuffie|bluetooth|wired|cavo|usb|speaker|altoparlante|automatic|automatico|associazione")
-    SettingsTarget.HeadphoneCorrection -> terms("Headphone correction", "Correzione cuffie", "AutoEQ",
+    SettingsTarget.HeadphoneCorrection -> terms("Headphone correction", "Correzione cuffie", "AutoEQ", "Cuffie",
         aliases = "headphones|cuffie|autoeq|profile|profilo|import|importazione|correction|correzione|parametric|parametrico")
     SettingsTarget.MinimumDuration -> terms("Minimum duration", "Durata minima",
         aliases = "library|libreria|track|brano|tracks|brani|filter|filtro|seconds|secondi|short|brevi")

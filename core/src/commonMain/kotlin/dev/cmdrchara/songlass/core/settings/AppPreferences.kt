@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.core.settings
 
+import dev.cmdrchara.songlass.core.playback.HeadphoneSettings
+
 import dev.cmdrchara.songlass.core.player.AudioFocusSettings
 
 import dev.cmdrchara.songlass.core.library.FolderSort
@@ -69,7 +71,7 @@ data class AppPreferences(
     val longTrackThresholdMs: Long = 10 * 60_000L,
     val folderSort: FolderSort = FolderSort.Name,
     /** Play again when headphones or a car reconnect after cutting playback off. Off by default. */
-    val resumeOnReconnect: Boolean = false,
+    val headphones: HeadphoneSettings = HeadphoneSettings(),
     /** Additional word-timed lyrics provider; users may disable it without disabling LRCLIB. */
     val amllEnabled: Boolean = true,
     /** The fallback online provider; off keeps lyrics to the file's own tags and imported files. */
@@ -96,5 +98,7 @@ data class AppPreferences(
     val pauseOnDisconnect: Boolean = true,
     /** Two headset presses skip forward and three go back; off makes every press play/pause at once. */
     val headsetMultiPress: Boolean = true,
-
-)
+) {
+    /** Compatibility summary for callers that still ask whether both connection types resume. */
+    val resumeOnReconnect: Boolean get() = headphones.resumeWired && headphones.resumeBluetooth
+}

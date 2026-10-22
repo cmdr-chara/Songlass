@@ -83,7 +83,7 @@ internal val SettingsTarget.settingsPane: SettingsPane?
         SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration, SettingsTarget.AudioFocus,
         SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall,
         SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> SettingsPane.Sound
-        SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
+        SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
         SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
         SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> SettingsPane.Player
         SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
