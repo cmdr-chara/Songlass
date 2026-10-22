@@ -177,6 +177,12 @@ private fun processingInformationRows(player: PlayerState, equalizer: EqualizerS
         pcm?.takeIf { it.equalizer == EqualizerProcessing.Active }?.let {
             InfoRow(stringResource(Res.string.audio_eq_headroom), audioGainLabel(it.headroomDb, decimal))
         },
+        InfoRow(stringResource(Res.string.settings_tempo), "${kotlin.math.round(player.playbackSpeed * 100).toInt()}%"),
+        InfoRow(stringResource(Res.string.settings_balance), pcm?.effects?.let {
+            audioEffectValue(dev.cmdrchara.songlass.core.player.AudioEffect.Balance, it.balancePercent)
+        } ?: unknown),
+        InfoRow(stringResource(Res.string.settings_stereo_expand), pcm?.effects?.let { "${it.stereoExpandPercent}%" } ?: unknown),
+        InfoRow(stringResource(Res.string.settings_reverb), pcm?.effects?.let { "${it.reverbPercent}%" } ?: unknown),
         InfoRow(stringResource(Res.string.settings_replay_gain), replayGainMode),
         InfoRow(stringResource(Res.string.audio_rg_applied), adjustment),
         player.replayGain?.trackGainDb?.takeIf(Float::isFinite)?.let { InfoRow(stringResource(Res.string.audio_rg_track_tag), audioGainLabel(it.toDouble(), decimal)) },

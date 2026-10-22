@@ -190,6 +190,9 @@ object MiuixLook : GlassLook {
     @Composable
     override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) = MiuixIconAction(icon, contentDescription, onClick, selected, filled, modifier)
     @Composable
+    override fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) = MiuixVolume(value, onValueChange, label, modifier)
+
+    @Composable
     override fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) = MiuixVolume(value, onValueChange, label, modifier)
     @Composable
     override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) = MiuixSeek(positionMs, durationMs, qualityLabel, onSeek, modifier)

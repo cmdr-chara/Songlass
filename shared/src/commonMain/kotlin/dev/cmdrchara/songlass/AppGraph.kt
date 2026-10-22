@@ -186,6 +186,9 @@ class AppGraph(
         scope.launch {
             settings.state.map { it.replayGainSettings }.distinctUntilChanged().collect(player::setReplayGainSettings)
         }
+        scope.launch {
+            settings.state.map { it.audioEffects }.distinctUntilChanged().collect(player::setAudioEffects)
+        }
         // ReplayGain: the player's own volume evens out loudness, on top of the device volume.
         scope.launch {
             if (player.handlesReplayGain) {

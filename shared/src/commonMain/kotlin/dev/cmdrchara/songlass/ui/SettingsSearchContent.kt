@@ -12,6 +12,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.equalizer.EqualizerState
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
+import dev.cmdrchara.songlass.core.player.AudioEffect
 import dev.cmdrchara.songlass.core.settings.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
@@ -27,6 +28,10 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.Appearance -> Res.string.settings_appearance
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
+    SettingsTarget.Balance -> Res.string.settings_balance
+    SettingsTarget.StereoExpand -> Res.string.settings_stereo_expand
+    SettingsTarget.Tempo -> Res.string.settings_tempo
+    SettingsTarget.Reverb -> Res.string.settings_reverb
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
     SettingsTarget.ReplayGainProcessing -> Res.string.settings_rg_processing
     SettingsTarget.ReplayGainPreamp -> Res.string.settings_rg_preamp
@@ -84,6 +89,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> appearance
+            SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb,
             SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter,
             SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer, SettingsTarget.AudioFocus,
             SettingsTarget.Equalizer -> sound
@@ -124,6 +130,10 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.ResumePerTrack -> enabled(preferences.resumePerTrack)
         SettingsTarget.LongTrackThreshold -> stringResource(Res.string.settings_long_minutes,
             (preferences.longTrackThresholdMs / 60_000L).toInt())
+        SettingsTarget.Balance -> audioEffectValue(AudioEffect.Balance, preferences.audioEffects.balancePercent)
+        SettingsTarget.StereoExpand -> audioEffectValue(AudioEffect.StereoExpand, preferences.audioEffects.stereoExpandPercent)
+        SettingsTarget.Tempo -> audioEffectValue(AudioEffect.Tempo, preferences.audioEffects.tempoPercent)
+        SettingsTarget.Reverb -> audioEffectValue(AudioEffect.Reverb, preferences.audioEffects.reverbPercent)
         SettingsTarget.ReplayGain -> stringResource(when (preferences.replayGain) {
             ReplayGainMode.Off -> Res.string.settings_replay_gain_off
             ReplayGainMode.Track -> Res.string.settings_replay_gain_track_short

@@ -8,6 +8,7 @@ enum class SettingsTarget {
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
     ReplayGainProcessing, ReplayGainPreamp, ReplayGainMissingPreamp, ReplayGainLimiter,
+    Balance, StereoExpand, Tempo, Reverb,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
 }
 
@@ -32,7 +33,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
@@ -42,6 +43,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
             if (!supportsCrossfade && entry.target in crossfadeTargets) return@mapIndexedNotNull null
             if (!supportsTransportFades && entry.target in transportFadeTargets) return@mapIndexedNotNull null
             if (!supportsReplayGainProcessing && entry.target in replayGainProcessingTargets) return@mapIndexedNotNull null
+            if (!supportsAudioEffects && entry.target in audioEffectTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
         }.sortedWith(compareBy<Match> { it.priority }.thenBy { it.cost }.thenBy { it.order })
             .map { it.target }
@@ -50,6 +52,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     private data class Match(val target: SettingsTarget, val priority: Int, val cost: Int, val order: Int)
 
     private companion object {
+        val audioEffectTargets = setOf(SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb)
         val replayGainProcessingTargets = setOf(SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter)
         val transportFadeTargets = setOf(SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration)
         val crossfadeTargets = setOf(SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration)
@@ -158,6 +161,10 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "headset|cuffie|button|tasto|double|doppio|triple|triplo|press|pressione|earbuds|auricolari")
     SettingsTarget.SleepTimer -> terms("Sleep timer", "Timer di spegnimento", "Timer",
         aliases = "sleep|sonno|dormire|spegnimento|stop music|ferma musica|end of track|fine brano|minutes|minuti|night|notte|bedtime")
+    SettingsTarget.Balance -> terms("Balance", "Bilanciamento", aliases = "left|right|sinistra|destra|canali|channels|stereo|pan")
+    SettingsTarget.StereoExpand -> terms("Stereo expand", "Espansione stereo", aliases = "width|ampiezza|larghezza|spazialità|mid side|stereo widening")
+    SettingsTarget.Tempo -> terms("Playback tempo", "Tempo di riproduzione", "Velocità di riproduzione", aliases = "speed|velocità|tempo|pitch|intonazione|lento|veloce|slow|fast")
+    SettingsTarget.Reverb -> terms("Reverb", "Riverbero", aliases = "room|stanza|ambiente|ambience|echo|eco|reverberation|effetti|effects")
     SettingsTarget.ReplayGain -> terms("ReplayGain", "Volume normalization", "Normalizza volume", "Normalizzazione",
         aliases = "loudness|gain|guadagno|track|album|brano|volume|clipping|normalize|normalise")
     SettingsTarget.ReplayGainProcessing -> terms("Advanced ReplayGain", "ReplayGain avanzato", "Preamplificazione e limitatore",

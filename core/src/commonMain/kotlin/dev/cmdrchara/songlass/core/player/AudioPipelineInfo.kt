@@ -24,6 +24,8 @@ data class AudioProcessingInfo(
     /** The attenuation applied before the EQ filters, not a hardware clipping measurement. */
     val headroomDb: Double = 0.0,
     val filterCount: Int = 0,
+    /** Null until a PCM buffer has used these channel-compatible settings. */
+    val effects: AudioEffectsProcessing? = null,
 ) {
     init {
         require(sampleRateHz > 0 && channelCount > 0)

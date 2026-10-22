@@ -26,6 +26,7 @@ import dev.cmdrchara.songlass.core.player.Crossfade
 import dev.cmdrchara.songlass.core.player.CrossfadeKind
 import dev.cmdrchara.songlass.core.player.TransportFadeSettings
 import dev.cmdrchara.songlass.core.player.ReplayGainSettings
+import dev.cmdrchara.songlass.core.player.AudioEffect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
@@ -56,6 +57,7 @@ fun SettingsScreen(
     supportsCrossfade: Boolean,
     supportsTransportFades: Boolean,
     supportsReplayGainProcessing: Boolean,
+    supportsAudioEffects: Boolean,
     supportsAppIconChoice: Boolean,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
@@ -120,8 +122,8 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing) {
-        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing)
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects)
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -175,7 +177,7 @@ fun SettingsScreen(
                     }
                     SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
                     SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
-                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing,
+                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
                     SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics)
                     SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
@@ -512,6 +514,7 @@ private fun SettingsItems.soundSettings(
     supportsCrossfade: Boolean,
     supportsTransportFades: Boolean,
     supportsReplayGainProcessing: Boolean,
+    supportsAudioEffects: Boolean,
     draft: SettingsDurationDraft?,
     openDuration: (SettingsTarget) -> Unit,
     closeDuration: () -> Unit,
@@ -534,6 +537,19 @@ private fun SettingsItems.soundSettings(
             }
         }
     }
+    item(key = "audio-effects-title") { SettingsSection(stringResource(Res.string.settings_effects)) }
+    listOf(SettingsTarget.Balance to AudioEffect.Balance, SettingsTarget.StereoExpand to AudioEffect.StereoExpand,
+        SettingsTarget.Tempo to AudioEffect.Tempo, SettingsTarget.Reverb to AudioEffect.Reverb).forEach { (target, effect) ->
+        mark(target)
+        item(key = "audio-effect-${effect.name}") {
+            SettingsSearchAnchor(target, request) {
+                AudioEffectControl(target, effect, effect.value(preferences.audioEffects), supportsAudioEffects) {
+                    settings.setAudioEffect(effect, it)
+                }
+            }
+        }
+    }
+    if (!supportsAudioEffects) item { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
     item { SettingsSection(stringResource(Res.string.settings_replay_gain)) }
     mark(SettingsTarget.ReplayGain)
     item {
@@ -719,6 +735,41 @@ private fun SettingsItems.playerSettings(
             }
         }
     }
+}
+
+@Composable
+private fun AudioEffectControl(target: SettingsTarget, effect: AudioEffect, value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
+    val title = settingsTargetTitle(target)
+    val readout = audioEffectValue(effect, value)
+    SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppText(title, AppTheme.typography.body)
+            AppText(readout, AppTheme.typography.body, color = AppTheme.colors.accent)
+            AppText(stringResource(when (effect) {
+                AudioEffect.Balance -> Res.string.settings_balance_hint
+                AudioEffect.StereoExpand -> Res.string.settings_stereo_expand_hint
+                AudioEffect.Tempo -> Res.string.settings_tempo_hint
+                AudioEffect.Reverb -> Res.string.settings_reverb_hint
+            }), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+            if (enabled) {
+                LocalGlassLook.current.ValueSlider(effect.sliderPosition(value), { onChange(effect.fromSlider(it)) }, title,
+                    Modifier.fillMaxWidth().semantics { stateDescription = readout })
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionButton(stringResource(Res.string.settings_effect_less), { onChange((value - 5).coerceAtLeast(effect.minimum)) }, Modifier.weight(1f))
+                    ActionButton(stringResource(Res.string.settings_effect_reset), { onChange(effect.default) }, Modifier.weight(1.5f))
+                    ActionButton(stringResource(Res.string.settings_effect_more), { onChange((value + 5).coerceAtMost(effect.maximum)) }, Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+internal fun audioEffectValue(effect: AudioEffect, value: Int): String = when {
+    effect != AudioEffect.Balance -> "$value%"
+    value == 0 -> stringResource(Res.string.settings_balance_center)
+    value < 0 -> stringResource(Res.string.settings_balance_left, "${-value}%")
+    else -> stringResource(Res.string.settings_balance_right, "$value%")
 }
 
 @Composable

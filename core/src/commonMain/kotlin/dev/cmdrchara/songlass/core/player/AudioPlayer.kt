@@ -31,6 +31,8 @@ data class PlayerState(
     /** PCM and EQ observed in the active decoder's processor, not the source or DAC format. */
     val processing: AudioProcessingInfo? = null,
     val replayGainApplication: ReplayGainApplication? = null,
+    /** Effective native playback parameter, not an acoustic speed measurement. */
+    val playbackSpeed: Float = 1f,
     /** Null on platforms without route reporting; an empty route means reporting is inconclusive. */
     val outputRoute: AudioOutputRoute? = null,
 ) {
@@ -149,6 +151,10 @@ interface AudioPlayer {
 
     /** True when the platform applies loudness tags separately to each overlapping decoder. */
     val handlesReplayGain: Boolean get() = false
+
+    /** PCM effects on each voice and pitch-preserving tempo; neutral on unsupported platforms. */
+    fun setAudioEffects(settings: AudioEffectsSettings) {}
+    val supportsAudioEffects: Boolean get() = false
 
     fun setReplayGainMode(mode: ReplayGainMode) {}
     fun setReplayGainSettings(settings: ReplayGainSettings) {}

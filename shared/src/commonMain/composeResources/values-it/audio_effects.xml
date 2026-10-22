@@ -1,0 +1,17 @@
+<resources>
+    <string name="settings_effects">Effetti audio</string>
+    <string name="settings_balance">Bilanciamento</string>
+    <string name="settings_balance_hint">Solo stereo. Attenua il canale opposto; al centro lascia entrambi invariati.</string>
+    <string name="settings_balance_center">Centro</string>
+    <string name="settings_balance_left">Sinistra %1$s</string>
+    <string name="settings_balance_right">Destra %1$s</string>
+    <string name="settings_stereo_expand">Espansione stereo</string>
+    <string name="settings_stereo_expand_hint">Amplia le differenze stereo. I suoni al centro possono attenuarsi; mono e surround restano invariati.</string>
+    <string name="settings_tempo">Tempo di riproduzione</string>
+    <string name="settings_tempo_hint">50–200%, mantenendo l’intonazione. 100% è la velocità normale.</string>
+    <string name="settings_reverb">Riverbero</string>
+    <string name="settings_reverb_hint">Aggiunge un ambiente fisso a mono o stereo. 0% è spento. Seek e cambio file azzerano la coda.</string>
+    <string name="settings_effect_less">−5</string>
+    <string name="settings_effect_more">+5</string>
+    <string name="settings_effect_reset">Ripristina</string>
+</resources>

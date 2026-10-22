@@ -2,10 +2,11 @@ package dev.cmdrchara.songlass.core.player
 
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlin.math.roundToLong
 
 /**
  * When the overlap between two tracks starts and how long it lasts. All positions are playback
- * positions of the track that is fading out.
+ * positions of the track that is fading out. Requested durations are wall time at the planned speed.
  */
 data class CrossfadePlan(val startMs: Long, val durationMs: Long) {
     val endMs: Long get() = startMs + durationMs
@@ -19,6 +20,12 @@ data class CrossfadePlan(val startMs: Long, val durationMs: Long) {
     fun isComplete(positionMs: Long): Boolean = positionMs >= endMs
 
     fun msUntilStart(positionMs: Long): Long = (startMs - positionMs).coerceAtLeast(0)
+
+    /** Handler delays and displayed durations use wall time; the plan stays in source time. */
+    fun wallTimeMs(mediaTimeMs: Long, playbackSpeed: Float): Long {
+        require(playbackSpeed.isFinite() && playbackSpeed in .5f..2f)
+        return (mediaTimeMs / playbackSpeed.toDouble()).roundToLong().coerceAtLeast(0)
+    }
 }
 
 /** Linear gains (0..1) of the two tracks at one moment of the overlap. */
@@ -120,14 +127,16 @@ object Crossfade {
         incomingDurationMs: Long,
         positionMs: Long = 0,
         sameTrack: Boolean = false,
+        playbackSpeed: Float = 1f,
     ): CrossfadePlan? {
-        val configured = normalize(configuredMs)
-        if (configured < MIN_EFFECTIVE_MS || sameTrack) return null
+        require(playbackSpeed.isFinite() && playbackSpeed in .5f..2f)
+        val configured = (normalize(configuredMs) * playbackSpeed.toDouble()).roundToLong()
+        if (normalize(configuredMs) < MIN_EFFECTIVE_MS || sameTrack) return null
         if (outgoingDurationMs <= 0 || incomingDurationMs <= 0) return null
         val wanted = minOf(configured, minOf(outgoingDurationMs, incomingDurationMs) / 2)
         val start = maxOf(positionMs.coerceAtLeast(0), outgoingDurationMs - wanted)
         val duration = outgoingDurationMs - start
-        return if (duration < MIN_EFFECTIVE_MS) null else CrossfadePlan(start, duration)
+        return if (duration < (MIN_EFFECTIVE_MS * playbackSpeed.toDouble()).roundToLong()) null else CrossfadePlan(start, duration)
     }
 
     /** A manual change starts now, bounded by the remaining audio on both sides. */
@@ -138,14 +147,16 @@ object Crossfade {
         positionMs: Long = 0,
         sameTrack: Boolean = false,
         incomingPositionMs: Long = 0,
+        playbackSpeed: Float = 1f,
     ): CrossfadePlan? {
-        val configured = normalize(configuredMs)
-        if (configured < MIN_EFFECTIVE_MS || sameTrack) return null
+        require(playbackSpeed.isFinite() && playbackSpeed in .5f..2f)
+        val configured = (normalize(configuredMs) * playbackSpeed.toDouble()).roundToLong()
+        if (normalize(configuredMs) < MIN_EFFECTIVE_MS || sameTrack) return null
         if (outgoingDurationMs <= 0 || incomingDurationMs <= 0) return null
         val start = positionMs.coerceIn(0, outgoingDurationMs)
         val incomingRemaining = incomingDurationMs - incomingPositionMs.coerceIn(0, incomingDurationMs)
         val duration = minOf(configured, minOf(outgoingDurationMs, incomingRemaining) / 2, outgoingDurationMs - start)
-        return if (duration < MIN_EFFECTIVE_MS) null else CrossfadePlan(start, duration)
+        return if (duration < (MIN_EFFECTIVE_MS * playbackSpeed.toDouble()).roundToLong()) null else CrossfadePlan(start, duration)
     }
 
     /** Shared eligibility and user-visible suppression reasons; called when a join is attempted. */
@@ -160,6 +171,7 @@ object Crossfade {
         playing: Boolean = true,
         /** A manual resume/bookmark can start partway through the incoming file. */
         incomingPositionMs: Long = 0,
+        playbackSpeed: Float = 1f,
     ): CrossfadeDecision {
         val reason = when {
             normalize(configuredMs) < MIN_EFFECTIVE_MS -> CrossfadeSkipReason.Disabled
@@ -171,9 +183,9 @@ object Crossfade {
         }
         if (reason != null) return CrossfadeDecision(null, reason)
         val plan = when (kind) {
-            CrossfadeKind.Automatic -> plan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs)
+            CrossfadeKind.Automatic -> plan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs, playbackSpeed = playbackSpeed)
             CrossfadeKind.Manual -> manualPlan(configuredMs, outgoingDurationMs, incomingDurationMs, positionMs,
-                incomingPositionMs = incomingPositionMs)
+                incomingPositionMs = incomingPositionMs, playbackSpeed = playbackSpeed)
         }
         return CrossfadeDecision(plan, if (plan == null) CrossfadeSkipReason.TooShort else null)
     }

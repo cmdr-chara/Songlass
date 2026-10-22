@@ -377,6 +377,10 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         MaterialCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
 
     @Composable
+    override fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
+        MaterialVolumeSlider(value, onValueChange, label, modifier, showSpeaker = false)
+
+    @Composable
     override fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
         MaterialVolumeSlider(value, onValueChange, label, modifier)
 

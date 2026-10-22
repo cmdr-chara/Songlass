@@ -149,7 +149,7 @@ internal fun MaterialMiniPlayer(
  * jumps to the spot and the handle narrows while held, as Material sliders do.
  */
 @Composable
-internal fun MaterialVolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) {
+internal fun MaterialVolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier, showSpeaker: Boolean = true) {
     val content = LocalContentColor.current
     val onActive = AppTheme.colors.background
     val reduceMotion = AppTheme.accessibility.reduceMotion
@@ -203,7 +203,7 @@ internal fun MaterialVolumeSlider(value: Float, onValueChange: (Float) -> Unit, 
         val iconSize = 16.dp.toPx()
         val pad = 8.dp.toPx()
         val (iconX, tint) = if (activeEnd > iconSize + pad * 2) pad to onActive else inactiveStart + pad to content
-        if (iconX + iconSize < size.width) {
+        if (showSpeaker && iconX + iconSize < size.width) {
             translate(iconX, size.height / 2f - iconSize / 2f) {
                 with(icon) { draw(Size(iconSize, iconSize), colorFilter = ColorFilter.tint(tint)) }
             }

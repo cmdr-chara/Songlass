@@ -5,6 +5,9 @@ import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
 import androidx.media3.common.util.UnstableApi
 import dev.cmdrchara.songlass.core.equalizer.EqChain
+import dev.cmdrchara.songlass.core.player.AudioEffectsSettings
+import dev.cmdrchara.songlass.core.player.AudioEffectsProcessing
+import dev.cmdrchara.songlass.core.player.AudioEffectsDsp
 import dev.cmdrchara.songlass.core.player.ReplayGainPlan
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 import dev.cmdrchara.songlass.core.player.ReplayGainDsp
@@ -34,6 +37,10 @@ class EqualizerProcessor : BaseAudioProcessor() {
     private var appliedReplayGain: ReplayGainPlan? = null
     private var replayGainDsp: ReplayGainDsp? = null
     private var frame = DoubleArray(0)
+    @Volatile private var pendingEffects = AudioEffectsSettings()
+    private var appliedEffects: AudioEffectsProcessing? = null
+    private var effectsDsp: AudioEffectsDsp? = null
+    fun setAudioEffects(settings: AudioEffectsSettings) { pendingEffects = settings }
     private val _replayGainApplication = MutableStateFlow<ReplayGainApplication?>(null)
     val replayGainApplication: StateFlow<ReplayGainApplication?> = _replayGainApplication.asStateFlow()
     fun setReplayGain(plan: ReplayGainPlan) { pendingReplayGain = plan }
@@ -61,6 +68,9 @@ class EqualizerProcessor : BaseAudioProcessor() {
         _replayGainApplication.value = null
         replayGainDsp = ReplayGainDsp(inputAudioFormat.sampleRate)
         frame = DoubleArray(inputAudioFormat.channelCount)
+        appliedEffects = null
+        effectsDsp = AudioEffectsDsp(inputAudioFormat.sampleRate, inputAudioFormat.channelCount,
+            pendingEffects.pcmForChannels(inputAudioFormat.channelCount))
         _processingInfo.value = AudioProcessingInfo(
             sampleRateHz = inputAudioFormat.sampleRate,
             channelCount = inputAudioFormat.channelCount,
@@ -83,17 +93,24 @@ class EqualizerProcessor : BaseAudioProcessor() {
             appliedReplayGain = plan
             _replayGainApplication.value = plan.application
         }
+        val effects = pendingEffects.pcmForChannels(inputAudioFormat.channelCount)
+        val effectsChanged = effects != appliedEffects
+        if (effectsChanged) {
+            effectsDsp?.setParameters(effects)
+            appliedEffects = effects
+        }
         val output = replaceOutputBuffer(size)
         val channels = inputAudioFormat.channelCount
         val floating = inputAudioFormat.encoding == C.ENCODING_PCM_FLOAT
         val frameBytes = (if (floating) 4 else 2) * channels
-        if (filterCount == 0 && preamp == 1.0 && plan.gain == 1.0 && !plan.limiter) {
+        if (filterCount == 0 && preamp == 1.0 && plan.gain == 1.0 && !plan.limiter && effectsDsp?.isBypassed == true) {
             output.put(inputBuffer)
         } else while (inputBuffer.remaining() >= frameBytes) {
             for (channel in 0 until channels) {
                 val sample = if (floating) inputBuffer.getFloat().toDouble() else inputBuffer.getShort() / 32768.0
                 frame[channel] = process(sample, channel)
             }
+            effectsDsp?.processFrame(frame)
             replayGainDsp?.processFrame(frame, plan)
             for (channel in 0 until channels) {
                 if (floating) output.putFloat(frame[channel].coerceIn(-1.0, 1.0).toFloat())
@@ -102,6 +119,9 @@ class EqualizerProcessor : BaseAudioProcessor() {
         }
         inputBuffer.position(inputBuffer.limit())
         output.flip()
+        if (effectsChanged || _processingInfo.value?.effects != effects) {
+            _processingInfo.value = _processingInfo.value?.copy(effects = effects)
+        }
     }
 
     private fun process(sample: Double, channel: Int): Double {
@@ -151,6 +171,7 @@ class EqualizerProcessor : BaseAudioProcessor() {
     override fun onFlush(streamMetadata: AudioProcessor.StreamMetadata) {
         memory.fill(0.0)
         replayGainDsp?.reset()
+        effectsDsp?.reset()
     }
 
     override fun onReset() {
@@ -160,6 +181,8 @@ class EqualizerProcessor : BaseAudioProcessor() {
         appliedReplayGain = null
         _replayGainApplication.value = null
         replayGainDsp = null
+        effectsDsp = null
+        appliedEffects = null
         frame = DoubleArray(0)
         _processingInfo.value = null
     }

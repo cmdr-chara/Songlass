@@ -1,0 +1,17 @@
+<resources>
+    <string name="settings_effects">Sound effects</string>
+    <string name="settings_balance">Balance</string>
+    <string name="settings_balance_hint">Stereo only. Attenuates the opposite channel; the center keeps both unchanged.</string>
+    <string name="settings_balance_center">Center</string>
+    <string name="settings_balance_left">Left %1$s</string>
+    <string name="settings_balance_right">Right %1$s</string>
+    <string name="settings_stereo_expand">Stereo expand</string>
+    <string name="settings_stereo_expand_hint">Widens stereo differences. Center sounds may become quieter; mono and surround stay unchanged.</string>
+    <string name="settings_tempo">Playback tempo</string>
+    <string name="settings_tempo_hint">50–200%, keeping pitch unchanged. 100% is normal speed.</string>
+    <string name="settings_reverb">Reverb</string>
+    <string name="settings_reverb_hint">Adds a fixed room to mono or stereo. 0% is off. Seeking and changing files clear its tail.</string>
+    <string name="settings_effect_less">−5</string>
+    <string name="settings_effect_more">+5</string>
+    <string name="settings_effect_reset">Reset</string>
+</resources>

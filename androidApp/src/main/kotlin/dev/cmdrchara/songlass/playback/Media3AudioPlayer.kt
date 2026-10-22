@@ -15,6 +15,8 @@ import androidx.media3.extractor.metadata.vorbis.VorbisComment
 import dev.cmdrchara.songlass.core.player.ReplayGainTags
 import dev.cmdrchara.songlass.core.player.ReplayGain
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
+import dev.cmdrchara.songlass.core.player.AudioEffectsSettings
+import androidx.media3.common.PlaybackParameters
 import dev.cmdrchara.songlass.core.player.ReplayGainSettings
 import dev.cmdrchara.songlass.core.player.ReplayGainPlan
 import dev.cmdrchara.songlass.core.player.EqualizerProcessing
@@ -150,6 +152,8 @@ class Media3AudioPlayer(
     private var outputVolume = 1f
     private var replayGainMode = ReplayGainMode.Off
     private var replayGainSettings = ReplayGainSettings()
+    private var audioEffects = AudioEffectsSettings()
+    override val supportsAudioEffects: Boolean get() = primary.equalizer != null
     override val supportsReplayGainProcessing: Boolean get() = primary.equalizer != null
     private var replayGainSnapshot = ReplayGainApplication(ReplayGainMode.Off, 1f)
     private var replayGainSnapshotTags: ReplayGainTags? = null
@@ -358,6 +362,7 @@ class Media3AudioPlayer(
             supported = supportsCrossfade,
             playing = playWhenReady && outgoing.player.isPlaying,
             incomingPositionMs = initialPositionMs,
+            playbackSpeed = audioEffects.speed,
         )
         // Repeated commands take control immediately; never create a third voice or let a stale
         // pending request replace the newly selected track. A file write must also remain exclusive.
@@ -509,6 +514,21 @@ class Media3AudioPlayer(
         updateBaseVolume(primary)
         secondary?.let(::updateBaseVolume)
         publishState()
+    }
+
+    override fun setAudioEffects(settings: AudioEffectsSettings) {
+        val tempoChanged = audioEffects.tempoPercent != settings.tempoPercent
+        audioEffects = settings
+        applyAudioEffects(primary)
+        secondary?.let(::applyAudioEffects)
+        if (tempoChanged) reconcileNext()
+        publishState()
+    }
+
+    private fun applyAudioEffects(voice: PlayerVoice) {
+        voice.equalizer?.setAudioEffects(audioEffects)
+        val desired = PlaybackParameters(audioEffects.speed, 1f)
+        if (voice.player.playbackParameters != desired) voice.player.playbackParameters = desired
     }
 
     override fun setReplayGainSettings(settings: ReplayGainSettings) {
@@ -813,7 +833,7 @@ class Media3AudioPlayer(
             CrossfadeKind.Manual, requested, durationOf(outgoing), durationOf(incoming),
             outgoing.player.currentPosition, sameTrack = incoming.track?.let { outgoing.track?.isSameFileAs(it) } == true,
             playing = outgoing.player.isPlaying,
-            incomingPositionMs = incoming.player.currentPosition,
+            incomingPositionMs = incoming.player.currentPosition, playbackSpeed = audioEffects.speed,
         )
         val plan = decision.plan
         if (plan == null) {
@@ -825,7 +845,7 @@ class Media3AudioPlayer(
         handler.removeCallbacks(manualTimeout)
         fadePlan = plan
         overlapsStarted++
-        lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Manual, requested, plan.durationMs)
+        lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Manual, requested, plan.wallTimeMs(plan.durationMs, audioEffects.speed))
         incoming.player.playWhenReady = true
         // No AdvancedToNext: the controller selected this queue entry before transitionTo.
         publishState()
@@ -888,7 +908,7 @@ class Media3AudioPlayer(
         nextSkipReason = if (desired == NextPlacement.Active && current != null && next != null) {
             if (noOverlapFor == next.id) noOverlapReason ?: CrossfadeSkipReason.NotReady
             else Crossfade.decide(CrossfadeKind.Automatic, crossfadeMs, durationOf(active), next.durationMs,
-                sameTrack = current.isSameFileAs(next), supported = supportsCrossfade).skipReason
+                sameTrack = current.isSameFileAs(next), supported = supportsCrossfade, playbackSpeed = audioEffects.speed).skipReason
         } else null
         when (desired) {
             NextPlacement.Standby -> {
@@ -910,7 +930,7 @@ class Media3AudioPlayer(
 
     private fun wantsOverlap(current: Track, next: Track): Boolean =
         crossfadeMs >= Crossfade.MIN_EFFECTIVE_MS && standbyFactory != null && noOverlapFor != next.id &&
-            Crossfade.plan(crossfadeMs, durationOf(active), next.durationMs, 0, sameTrack = current.isSameFileAs(next)) != null
+            Crossfade.plan(crossfadeMs, durationOf(active), next.durationMs, 0, sameTrack = current.isSameFileAs(next), playbackSpeed = audioEffects.speed) != null
 
     private fun durationOf(voice: PlayerVoice): Long =
         voice.player.duration.takeIf { it > 0 } ?: voice.track?.durationMs ?: 0L
@@ -926,6 +946,7 @@ class Media3AudioPlayer(
     private fun createSecondary(): PlayerVoice? {
         val voice = standbyFactory?.invoke() ?: return null
         voice.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
+        applyAudioEffects(voice)
         // The equalizer must be right before the first buffer, not after a moment of flat sound.
         voice.equalizer?.setChain(chain)
         voice.envelope = 0f
@@ -984,7 +1005,7 @@ class Media3AudioPlayer(
         val incomingDuration = standby?.takeIf { it.track?.isSameFileAs(next) == true }?.let(::durationOf) ?: next.durationMs
         return Crossfade.plan(
             crossfadeMs, durationOf(outgoing), incomingDuration, positionMs,
-            sameTrack = outgoing.track?.isSameFileAs(next) == true,
+            sameTrack = outgoing.track?.isSameFileAs(next) == true, playbackSpeed = audioEffects.speed,
         )
     }
 
@@ -996,7 +1017,8 @@ class Media3AudioPlayer(
         if (nextPlacement != NextPlacement.Standby || fading != null) return
         val outgoing = active
         if (!outgoing.player.isPlaying) return
-        val wait = overlapFor(outgoing, next, outgoing.player.currentPosition)?.msUntilStart(outgoing.player.currentPosition) ?: 0L
+        val overlap = overlapFor(outgoing, next, outgoing.player.currentPosition)
+        val wait = overlap?.wallTimeMs(overlap.msUntilStart(outgoing.player.currentPosition), audioEffects.speed) ?: 0L
         handler.postDelayed(trigger, wait.coerceIn(0L, MAX_WAIT_MS))
     }
 
@@ -1009,7 +1031,7 @@ class Media3AudioPlayer(
         val position = outgoing.player.currentPosition
         val overlap = overlapFor(outgoing, next, position)
         if (overlap == null) return declineOverlap(next, "plan")
-        val wait = overlap.msUntilStart(position)
+        val wait = overlap.wallTimeMs(overlap.msUntilStart(position), audioEffects.speed)
         if (wait > TRIGGER_SLACK_MS) {
             // Look again later: the playhead may be moved by a seek in the meantime.
             handler.postDelayed(trigger, minOf(wait, MAX_WAIT_MS))
@@ -1074,7 +1096,7 @@ class Media3AudioPlayer(
                 outgoing.reset()
             }
             lastCrossfadeStatus = CrossfadeStatus(CrossfadeKind.Automatic, crossfadeMs,
-                effectiveDurationMs = overlap?.durationMs ?: 0L,
+                effectiveDurationMs = overlap?.wallTimeMs(overlap.durationMs, audioEffects.speed) ?: 0L,
                 skipReason = if (overlap == null) CrossfadeSkipReason.TooShort else null)
             incoming.player.playWhenReady = true
             updatePositionPolling()
@@ -1255,6 +1277,7 @@ class Media3AudioPlayer(
             processing = active.equalizer?.processingInfo?.value.takeIf { infoReady },
             replayGainApplication = if (infoReady) currentReplayGainApplication() else null,
             outputRoute = outputRoute,
+            playbackSpeed = player.playbackParameters.speed,
         )
     }
 

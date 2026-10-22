@@ -9,6 +9,8 @@ import android.util.Log
 import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
+import dev.cmdrchara.songlass.core.player.AudioEffect
+import dev.cmdrchara.songlass.core.player.AudioEffectsSettings
 import dev.cmdrchara.songlass.core.player.ReplayGainPlan
 import dev.cmdrchara.songlass.core.player.ReplayGainSettings
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
@@ -57,6 +59,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 withTimeout(35_000) {
                     when (val probe = intent.getStringExtra("case")) {
                         "audio" -> audio(context, scope)
+                        "audio-effects" -> audio(context, scope, effectsOnly = true)
                         "audio-replaygain" -> audio(context, scope, replayGainOnly = true)
                         "audio-transport" -> audio(context, scope, transportOnly = true)
                         "audio-manual" -> audio(context, scope, manualOnly = true)
@@ -111,7 +114,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -161,6 +164,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (effectsOnly) {
+                effectsAudio(graph, audio, session, voices, tracks)
+                return
+            }
             if (replayGainOnly) {
                 replayGainAudio(graph, audio, session, voices, tracks)
                 return
@@ -317,6 +324,123 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         check(voices.none { it.player.playWhenReady })
         Log.i("SonglassFeatures", "replaygain nativePcmBoost=true missingTagPreamp=true noDoubleGain=true bothOverlapVoices=true legacyPathRestored=true")
     }
+
+    private suspend fun effectsAudio(
+        graph: AppGraph, audio: Media3AudioPlayer, session: QueueForwardingPlayer,
+        voices: List<PlayerVoice>, tracks: List<Track>,
+    ) {
+        suspend fun waitFor(label: String, predicate: () -> Boolean) {
+            try { await(predicate) } catch (failure: Throwable) {
+                Log.e("SonglassFeatures", "effects stage=$label diagnostics=${audio.diagnostics()} status=${audio.state.value.crossfadeStatus} voices=" +
+                    voices.joinToString { "playing=${it.player.isPlaying} ready=${it.player.playWhenReady} state=${it.player.playbackState} pos=${it.player.currentPosition} speed=${it.player.playbackParameters.speed} effects=${it.equalizer?.processingInfo?.value?.effects}" })
+                throw failure
+            }
+        }
+        for (encoding in listOf(C.ENCODING_PCM_16BIT, C.ENCODING_PCM_FLOAT)) {
+            fun processor(settings: AudioEffectsSettings): EqualizerProcessor = EqualizerProcessor().also {
+                it.setAudioEffects(settings)
+                it.configure(AudioProcessor.AudioFormat(48_000, 2, encoding))
+                it.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            }
+            fun buffer(processor: EqualizerProcessor, frames: Int, impulse: Boolean = false, left: Double = .5, right: Double = .25): DoubleArray {
+                val bytes = if (encoding == C.ENCODING_PCM_FLOAT) 4 else 2
+                val input = ByteBuffer.allocateDirect(frames * 2 * bytes).order(ByteOrder.nativeOrder())
+                repeat(frames) { i ->
+                    for (sample in listOf(left, right)) {
+                        val value = if (impulse && i > 0) 0.0 else sample
+                        if (bytes == 4) input.putFloat(value.toFloat()) else input.putShort((value * 32768).toInt().toShort())
+                    }
+                }
+                input.flip(); processor.queueInput(input)
+                val output = processor.output.order(ByteOrder.nativeOrder())
+                return DoubleArray(output.remaining() / bytes) {
+                    if (bytes == 4) output.float.toDouble() else output.short / 32768.0
+                }
+            }
+            val pan = processor(AudioEffectsSettings(balancePercent = 100))
+            check(pan.processingInfo.value?.effects == null)
+            val muted = buffer(pan, 1)
+            check(muted[0] == 0.0 && abs(muted[1] - .25) < .0001)
+            check(pan.processingInfo.value?.effects?.balancePercent == 100)
+            pan.reset()
+            val width = processor(AudioEffectsSettings(stereoExpandPercent = 100))
+            val expanded = buffer(width, 1, right = 0.0)
+            check(abs(expanded[0] - .375) < .0001 && abs(expanded[1] + .125) < .0001)
+            width.reset()
+            val reverb = processor(AudioEffectsSettings(reverbPercent = 100))
+            val tail = buffer(reverb, 16_384, impulse = true)
+            check(tail.drop(2_000).any { abs(it) > .00001 })
+            reverb.flush(AudioProcessor.StreamMetadata.DEFAULT)
+            check(buffer(reverb, 16_384, left = 0.0, right = 0.0).all { it == 0.0 })
+            reverb.reset()
+            Log.i("SonglassFeatures", "effects pcm=$encoding balance=true stereoMatrix=true roomTail=true flushClearsTail=true observedAfterBuffer=true")
+        }
+        audio.setVolume(.05f)
+        graph.settings.apply {
+            setAudioEffect(AudioEffect.Balance, 25); setAudioEffect(AudioEffect.StereoExpand, 40)
+            setAudioEffect(AudioEffect.Reverb, 30); setAudioEffect(AudioEffect.Tempo, 150)
+            setManualCrossfadeDuration(1_000)
+        }
+        delay(50)
+        graph.controller.playTracks(tracks)
+        waitFor("ready-room") { audio.exoPlayer.isPlaying && audio.state.value.processing?.effects?.reverbPercent == 30 }
+        check(audio.exoPlayer.playbackParameters.speed == 1.5f && audio.exoPlayer.playbackParameters.pitch == 1f)
+        // isPlaying can precede AudioTrack clock synchronisation. Capture that first interval,
+        // then measure an independent, steady interval instead of treating startup as speed.
+        val startupTime = android.os.SystemClock.elapsedRealtime()
+        val startupPosition = audio.exoPlayer.currentPosition
+        delay(600)
+        val startupWall = android.os.SystemClock.elapsedRealtime() - startupTime
+        val startupMedia = audio.exoPlayer.currentPosition - startupPosition
+        val startTime = android.os.SystemClock.elapsedRealtime()
+        val startPosition = audio.exoPlayer.currentPosition
+        delay(600)
+        val wall = android.os.SystemClock.elapsedRealtime() - startTime
+        val media = audio.exoPlayer.currentPosition - startPosition
+        Log.i("SonglassFeatures", "effects clock startupMedia=$startupMedia startupWall=$startupWall steadyMedia=$media steadyWall=$wall")
+        check(media.toDouble() / wall in 1.25..1.75) { "Unexpected steady tempo progression media=$media wall=$wall" }
+        graph.controller.skipToNext()
+        waitFor("manual-two-voices") { voices.count { it.player.isPlaying } == 2 }
+        check(voices.all { it.player.playbackParameters.speed == 1.5f && it.player.playbackParameters.pitch == 1f })
+        waitFor("mono-room-both-voices") { voices.all {
+            it.equalizer?.processingInfo?.value?.effects?.let { effects ->
+                effects.balancePercent == 0 && effects.stereoExpandPercent == 0 && effects.reverbPercent == 30
+            } == true
+        } }
+        check(audio.state.value.crossfadeStatus?.effectiveDurationMs == 1_000L)
+        graph.settings.setAudioEffect(AudioEffect.Tempo, 75)
+        waitFor("live-tempo") { voices.all { it.player.playbackParameters.speed == .75f } }
+        waitFor("manual-complete") { audio.diagnostics().stage != CrossfadeStage.Fading }
+        session.stop()
+        graph.settings.apply {
+            setManualCrossfadeDuration(0); setCrossfadeDuration(750); setAudioEffect(AudioEffect.Tempo, 200)
+        }
+        delay(50)
+        graph.controller.playTracks(tracks)
+        waitFor("automatic-ready") { audio.exoPlayer.isPlaying }
+        val started = android.os.SystemClock.elapsedRealtime()
+        waitFor("automatic-start") { audio.diagnostics().stage == CrossfadeStage.Fading }
+        val triggerAt = android.os.SystemClock.elapsedRealtime() - started
+        check(triggerAt in 1_500..3_200) { "Automatic overlap scheduled in source time: $triggerAt" }
+        val appliedOverlap = audio.state.value.crossfadeStatus
+        val outgoing = voices.single { it.player !== audio.exoPlayer }
+        val outgoingPosition = outgoing.player.currentPosition
+        val outgoingDuration = outgoing.player.duration
+        // A late trigger shrinks the plan. Compare it with the real remaining playhead audio,
+        // and prove it started before the unscaled 750-source-ms window (the old 2x bug).
+        check(outgoingPosition < outgoingDuration - 750L) { "Overlap waited for the unscaled source window" }
+        val remainingWall = ((outgoingDuration - outgoingPosition).coerceAtLeast(0) / 2.0).toLong()
+        check(appliedOverlap?.requestedDurationMs == 750L && appliedOverlap.effectiveDurationMs in 250L..750L &&
+            abs(appliedOverlap.effectiveDurationMs - minOf(750L, remainingWall)) < 50L) {
+            "Unexpected automatic plan at 2x: $appliedOverlap remainingWall=$remainingWall"
+        }
+        waitFor("automatic-complete") { audio.diagnostics().stage != CrossfadeStage.Fading }
+        check(graph.controller.queue.value.currentIndex == 1)
+        check(audio.exoPlayer.playbackParameters.speed == 2f)
+        session.stop()
+        Log.i("SonglassFeatures", "effects nativeTempoMedia=$media wall=$wall pitchParameter=1 bothVoices=true liveTempo=true automaticTriggerWallMs=$triggerAt overlapAppliedMs=${appliedOverlap?.effectiveDurationMs} monoLayoutHonored=true queueAdvancedOnce=true")
+    }
+
 
     private suspend fun transportAudio(
         context: Context,

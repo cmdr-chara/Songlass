@@ -209,7 +209,7 @@ internal fun LiquidGlassSeekBar(
  * release. Reduce Motion keeps the rail still.
  */
 @Composable
-internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) {
+internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier, showSpeakers: Boolean = true) {
     val content = LocalContentColor.current
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val currentOnChange by rememberUpdatedState(onValueChange)
@@ -227,7 +227,7 @@ internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Uni
     )
     fun swell(side: Float) = 1f + 0.22f * (side / maxStretch).coerceIn(0f, 1f)
     Row(modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(
+        if (showSpeakers) AppIcon(
             AppIcons.SpeakerLow, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f),
             modifier = Modifier.graphicsLayer {
                 val s = swell(-stretch.value)
@@ -283,7 +283,7 @@ internal fun LiquidGlassVolumeSlider(value: Float, onValueChange: (Float) -> Uni
             drawRoundRect(content.copy(alpha = 0.25f), Offset(left, y), Size(width, h), CornerRadius(h / 2f))
             drawRoundRect(content.copy(alpha = 0.85f), Offset(left, y), Size(width * value.coerceIn(0f, 1f), h), CornerRadius(h / 2f))
         }
-        AppIcon(
+        if (showSpeakers) AppIcon(
             AppIcons.AudioOutput, contentDescription = null, size = 18.dp, tint = content.copy(alpha = 0.72f),
             modifier = Modifier.graphicsLayer {
                 val s = swell(stretch.value)

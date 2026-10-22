@@ -291,6 +291,11 @@ interface GlassLook {
         modifier: Modifier,
     ) = LiquidGlassMiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
 
+    /** Numeric setting, with the look's own slider and without speaker decorations. */
+    @Composable
+    fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
+        LiquidGlassVolumeSlider(value, onValueChange, label, modifier, showSpeakers = false)
+
     @Composable
     fun VolumeSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =
         LiquidGlassVolumeSlider(value, onValueChange, label, modifier)

@@ -48,6 +48,12 @@ class AppSettings(
             missingPreampDb = store.getString(RG_MISSING_PREAMP_KEY)?.toIntOrNull()?.takeIf { it in -20..20 } ?: 0,
             limiter = store.getString(RG_LIMITER_KEY)?.toBooleanStrictOrNull() ?: true,
         ),
+        audioEffects = dev.cmdrchara.songlass.core.player.AudioEffectsSettings(
+            balancePercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.Balance),
+            stereoExpandPercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.StereoExpand),
+            tempoPercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.Tempo),
+            reverbPercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.Reverb),
+        ),
         folderSort = when (store.getString(FOLDER_SORT_KEY)) {
             "recent" -> FolderSort.RecentlyAdded
             "most_played" -> FolderSort.MostPlayed
@@ -94,6 +100,14 @@ class AppSettings(
     fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
         val loaded = readPreferences(store)
         return { _state.value = loaded }
+    }
+
+    fun setAudioEffect(effect: dev.cmdrchara.songlass.core.player.AudioEffect, value: Int) {
+        if (!mutations.canMutate) return
+        val next = effect.changing(state.value.audioEffects, value)
+        if (next == state.value.audioEffects) return
+        store.putString(effectKey(effect), value.toString())
+        _state.update { it.copy(audioEffects = next) }
     }
 
     fun setCrossfadeDuration(durationMs: Long) {
@@ -339,7 +353,7 @@ class AppSettings(
         if (!mutations.canMutate) return
         val keys = when (area) {
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
-            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY)
+            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY)
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -351,7 +365,7 @@ class AppSettings(
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
                     appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
-                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings,
+                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, transportFades = defaults.transportFades)
                 SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,
@@ -378,6 +392,18 @@ class AppSettings(
     }
 
     companion object {
+        const val BALANCE_KEY = "settings.balance_percent"
+        const val STEREO_EXPAND_KEY = "settings.stereo_expand_percent"
+        const val TEMPO_KEY = "settings.tempo_percent"
+        const val REVERB_KEY = "settings.reverb_percent"
+        private fun effectKey(effect: dev.cmdrchara.songlass.core.player.AudioEffect): String = when (effect) {
+            dev.cmdrchara.songlass.core.player.AudioEffect.Balance -> BALANCE_KEY
+            dev.cmdrchara.songlass.core.player.AudioEffect.StereoExpand -> STEREO_EXPAND_KEY
+            dev.cmdrchara.songlass.core.player.AudioEffect.Tempo -> TEMPO_KEY
+            dev.cmdrchara.songlass.core.player.AudioEffect.Reverb -> REVERB_KEY
+        }
+        private fun readEffect(store: KeyValueStore, effect: dev.cmdrchara.songlass.core.player.AudioEffect): Int =
+            store.getString(effectKey(effect))?.toIntOrNull()?.takeIf { it in effect.minimum..effect.maximum } ?: effect.default
         val LONG_TRACK_CHOICES_MS = listOf(60_000L, 300_000L, 600_000L, 1_200_000L, 1_800_000L, 3_600_000L)
         private const val PER_TRACK_KEY = "settings.resume_per_track"
         private const val LONG_THRESHOLD_KEY = "settings.long_track_threshold_ms"
