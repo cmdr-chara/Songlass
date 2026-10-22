@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_audio_section">Audio</string>
+    <string name="settings_sound_summary">Volume, transitions and calls</string>
+    <string name="settings_headset">Headphones &amp; Bluetooth</string>
+    <string name="settings_headset_summary">Reconnecting and buttons</string>
+    <string name="settings_player_summary">Headphones, resume and lyrics</string>
+    <string name="settings_interruptions">Interruptions</string>
+    <string name="settings_audio_focus">Yield to calls and other apps</string>
+    <string name="settings_audio_focus_hint">Pauses for calls and navigation and resumes afterwards. Off plays over everything, with no lowering.</string>
+    <string name="settings_pause_disconnect">Pause when disconnected</string>
+    <string name="settings_pause_disconnect_hint">Stops if headphones are unplugged or Bluetooth drops, so the speaker never starts by surprise.</string>
+    <string name="settings_headset_connection">Connection</string>
+    <string name="settings_headset_buttons">Buttons</string>
+    <string name="settings_headset_multi">Count presses</string>
+    <string name="settings_headset_multi_hint">One press plays or pauses, two skip to the next song, three go back. Off: every press plays or pauses.</string>
+    <string name="library_rescan">Scan again</string>
+    <string name="library_rescan_hint">Look for added, moved or removed music now</string>
+    <string name="settings_online_lyrics">Online sources</string>
+    <string name="settings_lrclib">Synced lyrics from LRCLIB</string>
+    <string name="settings_lrclib_hint">When you open Lyrics, looks up title, artist, album and length on lrclib.net. Never the audio. Off uses only lyrics in the file or imported.</string>
+    <string name="settings_sound_tools">Tools</string>
+</resources>

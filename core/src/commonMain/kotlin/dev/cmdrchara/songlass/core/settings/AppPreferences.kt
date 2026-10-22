@@ -29,7 +29,7 @@ enum class InterfaceStyle {
 }
 
 /** The preferences one settings page restores together with "Restore defaults". */
-enum class SettingsArea { Appearance, Playback, Queue, Lyrics, Accessibility, Library }
+enum class SettingsArea { Appearance, Sound, Player, Queue, Library }
 
 /** The launcher icon. The same one for every interface style; the alternative is a matter of taste. */
 enum class AppIconChoice(val storageKey: String) {
@@ -65,6 +65,8 @@ data class AppPreferences(
     val resumeOnReconnect: Boolean = false,
     /** Additional word-timed lyrics provider; users may disable it without disabling LRCLIB. */
     val amllEnabled: Boolean = true,
+    /** The fallback online provider; off keeps lyrics to the file's own tags and imported files. */
+    val lrclibEnabled: Boolean = true,
     /** Snapshotted for each new playback occurrence; existing statistics are unchanged. */
     val playCountRule: PlayCountRule = PlayCountRule.ThirtySecondsOrHalf,
     /** A comfortable single-column alternative to the cover grid, useful with large text. */
@@ -80,4 +82,11 @@ data class AppPreferences(
     /** Picking a song while shuffle is on keeps shuffling the list, with that song first. */
     val keepShuffleOnSelection: Boolean = false,
     val appIcon: AppIconChoice = AppIconChoice.Violet,
+    /** Pause for calls and let other apps take over; off plays over everything else. */
+    val handleAudioFocus: Boolean = true,
+    /** Pause when headphones are unplugged or Bluetooth drops, so the speaker does not start. */
+    val pauseOnDisconnect: Boolean = true,
+    /** Two headset presses skip forward and three go back; off makes every press play/pause at once. */
+    val headsetMultiPress: Boolean = true,
+
 )

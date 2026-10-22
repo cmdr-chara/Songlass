@@ -55,7 +55,7 @@ class PlaybackService : MediaLibraryService() {
     override fun onCreate() {
         super.onCreate()
         graph = (application as SonglassApplication).graph
-        buttons = HeadsetButtons(graph.controller)
+        buttons = HeadsetButtons(graph.controller, multiPress = { graph.settings.state.value.headsetMultiPress })
         val audio = graph.player as Media3AudioPlayer
         forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio)
         session = MediaLibrarySession.Builder(this, forwardingPlayer, LibraryCallback())

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyItemScope
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,13 +42,14 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /** UI navigation only: preference values and persistence remain in core. */
-enum class SettingsPane { Overview, Appearance, Playback, Queue, Lyrics, Accessibility }
+enum class SettingsPane { Overview, Appearance, Sound, Player, Queue }
 
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
     preferences: AppPreferences,
     supportsAmllLyrics: Boolean,
+    supportsOnlineLyrics: Boolean,
     supportsCrossfade: Boolean,
     supportsAppIconChoice: Boolean,
     systemAccessibility: UiAccessibility,
@@ -82,7 +84,7 @@ fun SettingsScreen(
         search.durationDraft = SettingsDurationDraft(kind,
             if (kind == CrossfadeKind.Automatic) preferences.crossfadeDurationMs else preferences.manualCrossfadeDurationMs)
     }
-    val durationRequest = search.focus?.takeIf { isActive && pane == SettingsPane.Playback }
+    val durationRequest = search.focus?.takeIf { isActive && pane == SettingsPane.Sound }
     LaunchedEffect(durationRequest?.id, supportsCrossfade) {
         val request = durationRequest ?: return@LaunchedEffect
         if (search.openedDurationRequestId == request.id) return@LaunchedEffect
@@ -98,7 +100,7 @@ fun SettingsScreen(
     fun backFrom(page: SettingsPane) {
         focus.clearFocus(); keyboard?.hide()
         when {
-            page == SettingsPane.Playback && search.durationDraft != null -> closeDurationEditor()
+            page == SettingsPane.Sound && search.durationDraft != null -> closeDurationEditor()
             returnToPlayer -> onBack()
             page == SettingsPane.Overview -> { search.updateQuery(""); search.returnToResults() }
             search.resultPane == page -> { search.returnToResults(); onPaneChanged(SettingsPane.Overview) }
@@ -108,8 +110,8 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade) {
-        index.search(search.query, supportsAmllLyrics, supportsCrossfade)
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics)
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -119,25 +121,26 @@ fun SettingsScreen(
             val searching = page == SettingsPane.Overview && search.query.isNotBlank()
             val scroll = if (searching) search.resultsScroll else search.paneScroll.getValue(page)
             val request = search.focus?.takeIf { isActive && page == pane && it.target.settingsPane == page }
-            val reveal = SettingsSearchScroll(request, scroll, request?.target?.settingsItemIndex)
+            val positions = remember(page) { SettingsItemPositions() }
+            val reveal = SettingsSearchScroll(request, scroll, positions)
             LazyColumn(
                 Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding().then(reveal),
                 state = scroll,
                 contentPadding = contentPadding,
             ) {
-                item(key = "title") {
+                val items = SettingsItems(this, positions)
+                items.item(key = "title") {
                     val title = when (page) {
                         SettingsPane.Overview -> Res.string.settings_title
                         SettingsPane.Appearance -> Res.string.settings_appearance
-                        SettingsPane.Playback -> Res.string.settings_playback
+                        SettingsPane.Sound -> Res.string.settings_sound
+                        SettingsPane.Player -> Res.string.settings_playback
                         SettingsPane.Queue -> Res.string.settings_queue
-                        SettingsPane.Lyrics -> Res.string.settings_lyrics
-                        SettingsPane.Accessibility -> Res.string.settings_accessibility
                     }
                     LocalGlassLook.current.SettingsPageTitle(stringResource(title),
                         when (page) {
                             SettingsPane.Overview -> if (search.query.isNotEmpty()) stringResource(Res.string.settings_title) else backLabel
-                            SettingsPane.Playback -> stringResource(when {
+                            SettingsPane.Sound -> stringResource(when {
                                 search.durationDraft != null -> Res.string.action_cancel
                                 returnToPlayer -> Res.string.player_return
                                 search.resultPane == page -> Res.string.settings_search_results
@@ -149,54 +152,43 @@ fun SettingsScreen(
                 }
                 when (page) {
                     SettingsPane.Overview -> {
-                        item(key = "settings-search") {
+                        items.item(key = "settings-search") {
                             SearchField(search.query, search::updateQuery, stringResource(Res.string.settings_search_placeholder),
                                 stringResource(Res.string.search_clear), Modifier.padding(horizontal = pageInset, vertical = 8.dp))
                         }
                         if (searching) settingsSearchResults(results, documents, preferences, eqState, systemAccessibility) {
                             focus.clearFocus(); keyboard?.hide(); onSearchResult(it)
                         } else {
-                            overviewSettings(preferences, supportsAmllLyrics, onPaneChanged,
+                            items.overviewSettings(preferences, eqState, onPaneChanged, onOpenEqualizer,
                                 onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
                         }
                     }
-                    SettingsPane.Appearance -> appearanceSettings(settings, preferences, request, supportsAppIconChoice)
-                    SettingsPane.Playback -> playbackSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
+                    SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
+                    SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
                         { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade,
                         search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
-                    SettingsPane.Queue -> queueSettings(settings, preferences, request)
-                    SettingsPane.Lyrics -> if (supportsAmllLyrics) {
-                        item {
-                            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
-                                SettingsSearchAnchor(SettingsTarget.AmllLyrics, request) {
-                                    SettingsToggleRow(stringResource(Res.string.settings_amll), preferences.amllEnabled,
-                                        settings::setAmllEnabled)
-                                }
-                            }
-                        }
-                        item { SettingsHint(stringResource(Res.string.settings_amll_hint)) }
-                    }
-                    SettingsPane.Accessibility -> accessibilitySettings(settings, preferences, systemAccessibility, request)
+                    SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics)
+                    SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
                 }
                 val restoreArea = when (page) {
                     SettingsPane.Overview -> null
                     SettingsPane.Appearance -> SettingsArea.Appearance
-                    SettingsPane.Playback -> SettingsArea.Playback
+                    SettingsPane.Sound -> SettingsArea.Sound
+                    SettingsPane.Player -> SettingsArea.Player
                     SettingsPane.Queue -> SettingsArea.Queue
-                    SettingsPane.Lyrics -> if (supportsAmllLyrics) SettingsArea.Lyrics else null
-                    SettingsPane.Accessibility -> SettingsArea.Accessibility
                 }
-                if (restoreArea != null) item(key = "restore-defaults") { RestoreDefaultsButton(restoreArea, onRestoreDefaults) }
-                item(key = "end") { Spacer(Modifier.height(20.dp)) }
+                if (restoreArea != null) items.item(key = "restore-defaults") { RestoreDefaultsButton(restoreArea, onRestoreDefaults) }
+                items.item(key = "end") { Spacer(Modifier.height(20.dp)) }
             }
         }
     }
 }
 
-private fun LazyListScope.overviewSettings(
+private fun SettingsItems.overviewSettings(
     preferences: AppPreferences,
-    supportsAmll: Boolean,
+    eq: dev.cmdrchara.songlass.core.equalizer.EqualizerState,
     open: (SettingsPane) -> Unit,
+    onEqualizer: () -> Unit,
     onLibrary: () -> Unit,
     onHome: () -> Unit,
     onBackup: () -> Unit,
@@ -213,24 +205,30 @@ private fun LazyListScope.overviewSettings(
                 stringResource(Res.string.settings_home_summary), AppIcons.Home, onClick = onHome)
         }
     }
+    item { SettingsSection(stringResource(Res.string.settings_audio_section)) }
+    item {
+        SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
+            SettingsLink(stringResource(Res.string.settings_sound),
+                stringResource(Res.string.settings_sound_summary), AppIcons.SpeakerLow) { open(SettingsPane.Sound) }
+            SettingsLink(stringResource(Res.string.eq_title),
+                if (!eq.enabled) stringResource(Res.string.eq_off) else listOfNotNull(stringResource(Res.string.eq_on), eq.profile?.name).joinToString(" · "),
+                AppIcons.Equalizer, summaryIsValue = true, onClick = onEqualizer)
+        }
+    }
     item { SettingsSection(stringResource(Res.string.settings_music_section)) }
     item {
         SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
             SettingsLink(stringResource(Res.string.settings_playback),
-                stringResource(Res.string.settings_playback_summary), AppIcons.Equalizer) { open(SettingsPane.Playback) }
+                stringResource(Res.string.settings_player_summary), AppIcons.AudioOutput) { open(SettingsPane.Player) }
             SettingsLink(stringResource(Res.string.settings_queue),
                 stringResource(Res.string.settings_queue_summary), AppIcons.Queue) { open(SettingsPane.Queue) }
             SettingsLink(stringResource(Res.string.library_settings),
                 stringResource(Res.string.settings_library_summary), AppIcons.Library, onClick = onLibrary)
-            if (supportsAmll) SettingsLink(stringResource(Res.string.settings_lyrics),
-                stringResource(Res.string.settings_lyrics_summary), AppIcons.Lyrics) { open(SettingsPane.Lyrics) }
         }
     }
     item { SettingsSection(stringResource(Res.string.settings_app_section)) }
     item {
         SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
-            SettingsLink(stringResource(Res.string.settings_accessibility),
-                stringResource(Res.string.settings_accessibility_summary), AppIcons.Person) { open(SettingsPane.Accessibility) }
             SettingsLink(stringResource(Res.string.settings_backup),
                 stringResource(Res.string.settings_backup_summary), AppIcons.ImportFile, onClick = onBackup)
             SettingsLink(stringResource(Res.string.about_title),
@@ -254,8 +252,9 @@ private fun SettingsDestinations(modifier: Modifier, content: @Composable () -> 
 @Composable
 private fun SettingsSection(title: String) = LocalGlassLook.current.SettingsSectionTitle(title)
 
-private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?, supportsAppIconChoice: Boolean) {
+private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?, supportsAppIconChoice: Boolean, system: UiAccessibility) {
     item { SettingsSection(stringResource(Res.string.settings_ui_style)) }
+    mark(SettingsTarget.InterfaceStyle)
     item {
         SettingsSearchAnchor(SettingsTarget.InterfaceStyle, request) {
             PreviewChoices(InterfaceStyle.entries.size) { index, modifier ->
@@ -266,6 +265,7 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
         }
     }
     item { SettingsSection(stringResource(Res.string.settings_appearance)) }
+    mark(SettingsTarget.Appearance)
     item {
         SettingsSearchAnchor(SettingsTarget.Appearance, request) {
             SettingsOptions(AppearanceMode.entries.map { appearanceName(it) }, preferences.appearance.ordinal) {
@@ -274,6 +274,7 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
         }
     }
     item { SettingsSection(stringResource(Res.string.settings_artwork)) }
+    mark(SettingsTarget.ArtworkStyle)
     item {
         SettingsSearchAnchor(SettingsTarget.ArtworkStyle, request) {
             PreviewChoices(ArtworkStyle.entries.size) { index, modifier ->
@@ -287,6 +288,7 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
     item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
     if (supportsAppIconChoice) {
         item { SettingsSection(stringResource(Res.string.settings_app_icon)) }
+        mark(SettingsTarget.AppIcon)
         item {
             SettingsSearchAnchor(SettingsTarget.AppIcon, request) {
                 PreviewChoices(AppIconChoice.entries.size) { index, modifier ->
@@ -298,6 +300,22 @@ private fun LazyListScope.appearanceSettings(settings: AppSettings, preferences:
             }
         }
         item { SettingsHint(stringResource(Res.string.settings_app_icon_hint)) }
+    }
+    item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
+    mark(SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency)
+    item {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.ReduceMotion, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_reduce_motion), preferences.reduceMotion || system.reduceMotion,
+                    settings::setReduceMotion, enabled = !system.reduceMotion,
+                    subtitle = stringResource(if (system.reduceMotion) Res.string.settings_device_enabled else Res.string.settings_reduce_motion_hint))
+            }
+            SettingsSearchAnchor(SettingsTarget.ReduceTransparency, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_reduce_transparency), preferences.reduceTransparency || system.reduceTransparency,
+                    settings::setReduceTransparency, enabled = !system.reduceTransparency,
+                    subtitle = stringResource(if (system.reduceTransparency) Res.string.settings_device_enabled else Res.string.settings_reduce_transparency_hint))
+            }
+        }
     }
 }
 
@@ -415,25 +433,29 @@ internal fun queueEndLabel(end: QueueEnd) = stringResource(
 internal fun shuffleBiasLabel(bias: ShuffleBias) = stringResource(
     if (bias == ShuffleBias.Random) Res.string.shuffle_bias_random else Res.string.shuffle_bias_least_played)
 
-private fun LazyListScope.queueSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?) {
+private fun SettingsItems.queueSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?) {
     item { SettingsSection(stringResource(Res.string.queue_click_section)) }
+    mark(SettingsTarget.TrackClickAction)
     item {
         SettingsSearchAnchor(SettingsTarget.TrackClickAction, request) {
             SettingsChoices(TrackClickAction.entries, preferences.trackClickAction, { clickActionLabel(it) }, settings::setTrackClickAction)
         }
     }
     item { SettingsSection(stringResource(Res.string.queue_start_section)) }
+    mark(SettingsTarget.QueueStart)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueStart, request) {
             SettingsChoices(QueueStart.entries, preferences.queueStart, { queueStartLabel(it) }, settings::setQueueStart)
         }
     }
     item { SettingsSection(stringResource(Res.string.queue_order_section)) }
+    mark(SettingsTarget.QueueAddOrder)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueAddOrder, request) {
             SettingsChoices(QueueAddOrder.entries, preferences.queueAddOrder, { queueOrderLabel(it) }, settings::setQueueAddOrder)
         }
     }
+    mark(SettingsTarget.QueueReplaces)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueReplaces, request) {
             SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
@@ -442,17 +464,20 @@ private fun LazyListScope.queueSettings(settings: AppSettings, preferences: AppP
         }
     }
     item { SettingsSection(stringResource(Res.string.queue_end_section)) }
+    mark(SettingsTarget.QueueEnd)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueEnd, request) {
             SettingsChoices(QueueEnd.entries, preferences.queueEnd, { queueEndLabel(it) }, settings::setQueueEnd)
         }
     }
     item { SettingsSection(stringResource(Res.string.shuffle_section)) }
+    mark(SettingsTarget.ShuffleBias)
     item {
         SettingsSearchAnchor(SettingsTarget.ShuffleBias, request) {
             SettingsChoices(ShuffleBias.entries, preferences.shuffleBias, { shuffleBiasLabel(it) }, settings::setShuffleBias)
         }
     }
+    mark(SettingsTarget.KeepShuffle)
     item {
         SettingsSearchAnchor(SettingsTarget.KeepShuffle, request) {
             SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
@@ -465,7 +490,7 @@ private fun LazyListScope.queueSettings(settings: AppSettings, preferences: AppP
 private val crossfadePresets = listOf(0L, 2_000L, 4_000L, 6_000L, 8_000L, 12_000L)
 private val manualCrossfadePresets = listOf(0L, 400L, 1_000L, 2_000L)
 
-private fun LazyListScope.playbackSettings(
+private fun SettingsItems.soundSettings(
     settings: AppSettings,
     preferences: AppPreferences,
     equalizer: Equalizer,
@@ -478,7 +503,8 @@ private fun LazyListScope.playbackSettings(
     openDuration: (CrossfadeKind) -> Unit,
     closeDuration: () -> Unit,
 ) {
-    item { SettingsSection(stringResource(Res.string.settings_sound)) }
+    item { SettingsSection(stringResource(Res.string.settings_sound_tools)) }
+    mark(SettingsTarget.SleepTimer)
     item {
         val eq by equalizer.state.collectAsState()
         SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
@@ -493,13 +519,10 @@ private fun LazyListScope.playbackSettings(
                     else -> stringResource(Res.string.eq_off)
                 }, AppIcons.Timer, summaryIsValue = true, onClick = openSleepTimer)
             }
-            SettingsSearchAnchor(SettingsTarget.ResumeOnReconnect, request) {
-                SettingsToggleRow(stringResource(Res.string.settings_resume_reconnect), preferences.resumeOnReconnect,
-                    settings::setResumeOnReconnect, subtitle = stringResource(Res.string.settings_resume_reconnect_hint))
-            }
         }
     }
     item { SettingsSection(stringResource(Res.string.settings_replay_gain)) }
+    mark(SettingsTarget.ReplayGain)
     item {
         val labels = ReplayGainMode.entries.map { mode ->
             stringResource(when (mode) {
@@ -515,30 +538,8 @@ private fun LazyListScope.playbackSettings(
         }
     }
     item { SettingsHint(stringResource(Res.string.settings_replay_gain_hint)) }
-    item(key = "long-tracks-title") { SettingsSection(stringResource(Res.string.settings_long_section)) }
-    item(key = "per-track-resume") {
-        SettingsSearchAnchor(SettingsTarget.ResumePerTrack, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-                SettingsToggleRow(stringResource(Res.string.settings_long_resume), preferences.resumePerTrack,
-                    settings::setResumePerTrack, subtitle = stringResource(Res.string.settings_long_resume_hint))
-            }
-        }
-    }
-    item(key = "long-duration-threshold") {
-        SettingsSearchAnchor(SettingsTarget.LongTrackThreshold, request) {
-            // A gap, not a seam: two rounded cards touching leave dark wedges at their corners.
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset).padding(top = 12.dp)) {
-                AppText(stringResource(Res.string.settings_long_threshold), AppTheme.typography.subheadline,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                AppSettings.LONG_TRACK_CHOICES_MS.forEach { duration ->
-                    SettingsChoiceRow(stringResource(Res.string.settings_long_minutes, (duration / 60_000L).toInt()),
-                        preferences.longTrackThresholdMs == duration, { settings.setLongTrackThreshold(duration) })
-                }
-            }
-        }
-    }
-    item(key = "long-tracks-hint") { SettingsHint(stringResource(Res.string.settings_long_hint)) }
     item(key = "crossfade-title") { SettingsSection(stringResource(Res.string.settings_crossfade)) }
+    mark(SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration)
     item(key = "automatic-crossfade") {
         SettingsSearchAnchor(SettingsTarget.Crossfade, request) {
             SettingsSearchAnchor(SettingsTarget.CrossfadeDuration, request) {
@@ -552,6 +553,7 @@ private fun LazyListScope.playbackSettings(
         }
     }
     item(key = "automatic-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_automatic_hint)) }
+    mark(SettingsTarget.ManualCrossfadeDuration)
     item(key = "manual-crossfade") {
         SettingsSearchAnchor(SettingsTarget.ManualCrossfadeDuration, request) {
             CrossfadeDurationControl(CrossfadeKind.Manual, preferences.manualCrossfadeDurationMs,
@@ -564,6 +566,80 @@ private fun LazyListScope.playbackSettings(
     }
     item(key = "manual-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_manual_hint)) }
     if (!supportsCrossfade) item(key = "crossfade-unsupported") { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
+    item { SettingsSection(stringResource(Res.string.settings_interruptions)) }
+    mark(SettingsTarget.AudioFocus)
+    item {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.AudioFocus, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_audio_focus), preferences.handleAudioFocus,
+                    settings::setHandleAudioFocus, subtitle = stringResource(Res.string.settings_audio_focus_hint))
+            }
+        }
+    }
+}
+
+private fun SettingsItems.playerSettings(
+    settings: AppSettings,
+    preferences: AppPreferences,
+    request: SettingsFocusRequest?,
+    supportsAmll: Boolean,
+    supportsOnline: Boolean,
+) {
+    item { SettingsSection(stringResource(Res.string.settings_headset)) }
+    mark(SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress)
+    item {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.ResumeOnReconnect, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_resume_reconnect), preferences.resumeOnReconnect,
+                    settings::setResumeOnReconnect, subtitle = stringResource(Res.string.settings_resume_reconnect_hint))
+            }
+            SettingsSearchAnchor(SettingsTarget.PauseOnDisconnect, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_pause_disconnect), preferences.pauseOnDisconnect,
+                    settings::setPauseOnDisconnect, subtitle = stringResource(Res.string.settings_pause_disconnect_hint))
+            }
+            SettingsSearchAnchor(SettingsTarget.HeadsetMultiPress, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_headset_multi), preferences.headsetMultiPress,
+                    settings::setHeadsetMultiPress, subtitle = stringResource(Res.string.settings_headset_multi_hint))
+            }
+        }
+    }
+    item(key = "long-tracks-title") { SettingsSection(stringResource(Res.string.settings_long_section)) }
+    mark(SettingsTarget.ResumePerTrack)
+    item(key = "per-track-resume") {
+        SettingsSearchAnchor(SettingsTarget.ResumePerTrack, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsToggleRow(stringResource(Res.string.settings_long_resume), preferences.resumePerTrack,
+                    settings::setResumePerTrack, subtitle = stringResource(Res.string.settings_long_resume_hint))
+            }
+        }
+    }
+    item(key = "long-threshold-title") { SettingsSection(stringResource(Res.string.settings_long_threshold)) }
+    mark(SettingsTarget.LongTrackThreshold)
+    item(key = "long-duration-threshold") {
+        SettingsSearchAnchor(SettingsTarget.LongTrackThreshold, request) {
+            val choices = AppSettings.LONG_TRACK_CHOICES_MS
+            FilterChips(choices.map { stringResource(Res.string.settings_long_minutes, (it / 60_000L).toInt()) },
+                choices.indexOf(preferences.longTrackThresholdMs).coerceAtLeast(0),
+                { settings.setLongTrackThreshold(choices[it]) }, Modifier.padding(vertical = 4.dp))
+        }
+    }
+    item(key = "long-tracks-hint") { SettingsHint(stringResource(Res.string.settings_long_hint)) }
+    if (supportsAmll || supportsOnline) {
+        item { SettingsSection(stringResource(Res.string.settings_online_lyrics)) }
+        mark(SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics)
+        item {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                if (supportsAmll) SettingsSearchAnchor(SettingsTarget.AmllLyrics, request) {
+                    SettingsToggleRow(stringResource(Res.string.settings_amll), preferences.amllEnabled,
+                        settings::setAmllEnabled, subtitle = stringResource(Res.string.settings_amll_hint))
+                }
+                if (supportsOnline) SettingsSearchAnchor(SettingsTarget.LrclibLyrics, request) {
+                    SettingsToggleRow(stringResource(Res.string.settings_lrclib), preferences.lrclibEnabled,
+                        settings::setLrclibEnabled, subtitle = stringResource(Res.string.settings_lrclib_hint))
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -631,24 +707,6 @@ private fun CrossfadeDurationEditor(draft: SettingsDurationDraft, onSave: (Long)
     }
 }
 
-private fun LazyListScope.accessibilitySettings(settings: AppSettings, preferences: AppPreferences, system: UiAccessibility, request: SettingsFocusRequest?) {
-    item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
-    item {
-        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-            SettingsSearchAnchor(SettingsTarget.ReduceMotion, request) {
-                SettingsToggleRow(stringResource(Res.string.settings_reduce_motion), preferences.reduceMotion || system.reduceMotion,
-                    settings::setReduceMotion, enabled = !system.reduceMotion,
-                    subtitle = stringResource(if (system.reduceMotion) Res.string.settings_device_enabled else Res.string.settings_reduce_motion_hint))
-            }
-            SettingsSearchAnchor(SettingsTarget.ReduceTransparency, request) {
-                SettingsToggleRow(stringResource(Res.string.settings_reduce_transparency), preferences.reduceTransparency || system.reduceTransparency,
-                    settings::setReduceTransparency, enabled = !system.reduceTransparency,
-                    subtitle = stringResource(if (system.reduceTransparency) Res.string.settings_device_enabled else Res.string.settings_reduce_transparency_hint))
-            }
-        }
-    }
-}
-
 @Composable
 private fun SettingsHint(text: String) = AppText(text, AppTheme.typography.footnote,
     color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = pageInset + 4.dp, vertical = 8.dp))
@@ -666,3 +724,25 @@ private fun appearanceName(mode: AppearanceMode): String = stringResource(when (
     AppearanceMode.Light -> Res.string.settings_appearance_light
     AppearanceMode.Dark -> Res.string.settings_appearance_dark
 })
+
+/** Where each searchable control sits in its page's lazy list, recorded while the page is built. */
+internal class SettingsItemPositions {
+    val byTarget = HashMap<SettingsTarget, Int>()
+}
+
+/**
+ * Wraps a lazy list so that pages can say which items hold which searchable controls: [mark] records the
+ * index of the next item. Search then scrolls by key, not by a hand-kept list of numbers.
+ */
+internal class SettingsItems(private val scope: LazyListScope, private val positions: SettingsItemPositions) {
+    private var count = 0
+
+    fun mark(vararg targets: SettingsTarget) {
+        targets.forEach { positions.byTarget[it] = count }
+    }
+
+    fun item(key: Any? = null, content: @Composable LazyItemScope.() -> Unit) {
+        count++
+        scope.item(key = key, content = content)
+    }
+}

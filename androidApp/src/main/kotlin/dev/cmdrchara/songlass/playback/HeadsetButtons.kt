@@ -10,6 +10,8 @@ import dev.cmdrchara.songlass.core.playback.PlaybackController
 internal class HeadsetButtons(
     private val controller: PlaybackController,
     private val scheduler: HeadsetButtonScheduler = MainThreadHeadsetScheduler(),
+    /** When false, every press toggles play/pause at once instead of counting presses. */
+    private val multiPress: () -> Boolean = { true },
 ) {
     private var presses = 0
     private var intentRevision = 0L
@@ -38,6 +40,11 @@ internal class HeadsetButtons(
             // MediaSession can call onPlaybackResumption. Consuming this event locally
             // would turn Play after process recreation into a silent no-op.
             return false
+        }
+        if (!multiPress()) {
+            cancelPending()
+            if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) controller.togglePlayPause()
+            return true
         }
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount == 0) {
             if (presses > 0 && intentRevision != controller.transportIntentRevision) cancelPending()

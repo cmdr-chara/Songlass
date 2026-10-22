@@ -30,6 +30,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ReplayGain -> Res.string.settings_replay_gain
     SettingsTarget.SleepTimer -> Res.string.sleep_title
     SettingsTarget.AppIcon -> Res.string.settings_app_icon
+    SettingsTarget.AudioFocus -> Res.string.settings_audio_focus
+    SettingsTarget.PauseOnDisconnect -> Res.string.settings_pause_disconnect
+    SettingsTarget.HeadsetMultiPress -> Res.string.settings_headset_multi
     SettingsTarget.TrackClickAction -> Res.string.queue_click_section
     SettingsTarget.QueueStart -> Res.string.queue_start_section
     SettingsTarget.QueueAddOrder -> Res.string.queue_order_section
@@ -43,6 +46,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.ResumePerTrack -> Res.string.settings_long_resume
     SettingsTarget.LongTrackThreshold -> Res.string.settings_long_threshold
     SettingsTarget.AmllLyrics -> Res.string.settings_amll
+    SettingsTarget.LrclibLyrics -> Res.string.settings_lrclib
     SettingsTarget.ReduceMotion -> Res.string.settings_reduce_motion
     SettingsTarget.ReduceTransparency -> Res.string.settings_reduce_transparency
     SettingsTarget.Equalizer -> Res.string.eq_title
@@ -63,6 +67,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
 internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     val root = stringResource(Res.string.settings_title)
     val appearance = stringResource(Res.string.settings_appearance)
+    val sound = stringResource(Res.string.settings_sound)
     val playback = stringResource(Res.string.settings_playback)
     val equalizer = stringResource(Res.string.eq_title)
     val queue = stringResource(Res.string.settings_queue)
@@ -72,17 +77,18 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> appearance
-            SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
+            SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer, SettingsTarget.AudioFocus,
+            SettingsTarget.Equalizer -> sound
+            SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
-            SettingsTarget.Equalizer -> playback
+            SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> playback
             SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
             SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> queue
-            SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$playback › ${stringResource(Res.string.settings_crossfade)}"
-            SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$playback › $equalizer"
+            SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$sound › ${stringResource(Res.string.settings_crossfade)}"
+            SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
             SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> library
-            SettingsTarget.AmllLyrics -> lyrics
-            SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> accessibility
+            SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> "$appearance › ${stringResource(Res.string.settings_accessibility)}"
             else -> null
         }
         SettingsSearchDocument(target, settingsTargetTitle(target), listOfNotNull(root, section).joinToString(" › "))
@@ -119,6 +125,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.ManualCrossfadeDuration -> if (preferences.manualCrossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)
             else stringResource(Res.string.settings_search_duration_value, preferences.manualCrossfadeDurationMs)
         SettingsTarget.AmllLyrics -> enabled(preferences.amllEnabled)
+        SettingsTarget.LrclibLyrics -> enabled(preferences.lrclibEnabled)
         SettingsTarget.ReduceMotion -> if (system.reduceMotion) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceMotion)
         SettingsTarget.ReduceTransparency -> if (system.reduceTransparency) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceTransparency)
         SettingsTarget.Equalizer -> enabled(eq.enabled)
@@ -139,6 +146,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.ShuffleBias -> shuffleBiasLabel(preferences.shuffleBias)
         SettingsTarget.KeepShuffle -> enabled(preferences.keepShuffleOnSelection)
         SettingsTarget.AppIcon -> stringResource(if (preferences.appIcon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
+        SettingsTarget.AudioFocus -> enabled(preferences.handleAudioFocus)
+        SettingsTarget.PauseOnDisconnect -> enabled(preferences.pauseOnDisconnect)
+        SettingsTarget.HeadsetMultiPress -> enabled(preferences.headsetMultiPress)
         SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About, SettingsTarget.SleepTimer -> null
     }
 }

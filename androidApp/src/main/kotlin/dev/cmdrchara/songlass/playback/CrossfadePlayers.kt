@@ -49,11 +49,23 @@ class PlayerVoice(
         player.volume = volume
     }
 
+    /** The user can switch focus handling off; the owner then plays over other apps. */
+    private var focusEnabled = true
+
     /** Moves audio focus handling to or from this player. ExoPlayer requests or abandons it at once. */
     fun setFocusOwner(owner: Boolean) {
         if (owner == ownsFocus) return
         ownsFocus = owner
-        player.setAudioAttributes(PlaybackAudioAttributes, owner)
+        player.setAudioAttributes(PlaybackAudioAttributes, owner && focusEnabled)
+    }
+
+    /** Applies the interruption policy chosen in Settings to this player. */
+    fun applyInterruptionPolicy(handleAudioFocus: Boolean, pauseOnDisconnect: Boolean) {
+        if (handleAudioFocus != focusEnabled) {
+            focusEnabled = handleAudioFocus
+            player.setAudioAttributes(PlaybackAudioAttributes, ownsFocus && handleAudioFocus)
+        }
+        player.setHandleAudioBecomingNoisy(pauseOnDisconnect)
     }
 
     /** Unloads the track and releases its file. The player stays usable. */

@@ -494,6 +494,16 @@ class Media3AudioPlayer(
         secondary?.equalizer?.setChain(chain)
     }
 
+    private var handleAudioFocus = true
+    private var pauseOnDisconnect = true
+
+    override fun setInterruptionPolicy(handleAudioFocus: Boolean, pauseOnDisconnect: Boolean) {
+        this.handleAudioFocus = handleAudioFocus
+        this.pauseOnDisconnect = pauseOnDisconnect
+        primary.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
+        secondary?.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
+    }
+
     override fun setCrossfade(durationMs: Long) {
         val value = Crossfade.normalize(durationMs).takeIf { it >= Crossfade.MIN_EFFECTIVE_MS } ?: 0L
         if (value == crossfadeMs) return
@@ -792,6 +802,7 @@ class Media3AudioPlayer(
 
     private fun createSecondary(): PlayerVoice? {
         val voice = standbyFactory?.invoke() ?: return null
+        voice.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
         // The equalizer must be right before the first buffer, not after a moment of flat sound.
         voice.equalizer?.setChain(chain)
         voice.envelope = 0f

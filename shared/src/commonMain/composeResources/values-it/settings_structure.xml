@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_audio_section">Audio</string>
+    <string name="settings_sound_summary">Volume, transizioni e chiamate</string>
+    <string name="settings_headset">Cuffie e Bluetooth</string>
+    <string name="settings_headset_summary">Ricollegamento e tasti</string>
+    <string name="settings_player_summary">Cuffie, ripresa e testi</string>
+    <string name="settings_interruptions">Interruzioni</string>
+    <string name="settings_audio_focus">Cedi a chiamate e altre app</string>
+    <string name="settings_audio_focus_hint">Si ferma per chiamate e navigatore e riparte dopo. Se è spento suona sopra a tutto, senza abbassare il volume.</string>
+    <string name="settings_pause_disconnect">Pausa allo scollegamento</string>
+    <string name="settings_pause_disconnect_hint">Si ferma se scolleghi le cuffie o cade il Bluetooth, così l’altoparlante non parte a sorpresa.</string>
+    <string name="settings_headset_connection">Collegamento</string>
+    <string name="settings_headset_buttons">Tasti</string>
+    <string name="settings_headset_multi">Conta le pressioni</string>
+    <string name="settings_headset_multi_hint">Una pressione è play/pausa, due brano successivo, tre precedente. Spento: ogni pressione è play/pausa.</string>
+    <string name="library_rescan">Scansiona di nuovo</string>
+    <string name="library_rescan_hint">Cerca subito musica aggiunta, spostata o rimossa</string>
+    <string name="settings_online_lyrics">Fonti online</string>
+    <string name="settings_lrclib">Testi sincronizzati da LRCLIB</string>
+    <string name="settings_lrclib_hint">Quando apri Testo, cerca titolo, artista, album e durata su lrclib.net. Mai l’audio. Se disattivato usa solo i testi nel file o importati.</string>
+    <string name="settings_sound_tools">Strumenti</string>
+</resources>

@@ -343,5 +343,5 @@
     <string name="autoeq_apply_failed">L’uscita audio è cambiata. Controlla quella selezionata e riprova.</string>
     <string name="settings_lyrics">Testi</string>
     <string name="settings_amll">Testi parola per parola da AMLL</string>
-    <string name="settings_amll_hint">Quando apri Testo, cerca titolo, artista e album su AMLL. Se disattivato usa solo testi locali e LRCLIB.</string>
+    <string name="settings_amll_hint">Quando apri Testo, cerca titolo, artista e album su AMLL. Se disattivato restano le altre fonti.</string>
 </resources>

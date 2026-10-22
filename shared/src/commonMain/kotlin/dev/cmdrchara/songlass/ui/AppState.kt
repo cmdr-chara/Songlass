@@ -128,7 +128,7 @@ class AppState(graph: AppGraph) {
         private set
     fun selectSettingsPane(pane: SettingsPane) {
         if (!restoreMutations.canMutate) return
-        if (pane != SettingsPane.Playback) settingsSearch.durationDraft = null
+        if (pane != SettingsPane.Sound) settingsSearch.durationDraft = null
         settingsPane = pane
     }
     var settingsSearch by mutableStateOf(SettingsSearchSession())

@@ -7,6 +7,7 @@ enum class SettingsTarget {
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
+    AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -30,12 +31,13 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
         return entries.mapIndexedNotNull { order, entry ->
             if (entry.target == SettingsTarget.AmllLyrics && !supportsAmllLyrics) return@mapIndexedNotNull null
+            if (entry.target == SettingsTarget.LrclibLyrics && !supportsOnlineLyrics) return@mapIndexedNotNull null
             if (!supportsCrossfade && entry.target in crossfadeTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
         }.sortedWith(compareBy<Match> { it.priority }.thenBy { it.cost }.thenBy { it.order })
@@ -141,6 +143,14 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "shuffle|casuale|random|scegli|pick|selezione|selection|reshuffle|rimescola")
     SettingsTarget.AppIcon -> terms("App icon", "Night icon", "Icona dell’app", "Icona notte",
         aliases = "launcher|home|schermata home|icone|icons|logo|dark|scura|nera|black|heart|cuore|gold|oro")
+    SettingsTarget.LrclibLyrics -> terms("LRCLIB lyrics", "Online lyrics", "Testi LRCLIB", "Testi online",
+        aliases = "lyrics|testi|synced|sincronizzati|internet|rete|privacy|network|fonti|sources")
+    SettingsTarget.AudioFocus -> terms("Audio focus", "Pause for calls", "Focus audio", "Interruzioni",
+        aliases = "calls|chiamate|notifications|notifiche|duck|abbassa|interruption|interruzioni|other apps|altre app|mix|sovrapponi|navigator|navigatore")
+    SettingsTarget.PauseOnDisconnect -> terms("Pause when disconnected", "Pausa allo scollegamento", "Pause on unplug",
+        aliases = "headphones|cuffie|bluetooth|unplug|scollega|noisy|speaker|altoparlante|cavo|wired|jack")
+    SettingsTarget.HeadsetMultiPress -> terms("Headset buttons", "Tasti delle cuffie", "Multiple presses",
+        aliases = "headset|cuffie|button|tasto|double|doppio|triple|triplo|press|pressione|earbuds|auricolari")
     SettingsTarget.SleepTimer -> terms("Sleep timer", "Timer di spegnimento", "Timer",
         aliases = "sleep|sonno|dormire|spegnimento|stop music|ferma musica|end of track|fine brano|minutes|minuti|night|notte|bedtime")
     SettingsTarget.ReplayGain -> terms("ReplayGain", "Volume normalization", "Normalizza volume", "Normalizzazione",

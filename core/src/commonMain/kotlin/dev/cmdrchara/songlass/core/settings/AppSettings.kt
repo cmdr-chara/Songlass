@@ -51,6 +51,7 @@ class AppSettings(
         crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
         manualCrossfadeDurationMs = store.getString(MANUAL_CROSSFADE_KEY)?.let(::parseCrossfadeDurationMs) ?: 0L,
         amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
+        lrclibEnabled = store.getString(LRCLIB_KEY)?.toBooleanStrictOrNull() ?: true,
         playCountRule = PlayCountRule.fromStorage(store.getString(PLAY_COUNT_RULE_KEY)),
         albumLayout = if (store.getString(ALBUM_LAYOUT_KEY) == "list") AlbumLayout.List else AlbumLayout.Grid,
         resumePerTrack = store.getString(PER_TRACK_KEY)?.toBooleanStrictOrNull() ?: false,
@@ -63,6 +64,9 @@ class AppSettings(
         shuffleBias = ShuffleBias.fromStorage(store.getString(SHUFFLE_BIAS_KEY)),
         keepShuffleOnSelection = store.getString(KEEP_SHUFFLE_KEY)?.toBooleanStrictOrNull() ?: false,
         appIcon = AppIconChoice.fromStorageKey(store.getString(APP_ICON_KEY)),
+        handleAudioFocus = store.getString(AUDIO_FOCUS_KEY)?.toBooleanStrictOrNull() ?: true,
+        pauseOnDisconnect = store.getString(PAUSE_DISCONNECT_KEY)?.toBooleanStrictOrNull() ?: true,
+        headsetMultiPress = store.getString(MULTI_PRESS_KEY)?.toBooleanStrictOrNull() ?: true,
         libraryFilter = LibraryFilter(
             excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
                 .filter { it.isNotBlank() }.toSet(),
@@ -175,6 +179,30 @@ class AppSettings(
         _state.update { it.copy(resumeOnReconnect = enabled) }
     }
 
+    fun setLrclibEnabled(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(LRCLIB_KEY, enabled.toString())
+        _state.update { it.copy(lrclibEnabled = enabled) }
+    }
+
+    fun setHandleAudioFocus(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(AUDIO_FOCUS_KEY, enabled.toString())
+        _state.update { it.copy(handleAudioFocus = enabled) }
+    }
+
+    fun setPauseOnDisconnect(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(PAUSE_DISCONNECT_KEY, enabled.toString())
+        _state.update { it.copy(pauseOnDisconnect = enabled) }
+    }
+
+    fun setHeadsetMultiPress(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(MULTI_PRESS_KEY, enabled.toString())
+        _state.update { it.copy(headsetMultiPress = enabled) }
+    }
+
     fun setResumePerTrack(enabled: Boolean) {
         if (!mutations.canMutate) return
         store.putString(PER_TRACK_KEY, enabled.toString())
@@ -268,11 +296,10 @@ class AppSettings(
     fun resetToDefaults(area: SettingsArea) {
         if (!mutations.canMutate) return
         val keys = when (area) {
-            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY)
-            SettingsArea.Playback -> setOf(REPLAY_GAIN_KEY, RESUME_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY)
+            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
+            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY)
+            SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
-            SettingsArea.Lyrics -> setOf(AMLL_KEY)
-            SettingsArea.Accessibility -> setOf(REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
         }
         store.updateStrings(removing = keys, writing = emptyMap())
@@ -280,16 +307,18 @@ class AppSettings(
         _state.update { current ->
             when (area) {
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
-                    appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon)
-                SettingsArea.Playback -> current.copy(replayGain = defaults.replayGain, resumeOnReconnect = defaults.resumeOnReconnect,
+                    appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
+                    reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
+                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
-                    resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs)
+                    handleAudioFocus = defaults.handleAudioFocus)
+                SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,
+                    pauseOnDisconnect = defaults.pauseOnDisconnect, headsetMultiPress = defaults.headsetMultiPress,
+                    resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs,
+                    amllEnabled = defaults.amllEnabled, lrclibEnabled = defaults.lrclibEnabled)
                 SettingsArea.Queue -> current.copy(trackClickAction = defaults.trackClickAction, queueStart = defaults.queueStart,
                     queueEnd = defaults.queueEnd, queueAddOrder = defaults.queueAddOrder, queueReplaces = defaults.queueReplaces,
                     shuffleBias = defaults.shuffleBias, keepShuffleOnSelection = defaults.keepShuffleOnSelection)
-                SettingsArea.Lyrics -> current.copy(amllEnabled = defaults.amllEnabled)
-                SettingsArea.Accessibility -> current.copy(reduceMotion = defaults.reduceMotion,
-                    reduceTransparency = defaults.reduceTransparency)
                 SettingsArea.Library -> current.copy(libraryFilter = defaults.libraryFilter,
                     playCountRule = defaults.playCountRule, albumLayout = defaults.albumLayout)
             }
@@ -323,6 +352,7 @@ class AppSettings(
         const val CROSSFADE_KEY = "settings.crossfade_duration_ms"
         const val MANUAL_CROSSFADE_KEY = "settings.manual_crossfade_duration_ms"
         const val AMLL_KEY = "settings.amll_enabled"
+        const val LRCLIB_KEY = "settings.lrclib_enabled"
         const val PLAY_COUNT_RULE_KEY = "settings.play_count_rule"
         const val ALBUM_LAYOUT_KEY = "library.album_layout"
         const val TRACK_CLICK_KEY = "settings.track_click_action"
@@ -333,5 +363,8 @@ class AppSettings(
         const val SHUFFLE_BIAS_KEY = "settings.shuffle_bias"
         const val KEEP_SHUFFLE_KEY = "settings.keep_shuffle"
         const val APP_ICON_KEY = "settings.app_icon"
+        const val AUDIO_FOCUS_KEY = "settings.handle_audio_focus"
+        const val PAUSE_DISCONNECT_KEY = "settings.pause_on_disconnect"
+        const val MULTI_PRESS_KEY = "settings.headset_multi_press"
     }
 }

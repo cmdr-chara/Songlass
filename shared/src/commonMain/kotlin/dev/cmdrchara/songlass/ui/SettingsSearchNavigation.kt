@@ -76,14 +76,15 @@ class SettingsFocusRequest(val target: SettingsTarget, val id: Int) {
 
 internal val SettingsTarget.settingsPane: SettingsPane?
     get() = when (this) {
-        SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> SettingsPane.Appearance
-        SettingsTarget.ResumeOnReconnect, SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
-        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration,
-        SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold -> SettingsPane.Playback
+        SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon,
+        SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> SettingsPane.Appearance
+        SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
+        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration, SettingsTarget.AudioFocus -> SettingsPane.Sound
+        SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
+        SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
+        SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> SettingsPane.Player
         SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
         SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> SettingsPane.Queue
-        SettingsTarget.AmllLyrics -> SettingsPane.Lyrics
-        SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> SettingsPane.Accessibility
         else -> null
     }
 
@@ -99,48 +100,36 @@ internal val SettingsTarget.settingsRoute: Route
         else -> Route.Settings
     }
 
-/** Indices in the fixed settings forms, including the page title at zero. */
-internal val SettingsTarget.settingsItemIndex: Int?
-    get() = when (this) {
-        SettingsTarget.InterfaceStyle -> 2
-        SettingsTarget.Appearance -> 4
-        SettingsTarget.ArtworkStyle -> 6
-        SettingsTarget.AppIcon -> 8
-        SettingsTarget.ResumeOnReconnect, SettingsTarget.SleepTimer, SettingsTarget.TrackClickAction -> 2
-        SettingsTarget.QueueStart -> 4
-        SettingsTarget.QueueAddOrder -> 6
-        SettingsTarget.QueueReplaces -> 7
-        SettingsTarget.QueueEnd -> 9
-        SettingsTarget.ShuffleBias -> 11
-        SettingsTarget.KeepShuffle -> 12
-        SettingsTarget.ReplayGain -> 4
-        SettingsTarget.ResumePerTrack -> 7
-        SettingsTarget.LongTrackThreshold -> 8
-        SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> 11
-        SettingsTarget.ManualCrossfadeDuration -> 13
-        SettingsTarget.AmllLyrics -> 1
-        SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> 2
-        else -> null
-    }
-
 /**
  * First compose the owning lazy item. The anchor then reveals its precise nested control.
  * Apply the returned modifier to the list after its layout/inset modifiers so its viewport
  * excludes status bars and surrounding chrome. Content padding is accounted for below.
  */
 @Composable
-internal fun SettingsSearchScroll(request: SettingsFocusRequest?, listState: LazyListState, itemIndex: Int?): Modifier {
-    LaunchedEffect(request, itemIndex) {
-        if (request == null || itemIndex == null || request.revealed) return@LaunchedEffect
+internal fun SettingsSearchScroll(request: SettingsFocusRequest?, listState: LazyListState, positions: SettingsItemPositions): Modifier {
+    LaunchedEffect(request) {
+        if (request == null || request.revealed) return@LaunchedEffect
         request.listState = listState
+        // The page records its positions while its list is built, so wait until there is something to measure.
+        snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > 0 }
+        val itemIndex = positions.byTarget[request.target] ?: return@LaunchedEffect
         snapshotFlow { listState.layoutInfo.totalItemsCount }.first { it > itemIndex }
         if (listState.layoutInfo.visibleItemsInfo.none { it.index == itemIndex }) listState.scrollToItem(itemIndex)
         withFrameNanos { }
         request.positioned = true
     }
-    return if (request == null || itemIndex == null) Modifier else Modifier.onGloballyPositioned {
+    return if (request == null) Modifier else Modifier.onGloballyPositioned {
         request.viewport = it.boundsInWindow()
     }
+}
+
+/** For pages that are fixed lists written by hand: the item index of the control is known. */
+@Composable
+internal fun SettingsSearchScroll(request: SettingsFocusRequest?, listState: LazyListState, itemIndex: Int?): Modifier {
+    val positions = remember(request?.target, itemIndex) {
+        SettingsItemPositions().also { if (request != null && itemIndex != null) it.byTarget[request.target] = itemIndex }
+    }
+    return SettingsSearchScroll(request, listState, positions)
 }
 
 /** A temporary outline and spoken cue locate the control without activating it or stealing focus. */

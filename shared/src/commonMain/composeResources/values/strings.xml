@@ -343,5 +343,5 @@
     <string name="autoeq_apply_failed">The audio output changed. Check the selected output and try again.</string>
     <string name="settings_lyrics">Lyrics</string>
     <string name="settings_amll">AMLL word-timed lyrics</string>
-    <string name="settings_amll_hint">When you open Lyrics, looks up title, artist and album on AMLL. Off uses only local lyrics and LRCLIB.</string>
+    <string name="settings_amll_hint">When you open Lyrics, looks up title, artist and album on AMLL. Off leaves the other sources.</string>
 </resources>

@@ -30,10 +30,10 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
     val loading by graph.isLibraryLoading.collectAsState()
     val listState = rememberLazyListState()
     val targetIndex = when (searchFocus?.target) {
-        SettingsTarget.MinimumDuration -> 2
-        SettingsTarget.ExcludedFolders -> 3
-        SettingsTarget.PlayCountRule -> 7
-        SettingsTarget.AlbumLayout -> 10
+        SettingsTarget.MinimumDuration -> 3
+        SettingsTarget.ExcludedFolders -> 4
+        SettingsTarget.PlayCountRule -> 8
+        SettingsTarget.AlbumLayout -> 11
         else -> null
     }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
@@ -52,6 +52,16 @@ LocalGlassLook.current.SettingsPage {
         item { LocalGlassLook.current.SettingsPageTitle(stringResource(Res.string.library_settings),
             if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack, Modifier) }
         item { LibraryHint(stringResource(Res.string.library_filter_count, library.tracks.size, tracks.size)) }
+        item(key = "rescan") {
+            SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+                ListRow(
+                    title = stringResource(Res.string.library_rescan),
+                    subtitle = stringResource(if (loading) Res.string.library_scanning else Res.string.library_rescan_hint),
+                    leading = { AppIcon(AppIcons.Library, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
+                    onClick = if (loading) null else graph::requestLibraryRefresh,
+                )
+            }
+        }
         item {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
                 SettingsSearchAnchor(SettingsTarget.MinimumDuration, searchFocus) {
@@ -110,15 +120,10 @@ LocalGlassLook.current.SettingsPage {
         item { SectionTitle(stringResource(Res.string.library_album_layout)) }
         item {
             SettingsSearchAnchor(SettingsTarget.AlbumLayout, searchFocus) {
-                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                    AlbumLayout.entries.forEach { layout ->
-                        SettingsChoiceRow(
-                            stringResource(if (layout == AlbumLayout.Grid) Res.string.library_layout_grid else Res.string.library_layout_list),
-                            preferences.albumLayout == layout,
-                            { graph.settings.setAlbumLayout(layout) },
-                        )
-                    }
-                }
+                SegmentedControl(
+                    AlbumLayout.entries.map { stringResource(if (it == AlbumLayout.Grid) Res.string.library_layout_grid else Res.string.library_layout_list) },
+                    preferences.albumLayout.ordinal, { graph.settings.setAlbumLayout(AlbumLayout.entries[it]) },
+                    Modifier.padding(horizontal = pageInset).heightIn(min = 48.dp))
             }
         }
         if (refreshFailure != null) item {

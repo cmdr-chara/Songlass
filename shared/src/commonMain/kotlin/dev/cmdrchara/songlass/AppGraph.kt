@@ -102,15 +102,19 @@ class AppGraph(
     val isRestoringBackup: StateFlow<Boolean> = _isRestoringBackup.asStateFlow()
     val equalizer = Equalizer(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
     val supportsAmllLyrics = amllLyrics != null
+    val supportsOnlineLyrics = remoteLyrics !== LyricsSource.Empty
     val supportsAppIconChoice = applyLauncherIcon != null
     val lyrics = LyricsRepository(
         localLyrics,
-        if (amllLyrics == null) remoteLyrics else PreferWordTimedLyricsSource(
-            EnabledLyricsSource(amllLyrics, settings.state) { it.amllEnabled },
-            remoteLyrics,
-        ),
+        remoteLyrics.let { remote ->
+            val online = if (remote === LyricsSource.Empty) remote else EnabledLyricsSource(remote, settings.state) { it.lrclibEnabled }
+            if (amllLyrics == null) online else PreferWordTimedLyricsSource(
+                EnabledLyricsSource(amllLyrics, settings.state) { it.amllEnabled },
+                online,
+            )
+        },
         store,
-        cacheVersion = { if (settings.state.value.amllEnabled) 1 else 0 },
+        cacheVersion = { settings.state.value.let { (if (it.amllEnabled) 1 else 0) + (if (it.lrclibEnabled) 0 else 2) } },
         resolveSelection = { requested ->
             if (!isLibraryReadyForBackup() || isRestoringBackup.value) null
             else allTracks.value.singleOrNull { it.id == requested.id }
@@ -168,6 +172,10 @@ class AppGraph(
         }
         scope.launch {
             settings.state.map { it.crossfadeDurationMs }.distinctUntilChanged().collect(player::setCrossfade)
+        }
+        scope.launch {
+            settings.state.map { it.handleAudioFocus to it.pauseOnDisconnect }.distinctUntilChanged()
+                .collect { (focus, noisy) -> player.setInterruptionPolicy(focus, noisy) }
         }
         scope.launch {
             settings.state.map { it.manualCrossfadeDurationMs }.distinctUntilChanged().collect(player::setManualCrossfade)

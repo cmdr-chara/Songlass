@@ -239,6 +239,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 settings = graph.settings,
                                 preferences = preferences,
                                 supportsAmllLyrics = graph.supportsAmllLyrics,
+                                supportsOnlineLyrics = graph.supportsOnlineLyrics,
                                 supportsCrossfade = graph.player.supportsCrossfade,
                                 supportsAppIconChoice = graph.supportsAppIconChoice,
                                 systemAccessibility = systemAccessibility,

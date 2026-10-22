@@ -131,6 +131,13 @@ interface AudioPlayer {
      */
     fun setCrossfade(durationMs: Long) {}
 
+    /**
+     * Whether playback yields to calls and other apps ([handleAudioFocus]) and pauses when the output
+     * goes away, such as unplugged headphones ([pauseOnDisconnect]). Both are on by default.
+     * Players without such a notion ignore it.
+     */
+    fun setInterruptionPolicy(handleAudioFocus: Boolean, pauseOnDisconnect: Boolean) {}
+
     /** Independent overlap for [transitionTo], off by default. Never changes automatic joins. */
     fun setManualCrossfade(durationMs: Long) {}
 
