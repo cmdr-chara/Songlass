@@ -1,10 +1,7 @@
 package dev.cmdrchara.songlass.ui
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.ui.draw.clip
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import dev.cmdrchara.songlass.designsystem.Welcome
@@ -12,7 +9,6 @@ import dev.cmdrchara.songlass.designsystem.WelcomeChoice
 import dev.cmdrchara.songlass.designsystem.WelcomeModel
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
-import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.pluralStringResource
 import org.jetbrains.compose.resources.stringResource
 
@@ -41,38 +37,39 @@ fun WelcomeFlow(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?) {
         if (hasAccess && step == WelcomeStep.Access) next()
     }
     SystemBarAppearance(lightIcons = AppTheme.colors.isDark)
-    val dark = AppTheme.colors.isDark
-    val brand: @Composable (androidx.compose.ui.Modifier) -> Unit = { modifier ->
-        Image(painterResource(if (dark) Res.drawable.songlass_brand_dark else Res.drawable.songlass_brand_light), null,
-            modifier.clip(RoundedCornerShape(22)))
+    // A few real covers for the last page, the same ones every time this person sees it.
+    val covers = remember(library, step) {
+        if (step != WelcomeStep.Ready) emptyList()
+        else library.tracks.map { it.artwork(library) }.filter { it.imageKey != null }.distinctBy { it.imageKey }
+            .shuffled(kotlin.random.Random(11)).take(6).takeIf { it.size >= 3 }.orEmpty()
     }
     val position = index.coerceIn(steps.indices) + 1
     val common = Triple(position, steps.size, stringResource(Res.string.welcome_step, position, steps.size))
     val model = when (step) {
         WelcomeStep.Style -> WelcomeModel(
-            step = common.first, stepCount = common.second, stepDescription = common.third, brand = brand,
-            title = stringResource(Res.string.welcome_title),
+            step = common.first, stepCount = common.second, stepDescription = common.third, title = stringResource(Res.string.welcome_title),
             body = stringResource(Res.string.welcome_style_body, styleName(graph.onboarding.recommendedStyle ?: InterfaceStyle.LiquidGlass)),
             choices = InterfaceStyle.entries.map { style ->
-                WelcomeChoice(styleName(style), preferences.interfaceStyle == style) { graph.settings.setInterfaceStyle(style) }
+                WelcomeChoice(styleName(style), preferences.interfaceStyle == style, { graph.settings.setInterfaceStyle(style) }) { modifier ->
+                    androidx.compose.foundation.layout.Box(modifier) { StylePreview(style) }
+                }
             },
             primaryLabel = stringResource(Res.string.welcome_continue), onPrimary = ::next,
         )
         WelcomeStep.Access -> WelcomeModel(
-            step = common.first, stepCount = common.second, stepDescription = common.third, brand = brand,
-            title = stringResource(Res.string.welcome_access_title), body = stringResource(Res.string.welcome_access_body),
+            step = common.first, stepCount = common.second, stepDescription = common.third, title = stringResource(Res.string.welcome_access_title), body = stringResource(Res.string.welcome_access_body),
             primaryLabel = stringResource(Res.string.welcome_access_allow), onPrimary = { onRequestLibraryAccess?.invoke() },
             secondaryLabel = stringResource(Res.string.welcome_not_now), onSecondary = ::next,
         )
         WelcomeStep.Ready -> WelcomeModel(
-            step = common.first, stepCount = common.second, stepDescription = common.third, brand = brand,
-            title = stringResource(Res.string.welcome_ready_title), body = stringResource(Res.string.welcome_ready_body),
+            step = common.first, stepCount = common.second, stepDescription = common.third, title = stringResource(Res.string.welcome_ready_title), body = stringResource(Res.string.welcome_ready_body),
             status = when {
                 !hasAccess && onRequestLibraryAccess != null -> stringResource(Res.string.welcome_ready_no_access)
                 loading -> stringResource(Res.string.welcome_ready_searching)
                 library.tracks.isEmpty() -> stringResource(Res.string.welcome_ready_empty)
                 else -> pluralStringResource(Res.plurals.welcome_ready_found, library.tracks.size, library.tracks.size)
             },
+            covers = covers,
             primaryLabel = stringResource(Res.string.welcome_start), onPrimary = { graph.onboarding.complete() },
         )
     }

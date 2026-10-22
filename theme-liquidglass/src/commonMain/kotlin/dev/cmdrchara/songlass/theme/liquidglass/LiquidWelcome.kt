@@ -1,6 +1,10 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -11,79 +15,112 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.WelcomeModel
+import dev.cmdrchara.songlass.designsystem.WelcomePages
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.designsystem.rememberWelcomeBeat
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.welcomeBar
+import dev.cmdrchara.songlass.designsystem.welcomeEnter
 
 private val Pill = RoundedCornerShape(percent = 50)
 
 /**
- * iOS 26 welcome: colour behind, light on top. Soft glows sit under a centred mark and a large
- * title; the choices and the main button are translucent capsules, like the controls of the app.
+ * iOS 26 welcome: colour behind, light on top. Slow glows drift behind the app mark, which is drawn here
+ * as glass bars that move like a level meter. On the last page the mark makes room for a fan of the
+ * person's own covers. Choices are glass cards with a small drawing of the style they select.
  */
 @Composable
 internal fun LiquidWelcome(model: WelcomeModel) {
     val colors = AppTheme.colors
     val glow = colors.accent
+    // The glows follow the page, so moving on feels like travelling across one surface.
+    val drift by animateFloatAsState(model.step.toFloat(), spring(dampingRatio = 1f, stiffness = 40f), label = "drift")
     Box(
         Modifier.fillMaxSize().background(colors.background).drawBehind {
-            // Two overlapping glows, one high and one low: the "liquid" the glass would refract.
-            drawRect(Brush.radialGradient(listOf(glow.copy(alpha = if (colors.isDark) 0.38f else 0.28f), Color.Transparent),
-                center = Offset(size.width * 0.78f, size.height * 0.14f), radius = size.width * 0.95f))
-            drawRect(Brush.radialGradient(listOf(glow.copy(alpha = if (colors.isDark) 0.22f else 0.16f), Color.Transparent),
-                center = Offset(size.width * 0.12f, size.height * 0.62f), radius = size.width * 0.9f))
+            val a = if (colors.isDark) 0.40f else 0.30f
+            drawRect(Brush.radialGradient(listOf(glow.copy(alpha = a), Color.Transparent),
+                center = Offset(size.width * (0.85f - 0.22f * drift), size.height * (0.10f + 0.04f * drift)), radius = size.width * 0.95f))
+            drawRect(Brush.radialGradient(listOf(glow.copy(alpha = a * 0.6f), Color.Transparent),
+                center = Offset(size.width * (0.05f + 0.2f * drift), size.height * (0.78f - 0.06f * drift)), radius = size.width * 0.9f))
         }.windowInsetsPadding(WindowInsets.systemBars).padding(horizontal = 24.dp),
     ) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.weight(0.7f))
-            model.brand(Modifier.size(104.dp))
-            Spacer(Modifier.height(28.dp))
-            AppText(model.title, AppTheme.typography.largeTitle.copy(fontWeight = FontWeight.Bold), textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            // The illustration takes whatever height the page below it leaves free.
+            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                val room = minOf(maxHeight, 250.dp)
+                Crossfade(model.covers.size >= 3, label = "hero") { covers ->
+                    if (covers) CoverFan(model, minOf(room / 224.dp, maxWidth / 336.dp).coerceIn(0.5f, 1.3f)) else GlassMark(room.coerceAtLeast(96.dp))
+                }
+            }
             Spacer(Modifier.height(12.dp))
-            AppText(model.body, AppTheme.typography.body, color = colors.secondaryLabel, textAlign = TextAlign.Center)
-            if (model.choices.isNotEmpty()) {
-                Spacer(Modifier.height(28.dp))
-                Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    model.choices.forEach { choice ->
-                        val shape = Pill
-                        Row(
-                            Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(shape)
-                                .background(if (choice.selected) colors.label.copy(alpha = 0.16f) else colors.label.copy(alpha = 0.07f))
-                                .border(BorderStroke(if (choice.selected) 1.2.dp else 0.6.dp, colors.label.copy(alpha = if (choice.selected) 0.55f else 0.2f)), shape)
-                                .selectable(choice.selected, remember { MutableInteractionSource() }, indication = null, role = Role.RadioButton, onClick = choice.onSelect)
-                                .padding(horizontal = 20.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            AppText(choice.label, AppTheme.typography.body.copy(fontWeight = if (choice.selected) FontWeight.SemiBold else FontWeight.Normal),
-                                modifier = Modifier.weight(1f))
-                            if (choice.selected) AppIcon(AppIcons.Checkmark, null, size = 20.dp, tint = colors.accent)
+            WelcomePages(model) { page ->
+                AppText(page.title, AppTheme.typography.largeTitle.copy(fontWeight = FontWeight.Bold), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(10.dp))
+                AppText(page.body, AppTheme.typography.body, color = colors.secondaryLabel, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                if (page.choices.isNotEmpty()) {
+                    Spacer(Modifier.height(22.dp))
+                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        page.choices.forEach { choice ->
+                            val shape = RoundedCornerShape(24.dp)
+                            Column(
+                                Modifier.weight(1f).clip(shape)
+                                    .background(if (choice.selected) colors.label.copy(alpha = 0.15f) else colors.label.copy(alpha = 0.06f))
+                                    .border(BorderStroke(if (choice.selected) 1.3.dp else 0.6.dp, colors.label.copy(alpha = if (choice.selected) 0.6f else 0.2f)), shape)
+                                    .selectable(choice.selected, remember { MutableInteractionSource() }, indication = null, role = Role.RadioButton, onClick = choice.onSelect)
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                choice.preview(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)))
+                                Row(Modifier.heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    AppText(choice.label, AppTheme.typography.footnote.copy(fontWeight = if (choice.selected) FontWeight.SemiBold else FontWeight.Normal),
+                                        textAlign = TextAlign.Center, modifier = Modifier.weight(1f, fill = false), maxLines = 2)
+                                    if (choice.selected) AppIcon(AppIcons.Checkmark, null, size = 14.dp, tint = colors.accent, modifier = Modifier.padding(start = 4.dp))
+                                }
+                            }
                         }
                     }
                 }
+                page.status?.let {
+                    Spacer(Modifier.height(22.dp))
+                    Box(Modifier.clip(Pill).background(colors.label.copy(alpha = 0.08f)).padding(horizontal = 16.dp, vertical = 9.dp).align(Alignment.CenterHorizontally)) {
+                        AppText(it, AppTheme.typography.subheadline, color = colors.label)
+                    }
+                }
             }
-            model.status?.let {
-                Spacer(Modifier.height(24.dp))
-                AppText(it, AppTheme.typography.subheadline, color = colors.secondaryLabel, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.semantics { contentDescription = model.stepDescription }, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                repeat(model.stepCount) { i ->
+                    val width by animateFloatAsState(if (i + 1 == model.step) 22f else 8f, spring(dampingRatio = 0.8f, stiffness = 400f), label = "dot")
+                    Box(Modifier.height(8.dp).width(width.dp).clip(CircleShape)
+                        .background(if (i + 1 == model.step) colors.label else colors.label.copy(alpha = 0.25f)))
+                }
             }
-            Spacer(Modifier.weight(1f))
-            Dots(model)
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(16.dp))
             Box(
                 Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(Pill)
                     .background(Brush.verticalGradient(listOf(colors.accent.copy(alpha = 0.95f), colors.accent.copy(alpha = 0.78f))))
@@ -93,23 +130,55 @@ internal fun LiquidWelcome(model: WelcomeModel) {
             ) {
                 AppText(model.primaryLabel, AppTheme.typography.headline, color = if (colors.isDark) Color.Black else Color.White)
             }
-            Box(Modifier.fillMaxWidth().heightIn(min = 52.dp), contentAlignment = Alignment.Center) {
-                val onSecondary = model.onSecondary
-                if (model.secondaryLabel != null && onSecondary != null) {
-                    AppText(model.secondaryLabel!!, AppTheme.typography.body, color = colors.accent,
-                        modifier = Modifier.clip(Pill).clickable(role = Role.Button, onClick = onSecondary).padding(horizontal = 20.dp, vertical = 12.dp))
-                }
-            }
+            val onSecondary = model.onSecondary
+            val secondary = model.secondaryLabel
+            if (secondary != null && onSecondary != null) {
+                AppText(secondary, AppTheme.typography.body, color = colors.accent,
+                    modifier = Modifier.padding(top = 4.dp).clip(Pill).clickable(role = Role.Button, onClick = onSecondary).padding(horizontal = 20.dp, vertical = 12.dp))
+            } else Spacer(Modifier.height(8.dp))
         }
     }
 }
 
+/** The app icon, large: violet glass with five glass bars that rise and fall. */
 @Composable
-private fun Dots(model: WelcomeModel) {
-    val colors = AppTheme.colors
-    Row(Modifier.semantics { contentDescription = model.stepDescription }, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        repeat(model.stepCount) { i ->
-            Box(Modifier.size(8.dp).clip(CircleShape).background(if (i + 1 == model.step) colors.label else colors.label.copy(alpha = 0.25f)))
+private fun GlassMark(markSize: androidx.compose.ui.unit.Dp) {
+    val beat = rememberWelcomeBeat()
+    val animated = !AppTheme.accessibility.reduceMotion
+    Canvas(Modifier.size(markSize).welcomeEnter().shadow(28.dp, RoundedCornerShape(42.dp), ambientColor = Color(0xFF7A3BF2), spotColor = Color(0xFF7A3BF2)).clip(RoundedCornerShape(42.dp))) {
+        val u = size.width / 108f
+        drawRect(Brush.linearGradient(listOf(Color(0xFFB57BFF), Color(0xFF7A3BF2), Color(0xFF4A1CCB)), Offset(20 * u, 0f), Offset(88 * u, 108 * u)))
+        drawRect(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.34f), Color.Transparent), Offset(40 * u, 8 * u), 78 * u))
+        val width = 7.2f * u
+        val gap = 4.2f * u
+        val startX = size.width / 2 - (5 * width + 4 * gap) / 2
+        for (i in 0 until 5) {
+            val h = 40f * u * welcomeBar(i, beat.value, animated)
+            val left = startX + i * (width + gap)
+            val top = size.height / 2 - h / 2
+            val radius = CornerRadius(width / 2)
+            drawRoundRect(Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.55f), Color.White.copy(alpha = 0.22f), Color.White.copy(alpha = 0.4f)), top, top + h),
+                Offset(left, top), Size(width, h), radius)
+            drawRoundRect(Brush.linearGradient(listOf(Color.White, Color.White.copy(alpha = 0.5f), Color.White.copy(alpha = 0.95f)), Offset(left, top), Offset(left + width, top + h)),
+                Offset(left, top), Size(width, h), radius, style = Stroke(1.1f * u))
+        }
+    }
+}
+
+/** Five of the person's covers, fanned like cards in a hand. */
+@Composable
+private fun CoverFan(model: WelcomeModel, k: Float) {
+    val covers = model.covers.take(5)
+    val angles = listOf(-14f, -7f, 0f, 7f, 14f)
+    val offsets = listOf(-92, -46, 0, 46, 92)
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        // The middle one last, so it sits on top.
+        listOf(0, 4, 1, 3, 2).filter { it < covers.size }.forEach { i ->
+            Box(Modifier.offset(x = (offsets[i] * k).dp, y = (kotlin.math.abs(angles[i]) * 1.5f * k).dp).welcomeEnter(if (i == 2) 0 else 1 + kotlin.math.abs(i - 2))
+                .rotate(angles[i]).shadow(14.dp, RoundedCornerShape(20.dp)).clip(RoundedCornerShape(20.dp))
+                .border(0.8.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(20.dp))) {
+                AlbumArt(covers[i], Modifier.size((if (i == 2) 140 else 116).dp * k), cornerRadius = 0.dp)
+            }
         }
     }
 }

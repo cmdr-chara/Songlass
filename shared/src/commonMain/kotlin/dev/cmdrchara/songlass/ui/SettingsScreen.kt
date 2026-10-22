@@ -326,7 +326,7 @@ private fun PreviewChoices(count: Int, content: @Composable (Int, Modifier) -> U
 
 /** Decorative miniatures describe the layout; the card supplies the accessible radio label. */
 @Composable
-private fun StylePreview(style: InterfaceStyle) {
+internal fun StylePreview(style: InterfaceStyle) {
     val colors = AppTheme.colors
     Box(Modifier.fillMaxWidth().height(if (LocalGlassLook.current.usesInsetSettingsForm) 88.dp else 76.dp).clearAndSetSemantics { }
         .clip(RoundedCornerShape(12.dp)).background(colors.background).padding(8.dp)) {
