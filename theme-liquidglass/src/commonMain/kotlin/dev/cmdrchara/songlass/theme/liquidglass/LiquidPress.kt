@@ -193,6 +193,7 @@ internal enum class LinkSide(val towardNeighbour: Float) {
 @Stable
 internal class LiquidLink {
     internal val bodies = mutableStateMapOf<LinkSide, LiquidBody>()
+    internal val lenses = mutableStateMapOf<LinkSide, LiquidLens>()
 
     /** 0..1 strength of the bridge. */
     fun merge(): Float = maxOf(
@@ -261,3 +262,6 @@ internal fun metaballNeck(c1: Offset, r1: Float, c2: Offset, r2: Float, spread: 
 }
 
 private const val HANDLE_SIZE = 2.4f
+
+/** Live draw-time lens geometry, local to its pressable body before body transforms. */
+internal class LiquidLens(val bounds: () -> Rect, val opacity: () -> Float, val pressure: () -> Float = { 0f })

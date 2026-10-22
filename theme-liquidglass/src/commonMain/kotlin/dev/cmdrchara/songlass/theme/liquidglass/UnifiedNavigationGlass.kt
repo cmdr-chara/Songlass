@@ -34,7 +34,20 @@ internal expect fun createNavigationShader(): NavigationShader?
 
 /** Mutable GPU resources belong to a single effect node, never the shared factory. */
 internal interface NavigationShader {
-    fun effect(pill: FloatArray, search: FloatArray, smoothing: Float, density: Float, dark: Boolean): RenderEffect
+    fun effect(frame: NavigationOpticsFrame): RenderEffect
+}
+
+/** Reused frame uniforms, owned by one renderer; never passed as Haze style state. */
+internal class NavigationOpticsFrame {
+    val pill = FloatArray(4)
+    val search = FloatArray(4)
+    val pillLens = FloatArray(4)
+    val searchLens = FloatArray(4)
+    val lensOpacity = FloatArray(2)
+    val lensPressure = FloatArray(2)
+    var smoothing = 0f
+    var density = 1f
+    var dark = false
 }
 
 internal data class NavigationGlassStyle(val link: LiquidLink, val dark: Boolean)
@@ -56,8 +69,7 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
     private var input: GraphicsLayer? = null
     private var shader: NavigationShader? = null
     private var attemptedShader = false
-    private val pill = FloatArray(4)
-    private val search = FloatArray(4)
+    private val frame = NavigationOpticsFrame()
 
     // A fixed input margin keeps capture geometry independent of the moving contour.
     override fun HazeEffectLayoutScope.calculateLayerBounds(style: NavigationGlassStyle): Rect =
@@ -68,6 +80,8 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
             shader = createNavigationShader()
             attemptedShader = true
         }
+        val pill = frame.pill
+        val search = frame.search
         val bounds = modifierBounds
         val h = bounds.height
         val gap = 8.dp.toPx()
@@ -88,7 +102,23 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
         search[1] = bounds.top + h / 2f + ro.y
         search[2] = 0f
         search[3] = h / 2f * rs
-        val smoothing = 48.dp.toPx() * sqrt(style.link.merge().coerceIn(0f, 1f))
+        fun placeLens(side: LinkSide, body: FloatArray, bodyWidth: Float, scale: Float, target: FloatArray, index: Int) {
+            val lens = style.link.lenses[side]
+            val rect = lens?.bounds()
+            val opacity = lens?.opacity()?.coerceIn(0f, 1f) ?: 0f
+            frame.lensPressure[index] = lens?.pressure()?.coerceIn(0f, 1f) ?: 0f
+            frame.lensOpacity[index] = if (rect != null && rect.width > 0f) opacity else 0f
+            if (rect == null || opacity <= 0f) return
+            target[0] = body[0] + (rect.center.x - bodyWidth / 2f) * scale
+            target[1] = body[1] + (rect.center.y - h / 2f) * scale
+            target[3] = rect.height / 2f * scale
+            target[2] = ((rect.width - rect.height) / 2f * scale).coerceAtLeast(0f)
+        }
+        placeLens(LinkSide.Start, pill, pillWidth, ls, frame.pillLens, 0)
+        placeLens(LinkSide.End, search, h, rs, frame.searchLens, 1)
+        frame.smoothing = 48.dp.toPx() * sqrt(style.link.merge().coerceIn(0f, 1f))
+        frame.density = density
+        frame.dark = style.dark
         val optical = shader
         if (optical == null) {
             // Shader construction failure must still leave a readable navigation surface.
@@ -98,6 +128,17 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
                 Size(pillWidth, h), CornerRadius(h / 2f),
             )
             drawCircle(fill, h / 2f, Offset(search[0] - bounds.left, h / 2f))
+            for (index in 0..1) {
+                val lens = if (index == 0) frame.pillLens else frame.searchLens
+                val opacity = frame.lensOpacity[index]
+                if (opacity <= 0f) continue
+                val radius = lens[3]
+                drawRoundRect(
+                    (if (style.dark) Color.White else Color.Black).copy(alpha = 0.12f * opacity),
+                    Offset(lens[0]-lens[2]-radius-bounds.left, lens[1]-radius-bounds.top),
+                    Size((lens[2]+radius)*2f, radius*2f), CornerRadius(radius),
+                )
+            }
             return
         }
         val graphics = currentValueOf(LocalGraphicsContext)
@@ -113,7 +154,7 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
                 sourceScope.drawInput()
             }
         }
-        layer.renderEffect = optical.effect(pill, search, smoothing, density, style.dark)
+        layer.renderEffect = optical.effect(frame)
         translate(-bounds.left, -bounds.top) { drawLayer(layer) }
     }
 
@@ -134,6 +175,10 @@ internal val NavigationGlassProgram = """
     uniform shader backdrop;
     uniform float4 pill;
     uniform float4 search;
+    uniform float4 pillLens;
+    uniform float4 searchLens;
+    uniform float2 lensOpacity;
+    uniform float2 lensPressure;
     uniform float smoothing;
     uniform float px;
     uniform float dark;
@@ -154,37 +199,75 @@ internal val NavigationGlassProgram = """
         return float3(min(a.x,b.x) - k * overlap * overlap * 0.25,
                       mix(b.yz, a.yz, weightA));
     }
-    half4 main(float2 p) {
-        float3 geometry = surface(p);
-        float d = geometry.x;
-        float aa = max(px * 0.35, 0.65);
-        if (d > 10.0 * px) return half4(0.0);
-        float coverage = 1.0 - smoothstep(-aa, aa, d);
-        // A bounded contact shadow follows the same contour, including the waist.
-        float shadow = 0.0;
-        if (d > -aa) {
-            float shadowDepth = max(surface(p-float2(0.0,1.5*px)).x / px, 0.0);
-            shadow = 0.10 * exp(-shadowDepth / 2.5);
-        }
-        if (coverage <= 0.0) return half4(0.0,0.0,0.0,half(shadow));
+    // Same filtered page input for the body, lifted lens and nearby-colour response.
+    float3 material(float2 p, float3 geometry, float lifted) {
         float2 normal = geometry.yz / max(length(geometry.yz), 0.001);
-        float depth = max(-d, 0.0) / px;
-        float band = 1.0 - smoothstep(0.0, 10.0, depth);
-        // Refraction and edge light share the normal of the complete, fused shape.
-        float2 ray = normal * (3.8 * px * band * band);
+        float depth = max(-geometry.x, 0.0) / px;
+        float band = 1.0 - smoothstep(0.0, mix(10.0, 13.0, lifted), depth);
+        float2 ray = normal * (mix(3.8, 9.0, lifted) * px * band * band);
         half4 sample = backdrop.eval(p - ray);
         float3 rgb = float3(sample.rgb) / max(float(sample.a), 0.001);
+        if (lifted > 0.01 && band > 0.01) {
+            float2 fringe = normal * (0.65 * px * lifted * band);
+            half4 red = backdrop.eval(p - ray + fringe);
+            half4 blue = backdrop.eval(p - ray - fringe);
+            rgb.r = float(red.r) / max(float(red.a),0.001);
+            rgb.b = float(blue.b) / max(float(blue.a),0.001);
+        }
         float luminance = dot(rgb, float3(0.2126,0.7152,0.0722));
         rgb = mix(float3(luminance), rgb, 1.04);
-        float3 base = mix(float3(0.98), float3(0.08), dark);
-        rgb = mix(rgb, base, mix(0.56, 0.48, dark));
+        float3 base = mix(float3(0.98 + lifted*0.02), float3(0.08 + lifted*0.10), dark);
+        rgb = mix(rgb, base, mix(0.56, 0.48, dark) - lifted * 0.20);
+        // One nearby-colour sample at the contour; no second blur or spectral tap loop.
+        if (depth < 8.0) {
+            half4 reflected = backdrop.eval(p + normal * (7.0 * px));
+            float3 nearby = float3(reflected.rgb) / max(float(reflected.a), 0.001);
+            rgb = mix(rgb, nearby, exp(-depth / 3.0) * 0.10);
+        }
         float topLight = max(-normal.y, 0.0);
         float bottomLight = max(normal.y, 0.0) * 0.45;
         float rim = exp(-depth / 0.65);
         float soft = exp(-depth / 4.0);
-        rgb += (topLight + bottomLight) * (rim * 0.20 + soft * 0.035);
+        rgb += (topLight + bottomLight) * (rim * mix(0.055,0.23,lifted) + soft * 0.012);
         rgb -= (1.0-abs(normal.y)) * rim * 0.035;
-        rgb = clamp(rgb, 0.0, 1.0);
-        return half4(half3(rgb * coverage), half(coverage + shadow * (1.0-coverage)));
+        return clamp(rgb, 0.0, 1.0);
+    }
+    half4 lensLayer(float2 p, float4 body, float opacity, float pressure, half4 behind) {
+        if (opacity <= 0.001) return behind;
+        float3 geometry = capsule(p, body);
+        float aa = max(px * 0.35, 0.65);
+        if (geometry.x > 5.0 * px) return behind;
+        float coverage = (1.0-smoothstep(-aa,aa,geometry.x)) * opacity;
+        float shadow = 0.0;
+        if (geometry.x > -aa) {
+            float depth = max(capsule(p-float2(0.0,px),body).x / px, 0.0);
+            shadow = exp(-depth/1.5) * 0.025 * opacity;
+        }
+        half4 under = half4(behind.rgb * half(1.0-shadow), behind.a + half(shadow)*(half(1.0)-behind.a));
+        if (coverage <= 0.0) return under;
+        // A shallow neutral lens keeps the indicator inside the capsule visually.
+        // Retain the shared refracted input without the raised-button white rim.
+        float3 rgb = material(p,geometry,pressure);
+        float3 selectionTint = mix(float3(0.0),float3(1.0),dark);
+        rgb = mix(rgb,selectionTint,mix(0.10,0.12,dark)*(1.0-pressure));
+        return half4(half3(rgb*coverage),half(coverage)) + under * half(1.0-coverage);
+    }
+    half4 main(float2 p) {
+        float3 geometry = surface(p);
+        float d = geometry.x;
+        float aa = max(px * 0.35, 0.65);
+        float coverage = 1.0-smoothstep(-aa,aa,d);
+        float shadow = 0.0;
+        if (d > -aa && d < 10.0*px) {
+            float depth = max(surface(p-float2(0.0,1.5*px)).x / px,0.0);
+            shadow = 0.10*exp(-depth/2.5);
+        }
+        half4 color = half4(0.0,0.0,0.0,half(shadow));
+        if (coverage > 0.0) {
+            float3 rgb = material(p,geometry,0.0);
+            color = half4(half3(rgb*coverage),half(coverage+shadow*(1.0-coverage)));
+        }
+        color = lensLayer(p,pillLens,lensOpacity.x,lensPressure.x,color);
+        return lensLayer(p,searchLens,lensOpacity.y,lensPressure.y,color);
     }
 """.trimIndent()

@@ -141,7 +141,7 @@ interface GlassLook {
 
     /** Keep icon and label clear at larger system text sizes. */
     @Composable
-    fun navigationBarHeight(): Dp = with(LocalDensity.current) { maxOf(64.dp, 40.dp + 14.sp.toDp()) }
+    fun navigationBarHeight(): Dp = with(LocalDensity.current) { maxOf(64.dp, 44.dp + 14.sp.toDp()) }
 
     /**
      * A filled control inside the content layer (buttons, chips, fields, groups) in [color].

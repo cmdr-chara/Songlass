@@ -3,6 +3,8 @@ package dev.cmdrchara.songlass.theme.liquidglass
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.animation.core.Animatable
@@ -85,6 +87,7 @@ import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -349,8 +352,9 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
     val link = remember { LiquidLink() }
     val sharedSurface = searchIndex >= 0 && unifiedNavigationSupported &&
         LocalGlassSource.current != null && !AppTheme.accessibility.reduceTransparency
+    val preferredWidth = with(LocalDensity.current) { maxOf(232.dp, 166.dp + 66.sp.toDp()) }
     Box(
-        modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 360.dp).fillMaxWidth(),
+        modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = preferredWidth).fillMaxWidth(),
         contentAlignment = Alignment.CenterEnd,
     ) {
         if (sharedSurface) {
@@ -385,6 +389,8 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     var slotWidth by remember { mutableFloatStateOf(0f) }
     var placed by remember { mutableStateOf(false) }
     var dragging by remember { mutableStateOf(false) }
+    var touching by remember { mutableStateOf(false) }
+    val gestureVersion = remember { intArrayOf(0) }
     val bubbleX = remember { Animatable(0f) }
     // 0 at rest, 1 while the bubble is held and lifted off the bar.
     val lift = remember { Animatable(0f) }
@@ -398,14 +404,14 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
         // A quick switch to Search can interrupt the previous hop midway.
         travelLift.snapTo(0f)
         if (reduceMotion) lift.snapTo(0f)
-        if (slotWidth <= 0f || selectedSlot < 0 || dragging) return@LaunchedEffect
+        if (slotWidth <= 0f || selectedSlot < 0 || touching || dragging) return@LaunchedEffect
         val target = selectedSlot * slotWidth
         if (!placed || reduceMotion) {
             bubbleX.snapTo(target)
             travelLift.snapTo(0f)
         } else if (abs(target - bubbleX.value) > 1f) {
             launch {
-                travelLift.animateTo(0.65f, tween(80))
+                travelLift.animateTo(0.3f, tween(80))
                 travelLift.animateTo(0f, spring(dampingRatio = 0.72f, stiffness = 500f))
             }
             bubbleX.animateTo(target, spring(dampingRatio = 0.76f, stiffness = 480f))
@@ -414,7 +420,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     }
     // Search owns the separate circle, so hide this lens while that destination is selected.
     val bubbleAlphaState = animateFloatAsState(
-        targetValue = if (selectedSlot >= 0 || dragging) 1f else 0f,
+        targetValue = if (selectedSlot >= 0 || touching || dragging) 1f else 0f,
         animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "tabBubbleAlpha",
     )
@@ -423,10 +429,35 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     // Ink changes at slot boundaries; the lens still follows every spring frame in
     // layout/drawing without recomposing the full glass capsule while dragged.
     val shownSlot by remember(slots, selectedSlot) {
-        derivedStateOf { if (dragging) slotAt(bubbleX.value) else selectedSlot }
+        derivedStateOf { if (dragging || touching) slotAt(bubbleX.value) else selectedSlot }
     }
-    val inset = 5.dp
+    val inset = 4.dp
+    val opticalLens = remember(link, density, reduceMotion, rtl, barHeight) {
+        LiquidLens(bounds = {
+            with(density) {
+                val l = if (reduceMotion) 0f else maxOf(lift.value, travelLift.value).coerceIn(0f, 1f)
+                val bodyWidth = link?.bodies?.get(LinkSide.Start)?.widthPx
+                    ?: (slotWidth * slots.size + inset.toPx() * 2f)
+                val logicalCenter = inset.toPx() + bubbleX.value + slotWidth / 2f
+                val cx = if (rtl) bodyWidth - logicalCenter else logicalCenter
+                val cy = barHeight.toPx() / 2f - 2.dp.toPx() * l
+                val speed = if (reduceMotion || slotWidth <= 0f) 0f else (bubbleX.velocity / (slotWidth * 18f)).coerceIn(-0.09f, 0.09f)
+                val halfWidth = slotWidth * (1f + 0.35f * l + abs(speed)) / 2f
+                val halfHeight = (barHeight - inset * 2).toPx() * (1f + 0.35f * l - abs(speed) * 0.4f) / 2f
+                Rect(cx-halfWidth, cy-halfHeight, cx+halfWidth, cy+halfHeight)
+            }
+        }, opacity = { bubbleAlphaState.value }, pressure = { if (reduceMotion) 0f else maxOf(lift.value, travelLift.value) })
+    }
+    DisposableEffect(link, sharedSurface, opticalLens) {
+        if (sharedSurface && link != null) link.lenses[LinkSide.Start] = opticalLens
+        onDispose {
+            if (link?.lenses?.get(LinkSide.Start) === opticalLens) link.lenses.remove(LinkSide.Start)
+        }
+    }
 
+    val sceneBounds: () -> Rect? = {
+        if (slotWidth <= 0f) null else opticalLens.bounds().translate(Offset(-with(density) { inset.toPx() }, -with(density) { inset.toPx() }))
+    }
     Box(
         modifier = modifier
             .height(barHeight)
@@ -439,59 +470,74 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                 }
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    if (!reduceMotion) scope.launch { lift.animateTo(0.45f, spring(dampingRatio = 0.85f, stiffness = 900f)) }
+                    val version = ++gestureVersion[0]
+                    touching = true
                     var dragged = false
-                    var lastDragX = bubbleX.value
-                    // One pursuit spring per gesture: the finger moves its goal, never restarts it.
+                    var released = false
+                    var lastDragX = dragTargetAt(down.position.x)
                     val pursuit = SpringFollower()
                     var pursuitGoal = bubbleX.value
                     var pursuing: Job? = null
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) {
-                            // Consuming the release keeps the tab under the finger from also clicking.
-                            if (dragged) {
-                                lastDragX = dragTargetAt(change.position.x)
-                                change.consume()
+                    // Preview the touched destination immediately, without navigating until release.
+                    val previewTarget = slotAt(lastDragX) * slotWidth
+                    val preview = scope.launch {
+                        val target = previewTarget
+                        if (reduceMotion) bubbleX.snapTo(target)
+                        else bubbleX.animateTo(target, spring(dampingRatio = 0.86f, stiffness = 620f))
+                    }
+                    if (!reduceMotion) scope.launch { lift.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 740f)) }
+                    try {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) {
+                                released = true
+                                if (dragged) {
+                                    lastDragX = dragTargetAt(change.position.x)
+                                    change.consume()
+                                }
+                                break
                             }
-                            break
-                        }
-                        if (!dragged && abs(change.position.x - down.position.x) > viewConfiguration.touchSlop) {
-                            dragged = true
-                            dragging = true
-                            if (!reduceMotion) scope.launch { lift.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 700f)) }
-                        }
-                        if (dragged) {
-                            change.consume()
-                            // Row and offset use logical order; pointer coordinates are physical.
-                            val x = dragTargetAt(change.position.x)
-                            lastDragX = x
-                            pursuitGoal = x
-                            if (reduceMotion) {
-                                scope.launch { bubbleX.snapTo(x) }
-                            } else if (pursuing?.isActive != true) {
-                                pursuit.snapTo(bubbleX.value, bubbleX.velocity)
-                                pursuing = scope.launch {
-                                    pursuit.follow({ pursuitGoal }, dampingRatio = 0.85f, stiffness = 2200f, threshold = 0.5f) { bubbleX.snapTo(it) }
+                            if (!dragged && abs(change.position.x - down.position.x) > viewConfiguration.touchSlop) {
+                                preview.cancel()
+                                dragged = true
+                                dragging = true
+                            }
+                            if (dragged) {
+                                change.consume()
+                                lastDragX = dragTargetAt(change.position.x)
+                                pursuitGoal = lastDragX
+                                if (reduceMotion) {
+                                    scope.launch { bubbleX.snapTo(lastDragX) }
+                                } else if (pursuing?.isActive != true) {
+                                    pursuit.snapTo(bubbleX.value, bubbleX.velocity)
+                                    pursuing = scope.launch {
+                                        pursuit.follow({ pursuitGoal }, dampingRatio = 0.85f, stiffness = 2200f, threshold = 0.5f) { bubbleX.snapTo(it) }
+                                    }
                                 }
                             }
                         }
-                    }
-                    scope.launch { lift.animateTo(0f, if (reduceMotion) snap() else spring(dampingRatio = 0.65f, stiffness = 500f)) }
-                    if (dragged) {
-                        // Commit the finger's destination; the pursuit spring may still lag
-                        // behind it when rendering is busy. Keep the same settling animation.
-                        val slot = slotAt(lastDragX)
-                        dragging = false
+                    } finally {
+                        preview.cancel()
                         val releaseVelocity = if (pursuing != null) pursuit.velocity else bubbleX.velocity
                         pursuing?.cancel()
+                        touching = false
+                        dragging = false
+                        // A missing/cancelled pointer restores the committed tab, never a preview.
+                        val destination = if (released) slotAt(lastDragX) else slots.indexOf(currentSelected).coerceAtLeast(0)
+                        if (released && dragged && slots[destination] != currentSelected) currentOnSelected(slots[destination])
                         scope.launch {
-                            val target = slot * slotWidth
-                            if (reduceMotion) bubbleX.snapTo(target)
-                            else bubbleX.animateTo(target, spring(dampingRatio = 0.6f, stiffness = 450f), initialVelocity = releaseVelocity)
+                            try {
+                                if (reduceMotion) bubbleX.snapTo(destination * slotWidth)
+                                else bubbleX.animateTo(destination * slotWidth, spring(dampingRatio = 0.86f, stiffness = 620f), initialVelocity = releaseVelocity)
+                            } finally {
+                                // Position animation may be superseded by a newer selection.
+                                // Shape relaxation must still complete, unless a new gesture owns it.
+                                scope.launch {
+                                    if (gestureVersion[0] == version) lift.animateTo(0f, if (reduceMotion) snap() else spring(dampingRatio = 0.86f, stiffness = 560f))
+                                }
+                            }
                         }
-                        if (slots[slot] != currentSelected) currentOnSelected(slots[slot])
                     }
                 }
             },
@@ -501,7 +547,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
         Box(Modifier.fillMaxSize().padding(inset).onSizeChanged {
             slotWidth = it.width / slots.size.coerceAtLeast(1).toFloat()
         }) {
-            Box(
+            if (!sharedSurface) Box(
                 Modifier
                     .offset { IntOffset(bubbleX.value.roundToInt(), 0) }
                     .width(with(density) { slotWidth.toDp() })
@@ -510,13 +556,13 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                         val l = if (reduceMotion) 0f else maxOf(lift.value, travelLift.value).coerceIn(0f, 1f)
                         alpha = bubbleAlpha
                         // More volume while held, with the rim free to rise above the capsule.
-                        scaleX = 1f + 0.10f * l
-                        scaleY = 1f + 0.42f * l
+                        scaleX = 1f + 0.04f * l
+                        scaleY = 1f + 0.16f * l
                         translationY = -2.dp.toPx() * l
                     }
                     .then(if (bubbleShown) LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule) else Modifier),
             )
-            Row(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize().then(if (sharedSurface) Modifier.navigationInkCutout(sceneBounds, opticalLens.opacity) else Modifier)) {
                 slots.forEachIndexed { slot, index ->
                     val tab = tabs[index]
                     val selected = index == selectedTab
@@ -525,17 +571,29 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                             .weight(1f)
                             .fillMaxHeight()
                             .graphicsLayer {
-                                val magnification = if (slot == shownSlot && !reduceMotion) {
-                                    1f + 0.08f * maxOf(lift.value, travelLift.value).coerceIn(0f, 1f)
+                                val magnification = if (!sharedSurface && slot == shownSlot && !reduceMotion) {
+                                    1f + 0.035f * maxOf(lift.value, travelLift.value).coerceIn(0f, 1f)
                                 } else 1f
                                 scaleX = magnification
                                 scaleY = magnification
                             }
                             .selectable(selected, interactionSource = remember { MutableInteractionSource() }, indication = null, role = Role.Tab) { onTabSelected(index) },
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center,
+                        verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
                     ) {
-                        TabLabel(tab) { slot == shownSlot }
+                        TabLabel(tab, opticalScene = sharedSurface) { !sharedSurface && slot == shownSlot }
+                    }
+                }
+            }
+            if (sharedSurface) {
+                // A paint-only duplicate: no second selectable, pointer handler or accessibility node.
+                Row(Modifier.fillMaxSize().clearAndSetSemantics {}
+                    .navigationInkScene(sceneBounds, opticalLens.pressure, opticalLens.opacity)) {
+                    slots.forEach { index ->
+                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)) {
+                            TabLabel(tabs[index], opticalScene = true) { true }
+                        }
                     }
                 }
             }
@@ -633,12 +691,15 @@ private fun LiquidBridge(link: LiquidLink) {
  * recomposes only this item, never the capsule with its glass modifiers.
  */
 @Composable
-private fun TabLabel(tab: TabItem, highlighted: () -> Boolean) {
-    val tint = tabTint(highlighted())
-    AppIcon(tab.icon, contentDescription = null, size = 26.dp, tint = tint)
+private fun TabLabel(tab: TabItem, opticalScene: Boolean = false, highlighted: () -> Boolean) {
+    val selected = highlighted()
+    val tint = if (opticalScene) {
+        if (selected) AppTheme.colors.accent else AppTheme.colors.label
+    } else tabTint(selected)
+    AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
     AppText(
         text = tab.label,
-        style = AppTheme.typography.caption2.copy(fontSize = 12.sp, lineHeight = 14.sp, fontWeight = FontWeight.SemiBold),
+        style = AppTheme.typography.caption2.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (opticalScene) FontWeight.Normal else if (selected) FontWeight.Medium else FontWeight.Normal),
         color = tint,
         maxLines = 1,
     )
@@ -672,6 +733,18 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
     val selectionAlpha by selectionAlphaState
     // A fully transparent lens still costs a glass pass every frame the circle moves.
     val lensShown by remember { derivedStateOf { selectionAlphaState.value > 0f } }
+    val density = LocalDensity.current
+    val opticalLens = remember(size, density) {
+        LiquidLens(bounds = {
+            with(density) { Rect(4.dp.toPx(), 4.dp.toPx(), (size-4.dp).toPx(), (size-4.dp).toPx()) }
+        }, opacity = { selectionAlphaState.value })
+    }
+    DisposableEffect(link, sharedSurface, opticalLens) {
+        if (sharedSurface && link != null) link.lenses[LinkSide.End] = opticalLens
+        onDispose {
+            if (link?.lenses?.get(LinkSide.End) === opticalLens) link.lenses.remove(LinkSide.End)
+        }
+    }
     Box(
         modifier = Modifier
             .size(size)
@@ -685,7 +758,7 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
             },
         contentAlignment = Alignment.Center,
     ) {
-        if (lensShown) {
+        if (lensShown && !sharedSurface) {
             Box(
                 Modifier.matchParentSize().padding(4.dp).graphicsLayer { alpha = selectionAlpha }
                     .then(LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule)),
