@@ -200,6 +200,9 @@ class AppGraph(
             }
         }
         scope.launch {
+            settings.state.map { it.equalizerTuning }.distinctUntilChanged().collect(equalizer::setTuning)
+        }
+        scope.launch {
             equalizer.state.map { it.chain }.distinctUntilChanged().collect(player::setEqualizer)
         }
         // Remember a pause caused by the output going away; any other start or stop forgets it.

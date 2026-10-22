@@ -8,7 +8,7 @@ enum class SettingsTarget {
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
     ReplayGainProcessing, ReplayGainPreamp, ReplayGainMissingPreamp, ReplayGainLimiter,
-    Balance, StereoExpand, Tempo, Reverb,
+    Balance, StereoExpand, Tempo, Reverb, EqualizerBass, EqualizerTreble, EqualizerBands,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
 }
 
@@ -52,7 +52,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     private data class Match(val target: SettingsTarget, val priority: Int, val cost: Int, val order: Int)
 
     private companion object {
-        val audioEffectTargets = setOf(SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb)
+        val audioEffectTargets = setOf(SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb, SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands)
         val replayGainProcessingTargets = setOf(SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter)
         val transportFadeTargets = setOf(SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration)
         val crossfadeTargets = setOf(SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration)
@@ -161,6 +161,9 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "headset|cuffie|button|tasto|double|doppio|triple|triplo|press|pressione|earbuds|auricolari")
     SettingsTarget.SleepTimer -> terms("Sleep timer", "Timer di spegnimento", "Timer",
         aliases = "sleep|sonno|dormire|spegnimento|stop music|ferma musica|end of track|fine brano|minutes|minuti|night|notte|bedtime")
+    SettingsTarget.EqualizerBass -> terms("Bass", "Bassi", "Bass tone", "Tono bassi", aliases = "tone|toni|low shelf|shelf basso|basse frequenze|low frequencies|decibel|db")
+    SettingsTarget.EqualizerTreble -> terms("Treble", "Alti", "Treble tone", "Tono alti", aliases = "tone|toni|high shelf|shelf alto|alte frequenze|high frequencies|decibel|db")
+    SettingsTarget.EqualizerBands -> terms("Number of EQ bands", "Numero di bande EQ", "Bande configurabili", "Configurable bands", aliases = "graphic|grafico|layout|5|10|15|31|frequencies|frequenze|equalizer|equalizzatore|bande|bands")
     SettingsTarget.Balance -> terms("Balance", "Bilanciamento", aliases = "left|right|sinistra|destra|canali|channels|stereo|pan")
     SettingsTarget.StereoExpand -> terms("Stereo expand", "Espansione stereo", aliases = "width|ampiezza|larghezza|spazialità|mid side|stereo widening")
     SettingsTarget.Tempo -> terms("Playback tempo", "Tempo di riproduzione", "Velocità di riproduzione", aliases = "speed|velocità|tempo|pitch|intonazione|lento|veloce|slow|fast")

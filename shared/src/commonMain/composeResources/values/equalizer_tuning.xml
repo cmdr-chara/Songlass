@@ -1,0 +1,11 @@
+<resources>
+    <string name="eq_tone_bass">Bass</string>
+    <string name="eq_tone_treble">Treble</string>
+    <string name="eq_band_count">Number of EQ bands</string>
+    <string name="eq_band_count_value">%1$s bands</string>
+    <string name="eq_tone_less">Decrease by 0.5 dB</string>
+    <string name="eq_tone_more">Increase by 0.5 dB</string>
+    <string name="eq_tuning_hint">Bass and treble follow the EQ switch and apply to all outputs. Each layout keeps its own settings; at first use it starts from the ten-band curve. Scroll 15 and 31-band graphs sideways.</string>
+    <string name="eq_tone_less_short">−0.5</string>
+    <string name="eq_tone_more_short">+0.5</string>
+</resources>

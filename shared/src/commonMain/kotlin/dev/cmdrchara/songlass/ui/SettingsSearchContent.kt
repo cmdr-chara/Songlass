@@ -28,6 +28,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.Appearance -> Res.string.settings_appearance
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_reconnect
+    SettingsTarget.EqualizerBass -> Res.string.eq_tone_bass
+    SettingsTarget.EqualizerTreble -> Res.string.eq_tone_treble
+    SettingsTarget.EqualizerBands -> Res.string.eq_band_count
     SettingsTarget.Balance -> Res.string.settings_balance
     SettingsTarget.StereoExpand -> Res.string.settings_stereo_expand
     SettingsTarget.Tempo -> Res.string.settings_tempo
@@ -100,6 +103,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> queue
             SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> "$sound › ${stringResource(Res.string.settings_transport_fades)}"
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$sound › ${stringResource(Res.string.settings_crossfade)}"
+            SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands,
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
             SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> library
@@ -159,6 +163,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.LrclibLyrics -> enabled(preferences.lrclibEnabled)
         SettingsTarget.ReduceMotion -> if (system.reduceMotion) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceMotion)
         SettingsTarget.ReduceTransparency -> if (system.reduceTransparency) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceTransparency)
+        SettingsTarget.EqualizerBass -> formatGain(preferences.equalizerTuning.bassDb.toFloat(), stringResource(Res.string.eq_decimal_separator))
+        SettingsTarget.EqualizerTreble -> formatGain(preferences.equalizerTuning.trebleDb.toFloat(), stringResource(Res.string.eq_decimal_separator))
+        SettingsTarget.EqualizerBands -> stringResource(Res.string.eq_band_count_value, preferences.equalizerTuning.layout.count.toString())
         SettingsTarget.Equalizer -> enabled(eq.enabled)
         SettingsTarget.EqualizerPresets -> stringResource(eq.preset?.label ?: Res.string.eq_custom)
         SettingsTarget.OutputProfiles -> enabled(eq.automaticOutputs)

@@ -48,6 +48,7 @@ class AppSettings(
             missingPreampDb = store.getString(RG_MISSING_PREAMP_KEY)?.toIntOrNull()?.takeIf { it in -20..20 } ?: 0,
             limiter = store.getString(RG_LIMITER_KEY)?.toBooleanStrictOrNull() ?: true,
         ),
+        equalizerTuning = dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.read(store),
         audioEffects = dev.cmdrchara.songlass.core.player.AudioEffectsSettings(
             balancePercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.Balance),
             stereoExpandPercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.StereoExpand),
@@ -100,6 +101,23 @@ class AppSettings(
     fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
         val loaded = readPreferences(store)
         return { _state.value = loaded }
+    }
+
+    fun setEqualizerBass(db: Double) = setEqualizerTuning(dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY) { copy(bassDb = db) }
+    fun setEqualizerTreble(db: Double) = setEqualizerTuning(dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY) { copy(trebleDb = db) }
+    fun setEqualizerLayout(layout: dev.cmdrchara.songlass.core.equalizer.GraphicEqLayout) =
+        setEqualizerTuning(dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY) { copy(layout = layout) }
+    private fun setEqualizerTuning(key: String, change: dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.() -> dev.cmdrchara.songlass.core.equalizer.EqualizerTuning) {
+        if (!mutations.canMutate) return
+        val next = state.value.equalizerTuning.change()
+        if (next == state.value.equalizerTuning) return
+        val value = when (key) {
+            dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY -> next.bassDb.toString()
+            dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY -> next.trebleDb.toString()
+            else -> next.layout.count.toString()
+        }
+        store.putString(key, value)
+        _state.update { it.copy(equalizerTuning = next) }
     }
 
     fun setAudioEffect(effect: dev.cmdrchara.songlass.core.player.AudioEffect, value: Int) {
@@ -347,13 +365,16 @@ class AppSettings(
 
     /**
      * Removes the stored values of one settings page, so every default stays "absent" as for a fresh
-     * install. Only that page's preferences change: other settings, playlists, history and the equalizer are kept.
+     * install. Only that page's preferences change; saved EQ curves/corrections, playlists and history stay.
+     * Sound also resets global tone controls/layout, without erasing any saved graphic curve.
      */
     fun resetToDefaults(area: SettingsArea) {
         if (!mutations.canMutate) return
         val keys = when (area) {
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
-            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY)
+            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
+                dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
+                dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY)
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -365,7 +386,7 @@ class AppSettings(
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
                     appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
-                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects,
+                SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects, equalizerTuning = defaults.equalizerTuning,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, transportFades = defaults.transportFades)
                 SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,

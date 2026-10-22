@@ -67,6 +67,9 @@ internal object BackupKeys {
         SMART_INDEX to ValueKind.Plain,
         "equalizer.enabled" to ValueKind.Plain,
         "equalizer.gains" to ValueKind.Plain,
+        "equalizer.bands5" to ValueKind.Plain,
+        "equalizer.bands15" to ValueKind.Plain,
+        "equalizer.bands31" to ValueKind.Plain,
         "equalizer.profile" to ValueKind.Plain,
         EQ_PROFILES to ValueKind.Plain,
         "equalizer.outputs.enabled" to ValueKind.Plain,
@@ -93,7 +96,7 @@ internal object BackupKeys {
         Group("playlists.", PLAYLISTS_INDEX, setOf("name", "created", "tracks"), idListSuffix = "tracks"),
         Group("smart.", SMART_INDEX, setOf("name", "rules")),
         Group("equalizer.profiles.", EQ_PROFILES, setOf("name", "filters")),
-        Group("equalizer.outputs.", EQ_OUTPUTS_INDEX, setOf("name", "enabled", "gains", "profile")),
+        Group("equalizer.outputs.", EQ_OUTPUTS_INDEX, setOf("name", "enabled", "gains", "profile", "bands5", "bands15", "bands31")),
     )
 
     /** What a managed key holds; null when the key is not part of a backup. */

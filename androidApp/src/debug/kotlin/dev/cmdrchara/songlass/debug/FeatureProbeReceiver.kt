@@ -9,6 +9,13 @@ import android.util.Log
 import androidx.media3.common.Player
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
+import dev.cmdrchara.songlass.core.equalizer.EqualizerState
+import dev.cmdrchara.songlass.core.equalizer.EqualizerTuning
+import dev.cmdrchara.songlass.core.equalizer.GraphicEqLayout
+import dev.cmdrchara.songlass.core.equalizer.EqChain
+import dev.cmdrchara.songlass.core.equalizer.EqPreset
+import dev.cmdrchara.songlass.core.settings.SettingsArea
+import kotlin.math.log10
 import dev.cmdrchara.songlass.core.player.AudioEffect
 import dev.cmdrchara.songlass.core.player.AudioEffectsSettings
 import dev.cmdrchara.songlass.core.player.ReplayGainPlan
@@ -59,6 +66,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 withTimeout(35_000) {
                     when (val probe = intent.getStringExtra("case")) {
                         "audio" -> audio(context, scope)
+                        "audio-equalizer" -> audio(context, scope, equalizerOnly = true)
                         "audio-effects" -> audio(context, scope, effectsOnly = true)
                         "audio-replaygain" -> audio(context, scope, replayGainOnly = true)
                         "audio-transport" -> audio(context, scope, transportOnly = true)
@@ -114,7 +122,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false, equalizerOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -164,6 +172,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (equalizerOnly) {
+                equalizerTuningAudio(graph, audio, session, voices, tracks)
+                return
+            }
             if (effectsOnly) {
                 effectsAudio(graph, audio, session, voices, tracks)
                 return
@@ -323,6 +335,84 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         session.stop()
         check(voices.none { it.player.playWhenReady })
         Log.i("SonglassFeatures", "replaygain nativePcmBoost=true missingTagPreamp=true noDoubleGain=true bothOverlapVoices=true legacyPathRestored=true")
+    }
+
+    private suspend fun equalizerTuningAudio(
+        graph: AppGraph, audio: Media3AudioPlayer, session: QueueForwardingPlayer,
+        voices: List<PlayerVoice>, tracks: List<Track>,
+    ) {
+        for (encoding in listOf(C.ENCODING_PCM_16BIT, C.ENCODING_PCM_FLOAT)) {
+            val processor=EqualizerProcessor()
+            processor.configure(AudioProcessor.AudioFormat(48_000,1,encoding))
+            fun measured(chain: EqChain, frequency: Double): Double {
+                processor.setChain(chain);processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
+                val frames=24_000;val bytes=if(encoding==C.ENCODING_PCM_FLOAT) 4 else 2
+                val input=ByteBuffer.allocateDirect(frames*bytes).order(ByteOrder.nativeOrder())
+                var inputPower=0.0
+                repeat(frames) { i ->
+                    val value=sin(2*PI*frequency*i/48_000)*.1
+                    val sample=if(bytes==4) value.toFloat().toDouble() else (value*32768).toInt()/32768.0
+                    if(bytes==4) input.putFloat(sample.toFloat()) else input.putShort((sample*32768).toInt().toShort())
+                    if(i>=16_000) inputPower+=sample*sample
+                }
+                input.flip();processor.queueInput(input)
+                val output=processor.output.order(ByteOrder.nativeOrder());var outputPower=0.0
+                repeat(frames) { i ->
+                    val sample=if(bytes==4) output.float.toDouble() else output.short/32768.0
+                    check(sample.isFinite())
+                    if(i>=16_000) outputPower+=sample*sample
+                }
+                check(processor.processingInfo.value?.filterCount==chain.filters.size)
+                val observed=10*log10(outputPower/inputPower)
+                val expected=chain.responseDb(frequency,48_000)
+                check(abs(observed-expected)<.5) { "EQ PCM mismatch encoding=$encoding hz=$frequency actual=$observed expected=$expected" }
+                return observed
+            }
+            for(layout in GraphicEqLayout.entries) {
+                val state=EqualizerState(enabled=true,gains=List(layout.count) { if(it%2==0) 3.0 else -3.0 },
+                    tuning=EqualizerTuning(6.0,-4.0,layout))
+                measured(state.chain,1000.0)
+                check(processor.processingInfo.value?.filterCount==layout.count+2)
+            }
+            val tone=EqualizerState(enabled=true,tuning=EqualizerTuning(6.0,-4.0)).chain
+            val low=measured(tone,50.0);val high=measured(tone,16_000.0)
+            check(low-high>7.0)
+            processor.reset()
+            Log.i("SonglassFeatures","equalizer pcm=$encoding layouts=5,10,15,31 upTo33Filters=true toneShelfResponse=true lowDb=$low highDb=$high")
+            yield()
+        }
+        audio.setVolume(.05f)
+        graph.settings.apply { setEqualizerBass(6.0);setEqualizerTreble(-4.0);setEqualizerLayout(GraphicEqLayout.ThirtyOne);setManualCrossfadeDuration(2_000) }
+        await { graph.equalizer.state.value.tuning.layout==GraphicEqLayout.ThirtyOne }
+        graph.equalizer.applyPreset(EqPreset.Flat,enable=true)
+        repeat(31) { graph.equalizer.setGain(it,3.0) }
+        graph.controller.playTracks(tracks)
+        await { audio.exoPlayer.isPlaying && audio.state.value.processing?.filterCount==33 }
+        graph.controller.skipToNext()
+        await { voices.count { it.player.isPlaying }==2 }
+        await { voices.all { it.equalizer?.processingInfo?.value?.filterCount==33 } }
+        graph.settings.setEqualizerBass(-3.0);graph.settings.setEqualizerLayout(GraphicEqLayout.Five)
+        await { graph.equalizer.state.value.tuning.layout==GraphicEqLayout.Five }
+        val expected=graph.equalizer.state.value.chain
+        await { voices.all { it.equalizer?.processingInfo?.value?.let { info ->
+            info.filterCount==expected.filters.size && abs(info.headroomDb-expected.preampDb)<.0001
+        }==true } }
+        check(voices.count { it.player.isPlaying }==2)
+        graph.equalizer.setEnabled(false)
+        await { voices.all { it.equalizer?.processingInfo?.value?.filterCount==0 } }
+        graph.equalizer.setEnabled(true)
+        await { audio.state.value.processing?.filterCount==expected.filters.size }
+        await { audio.diagnostics().stage!=CrossfadeStage.Fading }
+        val saved=graph.equalizer.state.value.manualCurve
+        graph.settings.resetToDefaults(SettingsArea.Sound)
+        await { graph.equalizer.state.value.tuning==EqualizerTuning() && audio.state.value.processing?.filterCount==0 }
+        check(graph.equalizer.state.value.manualCurve==saved)
+        graph.settings.setEqualizerLayout(GraphicEqLayout.ThirtyOne)
+        await { audio.state.value.processing?.filterCount==31 }
+        check(graph.equalizer.state.value.gains.all { it==3.0 })
+        check(graph.controller.queue.value.currentIndex==1)
+        session.stop()
+        Log.i("SonglassFeatures","equalizer native31Bands=true bothOverlapVoices=true liveLayoutAndTone=true masterBypass=true soundReset=true savedBanksPreserved=true queueAdvancedOnce=true")
     }
 
     private suspend fun effectsAudio(

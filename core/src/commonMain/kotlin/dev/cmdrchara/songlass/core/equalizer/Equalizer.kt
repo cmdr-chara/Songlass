@@ -11,21 +11,20 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlin.math.roundToInt
 
-/** Ten octave bands, as on most graphic equalizers. */
+/** Graphic EQ layouts; the original ten bands remain the default and legacy storage format. */
 object GraphicEq {
-    val frequencies: List<Double> = listOf(31.0, 62.0, 125.0, 250.0, 500.0, 1_000.0, 2_000.0, 4_000.0, 8_000.0, 16_000.0)
+    val frequencies: List<Double> = GraphicEqLayout.Ten.frequencies
     const val MAX_GAIN_DB = 12.0
 
     /** Gain changes in steps of half a decibel, finer than the ear notices. */
     const val STEP_DB = 0.5
 
-    /** One-octave bandwidth. */
-    private const val Q = 1.41
-
     val flat: List<Double> = List(frequencies.size) { 0.0 }
 
-    fun filters(gains: List<Double>): List<EqFilter> =
-        frequencies.zip(gains) { f, g -> EqFilter(FilterType.Peaking, f, g, Q) }
+    fun filters(gains: List<Double>, layout: GraphicEqLayout = GraphicEqLayout.Ten): List<EqFilter> {
+        require(gains.size == layout.count)
+        return layout.frequencies.zip(gains) { f, g -> EqFilter(FilterType.Peaking, f, g, layout.q) }
+    }
 
     fun snap(gainDb: Double): Double =
         if (!gainDb.isFinite()) 0.0
@@ -69,14 +68,23 @@ sealed interface EqualizerProfileImportResult {
 
 /** Stable platform output identity; never a connection-session id. */
 data class EqOutput(val id: String, val name: String)
-data class OutputEqProfile(val output: EqOutput, val enabled: Boolean, val gains: List<Double>, val profileId: String?)
+data class OutputEqProfile(val output: EqOutput, val enabled: Boolean, val gains: List<Double>, val profileId: String?,
+    val extraGains: Map<GraphicEqLayout, List<Double>> = emptyMap()) {
+    fun gainsFor(layout: GraphicEqLayout) = extraGains[layout] ?: GraphicEq.resample(gains, GraphicEqLayout.Ten, layout)
+    fun withGains(layout: GraphicEqLayout, values: List<Double>) =
+        if (layout == GraphicEqLayout.Ten) copy(gains = values.toList()) else copy(extraGains = extraGains + (layout to values.toList()))
+}
 
 /** The persistent manual fallback, shown without switching away from a bound output curve. */
 data class ManualEqCurve(
     val enabled: Boolean = false,
     val gains: List<Double> = GraphicEq.flat,
     val profileId: String? = null,
+    val extraGains: Map<GraphicEqLayout, List<Double>> = emptyMap(),
 ) {
+    fun gainsFor(layout: GraphicEqLayout) = extraGains[layout] ?: GraphicEq.resample(gains, GraphicEqLayout.Ten, layout)
+    fun withGains(layout: GraphicEqLayout, values: List<Double>) =
+        if (layout == GraphicEqLayout.Ten) copy(gains = values.toList()) else copy(extraGains = extraGains + (layout to values.toList()))
     val preset: EqPreset? get() = EqPreset.entries.firstOrNull { it.gains == gains }
 }
 
@@ -89,18 +97,19 @@ data class EqualizerState(
     val output: EqOutput? = null,
     val outputProfiles: List<OutputEqProfile> = emptyList(),
     val manualCurve: ManualEqCurve = ManualEqCurve(),
+    val tuning: EqualizerTuning = EqualizerTuning(),
 ) {
     val outputProfile: OutputEqProfile? get() = outputProfiles.firstOrNull { it.output.id == output?.id }
     val usesOutputProfile: Boolean get() = automaticOutputs && outputProfile != null
     val profile: HeadphoneProfile? get() = profiles.firstOrNull { it.id == profileId }
 
-    /** The preset the bands match, or null for a custom curve. */
-    val preset: EqPreset? get() = EqPreset.entries.firstOrNull { it.gains == gains }
+    /** The preset the selected layout matches, or null for a custom curve. */
+    val preset: EqPreset? get() = EqPreset.entries.firstOrNull { it.gainsFor(tuning.layout) == gains }
 
     /** Headphone correction first, then the user's taste on top; flat when switched off. */
     val chain: EqChain
         get() = if (!enabled) EqChain.Flat
-        else EqChain.withHeadroom(profile?.filters.orEmpty() + GraphicEq.filters(gains))
+        else EqChain.withHeadroom(profile?.filters.orEmpty() + GraphicEq.filters(gains, tuning.layout) + tuning.toneFilters)
 }
 
 /** Equalizer settings: on/off, the graphic bands and the headphone profiles, saved in [store]. */
@@ -127,6 +136,12 @@ class Equalizer(
         return { selectOutputCurve(loaded.copy(output = _state.value.output), manual = loaded) }
     }
 
+    /** Settings owns persistence; this applies an already accepted global configuration. */
+    fun setTuning(tuning: EqualizerTuning) {
+        if (_state.value.tuning == tuning) return
+        selectOutputCurve(_state.value.copy(tuning = tuning))
+    }
+
     fun setEnabled(enabled: Boolean) {
         saveCurve(_state.value.copy(enabled = enabled))
     }
@@ -137,7 +152,7 @@ class Equalizer(
         saveGains(gains.toMutableList().also { it[band] = GraphicEq.snap(gainDb) }, enable)
     }
 
-    fun applyPreset(preset: EqPreset, enable: Boolean = false) = saveGains(preset.gains, enable)
+    fun applyPreset(preset: EqPreset, enable: Boolean = false) = saveGains(preset.gainsFor(_state.value.tuning.layout), enable)
 
     /** Compatibility entry point; UI uses prepare/confirm so file parsing never runs on Main. */
     fun importProfile(fileName: String, text: String): HeadphoneProfile? {
@@ -194,9 +209,9 @@ class Equalizer(
             })
         } else {
             writing[ENABLED_KEY] = "true"
-            writing[GAINS_KEY] = state.gains.joinToString(",")
+            writing[GAINS_KEY] = state.manualCurve.gains.joinToString(",")
             writing[SELECTED_KEY] = id
-            selected.copy(manualCurve = ManualEqCurve(true, state.gains, id))
+            selected.copy(manualCurve = state.manualCurve.copy(enabled = true, profileId = id))
         }
         return try {
             // Native preference batching publishes the related values together without a
@@ -233,7 +248,9 @@ class Equalizer(
         val next = if (forOutput == null) prepareCurve(changed, values)
         else {
             // Profile, selection and binding belong to one accepted preference batch.
-            val binding = OutputEqProfile(forOutput, true, state.gains, profile.id)
+            val binding = (state.outputProfiles.firstOrNull { it.output.id == forOutput.id }
+                ?: OutputEqProfile(forOutput, true, state.manualCurve.gains, profile.id, state.manualCurve.extraGains))
+                .copy(enabled = true, profileId = profile.id).withGains(state.tuning.layout, state.gains)
             val outputs = state.outputProfiles.filterNot { it.output.id == forOutput.id } + binding
             values.putAll(outputValues(outputs))
             values["equalizer.outputs.enabled"] = "true"
@@ -301,7 +318,8 @@ class Equalizer(
         if (!mutations.canMutate) return
         val state = _state.value
         val output = state.output ?: return
-        val binding = OutputEqProfile(output, state.enabled, state.gains, state.profileId)
+        val binding = (state.outputProfile ?: OutputEqProfile(output, state.enabled, state.manualCurve.gains, state.profileId, state.manualCurve.extraGains))
+            .copy(enabled = state.enabled, profileId = state.profileId).withGains(state.tuning.layout, state.gains)
         val outputs = state.outputProfiles.filterNot { it.output.id == output.id } + binding
         saveState(outputValues(outputs), state.copy(outputProfiles = outputs))
     }
@@ -311,7 +329,7 @@ class Equalizer(
         val state = _state.value
         val outputs = state.outputProfiles.filterNot { it.output.id == id }
         val values = outputValues(outputs).toMutableMap().apply {
-            listOf("name", "enabled", "gains", "profile").forEach { put("equalizer.outputs.$id.$it", null) }
+            listOf("name", "enabled", "gains", "profile", "bands5", "bands15", "bands31").forEach { put("equalizer.outputs.$id.$it", null) }
         }
         saveState(values, outputCurve(state.copy(outputProfiles = outputs)))
     }
@@ -325,7 +343,7 @@ class Equalizer(
         val bound = state.outputProfile.takeIf { state.automaticOutputs }
         return state.copy(
             enabled = bound?.enabled ?: manual.enabled,
-            gains = bound?.gains ?: manual.gains,
+            gains = bound?.gainsFor(state.tuning.layout) ?: manual.gainsFor(state.tuning.layout),
             profileId = (bound?.profileId ?: if (bound == null) manual.profileId else null)
                 ?.takeIf { id -> state.profiles.any { it.id == id } },
             manualCurve = manual,
@@ -344,14 +362,16 @@ class Equalizer(
         if (state.usesOutputProfile) {
             val output = state.output!!
             val outputs = state.outputProfiles.map { if (it.output.id == output.id)
-                OutputEqProfile(output, state.enabled, state.gains, state.profileId) else it }
+                it.copy(enabled = state.enabled, profileId = state.profileId).withGains(state.tuning.layout, state.gains) else it }
             values.putAll(outputValues(outputs))
             state.copy(outputProfiles = outputs)
         } else {
             values[ENABLED_KEY] = state.enabled.toString()
-            values[GAINS_KEY] = state.gains.joinToString(",")
+            val manual = state.manualCurve.copy(enabled = state.enabled, profileId = state.profileId).withGains(state.tuning.layout, state.gains)
+            values[GAINS_KEY] = manual.gains.joinToString(",")
+            values.putAll(extraValues("equalizer", manual.extraGains))
             values[SELECTED_KEY] = state.profileId
-            state.copy(manualCurve = ManualEqCurve(state.enabled, state.gains, state.profileId))
+            state.copy(manualCurve = manual)
         }
 
     private fun outputValues(outputs: List<OutputEqProfile>): Map<String, String?> = buildMap {
@@ -361,6 +381,7 @@ class Equalizer(
             put("$key.name", binding.output.name)
             put("$key.enabled", binding.enabled.toString())
             put("$key.gains", binding.gains.joinToString(","))
+            putAll(extraValues(key, binding.extraGains))
             put("$key.profile", binding.profileId)
         }
     }
@@ -382,21 +403,22 @@ class Equalizer(
         }
         val enabled = store.getString(ENABLED_KEY)?.toBooleanStrictOrNull() ?: false
         val profileId = store.getString(SELECTED_KEY)?.takeIf { id -> profiles.any { it.id == id } }
-        return EqualizerState(
+        return outputCurve(EqualizerState(
+            tuning = EqualizerTuning.read(store),
             enabled = enabled,
             gains = gains,
             profiles = profiles,
             profileId = profileId,
-            manualCurve = ManualEqCurve(enabled, gains, profileId),
+            manualCurve = ManualEqCurve(enabled, gains, profileId, readExtra(store, "equalizer")),
             automaticOutputs = store.getString("equalizer.outputs.enabled") == "true",
             outputProfiles = store.getStringList("equalizer.outputs.index").distinct().mapNotNull { id ->
                 val key = "equalizer.outputs.$id"
                 val name = store.getString("$key.name")?.takeIf(String::isNotBlank) ?: return@mapNotNull null
                 val bands = decodeGains(store.getString("$key.gains")) ?: return@mapNotNull null
                 OutputEqProfile(EqOutput(id, name), store.getString("$key.enabled") == "true", bands,
-                    store.getString("$key.profile")?.takeIf { wanted -> profiles.any { it.id == wanted } })
+                    store.getString("$key.profile")?.takeIf { wanted -> profiles.any { it.id == wanted } }, readExtra(store, key))
             },
-        )
+        ))
     }
 
     private companion object {
@@ -409,10 +431,19 @@ class Equalizer(
         fun encode(filters: List<EqFilter>): String =
             filters.joinToString(";") { "${it.type.name}:${it.frequencyHz}:${it.gainDb}:${it.q}" }
 
-        fun decodeGains(text: String?): List<Double>? {
-            if (text == null || text.length > GraphicEq.frequencies.size * 64) return null
-            val values = text.split(',', limit = GraphicEq.frequencies.size + 1)
-            if (values.size != GraphicEq.frequencies.size) return null
+        fun extraValues(prefix: String, curves: Map<GraphicEqLayout, List<Double>>): Map<String, String?> =
+            GraphicEqLayout.entries.filter { it != GraphicEqLayout.Ten }.associate { layout ->
+                "$prefix.bands${layout.count}" to curves[layout]?.joinToString(",")
+            }
+        fun readExtra(store: KeyValueStore, prefix: String): Map<GraphicEqLayout, List<Double>> =
+            GraphicEqLayout.entries.filter { it != GraphicEqLayout.Ten }.mapNotNull { layout ->
+                decodeGains(store.getString("$prefix.bands${layout.count}"), layout)?.let { layout to it }
+            }.toMap()
+
+        fun decodeGains(text: String?, layout: GraphicEqLayout = GraphicEqLayout.Ten): List<Double>? {
+            if (text == null || text.length > layout.count * 64) return null
+            val values = text.split(',', limit = layout.count + 1)
+            if (values.size != layout.count) return null
             return values.map { value ->
                 // Do not discard one malformed band and shift the remaining frequencies.
                 val gain = value.toDoubleOrNull()?.takeIf(Double::isFinite) ?: return null

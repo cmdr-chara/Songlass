@@ -2,6 +2,19 @@ package dev.cmdrchara.songlass.ui
 
 import dev.cmdrchara.songlass.designsystem.BackPageTitle
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import dev.cmdrchara.songlass.core.settings.AppSettings
+import dev.cmdrchara.songlass.core.equalizer.EqualizerTuning
+import dev.cmdrchara.songlass.core.equalizer.GraphicEqLayout
+import dev.cmdrchara.songlass.core.equalizer.gainsFor
+import dev.cmdrchara.songlass.designsystem.FilterChips
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -87,15 +100,19 @@ import kotlin.math.roundToInt
 
 /** Graphic equalizer, presets and headphone corrections; values and persistence live in core. */
 @Composable
-fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null, returnToPlayer: Boolean = false) {
+fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: String, onBack: () -> Unit, onOpenAutoEq: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null, returnToPlayer: Boolean = false, supportsTuning: Boolean = true) {
     val state by equalizer.state.collectAsState()
+    val preferences by settings.state.collectAsState()
     val listState = rememberLazyListState()
     val outputProfilesOffset = if (state.outputProfiles.isNotEmpty()) 1 else 0
     val targetIndex = when (searchFocus?.target) {
         SettingsTarget.Equalizer -> 1
         SettingsTarget.OutputProfiles -> 3
-        SettingsTarget.EqualizerPresets -> 8 + outputProfilesOffset
-        SettingsTarget.HeadphoneCorrection -> 10 + outputProfilesOffset
+        SettingsTarget.EqualizerBass -> 7 + outputProfilesOffset
+        SettingsTarget.EqualizerTreble -> 8 + outputProfilesOffset
+        SettingsTarget.EqualizerBands -> 9 + outputProfilesOffset
+        SettingsTarget.EqualizerPresets -> 12 + outputProfilesOffset
+        SettingsTarget.HeadphoneCorrection -> 14 + outputProfilesOffset
         else -> null
     }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
@@ -138,12 +155,12 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         }
     } }
     val separator = stringResource(Res.string.eq_decimal_separator)
-    val bands = remember(state.gains) {
-        GraphicEq.frequencies.zip(state.gains) { f, g -> EqBand(f.toFloat(), frequencyLabel(f), g.toFloat()) }
+    val bands = remember(state.gains, state.tuning.layout, separator) {
+        state.tuning.layout.frequencies.zip(state.gains) { f, g -> EqBand(f.toFloat(), frequencyLabel(f, separator), g.toFloat()) }
     }
     // The curve the user shapes, without the automatic preamp (it would only shift everything down).
-    val curve = remember(state.gains, state.profile) {
-        EqChain(state.profile?.filters.orEmpty() + GraphicEq.filters(state.gains), 0.0).curve(CURVE_POINTS).map { it.toFloat() }
+    val curve = remember(state.gains, state.profile, state.tuning) {
+        EqChain(state.profile?.filters.orEmpty() + GraphicEq.filters(state.gains, state.tuning.layout) + state.tuning.toneFilters, 0.0).curve(CURVE_POINTS).map { it.toFloat() }
     }
 
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
@@ -178,7 +195,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
             if (state.usesOutputProfile) state.manualCurve.let { manual ->
                 ListRow(
                     title = stringResource(Res.string.audio_eq_manual_fallback),
-                    subtitle = equalizerCurveLabel(manual.enabled, manual.preset, state.profiles.firstOrNull { it.id == manual.profileId }?.name),
+                    subtitle = equalizerCurveLabel(manual.enabled, EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == manual.gainsFor(state.tuning.layout) }, state.profiles.firstOrNull { it.id == manual.profileId }?.name),
                     onClick = null,
                 )
             }
@@ -187,7 +204,7 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
             state.outputProfiles.forEach { binding ->
                 val active = state.usesOutputProfile && state.output?.id == binding.output.id
                 val status = stringResource(if (active) Res.string.audio_eq_saved_active else Res.string.audio_eq_saved_inactive)
-                val preset = EqPreset.entries.firstOrNull { it.gains == binding.gains }
+                val preset = EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == binding.gainsFor(state.tuning.layout) }
                 val description = equalizerCurveLabel(binding.enabled, preset, state.profiles.firstOrNull { it.id == binding.profileId }?.name)
                 ListRow(title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
                     subtitle = "$status · $description", trailing = {
@@ -197,20 +214,49 @@ fun EqualizerScreen(equalizer: Equalizer, backLabel: String, onBack: () -> Unit,
         } }
         item { FeatureHint(stringResource(Res.string.eq_outputs_hint)) }
         item {
-            EqualizerEditor(
-                bands = bands,
-                curve = curve,
-                maxGainDb = GraphicEq.MAX_GAIN_DB.toFloat(),
-                enabled = state.enabled,
-                formatGain = { formatGain(it, separator) },
-                onBandChange = { band, gain ->
-                    // Shaping the sound means wanting to hear it.
-                    saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
-                },
-                modifier = Modifier.padding(start = pageInset, end = pageInset, top = 20.dp),
-            )
+            key(state.tuning.layout) {
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(start = pageInset, end = pageInset, top = 20.dp)) {
+                    // Dense layouts keep readable labels and touch targets by scrolling horizontally.
+                    val width = if (bands.size > 10) maxOf(maxWidth, (bands.size * 48 + 50).dp) else maxWidth
+                    Box(Modifier.horizontalScroll(rememberScrollState())) {
+                        EqualizerEditor(bands, curve, GraphicEq.MAX_GAIN_DB.toFloat(), state.enabled,
+                            { formatGain(it, separator) }, { band, gain ->
+                                saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
+                            }, Modifier.width(width))
+                    }
+                }
+            }
         }
         item { Hint(stringResource(Res.string.audio_eq_headroom_hint)) }
+        item(key = "tone-bass") {
+            SettingsSearchAnchor(SettingsTarget.EqualizerBass, searchFocus) {
+                ToneControl(stringResource(Res.string.eq_tone_bass), preferences.equalizerTuning.bassDb, separator, supportsTuning) {
+                    saveChange { settings.setEqualizerBass(it) }
+                }
+            }
+        }
+        item(key = "tone-treble") {
+            SettingsSearchAnchor(SettingsTarget.EqualizerTreble, searchFocus) {
+                ToneControl(stringResource(Res.string.eq_tone_treble), preferences.equalizerTuning.trebleDb, separator, supportsTuning) {
+                    saveChange { settings.setEqualizerTreble(it) }
+                }
+            }
+        }
+        item(key = "band-count") {
+            SettingsSearchAnchor(SettingsTarget.EqualizerBands, searchFocus) {
+                LocalGlassLook.current.SettingsPageGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                        AppText(stringResource(Res.string.eq_band_count), AppTheme.typography.body, modifier = Modifier.padding(horizontal = 16.dp))
+                        if (supportsTuning) FilterChips(GraphicEqLayout.entries.map { it.count.toString() },
+                            GraphicEqLayout.entries.indexOf(preferences.equalizerTuning.layout), {
+                                saveChange { settings.setEqualizerLayout(GraphicEqLayout.entries[it]) }
+                            })
+                        else AppText(preferences.equalizerTuning.layout.count.toString(), AppTheme.typography.body, modifier = Modifier.padding(16.dp))
+                    }
+                }
+            }
+        }
+        item { Hint(stringResource(Res.string.eq_tuning_hint)) }
         item { SectionTitle(stringResource(Res.string.eq_presets)) }
         item {
             SettingsSearchAnchor(SettingsTarget.EqualizerPresets, searchFocus) {
@@ -328,11 +374,13 @@ internal val EqPreset.label: StringResource
     }
 
 /** 31 → "31", 1000 → "1k", 16000 → "16k". */
-private fun frequencyLabel(hz: Double): String =
-    if (hz >= 1000) "${(hz / 1000).roundToInt()}k" else hz.roundToInt().toString()
+private fun frequencyLabel(hz: Double, separator: String): String {
+    val value = if (hz >= 1000) hz / 1000 else hz
+    return value.toString().removeSuffix(".0").replace(".", separator) + if (hz >= 1000) "k" else ""
+}
 
 /** "+3.5 dB", "−2 dB", "0 dB", with the locale's decimal separator. */
-private fun formatGain(db: Float, separator: String): String {
+internal fun formatGain(db: Float, separator: String): String {
     val halves = (db * 2).roundToInt()
     val whole = abs(halves) / 2
     val number = if (halves % 2 == 0) "$whole" else "$whole${separator}5"
@@ -342,6 +390,28 @@ private fun formatGain(db: Float, separator: String): String {
         else -> ""
     }
     return "$sign$number dB"
+}
+
+@Composable
+private fun ToneControl(title: String, db: Double, separator: String, enabled: Boolean, change: (Double) -> Unit) {
+    val value = formatGain(db.toFloat(), separator)
+    val lessLabel = stringResource(Res.string.eq_tone_less)
+    val moreLabel = stringResource(Res.string.eq_tone_more)
+    LocalGlassLook.current.SettingsPageGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            AppText(title, AppTheme.typography.body)
+            AppText(value, AppTheme.typography.body, color = AppTheme.colors.accent)
+            if (enabled) {
+                LocalGlassLook.current.ValueSlider(((db + 12) / 24).toFloat(), { change(EqualizerTuning.gainFromSlider(it)) }, title,
+                    Modifier.fillMaxWidth().semantics { stateDescription = value })
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ActionButton(stringResource(Res.string.eq_tone_less_short), { change((db - .5).coerceAtLeast(-12.0)) }, Modifier.weight(1f).semantics { contentDescription = lessLabel })
+                    ActionButton(stringResource(Res.string.settings_effect_reset), { change(0.0) }, Modifier.weight(1.5f))
+                    ActionButton(stringResource(Res.string.eq_tone_more_short), { change((db + .5).coerceAtMost(12.0)) }, Modifier.weight(1f).semantics { contentDescription = moreLabel })
+                }
+            }
+        }
+    }
 }
 
 @Composable

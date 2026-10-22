@@ -53,6 +53,7 @@ data class AppPreferences(
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
     val replayGainSettings: dev.cmdrchara.songlass.core.player.ReplayGainSettings = dev.cmdrchara.songlass.core.player.ReplayGainSettings(),
+    val equalizerTuning: dev.cmdrchara.songlass.core.equalizer.EqualizerTuning = dev.cmdrchara.songlass.core.equalizer.EqualizerTuning(),
     val audioEffects: dev.cmdrchara.songlass.core.player.AudioEffectsSettings = dev.cmdrchara.songlass.core.player.AudioEffectsSettings(),
     /** Optional overlap at the natural end of a track; zero preserves gapless playback. */
     val crossfadeDurationMs: Long = 0,

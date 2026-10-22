@@ -275,7 +275,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
                             is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)
-                            Route.Equalizer -> EqualizerScreen(graph.equalizer, if (state.returnsToPlayerFrom(destination)) backLabel else stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding, state.settingsFocusFor(Route.Equalizer), returnToPlayer = state.returnsToPlayerFrom(destination))
+                            Route.Equalizer -> EqualizerScreen(graph.equalizer, graph.settings, if (state.returnsToPlayerFrom(destination)) backLabel else stringResource(Res.string.settings_title), state::goBack, { state.open(Route.AutoEqCatalog) }, padding, state.settingsFocusFor(Route.Equalizer), returnToPlayer = state.returnsToPlayerFrom(destination), supportsTuning = graph.player.supportsAudioEffects)
                             Route.AutoEqCatalog -> dev.cmdrchara.songlass.ui.AutoEqCatalogScreen(graph.autoEq, state, padding)
                             is Route.AutoEqDetail -> dev.cmdrchara.songlass.ui.AutoEqDetailScreen(route.entry, graph.autoEq, graph.equalizer,
                                 state::goBack, { state.goBack(); state.goBack() }, padding)
