@@ -347,16 +347,20 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
     val searchIndex = tabs.indexOfFirst { it.isSearch }
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val link = remember { LiquidLink() }
+    val sharedSurface = searchIndex >= 0 && unifiedNavigationSupported &&
+        LocalGlassSource.current != null && !AppTheme.accessibility.reduceTransparency
     Box(
         modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = 360.dp).fillMaxWidth(),
         contentAlignment = Alignment.CenterEnd,
     ) {
-        if (searchIndex >= 0) LiquidBridge(link)
+        if (sharedSurface) {
+            Box(Modifier.matchParentSize().unifiedNavigationGlass(link))
+        } else if (searchIndex >= 0) LiquidBridge(link)
         Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
-            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link)
+            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link, sharedSurface)
             if (searchIndex >= 0) {
                 val search = tabs[searchIndex]
-                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = barHeight, link = link) {
+                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = barHeight, link = link, sharedSurface = sharedSurface) {
                     onTabSelected(searchIndex)
                 }
             }
@@ -370,7 +374,7 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
  * tab it is dropped on. Taps still select directly.
  */
 @Composable
-private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null) {
+private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null, sharedSurface: Boolean = false) {
     val slots = remember(tabs) { tabs.indices.filterNot { tabs[it].isSearch } }
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val selectedSlot = slots.indexOf(selectedTab)
@@ -493,7 +497,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
             },
     ) {
         // Separate siblings: the bar never clips or filters the lens that lifts above it.
-        Box(Modifier.matchParentSize().navigationBarGlass(Capsule))
+        if (!sharedSurface) Box(Modifier.matchParentSize().navigationBarGlass(Capsule))
         Box(Modifier.fillMaxSize().padding(inset).onSizeChanged {
             slotWidth = it.width / slots.size.coerceAtLeast(1).toFloat()
         }) {
@@ -658,7 +662,7 @@ private fun tabTint(selected: Boolean): Color {
 }
 
 @Composable
-private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, link: LiquidLink? = null, onClick: () -> Unit) {
+private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, link: LiquidLink? = null, sharedSurface: Boolean = false, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val selectionAlphaState = animateFloatAsState(
         if (selected) 1f else 0f,
@@ -672,7 +676,7 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
         modifier = Modifier
             .size(size)
             .liquidPress(grow = 0.05f, reach = 3.dp, link = link, side = LinkSide.End)
-            .navigationBarGlass(Capsule, interaction)
+            .then(if (sharedSurface) Modifier else Modifier.navigationBarGlass(Capsule, interaction))
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .semantics {
                 role = Role.Tab
