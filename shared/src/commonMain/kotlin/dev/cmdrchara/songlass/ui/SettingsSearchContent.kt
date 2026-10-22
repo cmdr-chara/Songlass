@@ -43,6 +43,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.Crossfade -> Res.string.settings_search_crossfade_automatic
     SettingsTarget.CrossfadeDuration -> Res.string.settings_search_crossfade_duration
     SettingsTarget.ManualCrossfadeDuration -> Res.string.settings_search_manual_crossfade_duration
+    SettingsTarget.PauseFadeDuration -> Res.string.settings_pause_fade
+    SettingsTarget.StopFadeDuration -> Res.string.settings_stop_fade
+    SettingsTarget.SeekFadeDuration -> Res.string.settings_seek_fade
     SettingsTarget.ResumePerTrack -> Res.string.settings_long_resume
     SettingsTarget.LongTrackThreshold -> Res.string.settings_long_threshold
     SettingsTarget.AmllLyrics -> Res.string.settings_amll
@@ -84,6 +87,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> playback
             SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
             SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> queue
+            SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> "$sound › ${stringResource(Res.string.settings_transport_fades)}"
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$sound › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
@@ -124,6 +128,14 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             else stringResource(Res.string.settings_search_duration_value, preferences.crossfadeDurationMs)
         SettingsTarget.ManualCrossfadeDuration -> if (preferences.manualCrossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)
             else stringResource(Res.string.settings_search_duration_value, preferences.manualCrossfadeDurationMs)
+        SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> {
+            val value = when (target) {
+                SettingsTarget.PauseFadeDuration -> preferences.transportFades.pauseMs
+                SettingsTarget.StopFadeDuration -> preferences.transportFades.stopMs
+                else -> preferences.transportFades.seekMs
+            }
+            stringResource(if (value == 0L) Res.string.settings_crossfade_off_ms else Res.string.settings_search_duration_value, value)
+        }
         SettingsTarget.AmllLyrics -> enabled(preferences.amllEnabled)
         SettingsTarget.LrclibLyrics -> enabled(preferences.lrclibEnabled)
         SettingsTarget.ReduceMotion -> if (system.reduceMotion) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceMotion)

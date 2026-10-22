@@ -241,6 +241,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 supportsAmllLyrics = graph.supportsAmllLyrics,
                                 supportsOnlineLyrics = graph.supportsOnlineLyrics,
                                 supportsCrossfade = graph.player.supportsCrossfade,
+                                supportsTransportFades = graph.player.supportsTransportFades,
                                 supportsAppIconChoice = graph.supportsAppIconChoice,
                                 systemAccessibility = systemAccessibility,
                                 equalizer = graph.equalizer,

@@ -40,10 +40,13 @@ class PlayerVoice(
     /** Overlap gain, 0..1; 1 outside an overlap. */
     var envelope = 1f
 
+    /** User transport envelope, multiplied independently of ReplayGain and track overlap. */
+    var transportGain = 1f
+
     var ownsFocus = focusOwner
         private set
 
-    val volume: Float get() = (baseVolume * envelope).coerceIn(0f, 1f)
+    val volume: Float get() = (baseVolume * envelope * transportGain).coerceIn(0f, 1f)
 
     fun applyVolume() {
         player.volume = volume
@@ -73,6 +76,7 @@ class PlayerVoice(
         track = null
         replayGain = null
         envelope = 1f
+        transportGain = 1f
         player.pause()
         player.stop()
         player.clearMediaItems()

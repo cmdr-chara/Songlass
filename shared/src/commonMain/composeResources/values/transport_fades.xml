@@ -1,0 +1,9 @@
+<resources>
+    <string name="settings_transport_fades">Pause, stop and seek fades</string>
+    <string name="settings_pause_fade">Pause and resume</string>
+    <string name="settings_stop_fade">Stop</string>
+    <string name="settings_seek_fade">Seek within a song</string>
+    <string name="settings_transport_fades_hint">Independent of track crossfade. Pause fades out and resume fades back in. Stop fades out before unloading. Seek splits the duration before and after the move, excluding buffering. Calls and disconnected headphones interrupt immediately.</string>
+    <string name="settings_transport_fades_invalid">Enter a whole number from 0 to %1$d ms.</string>
+    <string name="settings_transport_fades_range">0 turns the fade off. Any whole number up to %1$d ms is accepted.</string>
+</resources>

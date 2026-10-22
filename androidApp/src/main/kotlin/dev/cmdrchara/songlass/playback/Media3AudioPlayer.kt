@@ -23,6 +23,10 @@ import dev.cmdrchara.songlass.core.model.isSameFileAs
 import dev.cmdrchara.songlass.core.player.AudioFormatInfo
 import dev.cmdrchara.songlass.core.player.AudioPlayer
 import dev.cmdrchara.songlass.core.player.AudioOutputRoute
+import dev.cmdrchara.songlass.core.player.TransportAction
+import dev.cmdrchara.songlass.core.player.TransportFader
+import dev.cmdrchara.songlass.core.player.TransportFadeSettings
+import dev.cmdrchara.songlass.core.player.TransportFadeStep
 import dev.cmdrchara.songlass.core.player.OutputDisconnect
 import dev.cmdrchara.songlass.core.player.ReplayGainApplication
 import dev.cmdrchara.songlass.core.player.Crossfade
@@ -129,6 +133,12 @@ class Media3AudioPlayer(
     private var nextTrack: Track? = null
     private var nextEntryId: Long? = null
     private var nextPlacement = NextPlacement.None
+    private var transportSettings = TransportFadeSettings()
+    private val transport = TransportFader()
+    override val supportsTransportFades: Boolean get() = true
+    val hasPendingTransportIntent: Boolean get() = transport.pendingAction == TransportAction.Pause || transport.pendingAction == TransportAction.Stop
+    val transportFadeGain: Float get() = transport.gain
+    val isTransportFading: Boolean get() = transport.isRunning
     private var crossfadeMs = 0L
     private var manualCrossfadeMs = 0L
     /** Non-zero only for the synchronous load/transition being prepared. */
@@ -221,6 +231,11 @@ class Media3AudioPlayer(
                         partner.player.playWhenReady = playWhenReady
                     }
                 }
+                if (!playWhenReady && (voice === active || voice === fading) &&
+                    (reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_FOCUS_LOSS ||
+                        reason == Player.PLAY_WHEN_READY_CHANGE_REASON_AUDIO_BECOMING_NOISY)) {
+                    interruptTransport()
+                }
                 if (manualPreparing != null) scheduleManualStart()
             }
 
@@ -240,6 +255,8 @@ class Media3AudioPlayer(
             }
 
             override fun onPlaybackSuppressionReasonChanged(playbackSuppressionReason: Int) {
+                if ((voice === active || voice === fading) &&
+                    playbackSuppressionReason != Player.PLAYBACK_SUPPRESSION_REASON_NONE) interruptTransport()
                 // Transient focus loss can keep playWhenReady=true while suppressing the decoder.
                 // The incoming voice does not own focus during an overlap, so it must be paused
                 // too. A retired voice or an obsolete callback cannot cancel a newer transition.
@@ -261,6 +278,7 @@ class Media3AudioPlayer(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                if (voice === active) cancelTransport()
                 // The active player's error reaches the app through the state; a fading player is
                 // dropped by the fade itself. Only a prepared next track needs handling here.
                 if (voice === active && fading != null) {
@@ -290,6 +308,7 @@ class Media3AudioPlayer(
     }
 
     override fun load(track: Track, playWhenReady: Boolean) {
+        cancelTransport()
         eventGeneration++
         latestAdvance = null
         interrupt(CrossfadeInterruption.Load)
@@ -318,6 +337,8 @@ class Media3AudioPlayer(
     }
 
     override fun transitionTo(track: Track, playWhenReady: Boolean) {
+        // A newly selected track replaces any pending pause/stop/seek before it can fire.
+        cancelTransport()
         val outgoing = active
         val decision = Crossfade.decide(
             CrossfadeKind.Manual, manualCrossfadeMs, durationOf(outgoing), track.durationMs,
@@ -412,6 +433,7 @@ class Media3AudioPlayer(
     suspend fun withFileWriteUri(uri: String, write: suspend () -> Unit) = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
         check(editingUri == null) { "A file write is already active" }
         val affected = loadedTrack?.uri == uri
+        if (affected) interruptTransport()
         resumeAfterEdit = affected && (active.player.playWhenReady ||
             (manualPreparing != null && fading?.player?.playWhenReady == true && !isManualPreparationSuppressed()))
         positionAfterEdit = if (affected) active.player.currentPosition.coerceAtLeast(0) else 0
@@ -504,6 +526,11 @@ class Media3AudioPlayer(
         secondary?.applyInterruptionPolicy(handleAudioFocus, pauseOnDisconnect)
     }
 
+    override fun setTransportFades(settings: TransportFadeSettings) {
+        // A running envelope keeps its captured duration. New settings affect the next command.
+        transportSettings = settings
+    }
+
     override fun setCrossfade(durationMs: Long) {
         val value = Crossfade.normalize(durationMs).takeIf { it >= Crossfade.MIN_EFFECTIVE_MS } ?: 0L
         if (value == crossfadeMs) return
@@ -531,18 +558,22 @@ class Media3AudioPlayer(
             scheduleManualStart()
             return
         }
+        applyTransportStep(transport.resume(transportSettings.pauseMs, monotonicTimeMs, fromSilence = !active.player.isPlaying))
         active.player.play()
         fading?.player?.play()
+        reconcileNext()
+        publishState()
     }
 
     override fun pause() {
         if (loadedTrack?.uri == editingUri && editingUri != null) { resumeAfterEdit = false; publishState(); return }
+        beginTransport(TransportAction.Pause, transportSettings.pauseMs)
+    }
+
+    private fun pauseImmediately() {
         active.player.pause()
         fading?.player?.pause()
-        if (manualPreparing != null) {
-            finishFade(CrossfadeSkipReason.Interrupted)
-            publishState()
-        }
+        if (manualPreparing != null) finishFade(CrossfadeSkipReason.Interrupted)
     }
 
     override fun seekTo(positionMs: Long) {
@@ -552,14 +583,16 @@ class Media3AudioPlayer(
         if (loadedTrack?.uri == editingUri && editingUri != null) { positionAfterEdit = positionMs.coerceAtLeast(0); publishState(); return }
         // Seeking during an overlap means the user takes over the incoming track.
         interrupt(CrossfadeInterruption.Seek)
-        active.player.seekTo(positionMs.coerceAtLeast(0))
-        scheduleTrigger()
-        publishState()
+        beginTransport(TransportAction.Seek(positionMs.coerceAtLeast(0)), transportSettings.seekMs)
     }
 
     override fun stop() {
         eventGeneration++
         latestAdvance = null
+        beginTransport(TransportAction.Stop, transportSettings.stopMs)
+    }
+
+    private fun stopImmediately() {
         interrupt(CrossfadeInterruption.Stop)
         active.track = null
         active.player.pause()
@@ -568,6 +601,68 @@ class Media3AudioPlayer(
         nextPlacement = NextPlacement.None
         clearSpare()
         returnToPrimaryIfDisabled()
+        publishState()
+    }
+
+    private fun beginTransport(action: TransportAction, durationMs: Long) {
+        val step = transport.begin(action, durationMs,
+            active.player.isPlaying && manualPreparing == null, monotonicTimeMs)
+        // Do not run an automatic join while a user transport command is waiting to execute.
+        if (transport.blocksAdvance) {
+            handler.removeCallbacks(trigger)
+            removeNextFromActive()
+        }
+        applyTransportStep(step)
+        publishState()
+    }
+
+    private val transportTick = object : Runnable {
+        override fun run() {
+            val step = if (transport.awaitingSeek && active.player.isPlaying)
+                transport.seekReady(monotonicTimeMs) else transport.tick(monotonicTimeMs)
+            applyTransportStep(step)
+        }
+    }
+
+    private fun applyTransportGain() {
+        primary.transportGain = transport.gain
+        primary.applyVolume()
+        secondary?.let { it.transportGain = transport.gain; it.applyVolume() }
+    }
+
+    private fun applyTransportStep(step: TransportFadeStep) {
+        handler.removeCallbacks(transportTick)
+        val revision = transport.revision
+        applyTransportGain()
+        if (revision != transport.revision) return
+        when (val action = step.action) {
+            TransportAction.Pause -> pauseImmediately()
+            TransportAction.Stop -> stopImmediately()
+            is TransportAction.Seek -> active.player.seekTo(action.positionMs)
+            null -> Unit
+        }
+        // Native calls can synchronously deliver focus/error callbacks or newer commands.
+        if (revision != transport.revision) return
+        if (transport.isRunning) handler.postDelayed(transportTick, Crossfade.TICK_MS)
+        if (step.action != null || !transport.blocksAdvance) {
+            reconcileNext()
+            publishState()
+        }
+    }
+
+    private fun cancelTransport() {
+        handler.removeCallbacks(transportTick)
+        transport.cancel()
+        applyTransportGain()
+    }
+
+    private fun interruptTransport() {
+        val pending = transport.pendingAction
+        // Stop must still unload after losing focus; no fade is allowed to resume after a call.
+        cancelTransport()
+        if (pending == TransportAction.Stop) stopImmediately()
+        else if (pending == TransportAction.Pause) pauseImmediately()
+        reconcileNext()
         publishState()
     }
 
@@ -586,6 +681,7 @@ class Media3AudioPlayer(
     }
 
     override fun release() {
+        cancelTransport()
         eventGeneration++
         latestAdvance = null
         handler.removeCallbacksAndMessages(null)
@@ -750,6 +846,10 @@ class Media3AudioPlayer(
 
     /** Decides where the next track waits: nowhere, in the active player, or prepared on the other one. */
     private fun reconcileNext(force: Boolean = false) {
+        if (transport.blocksAdvance) {
+            removeNextFromActive()
+            return
+        }
         if (fading != null) {
             // The other player is still busy fading out; this runs again when the overlap ends.
             nextPlacement = NextPlacement.None
@@ -806,6 +906,7 @@ class Media3AudioPlayer(
         // The equalizer must be right before the first buffer, not after a moment of flat sound.
         voice.equalizer?.setChain(chain)
         voice.envelope = 0f
+        voice.transportGain = transport.gain
         voice.applyVolume()
         attach(voice)
         secondary = voice
@@ -865,6 +966,7 @@ class Media3AudioPlayer(
 
     private fun scheduleTrigger() {
         handler.removeCallbacks(trigger)
+        if (transport.blocksAdvance) return
         if (manualPreparing != null) return scheduleManualStart()
         val next = nextTrack ?: return
         if (nextPlacement != NextPlacement.Standby || fading != null) return
@@ -875,6 +977,7 @@ class Media3AudioPlayer(
     }
 
     private fun onTrigger() {
+        if (transport.blocksAdvance) return
         val next = nextTrack ?: return
         if (nextPlacement != NextPlacement.Standby || fading != null) return
         val outgoing = active
@@ -928,6 +1031,7 @@ class Media3AudioPlayer(
         automaticHandoverInProgress = true
         val advance = try {
             // The standby decoder already knows this file's own loudness tags.
+            incoming.transportGain = transport.gain
             incoming.baseVolume = outputVolume * ReplayGain.volumeFor(incoming.replayGain, replayGainMode)
             incoming.envelope = if (overlap != null) 0f else 1f
             incoming.applyVolume()
@@ -1063,6 +1167,10 @@ class Media3AudioPlayer(
     }
 
     private fun onActiveEnded() {
+        if (transport.pendingAction != null) {
+            applyTransportStep(transport.finishNow())
+            return
+        }
         val endedGeneration = eventGeneration
         // The track ran out before an overlap could start (a seek to the end, a duration that was
         // too long): hand over to the prepared track right away instead of loading it from scratch.
@@ -1092,10 +1200,13 @@ class Media3AudioPlayer(
         if (automaticHandoverInProgress || cancellingSuppressedTransition) return
         val player = active.player
         val editing = editingUri != null && loadedTrack?.uri == editingUri
+        val stopping = transport.pendingAction == TransportAction.Stop
+        val pausing = transport.pendingAction == TransportAction.Pause
         val error: PlaybackException? = player.playerError
         val infoReady = currentTrackIsReady()
         _state.value = PlayerState(
             status = when {
+                stopping -> PlayerStatus.Idle
                 editing -> PlayerStatus.Buffering
                 error != null -> PlayerStatus.Error
                 manualPreparing != null -> PlayerStatus.Buffering
@@ -1104,8 +1215,13 @@ class Media3AudioPlayer(
                 player.playbackState == Player.STATE_ENDED -> PlayerStatus.Ended
                 else -> PlayerStatus.Idle
             },
-            playWhenReady = if (editing) resumeAfterEdit else manualPreparing != null || player.playWhenReady,
-            positionMs = if (editing) positionAfterEdit else player.currentPosition.coerceAtLeast(0),
+            playWhenReady = when {
+                stopping || pausing -> false
+                editing -> resumeAfterEdit
+                else -> manualPreparing != null || player.playWhenReady
+            },
+            positionMs = if (editing) positionAfterEdit else
+                (transport.pendingAction as? TransportAction.Seek)?.positionMs ?: player.currentPosition.coerceAtLeast(0),
             durationMs = if (editing) loadedTrack?.durationMs?.coerceAtLeast(0) ?: 0 else player.duration.takeIf { it > 0 } ?: 0,
             errorMessage = if (editing) null else error?.message,
             audioFormat = currentSourceFormat(),

@@ -141,6 +141,10 @@ interface AudioPlayer {
     /** Independent overlap for [transitionTo], off by default. Never changes automatic joins. */
     fun setManualCrossfade(durationMs: Long) {}
 
+    /** Independent user transport fades. System focus/noisy pauses remain immediate. */
+    fun setTransportFades(settings: TransportFadeSettings) {}
+    val supportsTransportFades: Boolean get() = false
+
     val supportsCrossfade: Boolean get() = false
 
     /** True when the platform applies loudness tags separately to each overlapping decoder. */

@@ -50,6 +50,11 @@ class AppSettings(
         resumeOnReconnect = store.getString(RESUME_KEY)?.toBooleanStrictOrNull() ?: false,
         crossfadeDurationMs = store.getString(CROSSFADE_KEY)?.toLongOrNull()?.takeIf { it in 0L..12_000L } ?: 0L,
         manualCrossfadeDurationMs = store.getString(MANUAL_CROSSFADE_KEY)?.let(::parseCrossfadeDurationMs) ?: 0L,
+        transportFades = dev.cmdrchara.songlass.core.player.TransportFadeSettings(
+            store.getString(PAUSE_FADE_KEY)?.let(::parseTransportFadeDurationMs) ?: 0L,
+            store.getString(STOP_FADE_KEY)?.let(::parseTransportFadeDurationMs) ?: 0L,
+            store.getString(SEEK_FADE_KEY)?.let(::parseTransportFadeDurationMs) ?: 0L,
+        ),
         amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
         lrclibEnabled = store.getString(LRCLIB_KEY)?.toBooleanStrictOrNull() ?: true,
         playCountRule = PlayCountRule.fromStorage(store.getString(PLAY_COUNT_RULE_KEY)),
@@ -97,6 +102,18 @@ class AppSettings(
         require(parseCrossfadeDurationMs(durationMs.toString()) != null)
         store.putString(MANUAL_CROSSFADE_KEY, durationMs.toString())
         _state.update { it.copy(manualCrossfadeDurationMs = durationMs) }
+    }
+
+    fun setPauseFadeDuration(durationMs: Long) = setTransportFade(PAUSE_FADE_KEY, durationMs) { copy(pauseMs = durationMs) }
+    fun setStopFadeDuration(durationMs: Long) = setTransportFade(STOP_FADE_KEY, durationMs) { copy(stopMs = durationMs) }
+    fun setSeekFadeDuration(durationMs: Long) = setTransportFade(SEEK_FADE_KEY, durationMs) { copy(seekMs = durationMs) }
+
+    private fun setTransportFade(key: String, durationMs: Long,
+        update: dev.cmdrchara.songlass.core.player.TransportFadeSettings.() -> dev.cmdrchara.songlass.core.player.TransportFadeSettings) {
+        if (!mutations.canMutate) return
+        require(parseTransportFadeDurationMs(durationMs.toString()) != null)
+        store.putString(key, durationMs.toString())
+        _state.update { it.copy(transportFades = it.transportFades.update()) }
     }
 
     fun setAppearance(appearance: AppearanceMode) {
@@ -297,7 +314,7 @@ class AppSettings(
         if (!mutations.canMutate) return
         val keys = when (area) {
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
-            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY)
+            SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY)
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY)
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -311,7 +328,7 @@ class AppSettings(
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
                 SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
-                    handleAudioFocus = defaults.handleAudioFocus)
+                    handleAudioFocus = defaults.handleAudioFocus, transportFades = defaults.transportFades)
                 SettingsArea.Player -> current.copy(resumeOnReconnect = defaults.resumeOnReconnect,
                     pauseOnDisconnect = defaults.pauseOnDisconnect, headsetMultiPress = defaults.headsetMultiPress,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs,
@@ -350,6 +367,9 @@ class AppSettings(
         const val FOLDER_SORT_KEY = "library.folder_sort"
         const val RESUME_KEY = "settings.resume_on_reconnect"
         const val CROSSFADE_KEY = "settings.crossfade_duration_ms"
+        const val PAUSE_FADE_KEY = "settings.pause_fade_duration_ms"
+        const val STOP_FADE_KEY = "settings.stop_fade_duration_ms"
+        const val SEEK_FADE_KEY = "settings.seek_fade_duration_ms"
         const val MANUAL_CROSSFADE_KEY = "settings.manual_crossfade_duration_ms"
         const val AMLL_KEY = "settings.amll_enabled"
         const val LRCLIB_KEY = "settings.lrclib_enabled"

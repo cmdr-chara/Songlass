@@ -56,6 +56,8 @@ data class AppPreferences(
     val crossfadeDurationMs: Long = 0,
     /** Independent overlap for explicit track changes. Off preserves the existing immediate change. */
     val manualCrossfadeDurationMs: Long = 0,
+    /** Independent pause/resume, stop and seek envelopes; zero keeps immediate transport. */
+    val transportFades: dev.cmdrchara.songlass.core.player.TransportFadeSettings = dev.cmdrchara.songlass.core.player.TransportFadeSettings(),
     /** Per-track progress is distinct from Android session resumption; opt in explicitly. */
     val resumePerTrack: Boolean = false,
     /** Long tracks offer ±10 s and (when enabled) independent resume points. */

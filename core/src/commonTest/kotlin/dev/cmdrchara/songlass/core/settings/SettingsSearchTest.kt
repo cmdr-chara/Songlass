@@ -93,7 +93,7 @@ class SettingsSearchTest {
         assertEquals(listOf(SettingsTarget.Appearance), index.search("modalita scura", true))
         assertEquals(index.search("accessibilita", true), index.search("accessibilita\u0300", true))
         assertTrue(index.search("accessibilita", true).containsAll(listOf(SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency)))
-        assertEquals(listOf(SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration), index.search("\tMS,\n", true))
+        assertEquals(listOf(SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration, SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration), index.search("\tMS,\n", true))
     }
 
     @Test
@@ -138,7 +138,7 @@ class SettingsSearchTest {
         }
         assertEquals(SettingsTarget.Crossfade, index.search("automatic crossfade", true).first())
         assertEquals(listOf(SettingsTarget.CrossfadeDuration), index.search("automatico ms", true))
-        assertEquals(listOf(SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration), index.search("milliseconds", true))
+        assertEquals(listOf(SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration, SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration), index.search("milliseconds", true))
     }
 
     @Test

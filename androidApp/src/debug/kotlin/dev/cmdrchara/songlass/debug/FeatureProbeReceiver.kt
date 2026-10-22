@@ -50,6 +50,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 withTimeout(35_000) {
                     when (val probe = intent.getStringExtra("case")) {
                         "audio" -> audio(context, scope)
+                        "audio-transport" -> audio(context, scope, transportOnly = true)
                         "audio-manual" -> audio(context, scope, manualOnly = true)
                         "audio-manual-resume" -> audio(context, scope, manualResumeOnly = true)
                         "audio-manual-focus" -> audio(context, scope, manualFocusOnly = true)
@@ -102,7 +103,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -152,6 +153,10 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (transportOnly) {
+                transportAudio(context, graph, audio, session, voices, tracks)
+                return
+            }
             if (overlapFocusKind != null) {
                 overlapFocusAudio(context, graph, audio, session, voices, tracks, overlapFocusKind)
                 return
@@ -222,6 +227,110 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     /** Transient focus suppression after both real decoders started, not while preparing. */
+    private suspend fun transportAudio(
+        context: Context,
+        graph: AppGraph,
+        audio: Media3AudioPlayer,
+        session: QueueForwardingPlayer,
+        voices: List<PlayerVoice>,
+        tracks: List<Track>,
+    ) {
+        // A low-level generated tone; the user's player, preferences and music stay untouched.
+        audio.setVolume(.05f)
+        graph.settings.apply { setPauseFadeDuration(400); setStopFadeDuration(650); setSeekFadeDuration(500) }
+        delay(50)
+        graph.controller.playTracks(tracks)
+        await { audio.exoPlayer.isPlaying }
+        session.pause()
+        check(!audio.state.value.playWhenReady && !session.playWhenReady) { "Pause intent was delayed" }
+        await { audio.transportFadeGain in .01f.. .95f }
+        check(audio.exoPlayer.playWhenReady) { "Decoder paused before fading" }
+        check(audio.exoPlayer.volume < .05f)
+        await { !audio.isTransportFading && !audio.exoPlayer.playWhenReady }
+        check(audio.transportFadeGain == 0f)
+        check(graph.controller.queue.value.currentIndex == 0)
+        session.play()
+        await { audio.transportFadeGain in .01f.. .95f && audio.exoPlayer.isPlaying }
+        await { !audio.isTransportFading }
+        check(audio.transportFadeGain == 1f)
+        Log.i("SonglassFeatures", "transport pauseRamp=true immediateSessionIntent=true resumeRamp=true")
+
+        session.pause()
+        await { audio.transportFadeGain in .1f.. .9f }
+        session.play()
+        delay(650)
+        check(audio.exoPlayer.isPlaying && audio.state.value.playWhenReady) { "Obsolete pause fired after Play" }
+        session.seekTo(2_500)
+        check(audio.state.value.positionMs == 2_500L) { "Seek intent was not published" }
+        await { audio.transportFadeGain < .9f }
+        await { !audio.isTransportFading && audio.exoPlayer.currentPosition >= 2_500 }
+        check(graph.controller.queue.value.currentIndex == 0)
+        session.seekTo(1_000)
+        delay(60)
+        session.seekTo(2_000)
+        await { !audio.isTransportFading }
+        check(audio.exoPlayer.currentPosition in 2_000..3_000) { "Obsolete seek replaced the last target" }
+        Log.i("SonglassFeatures", "transport pauseReversed=true seekRamp=true lastSeekWins=true queueStable=true")
+
+        session.stop()
+        check(!audio.state.value.playWhenReady && audio.state.value.status == PlayerStatus.Idle)
+        check(!session.playWhenReady && session.playbackState == Player.STATE_IDLE)
+        await { audio.transportFadeGain in .01f.. .95f }
+        check(audio.exoPlayer.playWhenReady) { "Decoder stopped before fading" }
+        await { !audio.isTransportFading && audio.exoPlayer.mediaItemCount == 0 }
+        check(graph.controller.queue.value.currentIndex == 0)
+        session.play()
+        await { audio.exoPlayer.isPlaying }
+        session.stop()
+        delay(80)
+        session.play()
+        await { audio.exoPlayer.isPlaying }
+        delay(750)
+        check(audio.exoPlayer.isPlaying) { "Obsolete Stop unloaded the new load" }
+        Log.i("SonglassFeatures", "transport stopRamp=true stopUnloads=true stopKeepsQueue=true staleStopCancelled=true")
+
+        // Transient native focus suppression must cancel an in-flight user pause immediately.
+        val manager = context.getSystemService(AudioManager::class.java)
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build())
+            .setOnAudioFocusChangeListener { }.build()
+        session.pause()
+        await { audio.transportFadeGain in .1f.. .9f }
+        try {
+            check(manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED)
+            await { !audio.isTransportFading && !audio.exoPlayer.isPlaying }
+            check(!audio.exoPlayer.playWhenReady) { "Pending pause retained resume intent after focus loss" }
+        } finally { manager.abandonAudioFocusRequest(request) }
+        delay(500)
+        check(!audio.exoPlayer.playWhenReady && !audio.state.value.playWhenReady)
+        Log.i("SonglassFeatures", "transport nativeFocusCancelsPause=true noResumeAfterCancelledPause=true")
+
+        // A transport gain applies to both voices, independently of the overlap envelopes.
+        graph.settings.setManualCrossfadeDuration(1_250)
+        delay(50)
+        graph.controller.playTracks(tracks)
+        await { audio.exoPlayer.isPlaying }
+        graph.controller.skipToNext()
+        await { audio.diagnostics().stage == CrossfadeStage.Fading && voices.count { it.player.isPlaying } == 2 }
+        session.pause()
+        await { audio.transportFadeGain in .1f.. .9f }
+        check(voices.filter { it.track != null }.all { it.transportGain == audio.transportFadeGain })
+        await { !audio.isTransportFading && voices.none { it.player.playWhenReady } }
+        graph.settings.apply { setPauseFadeDuration(0); setStopFadeDuration(0); setSeekFadeDuration(0) }
+        delay(50)
+        session.play()
+        check(!audio.isTransportFading)
+        session.pause()
+        check(!audio.exoPlayer.playWhenReady && !audio.isTransportFading)
+        session.seekTo(123)
+        check(!audio.exoPlayer.playWhenReady && !audio.isTransportFading)
+        session.stop()
+        check(audio.exoPlayer.mediaItemCount == 0 && !audio.isTransportFading)
+        Log.i("SonglassFeatures", "transport bothOverlapVoices=true zeroImmediate=true pausedSeekStaysPaused=true")
+    }
+
     private suspend fun overlapFocusAudio(
         context: Context,
         graph: AppGraph,

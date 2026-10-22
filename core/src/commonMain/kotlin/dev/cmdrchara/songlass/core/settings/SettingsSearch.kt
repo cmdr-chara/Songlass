@@ -7,7 +7,7 @@ enum class SettingsTarget {
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
-    AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics,
+    AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -31,7 +31,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
@@ -39,6 +39,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
             if (entry.target == SettingsTarget.AmllLyrics && !supportsAmllLyrics) return@mapIndexedNotNull null
             if (entry.target == SettingsTarget.LrclibLyrics && !supportsOnlineLyrics) return@mapIndexedNotNull null
             if (!supportsCrossfade && entry.target in crossfadeTargets) return@mapIndexedNotNull null
+            if (!supportsTransportFades && entry.target in transportFadeTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
         }.sortedWith(compareBy<Match> { it.priority }.thenBy { it.cost }.thenBy { it.order })
             .map { it.target }
@@ -47,6 +48,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     private data class Match(val target: SettingsTarget, val priority: Int, val cost: Int, val order: Int)
 
     private companion object {
+        val transportFadeTargets = setOf(SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration)
         val crossfadeTargets = setOf(SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration)
     }
 }
@@ -161,6 +163,12 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "ms|milliseconds|millisecondi|millisecond|custom|personalizzata|exact|precisa|duration|durata|automatic|automatico")
     SettingsTarget.ManualCrossfadeDuration -> terms("Manual crossfade duration", "Durata crossfade manuale", "Manual track changes", "Cambio manuale",
         aliases = "ms|milliseconds|millisecondi|millisecond|skip|next|previous|avanti|indietro|transition|transizione|overlap|sovrapposizione|fade|dissolvenza|custom|personalizzata")
+    SettingsTarget.PauseFadeDuration -> terms("Pause fade", "Dissolvenza pausa", "Pause and resume fade", "Dissolvenza pausa e ripresa",
+        aliases = "pause|pausa|resume|ripresa|fade|dissolvenza|milliseconds|millisecondi|ms|duration|durata")
+    SettingsTarget.StopFadeDuration -> terms("Stop fade", "Dissolvenza stop", "Fade before stopping", "Dissolvenza arresto",
+        aliases = "stop|arresto|ferma|fade|dissolvenza|milliseconds|millisecondi|ms|duration|durata")
+    SettingsTarget.SeekFadeDuration -> terms("Seek fade", "Dissolvenza seek", "Dissolvenza spostamento",
+        aliases = "seek|scrub|posizione|spostamento|cursore|fade|dissolvenza|milliseconds|millisecondi|ms|duration|durata")
     SettingsTarget.ResumePerTrack -> terms("Resume each track", "Riprendi ogni brano", "Per-track resume",
         aliases = "resume|ripresa|riprendi|progress|progresso|posizione|podcast|audiolibri|audiobooks|long tracks|brani lunghi")
     SettingsTarget.LongTrackThreshold -> terms("Long track threshold", "Soglia brani lunghi", "Track duration",

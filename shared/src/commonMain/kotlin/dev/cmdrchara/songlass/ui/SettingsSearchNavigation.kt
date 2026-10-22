@@ -19,7 +19,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import dev.cmdrchara.songlass.core.player.CrossfadeKind
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
@@ -61,7 +60,7 @@ class SettingsSearchSession {
 }
 
 /** Unsaved presentation state survives lazy-item disposal, but is never persisted. */
-internal class SettingsDurationDraft(val kind: CrossfadeKind, initialMs: Long) {
+internal class SettingsDurationDraft(val target: SettingsTarget, initialMs: Long) {
     var text by mutableStateOf(initialMs.toString())
     var invalid by mutableStateOf(false)
 }
@@ -79,7 +78,8 @@ internal val SettingsTarget.settingsPane: SettingsPane?
         SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon,
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> SettingsPane.Appearance
         SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
-        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration, SettingsTarget.AudioFocus -> SettingsPane.Sound
+        SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration, SettingsTarget.AudioFocus,
+        SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> SettingsPane.Sound
         SettingsTarget.ResumeOnReconnect, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
         SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
         SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> SettingsPane.Player

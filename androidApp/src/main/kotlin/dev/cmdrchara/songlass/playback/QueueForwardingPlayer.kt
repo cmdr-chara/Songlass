@@ -140,6 +140,11 @@ class QueueForwardingPlayer(
             builder.setPlaybackState(Player.STATE_BUFFERING)
                 .setPlayWhenReady(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
         }
+        if ((audio as? Media3AudioPlayer)?.hasPendingTransportIntent == true) {
+            val logical = audio.state.value
+            builder.setPlayWhenReady(logical.playWhenReady, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST)
+            if (logical.status == dev.cmdrchara.songlass.core.player.PlayerStatus.Idle) builder.setIsLoading(false).setPlaybackState(Player.STATE_IDLE)
+        }
         return builder.build()
     }
 
