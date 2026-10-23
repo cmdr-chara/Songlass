@@ -75,7 +75,7 @@ internal fun MaterialShortcutTile(title: String, artwork: Artwork, circular: Boo
     Row(
         modifier
             .heightIn(min = 64.dp)
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(MaterialShapes.Medium))
             .background(palette.container)
             .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick)
             .padding(8.dp),
@@ -85,7 +85,7 @@ internal fun MaterialShortcutTile(title: String, artwork: Artwork, circular: Boo
             AlbumArt(artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
         }
         Spacer(Modifier.width(10.dp))
-        AppText(title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Bold), maxLines = 2, modifier = Modifier.weight(1f).padding(end = 4.dp))
+        AppText(title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 2, modifier = Modifier.weight(1f).padding(end = 4.dp))
     }
 }
 

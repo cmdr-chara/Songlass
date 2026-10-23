@@ -24,30 +24,36 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
-/** Segmented expressive list: small inner corners and one rounded outside edge. */
+/** One tonal settings surface; rows share its outline instead of becoming individual cards. */
 @Composable
 internal fun MaterialSettingsDestinationGroup(modifier: Modifier, content: @Composable () -> Unit) {
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(MaterialShapes.ExtraLarge)), verticalArrangement = Arrangement.spacedBy(2.dp)) { content() }
+    Column(
+        modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(MaterialShapes.LargeIncreased))
+            .background(currentPalette().container)
+            .padding(vertical = 4.dp),
+    ) { content() }
 }
 
 @Composable
 internal fun MaterialSettingsSectionTitle(title: String) {
     AppText(title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), color = currentPalette().primary,
-        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 10.dp).semantics { heading() })
+        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp).semantics { heading() })
 }
 
 @Composable
 internal fun MaterialSettingsDestination(title: String, summary: String, icon: ImageVector, summaryIsValue: Boolean, onClick: () -> Unit) {
     val palette = currentPalette()
     val interaction = remember { MutableInteractionSource() }
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(MaterialShapes.Small)).background(palette.container)
+    Row(Modifier.fillMaxWidth()
         .clickable(interaction, MaterialRipple, role = Role.Button, onClick = onClick)
-        .heightIn(min = 72.dp).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        .heightIn(min = 64.dp).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         MaterialSettingsCategoryIcon(icon, Modifier)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             AppText(title, AppTheme.typography.body, color = palette.label)
-            AppText(summary, AppTheme.typography.subheadline, color = palette.secondaryLabel)
+            AppText(summary, AppTheme.typography.subheadline, color = palette.secondaryLabel,
+                maxLines = if (summaryIsValue) 2 else 3)
         }
         AppIcon(AppIcons.ChevronRight, null, size = 18.dp, tint = palette.secondaryLabel)
     }
@@ -74,9 +80,7 @@ internal fun MaterialSettingsSearchResult(title: String, path: String, value: St
 @Composable
 internal fun MaterialSettingsCategoryIcon(icon: ImageVector, modifier: Modifier) {
     val palette = currentPalette()
-    Box(modifier.size(40.dp).clip(RoundedCornerShape(MaterialShapes.Medium)).background(palette.secondaryContainer), contentAlignment = Alignment.Center) {
-        AppIcon(icon, null, size = 24.dp, tint = palette.onSecondaryContainer)
-    }
+    AppIcon(icon, null, size = 24.dp, tint = palette.primary, modifier = modifier)
 }
 
 @Composable

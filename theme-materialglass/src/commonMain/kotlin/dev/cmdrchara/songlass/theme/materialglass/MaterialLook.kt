@@ -300,9 +300,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     // Material 3 structure: a navigation bar that stays put, bottom sheets, back arrows, ripples
     // and M3 selection controls. The glass stays the file's.
     @Composable
-    override fun navigationBarHeight(): Dp = with(androidx.compose.ui.platform.LocalDensity.current) {
-        maxOf(64.dp, 48.dp + 16.sp.toDp())
-    }
+    override fun navigationBarHeight(): Dp = materialNavigationBarHeight()
 
     override val minimizesOnScroll: Boolean get() = false
     override val bottomSheets: Boolean get() = true

@@ -23,7 +23,6 @@ import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.HomeHighlight
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
-import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 @Composable
@@ -57,30 +56,29 @@ internal fun MaterialHomeHighlights(items: List<HomeHighlight>, modifier: Modifi
             val interaction = remember { MutableInteractionSource() }
             val background = if (action != null) palette.primaryContainer else palette.container
             val foreground = if (action != null) palette.onPrimaryContainer else palette.label
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(if (action != null) MaterialShapes.ExtraLargeIncreased else MaterialShapes.LargeIncreased)).background(background)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(MaterialShapes.LargeIncreased)).background(background)
                 .prefetchArtworkOnPress(pick.artwork.takeIf { pick.icon == null })
                 .clickable(interaction, MaterialRipple, role = Role.Button, onClick = pick.onClick)
-                .padding(if (action != null) 16.dp else 12.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                if (action == null) AlbumArt(pick.artwork, Modifier.size(96.dp), cornerRadius = 18.dp)
+                .padding(12.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (action != null) MaterialCollectionMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) },
+                    Modifier.size(56.dp).clip(RoundedCornerShape(MaterialShapes.Medium)))
+                else AlbumArt(pick.artwork, Modifier.size(80.dp), cornerRadius = MaterialShapes.Large)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (action != null) {
-                        Box(Modifier.size(40.dp).clip(ExpressiveShapes.Cookie).background(palette.primary),
-                            contentAlignment = Alignment.Center) {
-                            AppIcon(action, null, size = 24.dp, tint = palette.onPrimary)
-                        }
-                        Spacer(Modifier.height(4.dp))
-                    } else AppText(pick.label, AppTheme.typography.caption1,
+                    if (action == null) AppText(pick.label, AppTheme.typography.caption1,
                         color = palette.secondaryLabel, maxLines = 1)
-                    AppText(pick.title, if (action != null) AppTheme.typography.title2
-                        else AppTheme.typography.body.copy(fontWeight = FontWeight.SemiBold),
+                    AppText(pick.title, if (action != null) AppTheme.typography.headline
+                        else AppTheme.typography.headline.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium),
                         color = foreground, maxLines = 2)
-                    pick.subtitle?.let { AppText(it, AppTheme.typography.footnote,
+                    pick.subtitle?.let { AppText(it, AppTheme.typography.subheadline,
                         color = if (action != null) foreground else palette.secondaryLabel, maxLines = 2) }
                 }
-                if (action != null) MaterialCollectionMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) },
-                    Modifier.size(88.dp).clip(RoundedCornerShape(MaterialShapes.LargeIncreased)))
-                else AppIcon(AppIcons.ChevronRight, null, size = 16.dp, tint = palette.secondaryLabel)
+                if (action != null) Box(
+                    Modifier.size(48.dp).clip(RoundedCornerShape(MaterialShapes.Large)).background(palette.primary),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AppIcon(action, null, size = 24.dp, tint = palette.onPrimary)
+                }
             }
         } }
     }

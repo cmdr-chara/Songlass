@@ -3,8 +3,6 @@ package dev.cmdrchara.songlass.theme.materialglass
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
@@ -41,7 +39,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cmdrchara.songlass.designsystem.TabItem
@@ -50,12 +47,21 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 
-/** A movable tonal destination bubble in Songlass's compact Material enclosure. */
+/** Inline tabs keep the dock compact; larger type returns to a stacked arrangement. */
+@Composable
+internal fun materialNavigationBarHeight() = with(LocalDensity.current) {
+    if (fontScale <= 1.2f) maxOf(56.dp, 32.dp + 20.sp.toDp())
+    else maxOf(72.dp, 48.dp + 20.sp.toDp())
+}
+
+/** A movable filled destination bubble in Songlass's compact Material enclosure. */
 @Composable
 internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) {
     if (tabs.isEmpty()) return
     val look = LocalGlassLook.current
-    val preferredWidth = with(LocalDensity.current) { maxOf(304.dp, 196.dp + 108.sp.toDp()) }
+    // Convert a label-sized sp value: Android's nonlinear scaling does not enlarge 168.sp like twelve 14.sp labels.
+    val preferredWidth = with(LocalDensity.current) { maxOf(312.dp, 144.dp + 14.sp.toDp() * 12) }
+    val inlineLabels = LocalDensity.current.fontScale <= 1.2f
     val shape = RoundedCornerShape(MaterialShapes.ExtraLarge)
     val palette = currentPalette()
     val density = LocalDensity.current
@@ -140,12 +146,12 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 this.shape = CircleShape
                 clip = false
                 shadowElevation = 1.dp.toPx()+2.dp.toPx()*pressure.value
-                ambientShadowColor = palette.secondary.copy(alpha = 0.10f)
+                ambientShadowColor = palette.primary.copy(alpha = 0.10f)
                 spotShadowColor = Color.Black.copy(alpha = if (palette.dark) 0.22f else 0.12f)
-            }.background(palette.secondaryContainer, CircleShape))
+            }.background(palette.primary, CircleShape))
             Row(Modifier.fillMaxSize().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
                 tabs.forEachIndexed { index, tab ->
-                    MaterialNavigationItem(tab, index == selectedTab, index == preview,
+                    MaterialNavigationItem(tab, index == selectedTab, index == preview, inlineLabels,
                         { onTabSelected(index) }, Modifier.weight(1f))
                 }
             }
@@ -154,32 +160,36 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
 }
 
 @Composable
-private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted: Boolean, onClick: () -> Unit, modifier: Modifier) {
+private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted: Boolean, inlineLabel: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val palette = currentPalette()
     val reduced = AppTheme.accessibility.reduceMotion
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press = animateFloatAsState(if (pressed && highlighted && !reduced) 1.05f else 1f,
         if (reduced) snap() else MaterialMotion.press(), label = "materialNavPress")
-    val iconTint by animateColorAsState(if (highlighted) palette.onSecondaryContainer else palette.secondaryLabel,
+    val iconTint by animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
         if (reduced) snap() else MaterialMotion.effects(), label = "materialNavIcon")
-    val labelTint by animateColorAsState(if (highlighted) palette.onSecondaryContainer else palette.secondaryLabel,
+    val labelTint by animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
         if (reduced) snap() else MaterialMotion.effects(), label = "materialNavLabel")
-    Column(modifier.fillMaxHeight().clip(CircleShape)
+    val target = modifier.fillMaxHeight().clip(CircleShape)
         .selectable(selected, interactionSource = interaction, indication = MaterialRipple, role = Role.Tab, onClick = onClick)
-        .padding(vertical = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
-        Box(Modifier.size(width = 56.dp, height = 32.dp).graphicsLayer {
-            scaleX = press.value
-            scaleY = press.value
-        }, contentAlignment = Alignment.Center) {
-            Box(Modifier.matchParentSize(),
-                contentAlignment = Alignment.Center) {
-                AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = iconTint)
-            }
+    val icon: @Composable () -> Unit = {
+        AppIcon(tab.icon, contentDescription = null, size = 22.dp, tint = iconTint,
+            modifier = Modifier.graphicsLayer { scaleX = press.value; scaleY = press.value })
+    }
+    if (inlineLabel) {
+        Row(target.padding(horizontal = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically) {
+            icon()
+            AppText(tab.label, AppTheme.typography.subheadline, color = labelTint, maxLines = 1,
+                modifier = Modifier.weight(1f, fill = false))
         }
-        // A fixed weight preserves the label's width when the selected destination changes.
-        AppText(tab.label, AppTheme.typography.caption1, color = labelTint, maxLines = 1)
+    } else {
+        Column(target.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
+            icon()
+            AppText(tab.label, AppTheme.typography.caption1, color = labelTint, maxLines = 1)
+        }
     }
 }
