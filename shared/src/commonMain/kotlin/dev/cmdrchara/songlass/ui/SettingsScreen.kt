@@ -271,53 +271,69 @@ private fun SettingsDestinations(modifier: Modifier, content: @Composable () -> 
 private fun SettingsSection(title: String) = LocalGlassLook.current.SettingsSectionTitle(title)
 
 private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences: AppPreferences, request: SettingsFocusRequest?, supportsAppIconChoice: Boolean, system: UiAccessibility) {
-    item { SettingsSection(stringResource(Res.string.settings_ui_style)) }
+    item { LocalGlassLook.current.SettingsAppearanceSectionTitle(stringResource(Res.string.settings_ui_style)) }
     mark(SettingsTarget.InterfaceStyle)
     item {
         SettingsSearchAnchor(SettingsTarget.InterfaceStyle, request) {
-            PreviewChoices(InterfaceStyle.entries.size) { index, modifier ->
-                val style = InterfaceStyle.entries[index]
-                LocalGlassLook.current.SettingsPreviewChoice(styleName(style), preferences.interfaceStyle == style,
-                    { settings.setInterfaceStyle(style) }, modifier) { StylePreview(style) }
+            val choices = InterfaceStyle.entries.map { style ->
+                SettingsVisualChoice(styleName(style), preferences.interfaceStyle == style,
+                    { settings.setInterfaceStyle(style) }) { StylePreview(style) }
             }
+            LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.InterfaceStyle,
+                stringResource(Res.string.settings_ui_style), choices, stringResource(Res.string.action_cancel), null,
+                Modifier.padding(horizontal = pageInset))
         }
     }
-    item { SettingsSection(stringResource(Res.string.settings_appearance)) }
+    item { LocalGlassLook.current.SettingsAppearanceSectionTitle(stringResource(Res.string.settings_appearance)) }
     mark(SettingsTarget.Appearance)
     item {
         SettingsSearchAnchor(SettingsTarget.Appearance, request) {
-            SettingsOptions(AppearanceMode.entries.map { appearanceName(it) }, preferences.appearance.ordinal) {
-                settings.setAppearance(AppearanceMode.entries[it])
+            val labels = AppearanceMode.entries.map { appearanceName(it) }
+            val onSelect: (Int) -> Unit = { index -> AppearanceMode.entries.getOrNull(index)?.let(settings::setAppearance) }
+            LocalGlassLook.current.SettingsAppearanceModeOptions(stringResource(Res.string.settings_theme),
+                labels, preferences.appearance.ordinal, onSelect, stringResource(Res.string.action_cancel),
+                Modifier.padding(horizontal = pageInset)) {
+                SettingsOptions(labels, preferences.appearance.ordinal, onSelect = onSelect)
             }
         }
     }
-    item { SettingsSection(stringResource(Res.string.settings_artwork)) }
+    item { LocalGlassLook.current.SettingsAppearanceSectionTitle(stringResource(Res.string.settings_artwork)) }
     mark(SettingsTarget.ArtworkStyle)
     item {
         SettingsSearchAnchor(SettingsTarget.ArtworkStyle, request) {
-            PreviewChoices(ArtworkStyle.entries.size) { index, modifier ->
-                val style = ArtworkStyle.entries[index]
+            val choices = ArtworkStyle.entries.map { style ->
                 val title = stringResource(if (style == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
-                LocalGlassLook.current.SettingsPreviewChoice(title, preferences.artworkStyle == style,
-                    { settings.setArtworkStyle(style) }, modifier) { ArtworkPreview(style) }
+                SettingsVisualChoice(title, preferences.artworkStyle == style,
+                    { settings.setArtworkStyle(style) }) { ArtworkPreview(style) }
             }
+            LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.Artwork,
+                stringResource(Res.string.settings_artwork), choices, stringResource(Res.string.action_cancel),
+                stringResource(Res.string.settings_artwork_hint), Modifier.padding(horizontal = pageInset))
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_artwork_hint)) }
+    item {
+        val hint = stringResource(Res.string.settings_artwork_hint)
+        LocalGlassLook.current.SettingsAppearanceHint(hint) { SettingsHint(hint) }
+    }
     if (supportsAppIconChoice) {
-        item { SettingsSection(stringResource(Res.string.settings_app_icon)) }
+        item { LocalGlassLook.current.SettingsAppearanceSectionTitle(stringResource(Res.string.settings_app_icon)) }
         mark(SettingsTarget.AppIcon)
         item {
             SettingsSearchAnchor(SettingsTarget.AppIcon, request) {
-                PreviewChoices(AppIconChoice.entries.size) { index, modifier ->
-                    val icon = AppIconChoice.entries[index]
+                val choices = AppIconChoice.entries.map { icon ->
                     val title = stringResource(if (icon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
-                    LocalGlassLook.current.SettingsPreviewChoice(title, preferences.appIcon == icon,
-                        { settings.setAppIcon(icon) }, modifier) { AppIconPreview(icon) }
+                    SettingsVisualChoice(title, preferences.appIcon == icon,
+                        { settings.setAppIcon(icon) }) { AppIconPreview(icon) }
                 }
+                LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.AppIcon,
+                    stringResource(Res.string.settings_app_icon), choices, stringResource(Res.string.action_cancel),
+                    stringResource(Res.string.settings_app_icon_hint), Modifier.padding(horizontal = pageInset))
             }
         }
-        item { SettingsHint(stringResource(Res.string.settings_app_icon_hint)) }
+        item {
+            val hint = stringResource(Res.string.settings_app_icon_hint)
+            LocalGlassLook.current.SettingsAppearanceHint(hint) { SettingsHint(hint) }
+        }
     }
     item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
     mark(SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency)
@@ -356,24 +372,6 @@ private fun SettingsOptions(labels: List<String>, selected: Int, stackedLabels: 
                 stackedLabels.forEachIndexed { index, label -> SettingsChoiceRow(label, index == selected, { onSelect(index) }) }
             }
         } else SegmentedControl(labels, selected, onSelect, Modifier.padding(horizontal = pageInset).heightIn(min = 48.dp))
-    }
-}
-
-/** Three choices at normal text sizes; a vertical layout makes enlarged labels fully readable. */
-@Composable
-private fun PreviewChoices(count: Int, content: @Composable (Int, Modifier) -> Unit) {
-    val largeText = LocalDensity.current.fontScale > 1.3f
-    val insetForm = LocalGlassLook.current.usesInsetSettingsForm
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = pageInset)
-        .then(if (insetForm) Modifier.clip(RoundedCornerShape(26.dp)).background(AppTheme.colors.secondaryBackground) else Modifier)
-        .selectableGroup()) {
-        if (largeText || maxWidth < 280.dp) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                repeat(count) { content(it, Modifier.fillMaxWidth()) }
-            }
-        } else Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            repeat(count) { content(it, Modifier.weight(1f)) }
-        }
     }
 }
 
@@ -420,10 +418,12 @@ private fun ArtworkPreview(style: ArtworkStyle) {
 
 /** One exclusive choice per row, like the other settings lists. */
 @Composable
-private fun <T> SettingsChoices(options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) =
-    SettingsFormGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-        options.forEach { option -> SettingsChoiceRow(label(option), option == selected, { onSelect(option) }) }
-    }
+private fun <T> SettingsChoices(title: String, options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+    val labels = options.map { label(it) }
+    LocalGlassLook.current.SettingsChoiceOptions(title, labels, options.indexOf(selected),
+        { index -> options.getOrNull(index)?.let(onSelect) }, stringResource(Res.string.action_cancel),
+        Modifier.padding(horizontal = pageInset))
+}
 
 @Composable
 internal fun clickActionLabel(action: TrackClickAction) = stringResource(when (action) {
@@ -456,21 +456,21 @@ private fun SettingsItems.queueSettings(settings: AppSettings, preferences: AppP
     mark(SettingsTarget.TrackClickAction)
     item {
         SettingsSearchAnchor(SettingsTarget.TrackClickAction, request) {
-            SettingsChoices(TrackClickAction.entries, preferences.trackClickAction, { clickActionLabel(it) }, settings::setTrackClickAction)
+            SettingsChoices(stringResource(Res.string.queue_click_section), TrackClickAction.entries, preferences.trackClickAction, { clickActionLabel(it) }, settings::setTrackClickAction)
         }
     }
     item { SettingsSection(stringResource(Res.string.queue_start_section)) }
     mark(SettingsTarget.QueueStart)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueStart, request) {
-            SettingsChoices(QueueStart.entries, preferences.queueStart, { queueStartLabel(it) }, settings::setQueueStart)
+            SettingsChoices(stringResource(Res.string.queue_start_section), QueueStart.entries, preferences.queueStart, { queueStartLabel(it) }, settings::setQueueStart)
         }
     }
     item { SettingsSection(stringResource(Res.string.queue_order_section)) }
     mark(SettingsTarget.QueueAddOrder)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueAddOrder, request) {
-            SettingsChoices(QueueAddOrder.entries, preferences.queueAddOrder, { queueOrderLabel(it) }, settings::setQueueAddOrder)
+            SettingsChoices(stringResource(Res.string.queue_order_section), QueueAddOrder.entries, preferences.queueAddOrder, { queueOrderLabel(it) }, settings::setQueueAddOrder)
         }
     }
     mark(SettingsTarget.QueueReplaces)
@@ -485,14 +485,14 @@ private fun SettingsItems.queueSettings(settings: AppSettings, preferences: AppP
     mark(SettingsTarget.QueueEnd)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueEnd, request) {
-            SettingsChoices(QueueEnd.entries, preferences.queueEnd, { queueEndLabel(it) }, settings::setQueueEnd)
+            SettingsChoices(stringResource(Res.string.queue_end_section), QueueEnd.entries, preferences.queueEnd, { queueEndLabel(it) }, settings::setQueueEnd)
         }
     }
     item { SettingsSection(stringResource(Res.string.shuffle_section)) }
     mark(SettingsTarget.ShuffleBias)
     item {
         SettingsSearchAnchor(SettingsTarget.ShuffleBias, request) {
-            SettingsChoices(ShuffleBias.entries, preferences.shuffleBias, { shuffleBiasLabel(it) }, settings::setShuffleBias)
+            SettingsChoices(stringResource(Res.string.shuffle_section), ShuffleBias.entries, preferences.shuffleBias, { shuffleBiasLabel(it) }, settings::setShuffleBias)
         }
     }
     mark(SettingsTarget.KeepShuffle)

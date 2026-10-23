@@ -136,7 +136,7 @@ LocalGlassLook.current.SettingsPage {
         }
         val checked = preview
         if (checked != null) {
-            item { SectionTitle(stringResource(Res.string.backup_preview)) }
+            item { SettingsPageSection(stringResource(Res.string.backup_preview)) }
             item { FeatureHint(stringResource(Res.string.backup_preview_hint)) }
             item {
                 SettingsGroup(Modifier.padding(horizontal = pageInset)) {
@@ -171,7 +171,7 @@ LocalGlassLook.current.SettingsPage {
                     ActionButton(stringResource(Res.string.backup_restore), { confirming = true },
                         Modifier.fillMaxWidth().padding(16.dp))
                 } else {
-                    item { SectionTitle(stringResource(Res.string.backup_confirm_title)) }
+                    item { SettingsPageSection(stringResource(Res.string.backup_confirm_title)) }
                     item { FeatureHint(stringResource(Res.string.backup_confirm_hint)) }
                     item {
                         ActionButton(stringResource(Res.string.backup_restore), {

@@ -16,10 +16,12 @@ import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -195,27 +197,30 @@ internal fun MaterialBackButton(label: String, onClick: () -> Unit, modifier: Mo
     }
 }
 
-/** Settings choice as a Material list item with a leading radio button. */
+/** Whole-row radio choices use a quiet tonal selection and a trailing state indicator. */
 @Composable
 internal fun MaterialSettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val interaction = remember { MutableInteractionSource() }
     val dot by animateDpAsState(if (selected) 10.dp else 0.dp, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "radioDot")
-    val ring by animateColorAsState(if (selected) palette.primary else AppTheme.colors.label.copy(alpha = 0.6f), if (reduceMotion) snap() else MaterialMotion.effects(), label = "radioRing")
+    val ring by animateColorAsState(if (selected) palette.primary else palette.secondaryLabel,
+        if (reduceMotion) snap() else MaterialMotion.effects(), label = "radioRing")
+    val fill by animateColorAsState(if (selected) palette.primary.copy(alpha = 0.05f) else Color.Transparent,
+        if (reduceMotion) snap() else MaterialMotion.effects(), label = "radioRowFill")
     Row(
-        modifier
-            .fillMaxWidth()
-            .heightIn(min = 56.dp)
+        modifier.fillMaxWidth().heightIn(min = 64.dp).background(fill)
             .selectable(selected, interaction, indication = MaterialRipple, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(20.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(dot).clip(CircleShape).background(palette.primary))
-        }
+        AppText(title, AppTheme.typography.body, color = palette.label, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(16.dp))
-        AppText(title, AppTheme.typography.body, color = AppTheme.colors.label, modifier = Modifier.weight(1f))
+        Box(Modifier.size(24.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+            Box(Modifier.size(20.dp).border(2.dp, ring, CircleShape), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(dot.coerceIn(0.dp, 10.dp)).clip(CircleShape).background(palette.primary))
+            }
+        }
     }
 }
 
@@ -236,23 +241,27 @@ internal fun MaterialSettingsToggleRow(
     val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
     val motion = if (reduceMotion) snap<androidx.compose.ui.unit.Dp>() else MaterialMotion.spatial()
-    val thumb by animateDpAsState(if (checked) 24.dp else 16.dp, motion, label = "switchThumb")
-    val offset by animateDpAsState(if (checked) 24.dp else 4.dp, motion, label = "switchOffset")
+    val thumbTarget = if (pressed && enabled) 28.dp else if (checked) 24.dp else 16.dp
+    val animatedThumb by animateDpAsState(thumbTarget, if (reduceMotion) snap() else MaterialMotion.press(), label = "switchThumb")
+    val thumb = animatedThumb.coerceIn(16.dp, 28.dp)
+    val animatedOffset by animateDpAsState(if (checked) 24.dp else 4.dp, motion, label = "switchOffset")
+    val offset = animatedOffset.coerceIn(4.dp, 24.dp)
     val track by animateColorAsState(if (checked) palette.primary else palette.containerHigh, if (reduceMotion) snap() else MaterialMotion.effects(), label = "switchTrack")
-    val outline = colors.label.copy(alpha = 0.55f)
+    val outline = palette.secondaryLabel
     Row(
         modifier
             .fillMaxWidth()
-            .heightIn(min = 64.dp)
+            .heightIn(min = if (subtitle == null) 64.dp else 72.dp)
             .toggleable(checked, interaction, indication = MaterialRipple, enabled = enabled, role = Role.Switch, onValueChange = onCheckedChange)
             .graphicsLayer { alpha = if (enabled) 1f else 0.5f }
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column(Modifier.weight(1f)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             AppText(title, AppTheme.typography.body, color = colors.label)
-            if (subtitle != null) AppText(subtitle, AppTheme.typography.footnote, color = colors.label.copy(alpha = 0.7f), modifier = Modifier.padding(top = 2.dp))
+            if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline, color = palette.secondaryLabel)
         }
         Spacer(Modifier.width(16.dp))
         Box(
@@ -278,48 +287,39 @@ internal fun MaterialSettingsToggleRow(
     }
 }
 
-/**
- * Material connected button group used as a single choice: segments joined with small inner
- * corners, the selected one filled in the primary container with a check and slightly rounder inner corners.
- */
+/** Connected Material choices grow with their labels; there is no fixed-height text clip. */
 @Composable
 internal fun MaterialSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    Row(modifier.fillMaxWidth().height(40.dp).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
         options.forEachIndexed { index, option ->
             val selected = index == selectedIndex
-            val outer = 20.dp
-            // A gentle change of shape keeps the selection joined to its neighbours (a full pill read as a detached blob).
-            val inner by animateDpAsState(if (selected) 12.dp else 6.dp, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "segmentCorner")
+            val inner by animateDpAsState(if (selected) 12.dp else 4.dp,
+                if (reduceMotion) snap() else MaterialMotion.spatial(), label = "segmentCorner")
             val shape = RoundedCornerShape(
-                topStart = if (index == 0) outer else inner,
-                bottomStart = if (index == 0) outer else inner,
-                topEnd = if (index == options.lastIndex) outer else inner,
-                bottomEnd = if (index == options.lastIndex) outer else inner,
+                topStart = if (index == 0) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                bottomStart = if (index == 0) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                topEnd = if (index == options.lastIndex) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                bottomEnd = if (index == options.lastIndex) 24.dp else inner.coerceIn(4.dp, 12.dp),
             )
-            val fill by animateColorAsState(if (selected) palette.primaryContainer else palette.container, if (reduceMotion) snap() else MaterialMotion.effects(), label = "segmentFill")
+            val fill by animateColorAsState(if (selected) palette.primaryContainer else palette.containerHigh,
+                if (reduceMotion) snap() else MaterialMotion.effects(), label = "segmentFill")
             Row(
-                Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(shape)
-                    .background(fill)
+                Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp).clip(shape).background(fill)
+                    .then(if (selected) Modifier else Modifier.border(1.dp, palette.secondaryLabel.copy(alpha = 0.18f), shape))
                     .selectable(selected, remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.RadioButton) { onSelect(index) }
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 10.dp, vertical = 12.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (selected) {
-                    AppIcon(AppIcons.Checkmark, contentDescription = null, size = 16.dp, tint = palette.onPrimaryContainer)
+                    AppIcon(AppIcons.Checkmark, contentDescription = null, size = 18.dp, tint = palette.onPrimaryContainer)
                     Spacer(Modifier.width(6.dp))
                 }
-                AppText(
-                    option,
-                    AppTheme.typography.footnote.copy(fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium),
-                    color = if (selected) palette.onPrimaryContainer else AppTheme.colors.label,
-                    maxLines = 1,
-                )
+                AppText(option, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium),
+                    color = if (selected) palette.onPrimaryContainer else palette.label,
+                    modifier = Modifier.weight(1f, fill = false))
             }
         }
     }

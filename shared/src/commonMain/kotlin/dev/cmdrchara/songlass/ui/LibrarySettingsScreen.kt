@@ -77,7 +77,7 @@ LocalGlassLook.current.SettingsPage {
         }
         item {
             SettingsSearchAnchor(SettingsTarget.ExcludedFolders, searchFocus) {
-                SectionTitle(stringResource(Res.string.library_excluded_folders))
+                SettingsPageSection(stringResource(Res.string.library_excluded_folders))
             }
         }
         item { LibraryHint(stringResource(Res.string.library_exclusions_hint)) }
@@ -105,7 +105,7 @@ LocalGlassLook.current.SettingsPage {
                 folders.forEach { folderRow(it, 0) }
             }
         }
-        item { SectionTitle(stringResource(Res.string.library_counting_title)) }
+        item { SettingsPageSection(stringResource(Res.string.library_counting_title)) }
         item {
             SettingsSearchAnchor(SettingsTarget.PlayCountRule, searchFocus) {
                 SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
@@ -117,7 +117,7 @@ LocalGlassLook.current.SettingsPage {
             }
         }
         item { LibraryHint(stringResource(Res.string.library_counting_hint)) }
-        item { SectionTitle(stringResource(Res.string.library_album_layout)) }
+        item { SettingsPageSection(stringResource(Res.string.library_album_layout)) }
         item {
             SettingsSearchAnchor(SettingsTarget.AlbumLayout, searchFocus) {
                 SegmentedControl(

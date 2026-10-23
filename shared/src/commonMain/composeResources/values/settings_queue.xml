@@ -22,8 +22,9 @@
     <string name="shuffle_bias_random">Fully random</string>
     <string name="shuffle_bias_least_played">Least played first</string>
     <string name="shuffle_keep">Keep shuffle when you pick a song</string>
+    <string name="settings_theme">Theme</string>
     <string name="settings_app_icon">App icon</string>
     <string name="settings_app_icon_violet">Violet</string>
     <string name="settings_app_icon_night">Night</string>
-    <string name="settings_app_icon_hint">One icon for every interface style. The alternative is for those who prefer a dark one. The home screen changes when you leave the app.</string>
+    <string name="settings_app_icon_hint">Your home screen icon updates when you leave Songlass.</string>
 </resources>

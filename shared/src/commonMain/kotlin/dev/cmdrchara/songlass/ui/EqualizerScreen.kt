@@ -1,6 +1,5 @@
 package dev.cmdrchara.songlass.ui
 
-import dev.cmdrchara.songlass.designsystem.BackPageTitle
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -163,158 +162,160 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
         EqChain(state.profile?.filters.orEmpty() + GraphicEq.filters(state.gains, state.tuning.layout) + state.tuning.toneFilters, 0.0).curve(CURVE_POINTS).map { it.toFloat() }
     }
 
-    LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
-        item { BackPageTitle(stringResource(Res.string.eq_title),
-            if (returnToPlayer || searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
-        item {
-            SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-                SettingsSearchAnchor(SettingsTarget.Equalizer, searchFocus) {
-                    SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, { saveChange { equalizer.setEnabled(it) } })
+    LocalGlassLook.current.SettingsToolPage {
+        LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
+            item { SettingsPageHeader(stringResource(Res.string.eq_title),
+                if (returnToPlayer || searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack) }
+            item {
+                SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                    SettingsSearchAnchor(SettingsTarget.Equalizer, searchFocus) {
+                        SettingsToggleRow(stringResource(Res.string.eq_title), state.enabled, { saveChange { equalizer.setEnabled(it) } })
+                    }
                 }
             }
-        }
-        item { SectionTitle(stringResource(Res.string.eq_outputs)) }
-        item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-            SettingsSearchAnchor(SettingsTarget.OutputProfiles, searchFocus) {
-                SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, { saveChange { equalizer.setAutomaticOutputs(it) } })
-            }
-            state.output?.let { output ->
-                val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
-                ListRow(title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
+            item { SettingsPageSection(stringResource(Res.string.eq_outputs)) }
+            item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsSearchAnchor(SettingsTarget.OutputProfiles, searchFocus) {
+                    SettingsToggleRow(stringResource(Res.string.eq_outputs_auto), state.automaticOutputs, { saveChange { equalizer.setAutomaticOutputs(it) } })
+                }
+                state.output?.let { output ->
+                    val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
+                    ListRow(title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
+                    ListRow(
+                        title = stringResource(if (state.outputProfile == null) Res.string.eq_outputs_save else Res.string.audio_eq_update_binding),
+                        subtitle = if (state.automaticOutputs) null else stringResource(Res.string.audio_eq_saved_auto_off),
+                        onClick = { saveChange(equalizer::saveForCurrentOutput) },
+                    )
+                } ?: ListRow(title = stringResource(Res.string.audio_eq_unknown_route), onClick = null)
                 ListRow(
-                    title = stringResource(if (state.outputProfile == null) Res.string.eq_outputs_save else Res.string.audio_eq_update_binding),
-                    subtitle = if (state.automaticOutputs) null else stringResource(Res.string.audio_eq_saved_auto_off),
-                    onClick = { saveChange(equalizer::saveForCurrentOutput) },
-                )
-            } ?: ListRow(title = stringResource(Res.string.audio_eq_unknown_route), onClick = null)
-            ListRow(
-                title = stringResource(Res.string.audio_eq_configured),
-                subtitle = equalizerCurveLabel(state.enabled, state.preset, state.profile?.name),
-                onClick = null,
-            )
-            if (state.usesOutputProfile) state.manualCurve.let { manual ->
-                ListRow(
-                    title = stringResource(Res.string.audio_eq_manual_fallback),
-                    subtitle = equalizerCurveLabel(manual.enabled, EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == manual.gainsFor(state.tuning.layout) }, state.profiles.firstOrNull { it.id == manual.profileId }?.name),
+                    title = stringResource(Res.string.audio_eq_configured),
+                    subtitle = equalizerCurveLabel(state.enabled, state.preset, state.profile?.name),
                     onClick = null,
                 )
-            }
-        } }
-        if (state.outputProfiles.isNotEmpty()) item { SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 8.dp)) {
-            state.outputProfiles.forEach { binding ->
-                val active = state.usesOutputProfile && state.output?.id == binding.output.id
-                val status = stringResource(if (active) Res.string.audio_eq_saved_active else Res.string.audio_eq_saved_inactive)
-                val preset = EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == binding.gainsFor(state.tuning.layout) }
-                val description = equalizerCurveLabel(binding.enabled, preset, state.profiles.firstOrNull { it.id == binding.profileId }?.name)
-                ListRow(title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
-                    subtitle = "$status · $description", trailing = {
-                    dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { saveChange { equalizer.removeOutputProfile(binding.output.id) } })
-                }, onClick = null)
-            }
-        } }
-        item { FeatureHint(stringResource(Res.string.eq_outputs_hint)) }
-        item {
-            key(state.tuning.layout) {
-                BoxWithConstraints(Modifier.fillMaxWidth().padding(start = pageInset, end = pageInset, top = 20.dp)) {
-                    // Dense layouts keep readable labels and touch targets by scrolling horizontally.
-                    val width = if (bands.size > 10) maxOf(maxWidth, (bands.size * 48 + 50).dp) else maxWidth
-                    Box(Modifier.horizontalScroll(rememberScrollState())) {
-                        EqualizerEditor(bands, curve, GraphicEq.MAX_GAIN_DB.toFloat(), state.enabled,
-                            { formatGain(it, separator) }, { band, gain ->
-                                saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
-                            }, Modifier.width(width))
+                if (state.usesOutputProfile) state.manualCurve.let { manual ->
+                    ListRow(
+                        title = stringResource(Res.string.audio_eq_manual_fallback),
+                        subtitle = equalizerCurveLabel(manual.enabled, EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == manual.gainsFor(state.tuning.layout) }, state.profiles.firstOrNull { it.id == manual.profileId }?.name),
+                        onClick = null,
+                    )
+                }
+            } }
+            if (state.outputProfiles.isNotEmpty()) item { SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 8.dp)) {
+                state.outputProfiles.forEach { binding ->
+                    val active = state.usesOutputProfile && state.output?.id == binding.output.id
+                    val status = stringResource(if (active) Res.string.audio_eq_saved_active else Res.string.audio_eq_saved_inactive)
+                    val preset = EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == binding.gainsFor(state.tuning.layout) }
+                    val description = equalizerCurveLabel(binding.enabled, preset, state.profiles.firstOrNull { it.id == binding.profileId }?.name)
+                    ListRow(title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
+                        subtitle = "$status · $description", trailing = {
+                        dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { saveChange { equalizer.removeOutputProfile(binding.output.id) } })
+                    }, onClick = null)
+                }
+            } }
+            item { FeatureHint(stringResource(Res.string.eq_outputs_hint)) }
+            item {
+                key(state.tuning.layout) {
+                    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = pageInset, end = pageInset, top = 20.dp)) {
+                        // Dense layouts keep readable labels and touch targets by scrolling horizontally.
+                        val width = if (bands.size > 10) maxOf(maxWidth, (bands.size * 48 + 50).dp) else maxWidth
+                        Box(Modifier.horizontalScroll(rememberScrollState())) {
+                            EqualizerEditor(bands, curve, GraphicEq.MAX_GAIN_DB.toFloat(), state.enabled,
+                                { formatGain(it, separator) }, { band, gain ->
+                                    saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
+                                }, Modifier.width(width))
+                        }
                     }
                 }
             }
-        }
-        item { Hint(stringResource(Res.string.audio_eq_headroom_hint)) }
-        item(key = "tone-bass") {
-            SettingsSearchAnchor(SettingsTarget.EqualizerBass, searchFocus) {
-                ToneControl(stringResource(Res.string.eq_tone_bass), preferences.equalizerTuning.bassDb, separator, supportsTuning) {
-                    saveChange { settings.setEqualizerBass(it) }
+            item { Hint(stringResource(Res.string.audio_eq_headroom_hint)) }
+            item(key = "tone-bass") {
+                SettingsSearchAnchor(SettingsTarget.EqualizerBass, searchFocus) {
+                    ToneControl(stringResource(Res.string.eq_tone_bass), preferences.equalizerTuning.bassDb, separator, supportsTuning) {
+                        saveChange { settings.setEqualizerBass(it) }
+                    }
                 }
             }
-        }
-        item(key = "tone-treble") {
-            SettingsSearchAnchor(SettingsTarget.EqualizerTreble, searchFocus) {
-                ToneControl(stringResource(Res.string.eq_tone_treble), preferences.equalizerTuning.trebleDb, separator, supportsTuning) {
-                    saveChange { settings.setEqualizerTreble(it) }
+            item(key = "tone-treble") {
+                SettingsSearchAnchor(SettingsTarget.EqualizerTreble, searchFocus) {
+                    ToneControl(stringResource(Res.string.eq_tone_treble), preferences.equalizerTuning.trebleDb, separator, supportsTuning) {
+                        saveChange { settings.setEqualizerTreble(it) }
+                    }
                 }
             }
-        }
-        item(key = "band-count") {
-            SettingsSearchAnchor(SettingsTarget.EqualizerBands, searchFocus) {
-                LocalGlassLook.current.SettingsPageGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
-                    Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
-                        AppText(stringResource(Res.string.eq_band_count), AppTheme.typography.body, modifier = Modifier.padding(horizontal = 16.dp))
-                        if (supportsTuning) FilterChips(GraphicEqLayout.entries.map { it.count.toString() },
-                            GraphicEqLayout.entries.indexOf(preferences.equalizerTuning.layout), {
-                                saveChange { settings.setEqualizerLayout(GraphicEqLayout.entries[it]) }
+            item(key = "band-count") {
+                SettingsSearchAnchor(SettingsTarget.EqualizerBands, searchFocus) {
+                    LocalGlassLook.current.SettingsPageGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                            AppText(stringResource(Res.string.eq_band_count), AppTheme.typography.body, modifier = Modifier.padding(horizontal = 16.dp))
+                            if (supportsTuning) FilterChips(GraphicEqLayout.entries.map { it.count.toString() },
+                                GraphicEqLayout.entries.indexOf(preferences.equalizerTuning.layout), {
+                                    saveChange { settings.setEqualizerLayout(GraphicEqLayout.entries[it]) }
+                                })
+                            else AppText(preferences.equalizerTuning.layout.count.toString(), AppTheme.typography.body, modifier = Modifier.padding(16.dp))
+                        }
+                    }
+                }
+            }
+            item { Hint(stringResource(Res.string.eq_tuning_hint)) }
+            item { SettingsPageSection(stringResource(Res.string.eq_presets)) }
+            item {
+                SettingsSearchAnchor(SettingsTarget.EqualizerPresets, searchFocus) {
+                    SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                        EqPreset.entries.forEach { preset ->
+                            SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
+                                saveChange { equalizer.applyPreset(preset, enable = preset != EqPreset.Flat) }
                             })
-                        else AppText(preferences.equalizerTuning.layout.count.toString(), AppTheme.typography.body, modifier = Modifier.padding(16.dp))
+                        }
+                        if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
                     }
                 }
             }
-        }
-        item { Hint(stringResource(Res.string.eq_tuning_hint)) }
-        item { SectionTitle(stringResource(Res.string.eq_presets)) }
-        item {
-            SettingsSearchAnchor(SettingsTarget.EqualizerPresets, searchFocus) {
-                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                    EqPreset.entries.forEach { preset ->
-                        SettingsChoiceRow(stringResource(preset.label), selected = state.preset == preset, onClick = {
-                            saveChange { equalizer.applyPreset(preset, enable = preset != EqPreset.Flat) }
-                        })
-                    }
-                    if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
-                }
-            }
-        }
-        item { SectionTitle(stringResource(Res.string.eq_headphones)) }
-        item {
-            SettingsSearchAnchor(SettingsTarget.HeadphoneCorrection, searchFocus) {
-                SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
-                    SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { saveChange { equalizer.selectProfile(null) } })
-                    state.profiles.forEach { profile ->
-                        SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { saveChange { equalizer.selectProfile(profile.id) } })
+            item { SettingsPageSection(stringResource(Res.string.eq_headphones)) }
+            item {
+                SettingsSearchAnchor(SettingsTarget.HeadphoneCorrection, searchFocus) {
+                    SettingsGroup(Modifier.padding(horizontal = pageInset).selectableGroup()) {
+                        SettingsChoiceRow(stringResource(Res.string.eq_headphones_none), selected = state.profileId == null, onClick = { saveChange { equalizer.selectProfile(null) } })
+                        state.profiles.forEach { profile ->
+                            SettingsChoiceRow(profile.name, selected = state.profileId == profile.id, onClick = { saveChange { equalizer.selectProfile(profile.id) } })
+                        }
                     }
                 }
             }
-        }
-        item {
-            SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 12.dp)) {
-                ListRow(
-                    title = stringResource(Res.string.autoeq_browse),
-                    leading = { AppIcon(AppIcons.Search, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
-                    trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
-                    onClick = onOpenAutoEq,
-                )
-                if (importer != null) {
+            item {
+                SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 12.dp)) {
                     ListRow(
-                        title = stringResource(Res.string.eq_headphones_import),
-                        leading = { AppIcon(AppIcons.ImportFile, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
-                        onClick = if (importing) null else ({
-                            if (equalizer.mutations.accepts(importTicket)) { importFailure = null; importer() }
-                            else importFailure = ProfileImportFailure.Changed
-                        }),
+                        title = stringResource(Res.string.autoeq_browse),
+                        leading = { AppIcon(AppIcons.Search, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                        trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
+                        onClick = onOpenAutoEq,
                     )
-                }
-                state.profile?.let { profile ->
-                    ListRow(
-                        title = stringResource(Res.string.eq_headphones_delete, profile.name),
-                        leading = { AppIcon(AppIcons.Close, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
-                        onClick = { saveChange { equalizer.deleteProfile(profile.id) } },
-                    )
+                    if (importer != null) {
+                        ListRow(
+                            title = stringResource(Res.string.eq_headphones_import),
+                            leading = { AppIcon(AppIcons.ImportFile, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                            onClick = if (importing) null else ({
+                                if (equalizer.mutations.accepts(importTicket)) { importFailure = null; importer() }
+                                else importFailure = ProfileImportFailure.Changed
+                            }),
+                        )
+                    }
+                    state.profile?.let { profile ->
+                        ListRow(
+                            title = stringResource(Res.string.eq_headphones_delete, profile.name),
+                            leading = { AppIcon(AppIcons.Close, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
+                            onClick = { saveChange { equalizer.deleteProfile(profile.id) } },
+                        )
+                    }
                 }
             }
+            if (importing) item { Hint(stringResource(Res.string.eq_import_reading)) }
+            importFailure?.let { failure -> item { Hint(stringResource(when (failure) {
+                ProfileImportFailure.Invalid -> Res.string.eq_import_failed
+                ProfileImportFailure.Changed -> Res.string.eq_import_changed
+                ProfileImportFailure.Failed -> Res.string.eq_import_save_failed
+            }), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) } }
+            item { Hint(stringResource(Res.string.eq_headphones_hint)) }
         }
-        if (importing) item { Hint(stringResource(Res.string.eq_import_reading)) }
-        importFailure?.let { failure -> item { Hint(stringResource(when (failure) {
-            ProfileImportFailure.Invalid -> Res.string.eq_import_failed
-            ProfileImportFailure.Changed -> Res.string.eq_import_changed
-            ProfileImportFailure.Failed -> Res.string.eq_import_save_failed
-        }), Modifier.semantics { liveRegion = LiveRegionMode.Polite }) } }
-        item { Hint(stringResource(Res.string.eq_headphones_hint)) }
     }
     importPreview?.let { preview ->
         ProfileImportReview(preview, onDismiss = { importPreview = null }, onConfirm = {

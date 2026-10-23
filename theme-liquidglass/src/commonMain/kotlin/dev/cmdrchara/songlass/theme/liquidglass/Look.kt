@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.theme.liquidglass
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -227,6 +228,16 @@ interface GlassLook {
     @Composable
     fun SettingsPage(content: @Composable () -> Unit) = LiquidSettingsPage(content)
 
+    /** Auxiliary tools retain their legacy composition unless a look supplies a settings frame. */
+    @Composable
+    fun SettingsToolPage(content: @Composable () -> Unit) = content()
+
+    @Composable
+    fun SettingsToolPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier, legacy: @Composable () -> Unit) = legacy()
+
+    @Composable
+    fun SettingsToolSectionTitle(title: String, legacy: @Composable () -> Unit) = legacy()
+
     @Composable
     fun SettingsPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
         LiquidSettingsPageTitle(title, backLabel, onBack, modifier)
@@ -257,6 +268,27 @@ interface GlassLook {
     /** Decorative category badges and radio preview cards have distinct recipes in all three looks. */
     @Composable
     fun SettingsCategoryIcon(icon: ImageVector, modifier: Modifier) = LiquidSettingsCategoryIcon(icon, modifier)
+
+    @Composable
+    fun SettingsChoiceOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        SettingsPageGroup(modifier.selectableGroup()) {
+            labels.forEachIndexed { index, label -> SettingsChoiceRow(label, index == selectedIndex, { onSelect(index) }, Modifier) }
+        }
+
+    /** Appearance may label its fields inline while other looks retain section headings. */
+    @Composable
+    fun SettingsAppearanceSectionTitle(title: String) = SettingsSectionTitle(title)
+
+    @Composable
+    fun SettingsAppearanceHint(text: String, legacy: @Composable () -> Unit) = legacy()
+
+    @Composable
+    fun SettingsAppearanceModeOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier, legacy: @Composable () -> Unit) = legacy()
+
+    /** Each look chooses whether to show previews or open a compact preference picker. */
+    @Composable
+    fun SettingsVisualChoices(kind: dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind, title: String, choices: List<dev.cmdrchara.songlass.designsystem.SettingsVisualChoice>, closeLabel: String, description: String?, modifier: Modifier) =
+        GlassSettingsVisualChoices(choices, modifier)
 
     @Composable
     fun SettingsPreviewChoice(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier, preview: @Composable () -> Unit) =

@@ -127,6 +127,44 @@ object AppIcons {
         }
     }
 
+    /** Compact painter's palette for appearance settings, with three original paint dots. */
+    val Palette: ImageVector by lazy {
+        icon("Palette") {
+            stroke {
+                moveTo(12f, 3f)
+                quadTo(3f, 3f, 3f, 12f)
+                quadTo(3f, 21f, 11f, 21f)
+                quadTo(14f, 21f, 14f, 18f)
+                quadTo(14f, 16f, 16f, 16f)
+                lineTo(18f, 16f)
+                quadTo(21f, 16f, 21f, 12f)
+                quadTo(21f, 3f, 12f, 3f)
+                close()
+            }
+            fill { circle(7.5f, 10f, 1.1f); circle(11f, 6.8f, 1.1f); circle(16f, 8.5f, 1.1f) }
+        }
+    }
+
+    /** A half-filled disc expresses light and dark without a miniature interface. */
+    val Contrast: ImageVector by lazy {
+        icon("Contrast") {
+            fill {
+                moveTo(12f, 3f)
+                arcToRelative(9f, 9f, 0f, false, true, 0f, 18f)
+                close()
+            }
+            stroke { circle(12f, 12f, 9f); moveTo(12f, 3f); lineTo(12f, 21f) }
+        }
+    }
+
+    /** Rounded launcher tile with a small, original diamond mark. */
+    val AppTile: ImageVector by lazy {
+        icon("AppTile") {
+            stroke { roundRect(4f, 4f, 20f, 20f, 4f) }
+            fill { moveTo(12f, 8.5f); lineTo(15.5f, 12f); lineTo(12f, 15.5f); lineTo(8.5f, 12f); close() }
+        }
+    }
+
     /** Track details and other informational actions, on the shared original icon grid. */
     val InfoCircle: ImageVector by lazy {
         icon("InfoCircle") {

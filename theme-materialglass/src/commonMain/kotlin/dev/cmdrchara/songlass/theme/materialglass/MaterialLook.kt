@@ -255,19 +255,28 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override val usesInsetSettingsForm = false
 
     @Composable
-    override fun SettingsPage(content: @Composable () -> Unit) = content()
+    override fun SettingsPage(content: @Composable () -> Unit) = MaterialSettingsPage(content)
+
+    @Composable
+    override fun SettingsToolPage(content: @Composable () -> Unit) = MaterialSettingsPage(content)
+
+    @Composable
+    override fun SettingsToolPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier, legacy: @Composable () -> Unit) =
+        MaterialSettingsPageTitle(title, backLabel, onBack, modifier)
+
+    @Composable
+    override fun SettingsToolSectionTitle(title: String, legacy: @Composable () -> Unit) = MaterialSettingsSectionTitle(title)
 
     @Composable
     override fun SettingsPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
-        BackPageTitle(title, backLabel, onBack, modifier)
+        MaterialSettingsPageTitle(title, backLabel, onBack, modifier)
 
     @Composable
     override fun SettingsPageGroup(modifier: Modifier, content: @Composable () -> Unit) = SettingsGroup(content, modifier)
 
     @Composable
     override fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =
-        dev.cmdrchara.songlass.theme.liquidglass.GlassFormField(value, onValueChange, label, true, true, modifier,
-            KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done), KeyboardActions(onDone = { onSubmit() }))
+        MaterialSettingsDurationField(value, onValueChange, label, onSubmit, modifier)
 
     @Composable
     override fun SettingsDestinationGroup(modifier: Modifier, content: @Composable () -> Unit) = MaterialSettingsDestinationGroup(modifier, content)
@@ -285,6 +294,28 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @Composable
     override fun SettingsCategoryIcon(icon: ImageVector, modifier: Modifier) = MaterialSettingsCategoryIcon(icon, modifier)
+
+    @Composable
+    override fun SettingsChoiceOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        MaterialSettingsChoiceOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+
+    @Composable
+    override fun SettingsAppearanceSectionTitle(title: String) = Unit
+
+    @Composable
+    override fun SettingsAppearanceHint(text: String, legacy: @Composable () -> Unit) = Unit
+
+    @Composable
+    override fun SettingsAppearanceModeOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier, legacy: @Composable () -> Unit) =
+        MaterialSettingsChoiceOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier, inlineTitle = true, leadingIcon = AppIcons.Contrast)
+
+    @Composable
+    override fun SettingsVisualChoices(kind: dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind, title: String, choices: List<dev.cmdrchara.songlass.designsystem.SettingsVisualChoice>, closeLabel: String, description: String?, modifier: Modifier) =
+        MaterialSettingsVisualChoices(kind, title, choices, closeLabel, description, modifier)
+
+    @Composable
+    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
+        MaterialActionButton(text, icon, onClick, modifier)
 
     @Composable
     override fun SettingsPreviewChoice(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier, preview: @Composable () -> Unit) =

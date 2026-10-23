@@ -74,82 +74,84 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
         }
     }
     fun resolveShortcut(context: PlayContext) = HomeShortcuts.resolve(library, context, emptyList(), saved)
-    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()) {
-        if (pane == "picker") {
-            BackPageTitle(stringResource(Res.string.homecfg_add_title), stringResource(Res.string.homecfg_title), { pane = "overview" })
-            SearchField(query, { query = it }, stringResource(Res.string.homecfg_search_placeholder), stringResource(Res.string.search_clear),
-                Modifier.padding(horizontal = pageInset, vertical = 8.dp))
-            if (LocalGlassLook.current.homeShortcutKindMenu) {
-                SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
-                    ListRow(kindLabels[kindIndex], subtitle = stringResource(Res.string.homecfg_builder_type),
-                        trailing = { AppIcon(AppIcons.ChevronDown, null, tint = AppTheme.colors.tertiaryLabel) },
-                        onClick = { kindsVisible = true })
+    LocalGlassLook.current.SettingsToolPage {
+        Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()) {
+            if (pane == "picker") {
+                SettingsPageHeader(stringResource(Res.string.homecfg_add_title), stringResource(Res.string.homecfg_title), { pane = "overview" })
+                SearchField(query, { query = it }, stringResource(Res.string.homecfg_search_placeholder), stringResource(Res.string.search_clear),
+                    Modifier.padding(horizontal = pageInset, vertical = 8.dp))
+                if (LocalGlassLook.current.homeShortcutKindMenu) {
+                    SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+                        ListRow(kindLabels[kindIndex], subtitle = stringResource(Res.string.homecfg_builder_type),
+                            trailing = { AppIcon(AppIcons.ChevronDown, null, tint = AppTheme.colors.tertiaryLabel) },
+                            onClick = { kindsVisible = true })
+                    }
+                } else FilterChips(kindLabels, kindIndex, { kindIndex = it }, Modifier.padding(vertical = 4.dp))
+                LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp)) {
+                    if (showFavorites) item(key = "favorites") {
+                        PickerRow(ShortcutOption(PlayContext.Favorites, ShortcutKind.Favorites, null), null, PlayContext.Favorites in chosen, full) { toggle(PlayContext.Favorites) }
+                    }
+                    if (matches.isEmpty() && !showFavorites) item { HomeHint(stringResource(Res.string.homecfg_no_matches)) }
+                    items(matches, key = { it.context.key }) { option ->
+                        PickerRow(option, resolveShortcut(option.context), option.context in chosen, full) { toggle(option.context) }
+                    }
                 }
-            } else FilterChips(kindLabels, kindIndex, { kindIndex = it }, Modifier.padding(vertical = 4.dp))
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp)) {
-                if (showFavorites) item(key = "favorites") {
-                    PickerRow(ShortcutOption(PlayContext.Favorites, ShortcutKind.Favorites, null), null, PlayContext.Favorites in chosen, full) { toggle(PlayContext.Favorites) }
+                SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
+                    ListRow(stringResource(Res.string.homecfg_builder_count, chosen.size, HomeShortcuts.MAX),
+                        subtitle = if (full) stringResource(Res.string.homecfg_builder_full) else null,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        trailing = { ActionButton(stringResource(Res.string.homecfg_builder_done), { pane = "overview" }) })
                 }
-                if (matches.isEmpty() && !showFavorites) item { HomeHint(stringResource(Res.string.homecfg_no_matches)) }
-                items(matches, key = { it.context.key }) { option ->
-                    PickerRow(option, resolveShortcut(option.context), option.context in chosen, full) { toggle(option.context) }
+            } else if (pane == "sections") {
+                LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 12.dp)) {
+                    item { SettingsPageHeader(stringResource(Res.string.homecfg_show_title), stringResource(Res.string.homecfg_title), { pane = "overview" }) }
+                    item { HomeHint(stringResource(Res.string.homecfg_order_hint)) }
+                    item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                        layout.order.forEachIndexed { index, section ->
+                            val name = sectionName(section)
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                SettingsToggleRow(name, layout.isVisible(section), { saveChange { customization.setSectionVisible(section, it) } }, Modifier.weight(1f),
+                                    subtitle = stringResource(Res.string.homecfg_position, index + 1, layout.order.size))
+                                if (index > 0) IconButton(ChevronUp, stringResource(Res.string.homecfg_move_up, name), { saveChange { customization.moveSection(section, -1) } }, Modifier.size(44.dp))
+                                else Spacer(Modifier.size(44.dp))
+                                if (index < layout.order.lastIndex) IconButton(AppIcons.ChevronDown, stringResource(Res.string.homecfg_move_down, name), { saveChange { customization.moveSection(section, 1) } }, Modifier.size(44.dp))
+                                else Spacer(Modifier.size(44.dp))
+                            }
+                        }
+                    } }
                 }
-            }
-            SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
-                ListRow(stringResource(Res.string.homecfg_builder_count, chosen.size, HomeShortcuts.MAX),
-                    subtitle = if (full) stringResource(Res.string.homecfg_builder_full) else null,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                    trailing = { ActionButton(stringResource(Res.string.homecfg_builder_done), { pane = "overview" }) })
-            }
-        } else if (pane == "sections") {
-            LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 12.dp)) {
-                item { BackPageTitle(stringResource(Res.string.homecfg_show_title), stringResource(Res.string.homecfg_title), { pane = "overview" }) }
-                item { HomeHint(stringResource(Res.string.homecfg_order_hint)) }
-                item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-                    layout.order.forEachIndexed { index, section ->
-                        val name = sectionName(section)
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            SettingsToggleRow(name, layout.isVisible(section), { saveChange { customization.setSectionVisible(section, it) } }, Modifier.weight(1f),
-                                subtitle = stringResource(Res.string.homecfg_position, index + 1, layout.order.size))
-                            if (index > 0) IconButton(ChevronUp, stringResource(Res.string.homecfg_move_up, name), { saveChange { customization.moveSection(section, -1) } }, Modifier.size(44.dp))
-                            else Spacer(Modifier.size(44.dp))
-                            if (index < layout.order.lastIndex) IconButton(AppIcons.ChevronDown, stringResource(Res.string.homecfg_move_down, name), { saveChange { customization.moveSection(section, 1) } }, Modifier.size(44.dp))
-                            else Spacer(Modifier.size(44.dp))
+            } else {
+                val searchReveal = SettingsSearchScroll(searchFocus, overviewListState, if (searchFocus?.target == SettingsTarget.HomeCustomization) 0 else null)
+                LazyColumn(Modifier.weight(1f).fillMaxWidth().then(searchReveal), state = overviewListState, contentPadding = PaddingValues(bottom = 12.dp)) {
+                    item {
+                        SettingsSearchAnchor(SettingsTarget.HomeCustomization, searchFocus) {
+                            SettingsPageHeader(stringResource(Res.string.homecfg_title),
+                                if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack)
                         }
                     }
-                } }
-            }
-        } else {
-            val searchReveal = SettingsSearchScroll(searchFocus, overviewListState, if (searchFocus?.target == SettingsTarget.HomeCustomization) 0 else null)
-            LazyColumn(Modifier.weight(1f).fillMaxWidth().then(searchReveal), state = overviewListState, contentPadding = PaddingValues(bottom = 12.dp)) {
-                item {
-                    SettingsSearchAnchor(SettingsTarget.HomeCustomization, searchFocus) {
-                        BackPageTitle(stringResource(Res.string.homecfg_title),
-                            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack)
+                    item { SettingsPageSection(stringResource(Res.string.homecfg_shortcuts_title)) }
+                    if (chosen.isEmpty()) item { HomeHint(stringResource(Res.string.homecfg_builder_empty)) }
+                    item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                        chosen.forEach { context ->
+                            val resolved = resolveShortcut(context)
+                            val title = chosenTitle(context, resolved)
+                            val subtitle = if (resolved == null && context != PlayContext.Favorites) stringResource(Res.string.homecfg_shortcut_unavailable)
+                                else kindLabel(kindOf(context))
+                            val openMenu = { menuContext = context; menuVisible = true }
+                            ListRow(title, subtitle = subtitle, leading = { ShortcutLeading(context, resolved) },
+                                trailing = { IconButton(AppIcons.More, stringResource(Res.string.homecfg_builder_manage, title), openMenu) }, onClick = openMenu)
+                        }
+                        if (!full) ListRow(stringResource(Res.string.homecfg_add_title), leading = { AppIcon(AppIcons.Plus, null, tint = AppTheme.colors.accent) }, onClick = { pane = "picker" })
+                    } }
+                    item { HomeHint(stringResource(Res.string.homecfg_builder_count, chosen.size, HomeShortcuts.MAX)) }
+                    item { SettingsPageSection(stringResource(Res.string.homecfg_builder_layout)) }
+                    item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                        ListRow(stringResource(Res.string.homecfg_show_title), subtitle = stringResource(Res.string.homecfg_builder_sections, layout.visibleSections.size, layout.order.size),
+                            trailing = { AppIcon(AppIcons.ChevronRight, null, tint = AppTheme.colors.tertiaryLabel) }, onClick = { pane = "sections" })
+                    } }
+                    if (!layout.isDefault) item {
+                        ActionButton(stringResource(Res.string.homecfg_reset), { saveChange(customization::reset) }, Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 20.dp))
                     }
-                }
-                item { SectionTitle(stringResource(Res.string.homecfg_shortcuts_title)) }
-                if (chosen.isEmpty()) item { HomeHint(stringResource(Res.string.homecfg_builder_empty)) }
-                item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-                    chosen.forEach { context ->
-                        val resolved = resolveShortcut(context)
-                        val title = chosenTitle(context, resolved)
-                        val subtitle = if (resolved == null && context != PlayContext.Favorites) stringResource(Res.string.homecfg_shortcut_unavailable)
-                            else kindLabel(kindOf(context))
-                        val openMenu = { menuContext = context; menuVisible = true }
-                        ListRow(title, subtitle = subtitle, leading = { ShortcutLeading(context, resolved) },
-                            trailing = { IconButton(AppIcons.More, stringResource(Res.string.homecfg_builder_manage, title), openMenu) }, onClick = openMenu)
-                    }
-                    if (!full) ListRow(stringResource(Res.string.homecfg_add_title), leading = { AppIcon(AppIcons.Plus, null, tint = AppTheme.colors.accent) }, onClick = { pane = "picker" })
-                } }
-                item { HomeHint(stringResource(Res.string.homecfg_builder_count, chosen.size, HomeShortcuts.MAX)) }
-                item { SectionTitle(stringResource(Res.string.homecfg_builder_layout)) }
-                item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
-                    ListRow(stringResource(Res.string.homecfg_show_title), subtitle = stringResource(Res.string.homecfg_builder_sections, layout.visibleSections.size, layout.order.size),
-                        trailing = { AppIcon(AppIcons.ChevronRight, null, tint = AppTheme.colors.tertiaryLabel) }, onClick = { pane = "sections" })
-                } }
-                if (!layout.isDefault) item {
-                    ActionButton(stringResource(Res.string.homecfg_reset), { saveChange(customization::reset) }, Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 20.dp))
                 }
             }
         }

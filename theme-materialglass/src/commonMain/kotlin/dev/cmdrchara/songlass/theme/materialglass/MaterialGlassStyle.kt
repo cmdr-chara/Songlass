@@ -71,7 +71,7 @@ internal fun MaterialTransportControls(
 @Composable
 internal fun MaterialSettingsGroup(content: @Composable () -> Unit, modifier: Modifier) {
     CompositionLocalProvider(LocalInsideGroup provides true) {
-        Column(modifier.fillMaxWidth().clip(RoundedCornerShape(MaterialShapes.LargeIncreased))
+        Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
             .background(currentPalette().container).padding(vertical = 4.dp)) { content() }
     }
 }
