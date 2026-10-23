@@ -245,6 +245,15 @@ interface GlassLook {
     @Composable
     fun SettingsPageGroup(modifier: Modifier, content: @Composable () -> Unit) = LiquidSettingsPageGroup(modifier, content)
 
+    /** Adjacent preference items can share one outline without moving search anchors. */
+    @Composable
+    fun SettingsGroupFragment(position: dev.cmdrchara.songlass.designsystem.SettingsGroupPosition, modifier: Modifier, content: @Composable () -> Unit) =
+        LiquidSettingsGroupFragment(position, modifier, content)
+
+    @Composable
+    fun SettingsValueChoice(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        LiquidSettingsValueChoice(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+
     @Composable
     fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =
         GlassFormField(value, onValueChange, label, true, false, modifier,

@@ -102,7 +102,7 @@ private fun LiquidAppearanceOptionRow(
     val colors = AppTheme.colors
     val value = labels.getOrNull(selectedIndex).orEmpty()
     val interaction = remember { MutableInteractionSource() }
-    val pressed = liquidAppearancePressedColor(interaction)
+    val pressed = liquidSettingsPressedColor(interaction)
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val shape = RoundedCornerShape(
         topStart = if (firstInGroup) 14.dp else 0.dp, topEnd = if (firstInGroup) 14.dp else 0.dp,
@@ -140,13 +140,13 @@ private fun LiquidAppearanceOptionRow(
                 modifier = Modifier.graphicsLayer { scaleX = if (rtl) -1f else 1f })
         }
     }
-    if (expanded) LiquidAppearancePicker(title, labels, selectedIndex, closeLabel, description,
+    if (expanded) LiquidSettingsChoicePicker(title, labels, selectedIndex, closeLabel, description,
         onDismiss = { expanded = false }, onSelect = { index -> onSelect(index); expanded = false })
 }
 
 /** Feedback stays within the row's clipped neutral surface and respects Reduce Motion. */
 @Composable
-private fun liquidAppearancePressedColor(interaction: MutableInteractionSource): Color {
+internal fun liquidSettingsPressedColor(interaction: MutableInteractionSource): Color {
     val pressed by interaction.collectIsPressedAsState()
     val color by animateColorAsState(
         if (pressed) AppTheme.colors.fill else Color.Transparent,
@@ -158,7 +158,7 @@ private fun liquidAppearancePressedColor(interaction: MutableInteractionSource):
 
 /** A bounded textual picker: selected options use a trailing checkmark, not a miniature preview. */
 @Composable
-private fun LiquidAppearancePicker(
+internal fun LiquidSettingsChoicePicker(
     title: String, labels: List<String>, selectedIndex: Int, closeLabel: String, description: String?,
     onDismiss: () -> Unit, onSelect: (Int) -> Unit,
 ) {
@@ -178,7 +178,7 @@ private fun LiquidAppearancePicker(
                     AppText(title, AppTheme.typography.title3, color = colors.label,
                         modifier = Modifier.weight(1f).semantics { heading() })
                     val closeInteraction = remember { MutableInteractionSource() }
-                    val closePressed = liquidAppearancePressedColor(closeInteraction)
+                    val closePressed = liquidSettingsPressedColor(closeInteraction)
                     Box(Modifier.size(44.dp).clip(RoundedCornerShape(22.dp)).background(closePressed)
                         .clickable(closeInteraction, indication = null, role = Role.Button, onClick = onDismiss)
                         .semantics { contentDescription = closeLabel }, contentAlignment = Alignment.Center) {
@@ -191,7 +191,7 @@ private fun LiquidAppearancePicker(
                         modifier = Modifier.padding(horizontal = 20.dp).padding(bottom = 12.dp)) }
                     labels.forEachIndexed { index, label ->
                         val interaction = remember { MutableInteractionSource() }
-                        val pressed = liquidAppearancePressedColor(interaction)
+                        val pressed = liquidSettingsPressedColor(interaction)
                         Row(Modifier.fillMaxWidth().background(pressed)
                             .selectable(index == selectedIndex, interaction, indication = null, role = Role.RadioButton,
                                 onClick = { onSelect(index) })

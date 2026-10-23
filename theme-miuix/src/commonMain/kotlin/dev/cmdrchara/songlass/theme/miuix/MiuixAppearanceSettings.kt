@@ -18,6 +18,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.SettingsVisualChoice
 import dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind
@@ -73,17 +74,18 @@ internal fun MiuixSettingsAppearanceModeOptions(
     firstInGroup = false, lastInGroup = false, description = null, modifier = modifier)
 
 @Composable
-private fun AppearancePreference(
+internal fun AppearancePreference(
     title: String,
     labels: List<String>,
     selectedIndex: Int,
     onSelect: (Int) -> Unit,
     closeLabel: String,
-    icon: ImageVector,
+    icon: ImageVector?,
     firstInGroup: Boolean,
     lastInGroup: Boolean,
     description: String?,
     modifier: Modifier,
+    contentInset: Dp = 16.dp,
 ) {
     if (labels.isEmpty()) return
     var expanded by remember(title) { mutableStateOf(false) }
@@ -103,19 +105,19 @@ private fun AppearancePreference(
         bottomEnd = if (lastInGroup) 22.dp else 0.dp,
     )
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val reflow = density.fontScale > 1.3f || maxWidth < 340.dp || textWidth + 112.dp > maxWidth
+        val reflow = density.fontScale > 1.3f || maxWidth < 340.dp || textWidth + contentInset * 2 + (if (icon != null) 80.dp else 40.dp) > maxWidth
         Card(Modifier.fillMaxWidth().clip(shape), cornerRadius = 0.dp, insideMargin = PaddingValues(0.dp),
             colors = CardDefaults.defaultColors(color = colors.secondaryBackground)) {
             BasicComponent(
                 modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).semantics(mergeDescendants = true) { role = Role.Button },
-                insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                startAction = {
+                insideMargin = PaddingValues(horizontal = contentInset, vertical = 12.dp),
+                startAction = icon?.let { leading -> {
                     Box(Modifier.padding(end = 12.dp).size(28.dp).clip(RoundedCornerShape(9.dp))
                         .background(if (firstInGroup) colors.accent.copy(alpha = 0.13f) else colors.fill),
                         contentAlignment = Alignment.Center) {
-                        AppIcon(icon, null, size = 19.dp, tint = if (firstInGroup) colors.accent else colors.secondaryLabel)
+                        AppIcon(leading, null, size = 19.dp, tint = if (firstInGroup) colors.accent else colors.secondaryLabel)
                     }
-                },
+                } },
                 endActions = {
                     Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {

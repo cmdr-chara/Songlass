@@ -643,7 +643,7 @@ private fun SettingsItems.soundSettings(
     item(key = "manual-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_manual_hint)) }
     if (!supportsCrossfade) item(key = "crossfade-unsupported") { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
     item(key = "transport-fades-title") { SettingsSection(stringResource(Res.string.settings_transport_fades)) }
-    transportFadeTargets.forEach { target ->
+    transportFadeTargets.forEachIndexed { index, target ->
         mark(target)
         item(key = "transport-fade-${target.name}") {
             val value = when (target) {
@@ -652,7 +652,12 @@ private fun SettingsItems.soundSettings(
                 else -> preferences.transportFades.seekMs
             }
             SettingsSearchAnchor(target, request) {
-                SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                val position = when (index) {
+                    0 -> SettingsGroupPosition.First
+                    transportFadeTargets.size - 1 -> SettingsGroupPosition.Last
+                    else -> SettingsGroupPosition.Middle
+                }
+                LocalGlassLook.current.SettingsGroupFragment(position, Modifier.padding(horizontal = pageInset)) {
                     if (supportsTransportFades) SettingsLink(settingsTargetTitle(target), crossfadeDurationValue(value), AppIcons.Pause,
                         summaryIsValue = true, onClick = { if (draft?.target == target) closeDuration() else openDuration(target) })
                     else ListRow(settingsTargetTitle(target), subtitle = crossfadeDurationValue(value))
@@ -673,7 +678,7 @@ private fun SettingsItems.soundSettings(
     item { SettingsSection(stringResource(Res.string.settings_interruptions)) }
     mark(SettingsTarget.AudioFocus)
     item {
-        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+        LocalGlassLook.current.SettingsGroupFragment(SettingsGroupPosition.First, Modifier.padding(horizontal = pageInset)) {
             SettingsSearchAnchor(SettingsTarget.AudioFocus, request) {
                 SettingsToggleRow(stringResource(Res.string.settings_audio_focus), preferences.handleAudioFocus,
                     settings::setHandleAudioFocus, subtitle = stringResource(Res.string.settings_audio_focus_hint))
@@ -683,15 +688,15 @@ private fun SettingsItems.soundSettings(
     mark(SettingsTarget.FocusDucking)
     item(key = "focus-ducking") {
         SettingsSearchAnchor(SettingsTarget.FocusDucking, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-                Column(Modifier.padding(vertical = 16.dp)) {
-                    AppText(stringResource(Res.string.settings_focus_ducking), AppTheme.typography.body, modifier = Modifier.padding(horizontal = 16.dp))
-                    if (supportsAudioFocusSettings && preferences.handleAudioFocus) {
-                        val choices = FocusDucking.entries
-                        FilterChips(choices.map { focusDuckingLabel(it) }, choices.indexOf(preferences.audioFocus.ducking),
-                            { settings.setFocusDucking(choices[it]) })
-                    } else ListRow(focusDuckingLabel(preferences.audioFocus.ducking))
-                }
+            LocalGlassLook.current.SettingsGroupFragment(SettingsGroupPosition.Middle, Modifier.padding(horizontal = pageInset)) {
+                val title = stringResource(Res.string.settings_focus_ducking)
+                if (supportsAudioFocusSettings && preferences.handleAudioFocus) {
+                    val choices = FocusDucking.entries
+                    LocalGlassLook.current.SettingsValueChoice(title, choices.map { focusDuckingLabel(it) },
+                        choices.indexOf(preferences.audioFocus.ducking),
+                        { index -> choices.getOrNull(index)?.let(settings::setFocusDucking) },
+                        stringResource(Res.string.action_cancel), Modifier)
+                } else ListRow(title, subtitle = focusDuckingLabel(preferences.audioFocus.ducking))
             }
         }
     }
@@ -699,7 +704,9 @@ private fun SettingsItems.soundSettings(
         mark(target)
         item(key = "focus-${target.name}") {
             SettingsSearchAnchor(target, request) {
-                SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                LocalGlassLook.current.SettingsGroupFragment(
+                    if (target == SettingsTarget.ResumeAfterCall) SettingsGroupPosition.Last else SettingsGroupPosition.Middle,
+                    Modifier.padding(horizontal = pageInset)) {
                     val value = if (target == SettingsTarget.ResumeAfterCall) preferences.audioFocus.resumeAfterCall else preferences.audioFocus.resumeOnFocusGain
                     if (supportsAudioFocusSettings && preferences.handleAudioFocus) SettingsToggleRow(settingsTargetTitle(target), value,
                         { if (target == SettingsTarget.ResumeAfterCall) settings.setResumeAfterCall(it) else settings.setResumeOnFocusGain(it) })

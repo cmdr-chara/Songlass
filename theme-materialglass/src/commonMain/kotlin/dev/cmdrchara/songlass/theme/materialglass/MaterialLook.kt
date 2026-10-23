@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
 import dev.cmdrchara.songlass.designsystem.HomeHighlight
+import dev.cmdrchara.songlass.designsystem.SettingsGroupPosition
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.ui.text.input.KeyboardType
@@ -273,6 +274,15 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @Composable
     override fun SettingsPageGroup(modifier: Modifier, content: @Composable () -> Unit) = SettingsGroup(content, modifier)
+
+    @Composable
+    override fun SettingsGroupFragment(position: SettingsGroupPosition, modifier: Modifier, content: @Composable () -> Unit) =
+        MaterialSettingsGroupFragment(position, modifier, content)
+
+    @Composable
+    override fun SettingsValueChoice(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        MaterialSettingsChoiceOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier,
+            inlineTitle = true, leadingIcon = null, emphasized = false, contentInset = 16.dp)
 
     @Composable
     override fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =

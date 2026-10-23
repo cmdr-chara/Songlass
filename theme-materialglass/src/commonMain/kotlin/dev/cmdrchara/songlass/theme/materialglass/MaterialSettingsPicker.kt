@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -54,6 +55,7 @@ internal fun MaterialSettingsChoiceOptions(
     description: String? = null,
     leadingIcon: ImageVector? = null,
     emphasized: Boolean = false,
+    contentInset: Dp? = null,
 ) {
     var expanded by remember(title) { mutableStateOf(false) }
     val palette = currentPalette()
@@ -69,7 +71,7 @@ internal fun MaterialSettingsChoiceOptions(
         .clickable(remember { MutableInteractionSource() }, MaterialRipple,
             enabled = labels.isNotEmpty(), role = Role.Button, onClick = { expanded = true })
         .heightIn(min = if (emphasized) 80.dp else 64.dp)
-        .padding(horizontal = if (inlineTitle) 14.dp else 16.dp,
+        .padding(horizontal = contentInset ?: if (inlineTitle) 14.dp else 16.dp,
             vertical = if (inlineTitle) 10.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(if (inlineTitle) 14.dp else 16.dp)) {
         leadingIcon?.let { icon ->

@@ -7,7 +7,7 @@
     <string name="settings_player_summary">Headphones, resume and lyrics</string>
     <string name="settings_interruptions">Interruptions</string>
     <string name="settings_audio_focus">Yield to calls and other apps</string>
-    <string name="settings_audio_focus_hint">Pauses for calls and navigation and resumes afterwards. Off plays over everything, with no lowering.</string>
+    <string name="settings_audio_focus_hint">Allow other apps to pause or lower playback.</string>
     <string name="settings_pause_disconnect">Pause when disconnected</string>
     <string name="settings_pause_disconnect_hint">Stops if headphones are unplugged or Bluetooth drops, so the speaker never starts by surprise.</string>
     <string name="settings_headset_connection">Connection</string>

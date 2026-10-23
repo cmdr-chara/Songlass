@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.SettingsGroupPosition
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -73,6 +74,20 @@ internal fun MaterialSettingsGroup(content: @Composable () -> Unit, modifier: Mo
     CompositionLocalProvider(LocalInsideGroup provides true) {
         Column(modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
             .background(currentPalette().container).padding(vertical = 4.dp)) { content() }
+    }
+}
+
+/** Adjacent lazy items share one settings surface without repeating their outside corners. */
+@Composable
+internal fun MaterialSettingsGroupFragment(position: SettingsGroupPosition, modifier: Modifier, content: @Composable () -> Unit) {
+    val first = position == SettingsGroupPosition.Single || position == SettingsGroupPosition.First
+    val last = position == SettingsGroupPosition.Single || position == SettingsGroupPosition.Last
+    CompositionLocalProvider(LocalInsideGroup provides true) {
+        Column(modifier.fillMaxWidth().clip(RoundedCornerShape(
+            topStart = if (first) 24.dp else 0.dp, topEnd = if (first) 24.dp else 0.dp,
+            bottomStart = if (last) 24.dp else 0.dp, bottomEnd = if (last) 24.dp else 0.dp,
+        )).background(currentPalette().container)
+            .padding(top = if (first) 4.dp else 0.dp, bottom = if (last) 4.dp else 0.dp)) { content() }
     }
 }
 

@@ -144,6 +144,14 @@ object MiuixLook : GlassLook {
     override fun SettingsPageGroup(modifier: Modifier, content: @Composable () -> Unit) = SettingsGroup(content, modifier)
 
     @Composable
+    override fun SettingsGroupFragment(position: SettingsGroupPosition, modifier: Modifier, content: @Composable () -> Unit) =
+        MiuixSettingsGroupFragment(position, modifier, content)
+
+    @Composable
+    override fun SettingsValueChoice(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        MiuixSettingsValueChoice(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+
+    @Composable
     override fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =
         top.yukonga.miuix.kmp.basic.TextField(value, onValueChange, modifier,
             label = label, cornerRadius = 18.dp, singleLine = true,

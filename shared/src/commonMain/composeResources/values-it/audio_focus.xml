@@ -1,7 +1,7 @@
 <resources>
-    <string name="settings_focus_ducking">Volume durante le interruzioni brevi</string>
-    <string name="settings_focus_resume">Riprendi al ritorno del focus</string>
+    <string name="settings_focus_ducking">Interruzioni brevi</string>
+    <string name="settings_focus_resume">Riprendi dopo le interruzioni</string>
     <string name="settings_call_resume">Riprendi dopo le chiamate</string>
     <string name="settings_focus_pause">Pausa</string>
-    <string name="settings_focus_policy_hint">La percentuale è il volume rimanente del player durante notifiche o navigazione. Chiamate e chat vocali mettono in pausa quando Android segnala una modalità audio di chiamata. La loro opzione di ripresa è indipendente dalle altre interruzioni. Pausa manuale, stop, scollegamento o crossfade interrotto annullano la ripresa automatica. Queste opzioni richiedono Focus audio.</string>
+    <string name="settings_focus_policy_hint">La percentuale indica il volume rimasto. Pausa manuale, stop, scollegamento e crossfade interrotto annullano la ripresa automatica.</string>
 </resources>
