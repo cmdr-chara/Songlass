@@ -92,7 +92,8 @@ internal class SeaPalette(val hue: Float, val dark: Boolean, private val system:
 
     fun appColors(): AppColors = AppColors(
         isDark = dark,
-        background = background,
+        // Keep the page canvas neutral; system colors still define controls and tonal surfaces.
+        background = if (dark) Color(0xFF111111) else background,
         secondaryBackground = container,
         label = label,
         secondaryLabel = secondaryLabel,

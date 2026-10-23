@@ -143,7 +143,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     @Composable
     override fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) {
         if (base.usesSystemColors) {
-            androidx.compose.foundation.layout.Box(modifier.background(base.background)) { content() }
+            androidx.compose.foundation.layout.Box(modifier.background(AppTheme.colors.background)) { content() }
         } else super.ArtworkTintedPage(artwork, modifier, content)
     }
 
