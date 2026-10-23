@@ -281,7 +281,7 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
             }
             LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.InterfaceStyle,
                 stringResource(Res.string.settings_ui_style), choices, stringResource(Res.string.action_cancel), null,
-                Modifier.padding(horizontal = pageInset))
+                lastInGroup = false, modifier = Modifier.padding(horizontal = pageInset))
         }
     }
     item { LocalGlassLook.current.SettingsAppearanceSectionTitle(stringResource(Res.string.settings_appearance)) }
@@ -308,7 +308,8 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
             }
             LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.Artwork,
                 stringResource(Res.string.settings_artwork), choices, stringResource(Res.string.action_cancel),
-                stringResource(Res.string.settings_artwork_hint), Modifier.padding(horizontal = pageInset))
+                stringResource(Res.string.settings_artwork_hint), lastInGroup = !supportsAppIconChoice,
+                modifier = Modifier.padding(horizontal = pageInset))
         }
     }
     item {
@@ -327,7 +328,8 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
                 }
                 LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.AppIcon,
                     stringResource(Res.string.settings_app_icon), choices, stringResource(Res.string.action_cancel),
-                    stringResource(Res.string.settings_app_icon_hint), Modifier.padding(horizontal = pageInset))
+                    stringResource(Res.string.settings_app_icon_hint), lastInGroup = true,
+                    modifier = Modifier.padding(horizontal = pageInset))
             }
         }
         item {

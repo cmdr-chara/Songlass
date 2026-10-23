@@ -151,6 +151,20 @@ object MiuixLook : GlassLook {
             keyboardActions = KeyboardActions(onDone = { onSubmit() }))
 
     @Composable
+    override fun SettingsAppearanceSectionTitle(title: String) = Unit
+
+    @Composable
+    override fun SettingsAppearanceHint(text: String, legacy: @Composable () -> Unit) = Unit
+
+    @Composable
+    override fun SettingsAppearanceModeOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier, legacy: @Composable () -> Unit) =
+        MiuixSettingsAppearanceModeOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+
+    @Composable
+    override fun SettingsVisualChoices(kind: SettingsVisualChoiceKind, title: String, choices: List<SettingsVisualChoice>, closeLabel: String, description: String?, lastInGroup: Boolean, modifier: Modifier) =
+        MiuixSettingsVisualChoices(kind, title, choices, closeLabel, description, lastInGroup, modifier)
+
+    @Composable
     override fun SettingsDestinationGroup(modifier: Modifier, content: @Composable () -> Unit) = MiuixSettingsDestinationGroup(modifier, content)
 
     @Composable

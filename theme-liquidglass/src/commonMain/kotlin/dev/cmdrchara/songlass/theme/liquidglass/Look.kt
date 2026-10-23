@@ -275,20 +275,21 @@ interface GlassLook {
             labels.forEachIndexed { index, label -> SettingsChoiceRow(label, index == selectedIndex, { onSelect(index) }, Modifier) }
         }
 
-    /** Appearance may label its fields inline while other looks retain section headings. */
+    /** Appearance fields carry their own label; group fragments preserve lazy search anchors. */
     @Composable
-    fun SettingsAppearanceSectionTitle(title: String) = SettingsSectionTitle(title)
+    fun SettingsAppearanceSectionTitle(title: String) = Unit
 
     @Composable
-    fun SettingsAppearanceHint(text: String, legacy: @Composable () -> Unit) = legacy()
+    fun SettingsAppearanceHint(text: String, legacy: @Composable () -> Unit) = Unit
 
     @Composable
-    fun SettingsAppearanceModeOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier, legacy: @Composable () -> Unit) = legacy()
+    fun SettingsAppearanceModeOptions(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier, legacy: @Composable () -> Unit) =
+        LiquidAppearanceModeOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier)
 
     /** Each look chooses whether to show previews or open a compact preference picker. */
     @Composable
-    fun SettingsVisualChoices(kind: dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind, title: String, choices: List<dev.cmdrchara.songlass.designsystem.SettingsVisualChoice>, closeLabel: String, description: String?, modifier: Modifier) =
-        GlassSettingsVisualChoices(choices, modifier)
+    fun SettingsVisualChoices(kind: dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind, title: String, choices: List<dev.cmdrchara.songlass.designsystem.SettingsVisualChoice>, closeLabel: String, description: String?, lastInGroup: Boolean, modifier: Modifier) =
+        LiquidAppearanceChoices(kind, title, choices, closeLabel, description, lastInGroup, modifier)
 
     @Composable
     fun SettingsPreviewChoice(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier, preview: @Composable () -> Unit) =

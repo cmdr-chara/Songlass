@@ -310,7 +310,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         MaterialSettingsChoiceOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier, inlineTitle = true, leadingIcon = AppIcons.Contrast)
 
     @Composable
-    override fun SettingsVisualChoices(kind: dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind, title: String, choices: List<dev.cmdrchara.songlass.designsystem.SettingsVisualChoice>, closeLabel: String, description: String?, modifier: Modifier) =
+    override fun SettingsVisualChoices(kind: dev.cmdrchara.songlass.designsystem.SettingsVisualChoiceKind, title: String, choices: List<dev.cmdrchara.songlass.designsystem.SettingsVisualChoice>, closeLabel: String, description: String?, lastInGroup: Boolean, modifier: Modifier) =
         MaterialSettingsVisualChoices(kind, title, choices, closeLabel, description, modifier)
 
     @Composable
