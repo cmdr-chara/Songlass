@@ -4,7 +4,6 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -125,11 +124,11 @@ private fun RowScope.GroupButton(
             giveWay -> 0.9f
             else -> 1f
         },
-        if (reduceMotion) snap() else spring(dampingRatio = 0.6f, stiffness = 600f),
+        if (reduceMotion) snap() else MaterialMotion.press(),
         label = "groupWeight",
     )
     // Pressed, the pill squares off a little: shape follows state in M3 Expressive.
-    val corner by animateDpAsState(if (widen && !reduceMotion) 16.dp else 28.dp, if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 600f), label = "groupCorner")
+    val corner by animateDpAsState(if (widen && !reduceMotion) MaterialShapes.Large else MaterialShapes.ExtraLarge, if (reduceMotion) snap() else MaterialMotion.press(), label = "groupCorner")
     Row(
         Modifier
             .weight(weight)
@@ -248,7 +247,7 @@ internal fun MaterialSearchField(query: String, onQueryChange: (String) -> Unit,
 internal fun MaterialIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) {
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    val corner by animateDpAsState(if (selected) 14.dp else 24.dp, if (reduceMotion) snap() else spring(dampingRatio = 0.6f, stiffness = 500f), label = "iconButtonShape")
+    val corner by animateDpAsState(if (selected) 14.dp else 24.dp, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "iconButtonShape")
     val container = when {
         selected -> palette.primary
         filled -> palette.primaryContainer

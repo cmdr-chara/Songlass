@@ -7,7 +7,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -52,6 +52,7 @@ import dev.cmdrchara.songlass.designsystem.welcomeEnter
  */
 @Composable
 internal fun MaterialWelcome(model: WelcomeModel, palette: SeaPalette) {
+    val reduceMotion = AppTheme.accessibility.reduceMotion
     Column(Modifier.fillMaxSize().background(palette.background).windowInsetsPadding(WindowInsets.systemBars).padding(horizontal = 24.dp)) {
         Spacer(Modifier.height(8.dp))
         // The illustration takes whatever height the page below it leaves free.
@@ -99,7 +100,7 @@ internal fun MaterialWelcome(model: WelcomeModel, palette: SeaPalette) {
         Row(Modifier.semantics { contentDescription = model.stepDescription }, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
             repeat(model.stepCount) { i ->
                 val current = i + 1 == model.step
-                val width by animateFloatAsState(if (current) 32f else 8f, spring(dampingRatio = 0.75f, stiffness = 450f), label = "dot")
+                val width by animateFloatAsState(if (current) 32f else 8f, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "dot")
                 Box(Modifier.height(8.dp).width(width.dp).clip(CircleShape).background(if (current) palette.primary else palette.containerHigh))
             }
         }

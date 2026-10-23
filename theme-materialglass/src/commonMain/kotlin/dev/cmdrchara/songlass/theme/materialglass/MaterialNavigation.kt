@@ -6,11 +6,8 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
@@ -59,18 +56,8 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
     if (tabs.isEmpty()) return
     val look = LocalGlassLook.current
     val preferredWidth = with(LocalDensity.current) { maxOf(304.dp, 196.dp + 108.sp.toDp()) }
-    val shape = RoundedCornerShape(28.dp)
+    val shape = RoundedCornerShape(MaterialShapes.ExtraLarge)
     val palette = currentPalette()
-    val bubbleFill = remember(palette) { Brush.verticalGradient(listOf(
-        lerp(palette.secondaryContainer, palette.containerHigh, 0.24f),
-        palette.secondaryContainer,
-        lerp(palette.secondaryContainer, palette.secondary, 0.14f),
-    )) }
-    val bubbleRim = remember(palette) { Brush.verticalGradient(listOf(
-        Color.White.copy(alpha = if (palette.dark) 0.28f else 0.65f),
-        palette.secondary.copy(alpha = 0.08f),
-        palette.secondary.copy(alpha = 0.22f),
-    )) }
     val density = LocalDensity.current
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val reduced = AppTheme.accessibility.reduceMotion
@@ -84,13 +71,13 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
         derivedStateOf { if (touching) goal.roundToInt().coerceIn(tabs.indices) else latestSelected }
     }
     val pressure = animateFloatAsState(if (touching && !reduced) 1f else 0f,
-        if (reduced) snap() else spring(dampingRatio = 0.85f, stiffness = 650f), label = "materialBubblePressure")
+        if (reduced) snap() else MaterialMotion.press(), label = "materialBubblePressure")
     LaunchedEffect(selectedTab) { if (!touching) goal = selectedTab.toFloat() }
     LaunchedEffect(position, reduced) {
         while (true) {
             snapshotFlow { goal }.first { abs(it-position.value) > 0.0001f || abs(position.velocity) > 0.001f }
             if (reduced) position.snapTo(goal)
-            else position.follow({ goal }, dampingRatio = 0.88f, stiffness = 700f, threshold = 0.0005f)
+            else position.follow({ goal }, dampingRatio = MaterialMotion.SpatialDamping, stiffness = MaterialMotion.SpatialStiffness, threshold = 0.0005f)
         }
     }
     Box(modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
@@ -147,15 +134,15 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 translationX = (if (rtl) -at else at)*slotWidth
             }.padding(horizontal = 4.dp, vertical = 4.dp).graphicsLayer {
                 val speed = if (reduced) 0f else abs(position.velocity).coerceAtMost(5f)/5f
-                scaleX = 1f + pressure.value*0.08f + speed*0.045f
-                scaleY = 1f + pressure.value*0.18f - speed*0.035f
-                translationY = -2.dp.toPx()*pressure.value
+                scaleX = 1f + pressure.value*0.06f + speed*0.06f
+                scaleY = 1f + pressure.value*0.08f - speed*0.04f
+                translationY = -1.dp.toPx()*pressure.value
                 this.shape = CircleShape
                 clip = false
-                shadowElevation = (4.dp.toPx()+4.dp.toPx()*pressure.value)
-                ambientShadowColor = palette.secondary.copy(alpha = 0.18f)
-                spotShadowColor = Color.Black.copy(alpha = if (palette.dark) 0.35f else 0.18f)
-            }.background(bubbleFill, CircleShape).border(0.8.dp, bubbleRim, CircleShape))
+                shadowElevation = 1.dp.toPx()+2.dp.toPx()*pressure.value
+                ambientShadowColor = palette.secondary.copy(alpha = 0.10f)
+                spotShadowColor = Color.Black.copy(alpha = if (palette.dark) 0.22f else 0.12f)
+            }.background(palette.secondaryContainer, CircleShape))
             Row(Modifier.fillMaxSize().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
                 tabs.forEachIndexed { index, tab ->
                     MaterialNavigationItem(tab, index == selectedTab, index == preview,
@@ -173,11 +160,11 @@ private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted:
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val press = animateFloatAsState(if (pressed && highlighted && !reduced) 1.05f else 1f,
-        if (reduced) snap() else spring(dampingRatio = 0.8f, stiffness = 750f), label = "materialNavPress")
+        if (reduced) snap() else MaterialMotion.press(), label = "materialNavPress")
     val iconTint by animateColorAsState(if (highlighted) palette.onSecondaryContainer else palette.secondaryLabel,
-        if (reduced) snap() else tween(150), label = "materialNavIcon")
+        if (reduced) snap() else MaterialMotion.effects(), label = "materialNavIcon")
     val labelTint by animateColorAsState(if (highlighted) palette.onSecondaryContainer else palette.secondaryLabel,
-        if (reduced) snap() else tween(150), label = "materialNavLabel")
+        if (reduced) snap() else MaterialMotion.effects(), label = "materialNavLabel")
     Column(modifier.fillMaxHeight().clip(CircleShape)
         .selectable(selected, interactionSource = interaction, indication = MaterialRipple, role = Role.Tab, onClick = onClick)
         .padding(vertical = 6.dp),
@@ -193,7 +180,6 @@ private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted:
             }
         }
         // A fixed weight preserves the label's width when the selected destination changes.
-        AppText(tab.label, AppTheme.typography.caption1.copy(fontSize = 12.sp,
-            lineHeight = 16.sp, fontWeight = FontWeight.Medium), color = labelTint, maxLines = 1)
+        AppText(tab.label, AppTheme.typography.caption1, color = labelTint, maxLines = 1)
     }
 }

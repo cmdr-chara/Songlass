@@ -3,7 +3,6 @@ package dev.cmdrchara.songlass.theme.materialglass
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -112,12 +111,12 @@ private fun TransportPill(icon: ImageVector, description: String, onClick: () ->
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         if (pressed && !reduceMotion) 0.93f else 1f,
-        if (reduceMotion) snap() else spring(dampingRatio = 0.55f, stiffness = 600f),
+        if (reduceMotion) snap() else MaterialMotion.press(),
         label = "transportPress",
     )
     val corner by animateDpAsState(
         if (playing) 26.dp else 36.dp,
-        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 400f),
+        if (reduceMotion) snap() else MaterialMotion.spatial(),
         label = "transportShape",
     )
     val fill = if (prominent) palette.primary else palette.primaryContainer
@@ -125,7 +124,7 @@ private fun TransportPill(icon: ImageVector, description: String, onClick: () ->
     Box(
         Modifier
             .size(width = width, height = 72.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = scale.coerceAtMost(1f); scaleY = scale.coerceAtMost(1f) }
             .clip(RoundedCornerShape(corner))
             .background(fill)
             .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClickLabel = description, onClick = onClick),
@@ -153,7 +152,7 @@ private fun CardRow(
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
         if (pressed && !reduceMotion) 0.98f else 1f,
-        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f),
+        if (reduceMotion) snap() else MaterialMotion.press(),
         label = "cardRowPress",
     )
     val fill = if (highlighted) palette.primaryContainer else palette.container
@@ -161,7 +160,7 @@ private fun CardRow(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 3.dp)
-            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .graphicsLayer { scaleX = scale.coerceAtMost(1f); scaleY = scale.coerceAtMost(1f) }
             .clip(RoundedCornerShape(20.dp))
             .background(fill)
             .then(if (onClick != null) Modifier.clickable(interaction, indication = MaterialRipple, onClick = onClick) else Modifier)

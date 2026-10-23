@@ -117,21 +117,27 @@ private fun rememberTypography(): AppTypography {
         Font(Res.font.google_sans_flex, FontWeight.SemiBold, variationSettings = weight(600)),
         Font(Res.font.google_sans_flex, FontWeight.Bold, variationSettings = weight(700)),
     )
-    // Same sizes as Liquid Glass so layouts hold; the file sets text at weight 500.
-    fun style(size: Int, lineHeight: Int, w: FontWeight = FontWeight.Medium) =
-        TextStyle(fontFamily = family, fontSize = size.sp, lineHeight = lineHeight.sp, fontWeight = w)
+    // Map the shared role names to a Material hierarchy: headings stay calm, labels carry emphasis.
+    fun style(size: Int, lineHeight: Int, w: FontWeight = FontWeight.Normal, tracking: Float = 0f) =
+        TextStyle(
+            fontFamily = family,
+            fontSize = size.sp,
+            lineHeight = lineHeight.sp,
+            fontWeight = w,
+            letterSpacing = tracking.sp,
+        )
     return AppTypography(
-        largeTitle = style(34, 41, FontWeight.Bold),
-        title1 = style(28, 34, FontWeight.SemiBold),
-        title2 = style(22, 28, FontWeight.Bold),
-        title3 = style(20, 25, FontWeight.SemiBold),
-        headline = style(17, 22, FontWeight.SemiBold),
-        body = style(17, 22, FontWeight.Normal),
-        callout = style(16, 21, FontWeight.Normal),
-        subheadline = style(15, 20, FontWeight.Normal),
-        footnote = style(13, 18, FontWeight.Normal),
-        caption1 = style(12, 16),
-        caption2 = style(11, 13),
+        largeTitle = style(32, 40, FontWeight.SemiBold),
+        title1 = style(28, 36),
+        title2 = style(24, 32),
+        title3 = style(22, 28, FontWeight.Medium),
+        headline = style(16, 24, FontWeight.SemiBold, tracking = 0.1f),
+        body = style(16, 24, tracking = 0.15f),
+        callout = style(16, 24, FontWeight.Medium, tracking = 0.1f),
+        subheadline = style(14, 20, tracking = 0.15f),
+        footnote = style(12, 16, tracking = 0.2f),
+        caption1 = style(12, 16, FontWeight.Medium, tracking = 0.2f),
+        caption2 = style(11, 16, FontWeight.Medium, tracking = 0.2f),
     )
 }
 

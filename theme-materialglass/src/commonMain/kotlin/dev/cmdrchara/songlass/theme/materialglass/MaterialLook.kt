@@ -112,7 +112,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     override val playerOpenMotion = spring<Float>(dampingRatio = 1f, stiffness = 340f, visibilityThreshold = 0.002f)
     override val playerCloseMotion = spring<Float>(dampingRatio = 1f, stiffness = 480f, visibilityThreshold = 0.002f)
-    override fun playerThumbnailShape() = RoundedCornerShape(14.dp)
+    override fun playerThumbnailShape() = RoundedCornerShape(MaterialShapes.Medium)
 
     @Composable
     override fun FolderChoiceRow(choice: dev.cmdrchara.songlass.designsystem.FolderChoice, onExpand: () -> Unit, onExcludedChange: (Boolean) -> Unit, modifier: Modifier) =
@@ -225,8 +225,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @Composable
     override fun selection(): Color =
-        // "Selection inside the tab bar: white pill at 50%."
-        Color.White.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.5f)
+        palette().secondaryContainer
 
     @Composable
     override fun SeekBar(positionMs: Long, durationMs: Long, qualityLabel: String?, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) =
@@ -289,7 +288,14 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = MaterialSettingsGroup(content, modifier)
 
     // Pills everywhere and generously rounded cards (the file's cards use 24–32 px at 0.6 dp/px).
-    override fun corner(base: Dp): Dp = base * 1.6f
+    // Shared primitives still request legacy sizes; map them to discrete Material roles.
+    override fun corner(base: Dp): Dp = when {
+        base <= 8.dp -> MaterialShapes.Small
+        base <= 12.dp -> MaterialShapes.Medium
+        base <= 18.dp -> MaterialShapes.LargeIncreased
+        base <= 28.dp -> MaterialShapes.ExtraLarge
+        else -> MaterialShapes.ExtraLargeIncreased
+    }
 
     // Material 3 structure: a navigation bar that stays put, bottom sheets, back arrows, ripples
     // and M3 selection controls. The glass stays the file's.

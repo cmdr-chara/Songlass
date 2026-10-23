@@ -3,7 +3,6 @@ package dev.cmdrchara.songlass.theme.materialglass
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -155,7 +154,7 @@ internal fun MaterialVolumeSlider(value: Float, onValueChange: (Float) -> Unit, 
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val currentOnChange by rememberUpdatedState(onValueChange)
     var held by remember { mutableStateOf(false) }
-    val handleWidth by animateDpAsState(if (held) 2.dp else 4.dp, if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f), label = "volumeHandle")
+    val handleWidth by animateDpAsState(if (held) 2.dp else 4.dp, if (reduceMotion) snap() else MaterialMotion.press(), label = "volumeHandle")
     val icon = rememberVectorPainter(if (value < 0.5f) AppIcons.SpeakerLow else AppIcons.AudioOutput)
     Canvas(
         modifier.fillMaxWidth().height(44.dp).padding(vertical = 0.dp)

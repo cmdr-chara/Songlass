@@ -31,7 +31,7 @@ internal fun MaterialPageTitle(text: String, trailing: (@Composable () -> Unit)?
     Row(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
         .padding(horizontal = 20.dp, vertical = 8.dp).heightIn(min = 56.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        AppText(text, AppTheme.typography.largeTitle.copy(fontSize = 32.sp, lineHeight = 40.sp, fontWeight = FontWeight.Medium),
+        AppText(text, AppTheme.typography.largeTitle,
             modifier = Modifier.weight(1f).semantics { heading() })
         trailing?.invoke()
     }
@@ -57,10 +57,10 @@ internal fun MaterialHomeHighlights(items: List<HomeHighlight>, modifier: Modifi
             val interaction = remember { MutableInteractionSource() }
             val background = if (action != null) palette.primaryContainer else palette.container
             val foreground = if (action != null) palette.onPrimaryContainer else palette.label
-            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(background)
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(if (action != null) MaterialShapes.ExtraLargeIncreased else MaterialShapes.LargeIncreased)).background(background)
                 .prefetchArtworkOnPress(pick.artwork.takeIf { pick.icon == null })
                 .clickable(interaction, MaterialRipple, role = Role.Button, onClick = pick.onClick)
-                .padding(if (action != null) 20.dp else 12.dp),
+                .padding(if (action != null) 16.dp else 12.dp),
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (action == null) AlbumArt(pick.artwork, Modifier.size(96.dp), cornerRadius = 18.dp)
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -79,7 +79,7 @@ internal fun MaterialHomeHighlights(items: List<HomeHighlight>, modifier: Modifi
                         color = if (action != null) foreground else palette.secondaryLabel, maxLines = 2) }
                 }
                 if (action != null) MaterialCollectionMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) },
-                    Modifier.size(104.dp).clip(RoundedCornerShape(24.dp)))
+                    Modifier.size(88.dp).clip(RoundedCornerShape(MaterialShapes.LargeIncreased)))
                 else AppIcon(AppIcons.ChevronRight, null, size = 16.dp, tint = palette.secondaryLabel)
             }
         } }
