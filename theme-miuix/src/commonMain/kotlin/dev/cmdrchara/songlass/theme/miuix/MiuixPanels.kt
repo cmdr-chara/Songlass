@@ -20,8 +20,17 @@ import top.yukonga.miuix.kmp.overlay.OverlayDialog
 internal fun MiuixActions(visible: Boolean, title: String, subtitle: String?, artwork: Artwork?, actions: List<SheetAction>, closeLabel: String, dismiss: () -> Unit) {
     OverlayBottomSheet(show = visible, title = title, onDismissRequest = dismiss,
         endAction = { MiuixIconAction(AppIcons.Close, closeLabel, dismiss, false, false, Modifier) }) {
+        // Register inside the popup, after its dismiss handler, so nested Back stays in this sheet.
+        val backAction = actions.firstOrNull { it.isBackAction }
+        MiuixNestedBackHandler(enabled = visible && backAction != null) {
+            if (visible) backAction?.onClick?.invoke()
+        }
+        val scroll = rememberScrollState()
+        LaunchedEffect(title, visible, actions.firstOrNull()?.isBackAction) {
+            if (visible) scroll.scrollTo(0)
+        }
         // The sheet is drawn edge to edge: keep the last row clear of the gesture bar and let long lists scroll.
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().heightIn(max = 480.dp).verticalScroll(rememberScrollState()).padding(bottom = 16.dp),
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().heightIn(max = 480.dp).verticalScroll(scroll).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             // The sheet header already carries the title; repeat it only next to an artwork.
             if (artwork != null) MiuixRow(title, subtitle,
@@ -31,7 +40,7 @@ internal fun MiuixActions(visible: Boolean, title: String, subtitle: String?, ar
             MiuixGroup({
                 actions.forEach { action ->
                     MiuixRow(action.label, null, action.icon?.let { { dev.cmdrchara.songlass.designsystem.foundation.AppIcon(it, null, size = 24.dp, tint = AppTheme.colors.accent) } },
-                        null, false, { if (visible) { dismiss(); action.onClick() } }, Modifier)
+                        null, false, { if (visible) { if (action.dismissOnClick) dismiss(); action.onClick() } }, Modifier)
                 }
             }, Modifier)
         }

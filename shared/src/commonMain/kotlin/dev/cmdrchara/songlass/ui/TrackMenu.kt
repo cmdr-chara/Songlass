@@ -7,66 +7,76 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.sound.DefaultSoundTarget
 import dev.cmdrchara.songlass.designsystem.ActionSheet
 import dev.cmdrchara.songlass.designsystem.SheetAction
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
-import dev.cmdrchara.songlass.shared.resources.tags_edit
-import dev.cmdrchara.songlass.shared.resources.bookmark_open
-import dev.cmdrchara.songlass.shared.resources.bookmark_from_start
-import dev.cmdrchara.songlass.shared.resources.Res
-import dev.cmdrchara.songlass.shared.resources.playlist_add_to
-import dev.cmdrchara.songlass.shared.resources.playlist_remove_song
-import dev.cmdrchara.songlass.shared.resources.queue_add_temporary
-import dev.cmdrchara.songlass.shared.resources.action_cancel
-import dev.cmdrchara.songlass.shared.resources.action_favorite
-import dev.cmdrchara.songlass.shared.resources.action_go_to_album
-import dev.cmdrchara.songlass.shared.resources.action_go_to_named_artist
-import dev.cmdrchara.songlass.shared.resources.action_go_to_artist
-import dev.cmdrchara.songlass.shared.resources.action_play_next
-import dev.cmdrchara.songlass.shared.resources.action_unfavorite
+import dev.cmdrchara.songlass.shared.resources.*
 import org.jetbrains.compose.resources.stringResource
 
-/** The "…" actions for the track in [AppState.menuTrack]. */
+/** Frequent actions stay on the first page; secondary actions share the existing sheet host. */
 @Composable
 fun TrackMenu(state: AppState, favoriteIds: List<String>) {
-    // Keep the last track while the sheet animates out.
+    val supportsDefaultSounds = DefaultSoundSheet(state)
+    // Keep the last track and page while the sheet animates out.
     var lastShown by remember { mutableStateOf<Track?>(null) }
-    LaunchedEffect(state.menuTrack) { state.menuTrack?.let { lastShown = it } }
+    var lastPage by remember { mutableStateOf(TrackMenuPage.Main) }
+    LaunchedEffect(state.menuTrack, state.trackMenuPage) {
+        if (state.menuTrack != null) {
+            lastShown = state.menuTrack
+            lastPage = state.trackMenuPage
+        }
+    }
     val track = state.menuTrack ?: lastShown ?: return
+    val page = if (state.menuTrack != null) state.trackMenuPage else lastPage
+    val playlistId = state.menuPlaylistId
     val isFavorite = track.id in favoriteIds
-
-    ActionSheet(
-        visible = state.menuTrack != null,
-        title = track.title,
-        subtitle = artistName(track.artist),
-        artwork = track.artwork(),
-        cancelLabel = stringResource(Res.string.action_cancel),
-        onDismiss = state::closeMenu,
-        actions = listOfNotNull(
+    val back = stringResource(Res.string.back)
+    fun navigate(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, destination: TrackMenuPage) =
+        SheetAction(label, icon, onClick = { state.showTrackMenuPage(destination) }, dismissOnClick = false)
+    val actions = when (page) {
+        TrackMenuPage.Main -> listOf(
             SheetAction(stringResource(Res.string.action_play_next), AppIcons.PlayNext) { state.controller.playNext(listOf(track)) },
             SheetAction(stringResource(Res.string.queue_add_temporary), AppIcons.AddToQueue) { state.controller.addToQueue(listOf(track)) },
             SheetAction(stringResource(Res.string.playlist_add_to), AppIcons.Library) { state.openAddToPlaylist(listOf(track)) },
-            SheetAction(stringResource(Res.string.bookmark_open), AppIcons.Bookmark) { state.openBookmarks(track) },
+            SheetAction(stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
+                if (isFavorite) AppIcons.StarFilled else AppIcons.Star) { state.favorites.toggle(track.id) },
+            navigate(stringResource(Res.string.action_more), AppIcons.More, TrackMenuPage.More),
+        )
+        TrackMenuPage.More -> listOfNotNull(
+            SheetAction(back, AppIcons.ChevronLeft, onClick = state::backTrackMenu, dismissOnClick = false, isBackAction = true),
             SheetAction(stringResource(Res.string.bookmark_from_start), AppIcons.Previous) { state.controller.playFromBeginning(track) },
-            state.menuPlaylistId?.let { playlistId ->
-                SheetAction(stringResource(Res.string.playlist_remove_song), AppIcons.Close) { state.userPlaylists.remove(playlistId, track.id) }
-            },
-            SheetAction(
-                stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
-                if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
-            ) { state.favorites.toggle(track.id) },
+            SheetAction(stringResource(Res.string.bookmark_open), AppIcons.Bookmark) { state.openBookmarks(track) },
+            if (state.library.albumOf(track) != null) SheetAction(stringResource(Res.string.action_go_to_album), AppIcons.Library) { state.showAlbumOf(track) } else null,
+            navigate(stringResource(Res.string.track_menu_artists), AppIcons.Person, TrackMenuPage.Artists),
             if (state.tagEditor != null) SheetAction(stringResource(Res.string.tags_edit), AppIcons.Lyrics) { state.openTagEditor(track) } else null,
-            // Lone songs are not albums, so there is nothing to go to.
-            if (state.library.albumOf(track) != null) {
-                SheetAction(stringResource(Res.string.action_go_to_album), AppIcons.Library) { state.showAlbumOf(track) }
-            } else {
-                null
-            },
+            playlistId?.let { id -> SheetAction(stringResource(Res.string.playlist_remove_song), AppIcons.Close) { state.userPlaylists.remove(id, track.id) } },
+            if (supportsDefaultSounds) navigate(stringResource(Res.string.track_menu_use_as), AppIcons.MusicNote, TrackMenuPage.UseAs) else null,
+        )
+        TrackMenuPage.Artists -> listOf(
+            SheetAction(back, AppIcons.ChevronLeft, onClick = state::backTrackMenu, dismissOnClick = false, isBackAction = true),
             SheetAction(stringResource(Res.string.action_go_to_artist), AppIcons.MusicNote) { state.showArtistOf(track) },
         ) + state.library.artistsOf(track).filter { it != state.library.artistOf(track) }.map { artist ->
-            SheetAction(stringResource(Res.string.action_go_to_named_artist, artistName(artist.name)), AppIcons.Person) {
-                state.showArtist(artist)
-            }
+            SheetAction(stringResource(Res.string.action_go_to_named_artist, artistName(artist.name)), AppIcons.Person) { state.showArtist(artist) }
+        }
+        TrackMenuPage.UseAs -> listOf(
+            SheetAction(back, AppIcons.ChevronLeft, onClick = state::backTrackMenu, dismissOnClick = false, isBackAction = true),
+            SheetAction(stringResource(Res.string.default_sound_ringtone), AppIcons.MusicNote) { state.askDefaultSound(track, DefaultSoundTarget.Ringtone) },
+            SheetAction(stringResource(Res.string.default_sound_alarm), AppIcons.Timer) { state.askDefaultSound(track, DefaultSoundTarget.Alarm) },
+        )
+    }
+    ActionSheet(
+        visible = state.menuTrack != null,
+        title = when (page) {
+            TrackMenuPage.Main -> track.title
+            TrackMenuPage.More -> stringResource(Res.string.action_more)
+            TrackMenuPage.Artists -> stringResource(Res.string.track_menu_artists)
+            TrackMenuPage.UseAs -> stringResource(Res.string.track_menu_use_as)
         },
+        subtitle = if (page == TrackMenuPage.Main) artistName(track.artist) else track.title,
+        artwork = track.artwork().takeIf { page == TrackMenuPage.Main },
+        cancelLabel = stringResource(Res.string.action_cancel),
+        onDismiss = state::closeMenu,
+        actions = actions,
     )
 }

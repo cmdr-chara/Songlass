@@ -90,13 +90,15 @@ internal fun LiquidGlassActionSheet(
     field: (@Composable () -> Unit)? = null,
     contentKey: String? = null,
     dismissOnAction: Boolean = true,
+    headerLeading: (@Composable () -> Unit)? = null,
+    headerTrailing: (@Composable () -> Unit)? = null,
 ) {
     val sheetTint = LocalSheetTint.current
     if (sheetTint == null) {
-        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction)
+        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction, headerLeading = headerLeading, headerTrailing = headerTrailing)
     } else {
         ProvideArtworkTint(sheetTint) {
-            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction)
+            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction, headerLeading = headerLeading, headerTrailing = headerTrailing)
         }
     }
 }
@@ -168,9 +170,13 @@ private fun ActionSheetContent(
     field: (@Composable () -> Unit)? = null,
     contentKey: String? = null,
     dismissOnAction: Boolean = true,
+    headerLeading: (@Composable () -> Unit)? = null,
+    headerTrailing: (@Composable () -> Unit)? = null,
 ) {
     val scroll = rememberScrollState()
-    LaunchedEffect(contentKey) { scroll.scrollTo(0) }
+    LaunchedEffect(contentKey, title, visible, actions.firstOrNull()?.isBackAction) {
+        if (visible) scroll.scrollTo(0)
+    }
     val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val look = LocalGlassLook.current
@@ -223,7 +229,7 @@ private fun ActionSheetContent(
         ) {
             CompositionLocalProvider(LocalContentColor provides colors.label) {
                 if (bottomSheet) {
-                    BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight, scroll, dismissOnAction)
+                    BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight, scroll, dismissOnAction, headerLeading, headerTrailing)
                     return@CompositionLocalProvider
                 }
                 Column(
@@ -258,7 +264,7 @@ private fun ActionSheetContent(
                             if (index > 0) Separator()
                             SheetRow(action.label, action.icon) {
                                 if (visible) {
-                                    if (dismissOnAction) onDismiss()
+                                    if (dismissOnAction && action.dismissOnClick) onDismiss()
                                     action.onClick()
                                 }
                             }
@@ -324,6 +330,8 @@ private fun BottomSheetContent(
     maxHeight: androidx.compose.ui.unit.Dp,
     scroll: androidx.compose.foundation.ScrollState,
     dismissOnAction: Boolean,
+    headerLeading: (@Composable () -> Unit)?,
+    headerTrailing: (@Composable () -> Unit)?,
 ) {
     val colors = AppTheme.colors
     Column(
@@ -341,15 +349,17 @@ private fun BottomSheetContent(
             Modifier.align(Alignment.CenterHorizontally).padding(top = 16.dp, bottom = 6.dp)
                 .size(width = 32.dp, height = 4.dp).clip(RoundedCornerShape(2.dp)).background(colors.label.copy(alpha = 0.4f)),
         )
-        Row(Modifier.padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            headerLeading?.invoke()
             if (artwork != null) {
                 LiquidGlassAlbumArt(artwork, cornerRadius = 12.dp, modifier = Modifier.size(56.dp))
                 Spacer(Modifier.width(16.dp))
             }
-            Column {
+            Column(Modifier.weight(1f)) {
                 AppText(title, AppTheme.typography.title3, maxLines = 2)
                 if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel, maxLines = 1)
             }
+            headerTrailing?.invoke()
         }
         field?.invoke()
         details.forEach { detail ->
@@ -364,7 +374,7 @@ private fun BottomSheetContent(
         actions.forEach { action ->
             BottomSheetRow(action.label, action.icon) {
                 if (visible) {
-                    if (dismissOnAction) onDismiss()
+                    if (dismissOnAction && action.dismissOnClick) onDismiss()
                     action.onClick()
                 }
             }

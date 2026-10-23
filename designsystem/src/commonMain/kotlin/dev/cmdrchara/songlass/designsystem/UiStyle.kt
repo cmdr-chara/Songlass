@@ -54,7 +54,14 @@ data class SheetAction(
     val label: String,
     val icon: ImageVector?,
     val onClick: () -> Unit,
-)
+    /** Navigation inside a sheet keeps the existing host open. */
+    val dismissOnClick: Boolean = true,
+    /** A nested sheet's system Back invokes this action rather than dismissing the host. */
+    val isBackAction: Boolean = false,
+) {
+    // Preserve both existing positional calls and trailing-lambda construction.
+    constructor(label: String, icon: ImageVector?, onClick: () -> Unit) : this(label, icon, onClick, true)
+}
 
 /**
  * One item of an [UiStyle.ArtworkShelf]: a cover ([artwork]) or, for actions such as "New

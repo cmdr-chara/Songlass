@@ -29,9 +29,18 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 /** Shared overlay mechanics only. Material supplies its own content composition below this host. */
 @Composable
-fun GlassPlaybackToolsHost(visible: Boolean, title: String, subtitle: String?, closeLabel: String, onDismiss: () -> Unit, content: @Composable () -> Unit) {
+fun GlassPlaybackToolsHost(
+    visible: Boolean,
+    title: String,
+    subtitle: String?,
+    closeLabel: String,
+    onDismiss: () -> Unit,
+    headerLeading: (@Composable () -> Unit)? = null,
+    headerTrailing: (@Composable () -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
     LiquidGlassActionSheet(visible, title, subtitle, null, emptyList(), closeLabel, onDismiss,
-        field = content, contentKey = title)
+        field = content, contentKey = title, headerLeading = headerLeading, headerTrailing = headerTrailing)
 }
 
 /** Inset grouped rows: content stays opaque while the player/navigation retain their glass. */

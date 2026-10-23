@@ -39,13 +39,16 @@ internal fun MaterialPlaybackTools(visible: Boolean, title: String, subtitle: St
     val badgeSize = if (lineHeight.isSp) with(LocalDensity.current) { lineHeight.toDp() + 12.dp }.coerceAtLeast(36.dp) else 36.dp
     // The phone palette also owns the host/header; artwork tint must not recolor this panel.
     CompositionLocalProvider(LocalSheetTint provides null) {
-    GlassPlaybackToolsHost(visible, title, subtitle, closeLabel, dismiss) {
+    GlassPlaybackToolsHost(
+        visible, title, subtitle, closeLabel, dismiss,
+        headerLeading = if (onBack != null && backLabel != null) ({
+            dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.ArrowBack, backLabel, { if (visible) onBack() }, Modifier.size(48.dp))
+        }) else null,
+        headerTrailing = {
+            dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, closeLabel, { if (visible) dismiss() }, Modifier.size(48.dp))
+        },
+    ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                if (onBack != null && backLabel != null) LocalGlassLook.current.BackButton(backLabel, { if (visible) onBack() }, Modifier)
-                Spacer(Modifier.weight(1f))
-                dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, closeLabel, { if (visible) dismiss() })
-            }
             groups.forEach { group ->
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     group.title?.let { AppText(it, AppTheme.typography.headline, color = palette.primary,

@@ -17,6 +17,8 @@ import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.library.AlphabetSection
 import dev.cmdrchara.songlass.core.history.PlayContext
 import dev.cmdrchara.songlass.core.model.Track
+import dev.cmdrchara.songlass.core.model.isSameFileAs
+import dev.cmdrchara.songlass.core.sound.DefaultSoundTarget
 import dev.cmdrchara.songlass.core.model.TrackAvailability
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.core.playlists.PlaylistAddResult
@@ -31,6 +33,11 @@ import dev.cmdrchara.songlass.core.settings.TrackClickAction
 enum class Tab { Home, Library, Search }
 
 enum class PlayerPage { Artwork, Queue, Lyrics }
+
+enum class TrackMenuPage { Main, More, Artists, UseAs }
+
+/** Identity, rather than structural equality, binds asynchronous results to this confirmation. */
+class DefaultSoundRequest(val track: Track, val target: DefaultSoundTarget)
 
 enum class AudioInformationPage { Overview, File, Processing, Output }
 
@@ -234,6 +241,58 @@ class AppState(graph: AppGraph) {
     var menuTrack by mutableStateOf<Track?>(null)
         private set
 
+    var trackMenuPage by mutableStateOf(TrackMenuPage.Main)
+        private set
+    var defaultSoundRequest by mutableStateOf<DefaultSoundRequest?>(null, referentialEqualityPolicy())
+        private set
+    var defaultSoundApplying by mutableStateOf(false)
+        private set
+    var defaultSoundInvalidated by mutableStateOf(false)
+        private set
+    private val defaultSoundSourceCurrent: (Track) -> Boolean = { selected ->
+        graph.isLibraryReadyForBackup() && graph.allTracks.value.singleOrNull { it.id == selected.id }
+            ?.let { selected.isSameFileAs(it) } == true
+    }
+
+    private var defaultSoundTicket: MutationTicket? = null
+    fun isDefaultSoundSourceCurrent(track: Track): Boolean = defaultSoundSourceCurrent(track) &&
+        (defaultSoundRequest?.track !== track || (!defaultSoundInvalidated && restoreMutations.accepts(defaultSoundTicket)))
+    fun showTrackMenuPage(page: TrackMenuPage) { if (menuTrack != null) trackMenuPage = page }
+    fun backTrackMenu() {
+        when (trackMenuPage) {
+            TrackMenuPage.Main -> closeMenu()
+            TrackMenuPage.More -> trackMenuPage = TrackMenuPage.Main
+            TrackMenuPage.Artists, TrackMenuPage.UseAs -> trackMenuPage = TrackMenuPage.More
+        }
+    }
+    fun askDefaultSound(track: Track, target: DefaultSoundTarget) {
+        if (defaultSoundApplying) return
+        defaultSoundTicket = restoreMutations.ticket()
+        defaultSoundRequest = DefaultSoundRequest(track, target)
+        defaultSoundInvalidated = !isDefaultSoundSourceCurrent(track)
+        defaultSoundApplying = false
+    }
+    fun invalidateDefaultSound(request: DefaultSoundRequest) {
+        if (defaultSoundRequest === request) defaultSoundInvalidated = true
+    }
+    fun beginDefaultSound(request: DefaultSoundRequest): Boolean {
+        if (defaultSoundRequest !== request || defaultSoundApplying || defaultSoundInvalidated) return false
+        if (!isDefaultSoundSourceCurrent(request.track)) { defaultSoundInvalidated = true; return false }
+        defaultSoundApplying = true
+        return true
+    }
+    fun finishDefaultSound(request: DefaultSoundRequest): Boolean {
+        if (defaultSoundRequest !== request) return false
+        defaultSoundApplying = false
+        return true
+    }
+    fun closeDefaultSound() {
+        if (defaultSoundApplying) return
+        defaultSoundRequest = null
+        defaultSoundTicket = null
+        defaultSoundInvalidated = false
+    }
+
     private val backStacks = Tab.entries.associateWith { mutableStateListOf<Route>() }
 
     val currentRoute: Route? get() = backStacks.getValue(tab).lastOrNull()
@@ -312,7 +371,8 @@ class AppState(graph: AppGraph) {
             isLibraryDurationPickerOpen -> closeLibraryDurationPicker()
             restoreDefaultsArea != null -> closeRestoreDefaults()
             isSleepMenuOpen -> closeSleepMenu()
-            menuTrack != null -> closeMenu()
+            defaultSoundRequest != null -> closeDefaultSound()
+            menuTrack != null -> backTrackMenu()
             isSongInfoVisible -> backFromAudioInformation()
             isArtworkExpanded -> updateArtworkExpansion(false)
             isNowPlayingOpen -> closeNowPlaying()
@@ -363,6 +423,7 @@ class AppState(graph: AppGraph) {
         private set
 
     fun openMenu(track: Track, fromPlaylist: String? = null) {
+        trackMenuPage = TrackMenuPage.Main
         menuTrack = track
         menuPlaylistId = fromPlaylist
     }
@@ -492,7 +553,7 @@ class AppState(graph: AppGraph) {
 
     val hasOverlay: Boolean
         get() = playlistMutationRejected || alphabetJumpRequest != null || playlistInsertionRequest != null || playlistAdditionNotice != null || playlistRemovalRequest != null ||
-            deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || restoreDefaultsArea != null || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
+            deletingSmartPlaylistId != null || isLibraryDurationPickerOpen || isSleepMenuOpen || restoreDefaultsArea != null || defaultSoundRequest != null || menuTrack != null || isSongInfoVisible || addToPlaylistTracks != null ||
             playlistPrompt != null || playlistOptionsId != null
 
     fun openBookmarks(track: Track? = null) {
@@ -508,6 +569,8 @@ class AppState(graph: AppGraph) {
 
     fun closeMenu() {
         menuTrack = null
+        menuPlaylistId = null
+        trackMenuPage = TrackMenuPage.Main
     }
 
     /** Leaves Now Playing if needed and opens the album of [track] in the current tab. */

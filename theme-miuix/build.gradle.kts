@@ -25,6 +25,9 @@ kotlin {
     }
 
     sourceSets {
+        androidMain.dependencies {
+            implementation(libs.androidx.activity.compose)
+        }
         commonMain.dependencies {
             // Miuix supplies native controls while sharing Songlass navigation and player mechanics.
             api(projects.themeLiquidglass)
