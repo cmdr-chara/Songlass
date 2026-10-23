@@ -48,6 +48,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.DelegatableNode
@@ -157,21 +158,23 @@ private class RippleNode(private val source: InteractionSource) : Node(), DrawMo
 
     override fun ContentDrawScope.draw() {
         drawContent()
-        val color = currentValueOf(LocalContentColor)
-        val stateAlpha = when {
-            focuses.isNotEmpty() -> 0.12f
-            hovers.isNotEmpty() -> 0.08f
-            else -> 0f
+        clipRect {
+            val color = currentValueOf(LocalContentColor)
+            val stateAlpha = when {
+                focuses.isNotEmpty() -> 0.12f
+                hovers.isNotEmpty() -> 0.08f
+                else -> 0f
+            }
+            val a = alpha.value
+            drawRect(color.copy(alpha = max(stateAlpha, 0.08f * a)))
+            if (a <= 0f) return@clipRect
+            val center = if (origin.isSpecified) origin else Offset(size.width / 2f, size.height / 2f)
+            val farthest = max(
+                max(hypot(center.x, center.y), hypot(size.width - center.x, center.y)),
+                max(hypot(center.x, size.height - center.y), hypot(size.width - center.x, size.height - center.y)),
+            )
+            drawCircle(color.copy(alpha = 0.1f * a), farthest * (if (currentValueOf(LocalUiAccessibility).reduceMotion) 1f else radius.value), center)
         }
-        val a = alpha.value
-        drawRect(color.copy(alpha = max(stateAlpha, 0.08f * a)))
-        if (a <= 0f) return
-        val center = if (origin.isSpecified) origin else Offset(size.width / 2f, size.height / 2f)
-        val farthest = max(
-            max(hypot(center.x, center.y), hypot(size.width - center.x, center.y)),
-            max(hypot(center.x, size.height - center.y), hypot(size.width - center.x, size.height - center.y)),
-        )
-        drawCircle(color.copy(alpha = 0.1f * a), farthest * (if (currentValueOf(LocalUiAccessibility).reduceMotion) 1f else radius.value), center)
     }
 }
 
