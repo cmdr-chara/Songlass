@@ -259,9 +259,10 @@ private fun SettingsItems.overviewSettings(
 private fun SettingsLink(title: String, summary: String, icon: ImageVector, summaryIsValue: Boolean = false, onClick: () -> Unit) =
     LocalGlassLook.current.SettingsDestination(title, summary, icon, summaryIsValue, onClick)
 
+/** Independent preference cards have an 8 dp gutter; connected rows use SettingsGroupFragment. */
 @Composable
 private fun SettingsFormGroup(modifier: Modifier, content: @Composable () -> Unit) =
-    LocalGlassLook.current.SettingsPageGroup(modifier, content)
+    LocalGlassLook.current.SettingsPageGroup(modifier.padding(vertical = 4.dp), content)
 
 @Composable
 private fun SettingsDestinations(modifier: Modifier, content: @Composable () -> Unit) =
@@ -478,7 +479,7 @@ private fun SettingsItems.queueSettings(settings: AppSettings, preferences: AppP
     mark(SettingsTarget.QueueReplaces)
     item {
         SettingsSearchAnchor(SettingsTarget.QueueReplaces, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
                 SettingsToggleRow(stringResource(Res.string.queue_replaces), preferences.queueReplaces, settings::setQueueReplaces)
             }
         }
@@ -500,7 +501,7 @@ private fun SettingsItems.queueSettings(settings: AppSettings, preferences: AppP
     mark(SettingsTarget.KeepShuffle)
     item {
         SettingsSearchAnchor(SettingsTarget.KeepShuffle, request) {
-            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
                 SettingsToggleRow(stringResource(Res.string.shuffle_keep), preferences.keepShuffleOnSelection, settings::setKeepShuffleOnSelection)
             }
         }
@@ -820,7 +821,7 @@ private fun SettingsItems.playerSettings(
 private fun AudioEffectControl(target: SettingsTarget, effect: AudioEffect, value: Int, enabled: Boolean, onChange: (Int) -> Unit) {
     val title = settingsTargetTitle(target)
     val readout = audioEffectValue(effect, value)
-    SettingsFormGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+    SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AppText(title, AppTheme.typography.body)
             AppText(readout, AppTheme.typography.body, color = AppTheme.colors.accent)
