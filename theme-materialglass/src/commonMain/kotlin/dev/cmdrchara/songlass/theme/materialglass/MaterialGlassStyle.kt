@@ -36,7 +36,6 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
-import dev.cmdrchara.songlass.theme.liquidglass.LiquidLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
@@ -70,9 +69,12 @@ internal fun MaterialTransportControls(
 }
 
 @Composable
-internal fun MaterialSettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
-    // Rows inside a group are part of its card, not cards of their own.
-    LiquidLook.SettingsGroup({ CompositionLocalProvider(LocalInsideGroup provides true, content = content) }, modifier)
+internal fun MaterialSettingsGroup(content: @Composable () -> Unit, modifier: Modifier) {
+    CompositionLocalProvider(LocalInsideGroup provides true) {
+        Column(modifier.fillMaxWidth().clip(RoundedCornerShape(MaterialShapes.LargeIncreased))
+            .background(currentPalette().container).padding(vertical = 4.dp)) { content() }
+    }
+}
 
 @Composable
 internal fun MaterialListRow(
@@ -83,10 +85,7 @@ internal fun MaterialListRow(
     highlighted: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier,
-) {
-    if (LocalInsideGroup.current) LiquidLook.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
-    else CardRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
-}
+) = MaterialContentRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, LocalInsideGroup.current)
 
 /** True inside a grouped surface, where rows must not become cards. */
 private val LocalInsideGroup = staticCompositionLocalOf { false }
@@ -134,9 +133,9 @@ private fun TransportPill(icon: ImageVector, description: String, onClick: () ->
     }
 }
 
-/** A list row as its own rounded card, the current song lit in the surface colour. */
+/** Content lists stay quiet; only the active row receives a tonal container. */
 @Composable
-private fun CardRow(
+private fun MaterialContentRow(
     title: String,
     subtitle: String?,
     leading: (@Composable () -> Unit)?,
@@ -144,28 +143,19 @@ private fun CardRow(
     highlighted: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier,
+    grouped: Boolean,
 ) {
     val palette = currentPalette()
-    val colors = AppTheme.colors
-    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val content = if (highlighted) palette.onPrimaryContainer else LocalContentColor.current
     val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        if (pressed && !reduceMotion) 0.98f else 1f,
-        if (reduceMotion) snap() else MaterialMotion.press(),
-        label = "cardRowPress",
-    )
-    val fill = if (highlighted) palette.primaryContainer else palette.container
     Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 3.dp)
-            .graphicsLayer { scaleX = scale.coerceAtMost(1f); scaleY = scale.coerceAtMost(1f) }
-            .clip(RoundedCornerShape(20.dp))
-            .background(fill)
-            .then(if (onClick != null) Modifier.clickable(interaction, indication = MaterialRipple, onClick = onClick) else Modifier)
-            .heightIn(min = if (subtitle != null) 64.dp else 48.dp)
-            .padding(start = 8.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        modifier = modifier.fillMaxWidth()
+            .padding(horizontal = if (grouped) 0.dp else 8.dp, vertical = if (grouped) 0.dp else 2.dp)
+            .clip(RoundedCornerShape(if (grouped) 0.dp else MaterialShapes.Medium))
+            .background(if (highlighted) palette.primaryContainer else Color.Transparent)
+            .then(if (onClick != null) Modifier.clickable(interaction, indication = MaterialRipple, role = Role.Button, onClick = onClick) else Modifier)
+            .heightIn(min = if (subtitle != null) 64.dp else 56.dp)
+            .padding(horizontal = if (grouped) 16.dp else 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) {
@@ -173,11 +163,9 @@ private fun CardRow(
             Spacer(Modifier.width(12.dp))
         }
         Column(Modifier.weight(1f)) {
-            val content = LocalContentColor.current
-            AppText(title, AppTheme.typography.body, color = if (highlighted) palette.onPrimaryContainer else content, maxLines = 1)
-            if (subtitle != null) {
-                AppText(subtitle, AppTheme.typography.subheadline, color = content.copy(alpha = 0.6f), maxLines = 1)
-            }
+            AppText(title, AppTheme.typography.body, color = content, maxLines = 2)
+            if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline,
+                color = if (highlighted) palette.onPrimaryContainer else palette.secondaryLabel, maxLines = 2)
         }
         if (trailing != null) {
             Spacer(Modifier.width(8.dp))

@@ -89,10 +89,7 @@ internal fun MaterialShortcutTile(title: String, artwork: Artwork, circular: Boo
     }
 }
 
-/**
- * Library category: icon in a scalloped primary container, title and count, and a small stack of
- * covers in expressive shapes at the bottom right.
- */
+/** Compact category surface: icon and count above a naturally measured, two-line title. */
 @Composable
 internal fun MaterialCollectionTile(
     title: String,
@@ -104,36 +101,24 @@ internal fun MaterialCollectionTile(
     modifier: Modifier,
 ) {
     val palette = currentPalette()
-    Box(
+    Column(
         modifier
-            .height(140.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .heightIn(min = 104.dp)
+            .clip(RoundedCornerShape(MaterialShapes.Large))
             .background(palette.container)
-            .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick),
+            .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick)
+            .padding(12.dp),
     ) {
-        val covers = artworks.take(3)
-        val shapes = if (circular) List(3) { ExpressiveShapes.Cookie } else listOf(ExpressiveShapes.Sunny, ExpressiveShapes.Arch, ExpressiveShapes.Clover)
-        covers.forEachIndexed { index, artwork ->
-            // Back to front: the first cover is the largest, in front.
-            val i = covers.size - 1 - index
-            val size = 50.dp - 5.dp * i
-            Box(
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 10.dp + 24.dp * i, bottom = 10.dp + 3.dp * i)
-                    .size(size)
-                    .clip(shapes[i]),
-            ) {
-                AlbumArt(artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(MaterialShapes.Medium)).background(palette.primaryContainer),
+                contentAlignment = Alignment.Center) {
+                AppIcon(icon, contentDescription = null, size = 24.dp, tint = palette.onPrimaryContainer)
             }
+            Spacer(Modifier.width(10.dp))
+            AppText(subtitle, AppTheme.typography.subheadline, color = palette.secondaryLabel,
+                modifier = Modifier.weight(1f), maxLines = 2)
         }
-        Column(Modifier.padding(14.dp)) {
-            Box(Modifier.size(42.dp).clip(ExpressiveShapes.Cookie).background(palette.primaryContainer), contentAlignment = Alignment.Center) {
-                AppIcon(icon, contentDescription = null, size = 22.dp, tint = palette.onPrimaryContainer)
-            }
-            Spacer(Modifier.height(8.dp))
-            AppText(title, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), maxLines = 1)
-            AppText(subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
-        }
+        Spacer(Modifier.height(8.dp))
+        AppText(title, AppTheme.typography.headline, color = palette.label, maxLines = 2)
     }
 }

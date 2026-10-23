@@ -8,8 +8,10 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,6 +23,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,6 +46,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -160,7 +165,7 @@ internal fun MaterialTag(text: String, modifier: Modifier) {
     }
 }
 
-/** Material filter chips: outlined when off; filled in the primary container with a check when on. */
+/** Material filter chips: compact tonal surfaces inside full-height selectable targets. */
 @Composable
 internal fun MaterialFilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
     val palette = currentPalette()
@@ -168,28 +173,32 @@ internal fun MaterialFilterChips(options: List<String>, selectedIndex: Int, onSe
     LazyRow(modifier.selectableGroup(), contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         itemsIndexed(options) { index, option ->
             val selected = index == selectedIndex
-            val fill by animateColorAsState(if (selected) palette.primaryContainer else Color.Transparent, if (reduceMotion) snap() else tween(150), label = "chipFill")
-            val shape = RoundedCornerShape(8.dp)
-            Row(
-                Modifier
-                    .height(32.dp)
-                    .clip(shape)
-                    .background(fill)
-                    .then(if (selected) Modifier else Modifier.border(1.dp, AppTheme.colors.label.copy(alpha = 0.3f), shape))
-                    .selectable(selected, remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Tab) { onSelect(index) }
-                    .padding(start = if (selected) 8.dp else 16.dp, end = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            val interaction = remember { MutableInteractionSource() }
+            val fill by animateColorAsState(if (selected) palette.primaryContainer else palette.container,
+                if (reduceMotion) snap() else MaterialMotion.effects(), label = "chipFill")
+            val shape = RoundedCornerShape(MaterialShapes.Medium)
+            Box(
+                Modifier.heightIn(min = 48.dp).widthIn(min = 48.dp)
+                    .selectable(selected, interaction, indication = null, role = Role.Tab) { onSelect(index) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
-                if (selected) {
-                    AppIcon(AppIcons.Checkmark, contentDescription = null, size = 18.dp, tint = palette.onPrimaryContainer)
-                    Spacer(Modifier.width(8.dp))
+                Row(
+                    Modifier.heightIn(min = 32.dp)
+                        .clip(shape)
+                        .background(fill)
+                        .then(if (selected) Modifier else Modifier.border(1.dp, palette.secondaryLabel.copy(alpha = 0.35f), shape))
+                        .indication(interaction, MaterialRipple)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (selected) {
+                        AppIcon(AppIcons.Checkmark, contentDescription = null, size = 18.dp, tint = palette.onPrimaryContainer)
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    AppText(option, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (selected) palette.onPrimaryContainer else palette.label, maxLines = 1)
                 }
-                AppText(
-                    option,
-                    AppTheme.typography.footnote.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (selected) palette.onPrimaryContainer else AppTheme.colors.label,
-                    maxLines = 1,
-                )
             }
         }
     }
@@ -203,28 +212,43 @@ internal fun MaterialArtistAvatar(artwork: Artwork, modifier: Modifier) {
     }
 }
 
-/** Material search bar: a 56 dp pill in a raised container, search icon, clear button. */
+/** Tonal outlined search field; its minimum height leaves room for larger text. */
 @Composable
 internal fun MaterialSearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) {
     val palette = currentPalette()
     val colors = AppTheme.colors
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val outline by animateColorAsState(if (focused) palette.primary else palette.secondaryLabel.copy(alpha = 0.4f),
+        if (reduceMotion) snap() else MaterialMotion.effects(), label = "searchOutline")
+    val shape = RoundedCornerShape(MaterialShapes.LargeIncreased)
     Row(
-        modifier.fillMaxWidth().height(56.dp).clip(CircleShape).background(palette.containerHigh).padding(start = 16.dp, end = 4.dp),
+        modifier.fillMaxWidth().heightIn(min = 56.dp).clip(shape).background(palette.containerHigh)
+            .border(if (focused) 2.dp else 1.dp, outline, shape)
+            .padding(horizontal = 16.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(AppIcons.Search, contentDescription = null, size = 24.dp, tint = colors.label)
+        AppIcon(AppIcons.Search, contentDescription = null, size = 24.dp, tint = if (focused) palette.primary else colors.secondaryLabel)
         Spacer(Modifier.width(16.dp))
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (query.isEmpty()) AppText(placeholder, AppTheme.typography.body, color = colors.secondaryLabel, maxLines = 1)
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = AppTheme.typography.body.copy(color = colors.label),
-                cursorBrush = SolidColor(palette.primary),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            singleLine = true,
+            textStyle = AppTheme.typography.body.copy(color = colors.label),
+            cursorBrush = SolidColor(palette.primary),
+            interactionSource = interaction,
+            modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                .semantics { contentDescription = placeholder },
+            decorationBox = { innerTextField ->
+                Box(Modifier.fillMaxWidth().heightIn(min = 48.dp), contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) AppText(placeholder, AppTheme.typography.body,
+                        color = colors.secondaryLabel, maxLines = 1,
+                        modifier = Modifier.clearAndSetSemantics { })
+                    innerTextField()
+                }
+            },
+        )
         if (query.isNotEmpty()) {
             Box(
                 Modifier.size(48.dp).clip(CircleShape)

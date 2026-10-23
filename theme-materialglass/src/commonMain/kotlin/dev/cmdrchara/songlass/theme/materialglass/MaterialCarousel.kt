@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
@@ -109,6 +110,32 @@ private fun TonalButton(item: ShelfItem) {
 /** Pins as covers cut into expressive shapes, each a different one, with the name below. */
 @Composable
 private fun ShapedPins(items: List<ShelfItem>, itemSize: Dp, modifier: Modifier) {
+    if (items.size == 1) {
+        val item = items.single()
+        val palette = currentPalette()
+        Row(
+            modifier.fillMaxWidth().padding(horizontal = 16.dp)
+                .clip(RoundedCornerShape(MaterialShapes.LargeIncreased))
+                .background(palette.container)
+                .prefetchArtworkOnPress(item.artwork)
+                .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = item.onClick)
+                .heightIn(min = 88.dp).padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Box(Modifier.size(64.dp).clip(if (item.circular) CircleShape else RoundedCornerShape(MaterialShapes.Medium))
+                .background(palette.primaryContainer), contentAlignment = Alignment.Center) {
+                val artwork = item.artwork
+                if (artwork != null) AlbumArt(artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
+                else item.icon?.let { AppIcon(it, null, size = 24.dp, tint = palette.onPrimaryContainer) }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AppText(item.title, AppTheme.typography.headline, color = palette.label, maxLines = 2)
+                item.subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = palette.secondaryLabel, maxLines = 2) }
+            }
+        }
+        return
+    }
     LazyRow(modifier, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         itemsIndexed(items, key = { _, item -> item.key }) { index, item ->
             val shape = if (item.circular) ExpressiveShapes.Cookie else ExpressiveShapes.sequence[index % ExpressiveShapes.sequence.size]
