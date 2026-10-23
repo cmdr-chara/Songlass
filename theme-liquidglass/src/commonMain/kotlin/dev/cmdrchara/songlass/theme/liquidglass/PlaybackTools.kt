@@ -11,6 +11,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -59,6 +61,23 @@ internal fun LiquidPlaybackTools(visible: Boolean, title: String, subtitle: Stri
                     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(colors.background)) {
                         group.rows.forEachIndexed { index, row ->
                             val onClick = row.onClick
+                            if (row.prominent && onClick != null) {
+                                val interaction = remember { MutableInteractionSource() }
+                                val scale = pressScale(interaction)
+                                val foreground = if (colors.accent.luminance() > 0.179f) Color.Black else Color.White
+                                Row(Modifier.fillMaxWidth().padding(8.dp).heightIn(min = 48.dp)
+                                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                                    .clip(RoundedCornerShape(14.dp)).background(colors.accent)
+                                    .clickable(interaction, indication = null, enabled = visible, role = Role.Button,
+                                        onClick = { if (visible) onClick() })
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                                    row.icon?.let { AppIcon(it, null, size = 20.dp, tint = foreground); Spacer(Modifier.width(8.dp)) }
+                                    AppText(row.title, AppTheme.typography.headline, color = foreground,
+                                        modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.Center)
+                                }
+                                return@forEachIndexed
+                            }
                             if (index > 0) Box(Modifier.fillMaxWidth().padding(start = if (row.icon != null) 54.dp else 14.dp)
                                 .height(0.5.dp).background(colors.separator))
                             Row(Modifier.fillMaxWidth().heightIn(min = 56.dp)

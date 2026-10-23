@@ -350,18 +350,18 @@
     <string name="default_sound_alarm">Default alarm sound</string>
     <string name="default_sound_ringtone_confirm">Set default ringtone?</string>
     <string name="default_sound_alarm_confirm">Set default alarm sound?</string>
-    <string name="default_sound_copy_title">A separate system sound</string>
-    <string name="default_sound_ringtone_copy">Copies this track to Ringtones/Songlass and sets it as the system default ringtone. Your original music file stays unchanged.</string>
-    <string name="default_sound_alarm_copy">Copies this track to Alarms/Songlass and changes the system default alarm sound. Only alarms that use the default sound follow this choice; existing custom sounds stay unchanged. No alarm is created. Your original music file stays unchanged.</string>
-    <string name="default_sound_permission_title">Allow system setting changes</string>
-    <string name="default_sound_permission_body">Enable this permission for Songlass in Android settings, then return here and tap Set. Returning does not apply the change automatically.</string>
+    <string name="default_sound_copy_title">What changes</string>
+    <string name="default_sound_ringtone_copy">Sets this track as the system ringtone. Creates a copy; your original stays unchanged.</string>
+    <string name="default_sound_alarm_copy">For alarms using the default sound. Creates a copy; your original stays unchanged.</string>
+    <string name="default_sound_permission_title">Permission required</string>
+    <string name="default_sound_permission_body">Allow Songlass to change system settings, then tap Set.</string>
     <string name="default_sound_open_settings">Open settings</string>
     <string name="default_sound_set">Set</string>
     <string name="default_sound_applying">Applying…</string>
     <string name="default_sound_success_title">System sound updated</string>
     <string name="default_sound_ringtone_applied">This track is now the default system ringtone.</string>
-    <string name="default_sound_alarm_applied">This track is now the default system alarm sound. Alarms with a custom sound are unchanged.</string>
-    <string name="default_sound_source_changed">The music source changed or is unavailable. Close this sheet and select the track again after the library has finished loading.</string>
+    <string name="default_sound_alarm_applied">Alarms using the default sound now use this track.</string>
+    <string name="default_sound_source_changed">The source is no longer available. Close and select the track again.</string>
     <string name="default_sound_failed">Could not update the system sound. Check access and try again.</string>
     <string name="default_sound_notice">System sound</string>
 </resources>

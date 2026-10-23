@@ -16,7 +16,13 @@ data class PlaybackToolRow(
     val value: String,
     val icon: ImageVector? = null,
     val onClick: (() -> Unit)? = null,
-)
+    /** A primary action renders as a centered button instead of a navigational detail row. */
+    val prominent: Boolean = false,
+) {
+    // Keep existing positional callbacks and trailing lambdas, including calls without an icon.
+    constructor(title: String, value: String, icon: ImageVector? = null, onClick: (() -> Unit)?) :
+        this(title, value, icon, onClick, false)
+}
 
 @Immutable
 data class PlaybackToolGroup(val title: String?, val rows: List<PlaybackToolRow>, val ordered: Boolean = false)

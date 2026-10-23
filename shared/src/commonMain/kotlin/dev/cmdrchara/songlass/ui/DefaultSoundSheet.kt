@@ -63,23 +63,25 @@ internal fun DefaultSoundSheet(state: AppState): Boolean {
         busy -> rows += PlaybackToolRow(stringResource(Res.string.default_sound_applying), "")
         !platform.permissionGranted -> {
             rows += PlaybackToolRow(stringResource(Res.string.default_sound_permission_title), stringResource(Res.string.default_sound_permission_body))
-            rows += PlaybackToolRow(stringResource(Res.string.default_sound_open_settings), "", AppIcons.Settings) {
-                if (state.defaultSoundRequest === request && !state.defaultSoundApplying && !platform.isApplying) {
-                    operationRequest = request
-                    result = null
-                    platform.openSettings()
-                }
-            }
+            rows += PlaybackToolRow(title = stringResource(Res.string.default_sound_open_settings), value = "",
+                icon = AppIcons.Settings, prominent = true, onClick = {
+                    if (state.defaultSoundRequest === request && !state.defaultSoundApplying && !platform.isApplying) {
+                        operationRequest = request
+                        result = null
+                        platform.openSettings()
+                    }
+            })
         }
         else -> {
-            rows += PlaybackToolRow(stringResource(Res.string.default_sound_set), "", AppIcons.MusicNote) {
-                // The backend rechecks both permission and source before it writes.
-                if (state.defaultSoundRequest === request && !platform.isApplying && platform.permissionGranted && state.beginDefaultSound(request)) {
-                    result = null
-                    operationRequest = request
-                    platform.apply(request.track, request.target)
-                }
-            }
+            rows += PlaybackToolRow(title = stringResource(Res.string.default_sound_set), value = "",
+                icon = AppIcons.MusicNote, prominent = true, onClick = {
+                    // The backend rechecks both permission and source before it writes.
+                    if (state.defaultSoundRequest === request && !platform.isApplying && platform.permissionGranted && state.beginDefaultSound(request)) {
+                        result = null
+                        operationRequest = request
+                        platform.apply(request.track, request.target)
+                    }
+            })
         }
     }
     PlaybackToolsSheet(

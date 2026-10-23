@@ -7,6 +7,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -45,7 +47,25 @@ internal fun MiuixPlaybackTools(visible: Boolean, title: String, subtitle: Strin
                     group.title?.let { AppText(it, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
                         modifier = Modifier.padding(start = 18.dp).semantics { heading() }) }
                     MiuixGroup({
-                        group.rows.forEach { row ->
+                        group.rows.forEach rowLoop@ { row ->
+                            val onClick = row.onClick
+                            if (row.prominent && onClick != null) {
+                                val colors = AppTheme.colors
+                                val foreground = if (colors.accent.luminance() > 0.179f) Color.Black else Color.White
+                                Button(onClick = { if (visible) onClick() }, enabled = visible,
+                                    modifier = Modifier.fillMaxWidth().padding(8.dp).heightIn(min = 48.dp),
+                                    insideMargin = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                                    cornerRadius = 18.dp,
+                                    colors = ButtonDefaults.buttonColors(color = colors.accent, contentColor = foreground)) {
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center,
+                                        verticalAlignment = Alignment.CenterVertically) {
+                                        row.icon?.let { AppIcon(it, null, size = 20.dp, tint = foreground); Spacer(Modifier.width(8.dp)) }
+                                        AppText(row.title, AppTheme.typography.headline, color = foreground,
+                                            modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.Center)
+                                    }
+                                }
+                                return@rowLoop
+                            }
                             BasicComponent(
                                 modifier = Modifier.fillMaxWidth(), insideMargin = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
                                 startAction = row.icon?.let { icon -> { Box(Modifier.padding(end = 14.dp)) { AppIcon(icon, null, size = 24.dp, tint = AppTheme.colors.accent) } } },

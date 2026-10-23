@@ -19,6 +19,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
@@ -29,64 +30,94 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalSheetTint
-import dev.cmdrchara.songlass.theme.liquidglass.GlassPlaybackToolsHost
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 
-/** Numbered audio path and connected tonal action groups, using the phone's semantic colors. */
+/** The audio path stays ordered; informative details and actionable groups have distinct roles. */
 @Composable
 internal fun MaterialPlaybackTools(visible: Boolean, title: String, subtitle: String?, groups: List<PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, dismiss: () -> Unit, palette: SeaPalette) {
-    val lineHeight = AppTheme.typography.headline.lineHeight
-    val badgeSize = if (lineHeight.isSp) with(LocalDensity.current) { lineHeight.toDp() + 12.dp }.coerceAtLeast(36.dp) else 36.dp
-    // The phone palette also owns the host/header; artwork tint must not recolor this panel.
+    val lineHeight = AppTheme.typography.subheadline.lineHeight
+    val badgeSize = if (lineHeight.isSp) with(LocalDensity.current) { lineHeight.toDp() + 8.dp }.coerceAtLeast(28.dp) else 28.dp
     CompositionLocalProvider(LocalSheetTint provides null) {
-    GlassPlaybackToolsHost(
-        visible, title, subtitle, closeLabel, dismiss,
-        headerLeading = if (onBack != null && backLabel != null) ({
-            dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.ArrowBack, backLabel, { if (visible) onBack() }, Modifier.size(48.dp))
-        }) else null,
-        headerTrailing = {
-            dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, closeLabel, { if (visible) dismiss() }, Modifier.size(48.dp))
-        },
-    ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-            groups.forEach { group ->
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    group.title?.let { AppText(it, AppTheme.typography.headline, color = palette.primary,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 7.dp).semantics { heading() }) }
-                    group.rows.forEachIndexed { index, row ->
-                        val onClick = row.onClick
-                        val shape = RoundedCornerShape(
-                            topStart = if (index == 0) 22.dp else 5.dp, topEnd = if (index == 0) 22.dp else 5.dp,
-                            bottomStart = if (index == group.rows.lastIndex) 22.dp else 5.dp, bottomEnd = if (index == group.rows.lastIndex) 22.dp else 5.dp,
-                        )
-                        Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(shape).background(palette.containerHigh)
-                            .then(if (onClick != null) Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() }, indication = LocalGlassLook.current.pressIndication(),
-                                enabled = visible, role = Role.Button, onClick = onClick,
-                            ) else Modifier)
-                            .padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (group.ordered || row.icon != null) {
-                                Box(Modifier.size(if (group.ordered) badgeSize else 36.dp).clip(if (group.ordered) CircleShape else RoundedCornerShape(12.dp))
-                                    .background(palette.primaryContainer), contentAlignment = Alignment.Center) {
-                                    if (group.ordered) AppText((index + 1).toString(), AppTheme.typography.headline, color = palette.onPrimaryContainer)
-                                    else row.icon?.let { AppIcon(it, null, size = 21.dp, tint = palette.onPrimaryContainer) }
+        MaterialSheetHost(
+            visible = visible,
+            title = title,
+            subtitle = subtitle,
+            closeLabel = closeLabel,
+            onDismiss = dismiss,
+            palette = palette,
+            backLabel = backLabel,
+            onBack = onBack,
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                groups.forEach { group ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        group.title?.let { AppText(it, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                            color = palette.primary, modifier = Modifier.padding(bottom = 8.dp).semantics { heading() }) }
+                        group.rows.forEachIndexed { index, row ->
+                            val onClick = row.onClick
+                            if (row.prominent && onClick != null) {
+                                Row(Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 56.dp)
+                                    .clip(RoundedCornerShape(28.dp)).background(palette.primary)
+                                    .clickable(remember { MutableInteractionSource() }, MaterialRipple,
+                                        enabled = visible, role = Role.Button, onClick = { if (visible) onClick() })
+                                    .padding(horizontal = 24.dp, vertical = 14.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                    verticalAlignment = Alignment.CenterVertically) {
+                                    row.icon?.let { AppIcon(it, null, size = 24.dp, tint = palette.onPrimary) }
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        AppText(row.title, AppTheme.typography.body.copy(fontWeight = FontWeight.Medium),
+                                            color = palette.onPrimary, textAlign = TextAlign.Center)
+                                        if (row.value.isNotEmpty()) AppText(row.value, AppTheme.typography.subheadline,
+                                            color = palette.onPrimary, textAlign = TextAlign.Center)
+                                    }
                                 }
-                                Spacer(Modifier.width(14.dp))
+                                return@forEachIndexed
                             }
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                AppText(row.title, AppTheme.typography.headline, color = palette.label)
-                                AppText(row.value, AppTheme.typography.subheadline, color = palette.secondaryLabel)
-                            }
-                            if (onClick != null) {
-                                Spacer(Modifier.width(8.dp))
-                                AppIcon(AppIcons.ChevronRight, null, size = 18.dp, tint = palette.secondaryLabel)
+                            val actionable = onClick != null
+                            // Only adjacent actions share a connected tonal surface. Details remain ordinary text.
+                            val firstAction = index == 0 || group.rows[index - 1].onClick == null
+                            val lastAction = index == group.rows.lastIndex || group.rows[index + 1].onClick == null
+                            val shape = RoundedCornerShape(
+                                topStart = if (firstAction) 20.dp else 4.dp, topEnd = if (firstAction) 20.dp else 4.dp,
+                                bottomStart = if (lastAction) 20.dp else 4.dp, bottomEnd = if (lastAction) 20.dp else 4.dp,
+                            )
+                            val surface = if (actionable) Modifier.heightIn(min = 56.dp).clip(shape)
+                                .background(palette.primaryContainer)
+                                .clickable(remember { MutableInteractionSource() }, MaterialRipple, enabled = visible,
+                                    role = Role.Button, onClick = { if (visible) onClick() })
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                            else Modifier.padding(vertical = 8.dp)
+                            Row(Modifier.fillMaxWidth().then(surface), verticalAlignment = if (actionable) Alignment.CenterVertically else Alignment.Top) {
+                                if (group.ordered) {
+                                    Box(Modifier.padding(top = 2.dp).size(badgeSize).clip(CircleShape)
+                                        .background(palette.primaryContainer), contentAlignment = Alignment.Center) {
+                                        AppText((index + 1).toString(), AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                                            color = palette.onPrimaryContainer)
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                } else row.icon?.let {
+                                    AppIcon(it, null, size = 22.dp, tint = if (actionable) palette.onPrimaryContainer else palette.secondaryLabel,
+                                        modifier = if (actionable) Modifier else Modifier.padding(top = 1.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                }
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    AppText(row.title, AppTheme.typography.body.copy(fontWeight = if (actionable) FontWeight.Medium else FontWeight.Normal),
+                                        color = if (actionable) palette.onPrimaryContainer else palette.label)
+                                    if (row.value.isNotEmpty()) AppText(row.value, AppTheme.typography.subheadline,
+                                        color = if (actionable) palette.onPrimaryContainer else palette.secondaryLabel)
+                                }
+                                if (actionable) {
+                                    Spacer(Modifier.width(8.dp))
+                                    AppIcon(AppIcons.ChevronRight, null, size = 18.dp, tint = palette.onPrimaryContainer,
+                                        modifier = Modifier)
+                                }
                             }
                         }
                     }
                 }
             }
         }
-    }
     }
 }
 

@@ -350,18 +350,18 @@
     <string name="default_sound_alarm">Suono sveglia predefinito</string>
     <string name="default_sound_ringtone_confirm">Impostare la suoneria predefinita?</string>
     <string name="default_sound_alarm_confirm">Impostare il suono sveglia predefinito?</string>
-    <string name="default_sound_copy_title">Un suono di sistema separato</string>
-    <string name="default_sound_ringtone_copy">Copia questo brano in Suonerie/Songlass e lo imposta come suoneria predefinita di sistema. Il file musicale originale resta invariato.</string>
-    <string name="default_sound_alarm_copy">Copia questo brano in Sveglie/Songlass e cambia il suono sveglia predefinito di sistema. La scelta riguarda solo le sveglie che usano il suono predefinito; i suoni personalizzati esistenti restano invariati. Non viene creata alcuna sveglia. Il file musicale originale resta invariato.</string>
-    <string name="default_sound_permission_title">Consenti la modifica delle impostazioni di sistema</string>
-    <string name="default_sound_permission_body">Abilita questo permesso per Songlass nelle impostazioni Android, poi torna qui e tocca Imposta. Il ritorno non applica la modifica automaticamente.</string>
+    <string name="default_sound_copy_title">Cosa cambia</string>
+    <string name="default_sound_ringtone_copy">Imposta questo brano come suoneria di sistema. Crea una copia; l’originale resta invariato.</string>
+    <string name="default_sound_alarm_copy">Per le sveglie che usano il suono predefinito. Crea una copia; l’originale resta invariato.</string>
+    <string name="default_sound_permission_title">Permesso necessario</string>
+    <string name="default_sound_permission_body">Consenti a Songlass di modificare le impostazioni di sistema, poi tocca Imposta.</string>
     <string name="default_sound_open_settings">Apri impostazioni</string>
     <string name="default_sound_set">Imposta</string>
     <string name="default_sound_applying">Impostazione in corso…</string>
     <string name="default_sound_success_title">Suono di sistema aggiornato</string>
     <string name="default_sound_ringtone_applied">Questo brano è ora la suoneria predefinita di sistema.</string>
-    <string name="default_sound_alarm_applied">Questo brano è ora il suono sveglia predefinito di sistema. Le sveglie con un suono personalizzato restano invariate.</string>
-    <string name="default_sound_source_changed">La sorgente musicale è cambiata o non è disponibile. Chiudi questo foglio e seleziona di nuovo il brano dopo il caricamento della libreria.</string>
+    <string name="default_sound_alarm_applied">Le sveglie con suono predefinito ora usano questo brano.</string>
+    <string name="default_sound_source_changed">La sorgente non è più disponibile. Chiudi e seleziona di nuovo il brano.</string>
     <string name="default_sound_failed">Non è stato possibile aggiornare il suono di sistema. Controlla l’accesso e riprova.</string>
     <string name="default_sound_notice">Suono di sistema</string>
 </resources>

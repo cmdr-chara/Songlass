@@ -59,13 +59,7 @@ import dev.cmdrchara.songlass.theme.liquidglass.GlassLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassSource
 import kotlin.random.Random
 
-/**
- * The "Google Sea Glass" material. Figma stacks, per surface: a white luminosity fill, the surface
- * colour at 33%, a soft-light white gradient, native glass (blur 47, refraction 23 / 0.42,
- * chromatic aberration 0.5), light from inside at the top, a coloured inner rim, a reflection from
- * the bottom, a coloured glow underneath (screen) and grain. Sizes are scaled from the 912 px board
- * (a 104 px pill is our 62 dp tab bar, so about 0.6 dp per px).
- */
+/** Material 3 Expressive content and semantic system colors, with glass reserved for navigation. */
 @Stable
 internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override val contentHorizontalInset = 16.dp
@@ -75,8 +69,20 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     override val compactPlaylistForm = false
 
     @Composable
+    override fun ActionSheet(visible: Boolean, title: String, subtitle: String?, artwork: Artwork?, actions: List<dev.cmdrchara.songlass.designsystem.SheetAction>, cancelLabel: String, onDismiss: () -> Unit) =
+        MaterialActionSheet(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, base)
+
+    @Composable
+    override fun InfoSheet(visible: Boolean, title: String, rows: List<dev.cmdrchara.songlass.designsystem.InfoRow>, closeLabel: String, onDismiss: () -> Unit) =
+        MaterialInfoSheet(visible, title, rows, closeLabel, onDismiss, base)
+
+    @Composable
+    override fun PromptSheet(visible: Boolean, title: String, initialText: String, placeholder: String, confirmLabel: String, cancelLabel: String, onConfirm: (String) -> Unit, onDismiss: () -> Unit) =
+        MaterialPromptSheet(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss, base)
+
+    @Composable
     override fun PlaybackToolsSheet(visible: Boolean, title: String, subtitle: String?, groups: List<dev.cmdrchara.songlass.designsystem.PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, onDismiss: () -> Unit) =
-        MaterialPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss, palette())
+        MaterialPlaybackTools(visible, title, subtitle, groups, closeLabel, backLabel, onBack, onDismiss, base)
 
     @Composable
     override fun Welcome(model: dev.cmdrchara.songlass.designsystem.WelcomeModel) = MaterialWelcome(model, palette())
