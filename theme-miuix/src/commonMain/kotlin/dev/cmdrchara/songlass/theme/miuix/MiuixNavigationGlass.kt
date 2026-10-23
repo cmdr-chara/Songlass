@@ -53,10 +53,11 @@ internal fun miuixNavigationGlass(
         return modifier.graphicsLayer(layer).clip(shape).background(fill)
             .border(0.8.dp, colors.label.copy(alpha = if (colors.isDark) 0.14f else 0.08f), shape)
     }
-    // Shadow stays outside the clipped optical layer; the moving lens gets depth internally.
-    val panel = if (castShadow && !bubble) modifier.dropShadow(shape, Shadow(
+    // Light surfaces use an outer shadow. In dark mode the rim defines depth without a second silhouette.
+    // The moving lens gets depth internally.
+    val panel = if (castShadow && !bubble && !colors.isDark) modifier.dropShadow(shape, Shadow(
         radius = 10.dp, offset = androidx.compose.ui.unit.DpOffset(0.dp, 3.dp),
-        color = Color.Black.copy(alpha = if (colors.isDark) 0.18f else 0.10f),
+        color = Color.Black.copy(alpha = 0.10f),
     )) else modifier
     val optics = panel.drawBackdrop(
         backdrop = backdrop, shape = { shape }, layerBlock = layer,

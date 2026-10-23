@@ -106,8 +106,8 @@ private fun LiquidCollectionAction(text: String, icon: ImageVector, prominent: B
 }
 
 /**
- * Scope pills, as on Apple Music's search: the selected one filled in the accent, the others on
- * the grey fill; a short press shrinks a pill slightly.
+ * Scope pills, as on Apple Music's search: the selected one carries an accent label on
+ * a quiet neutral surface; a short press shrinks a pill slightly.
  */
 @Composable
 internal fun LiquidGlassFilterChips(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
@@ -125,18 +125,19 @@ internal fun LiquidGlassFilterChips(options: List<String>, selectedIndex: Int, o
             val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.95f else 1f, if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f), label = "chipPress")
             Box(
                 Modifier
-                    .height(with(LocalDensity.current) { maxOf(34.dp, AppTheme.typography.subheadline.lineHeight.toDp() + 14.dp) })
+                    .heightIn(min = 44.dp)
                     .graphicsLayer { scaleX = scale; scaleY = scale }
-                    .clip(CircleShape)
-                    .background(if (selected) colors.accent else colors.fill)
                     .selectable(selected, interaction, indication = null, role = Role.Tab) { onSelect(index) }
-                    .padding(horizontal = 16.dp),
+                    .padding(vertical = 5.dp)
+                    .clip(CircleShape)
+                    .background(if (selected) colors.fill else colors.secondaryBackground)
+                    .padding(horizontal = 16.dp, vertical = 7.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 AppText(
                     option,
                     AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
-                    color = if (selected) colors.background else colors.label,
+                    color = if (selected) colors.accent else colors.secondaryLabel,
                     maxLines = 1,
                 )
             }

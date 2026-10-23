@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
@@ -48,6 +49,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -113,7 +116,8 @@ internal fun LiquidGlassListRow(
                 val content = LocalContentColor.current
                 AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content, maxLines = titleMaxLines)
                 if (subtitle != null) {
-                    AppText(subtitle, AppTheme.typography.subheadline, color = content.copy(alpha = if (colors.isDark) 0.65f else 0.62f), maxLines = 1)
+                    AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel,
+                        modifier = Modifier.padding(top = 2.dp), maxLines = 1)
                 }
             }
             if (trailing != null) {
@@ -228,41 +232,44 @@ internal fun LiquidGlassAlbumArt(artwork: Artwork, cornerRadius: Dp, modifier: M
 @Composable
 internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) {
     val colors = AppTheme.colors
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(LocalGlassLook.current.corner(12.dp)), colors.fill, prominent = false) }
-            .padding(horizontal = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        AppIcon(AppIcons.Search, contentDescription = null, size = 18.dp, tint = colors.secondaryLabel)
-        Spacer(Modifier.width(8.dp))
-        Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-            if (query.isEmpty()) {
-                AppText(placeholder, AppTheme.typography.body, color = colors.secondaryLabel, maxLines = 1)
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                singleLine = true,
-                textStyle = AppTheme.typography.body.copy(color = colors.label),
-                cursorBrush = SolidColor(colors.accent),
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        if (query.isNotEmpty()) {
-            // iOS clear button: a small grey circle with a cross.
-            Box(
-                Modifier.size(36.dp).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClickLabel = clearLabel) { onQueryChange("") },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(Modifier.size(18.dp).clip(CircleShape).background(colors.secondaryLabel.copy(alpha = 0.6f)), contentAlignment = Alignment.Center) {
-                    AppIcon(AppIcons.Close, contentDescription = clearLabel, size = 12.dp, tint = colors.background)
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val minimumHeight = with(LocalDensity.current) { maxOf(44.dp, AppTheme.typography.body.lineHeight.toDp() + 20.dp) }
+    BasicTextField(
+        value = query,
+        onValueChange = onQueryChange,
+        singleLine = true,
+        interactionSource = interaction,
+        textStyle = AppTheme.typography.body.copy(color = colors.label),
+        cursorBrush = SolidColor(colors.accent),
+        modifier = modifier.fillMaxWidth().heightIn(min = minimumHeight)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (focused) colors.accent.copy(alpha = 0.08f) else colors.fill)
+            .semantics { contentDescription = placeholder },
+        decorationBox = { innerTextField ->
+            Row(Modifier.fillMaxWidth().heightIn(min = minimumHeight).padding(start = 12.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                AppIcon(AppIcons.Search, null, size = 18.dp, tint = if (focused) colors.accent else colors.secondaryLabel)
+                Spacer(Modifier.width(8.dp))
+                Box(Modifier.weight(1f).padding(vertical = 10.dp), contentAlignment = Alignment.CenterStart) {
+                    if (query.isEmpty()) AppText(placeholder, AppTheme.typography.body, color = colors.secondaryLabel,
+                        maxLines = 1, modifier = Modifier.clearAndSetSemantics { })
+                    innerTextField()
                 }
+                if (query.isNotEmpty()) Box(
+                    Modifier.size(44.dp).clickable(remember { MutableInteractionSource() }, indication = null,
+                        role = Role.Button, onClickLabel = clearLabel) { onQueryChange("") }
+                        .semantics { contentDescription = clearLabel },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Box(Modifier.size(18.dp).clip(CircleShape).background(colors.secondaryLabel.copy(alpha = 0.6f)),
+                        contentAlignment = Alignment.Center) {
+                        AppIcon(AppIcons.Close, null, size = 12.dp, tint = colors.background)
+                    }
+                } else Spacer(Modifier.width(12.dp))
             }
-        }
-    }
+        },
+    )
 }
 
 /** iOS back link: chevron plus the previous page's title in the accent colour, 44 dp tall. */

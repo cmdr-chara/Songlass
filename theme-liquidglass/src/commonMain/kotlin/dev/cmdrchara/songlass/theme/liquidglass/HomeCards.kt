@@ -200,7 +200,30 @@ internal fun LiquidGlassArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, 
     val actions = items.filter { it.isAction }
     val covers = items.filterNot { it.isAction }
     Column(modifier) {
-        if (covers.isNotEmpty()) LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(if (small) 12.dp else 14.dp)) {
+        if (pins && covers.size == 1) {
+            val item = covers.single()
+            val interaction = remember { MutableInteractionSource() }
+            val scale = pressScale(interaction)
+            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
+                .prefetchArtworkOnPress(item.artwork)
+                .clickable(interaction, indication = null, role = Role.Button, onClick = item.onClick)
+                .padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val artwork = item.artwork
+                if (artwork != null && item.icon == null) LiquidGlassAlbumArt(artwork,
+                    cornerRadius = if (item.circular) 32.dp else 8.dp, modifier = Modifier.size(64.dp))
+                else Box(Modifier.size(64.dp).clip(RoundedCornerShape(12.dp)).background(AppTheme.colors.secondaryBackground),
+                    contentAlignment = Alignment.Center) {
+                    item.icon?.let { AppIcon(it, null, size = 28.dp, tint = AppTheme.colors.accent) }
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    AppText(item.title, AppTheme.typography.body, maxLines = 2)
+                    item.subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2) }
+                }
+                AppIcon(dev.cmdrchara.songlass.designsystem.icons.AppIcons.ChevronRight, null, size = 14.dp, tint = AppTheme.colors.tertiaryLabel)
+            }
+        } else if (covers.isNotEmpty()) LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(if (small) 12.dp else 14.dp)) {
             items(covers, key = { it.key }) { item ->
                 val interaction = remember { MutableInteractionSource() }
                 val scale = pressScale(interaction)

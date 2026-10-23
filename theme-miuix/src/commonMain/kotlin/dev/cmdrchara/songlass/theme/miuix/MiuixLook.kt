@@ -209,7 +209,7 @@ object MiuixLook : GlassLook {
     @Composable
     override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) = MiuixCollection(title, subtitle, icon, artworks, circular, onClick, modifier)
     @Composable
-    override fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) = MiuixShelf(items, itemSize, modifier)
+    override fun ArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) = MiuixShelf(items, style, itemSize, modifier)
     @Composable
     override fun ArtistAvatar(artwork: Artwork, modifier: Modifier) = AlbumArt(artwork, modifier, cornerRadius = 22.dp)
     @Composable

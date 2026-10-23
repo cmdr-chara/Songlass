@@ -160,7 +160,7 @@ internal fun MiuixFilters(options: List<String>, selectedIndex: Int, onSelect: (
         minWidth = minWidth,
         maxWidth = maxOf(180.dp, minWidth),
         height = height,
-        cornerRadius = 18.dp,
-        itemSpacing = 8.dp,
+        cornerRadius = 14.dp,
+        itemSpacing = 4.dp,
     )
 }

@@ -1,7 +1,6 @@
 package dev.cmdrchara.songlass.theme.miuix
 
 import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -15,9 +14,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.HomeHighlight
@@ -69,22 +66,20 @@ internal fun MiuixHomeHighlights(items: List<HomeHighlight>, modifier: Modifier)
                     if (action != null) {
                         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            HomeMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) }, Modifier.size(56.dp))
+                            HomeMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) }, Modifier.size(48.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                AppText(pick.title, AppTheme.typography.body.copy(fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold), maxLines = 2)
-                                pick.subtitle?.let { AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1) }
+                                AppText(pick.title, AppTheme.typography.headline, maxLines = 2)
+                                pick.subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2) }
                             }
-                            Box(Modifier.size(42.dp).clip(RoundedCornerShape(16.dp)).background(AppTheme.colors.accent.copy(alpha = 0.10f)),
-                                contentAlignment = Alignment.Center) {
-                                AppIcon(action, null, size = 22.dp, tint = AppTheme.colors.accent)
-                            }
+                            AppIcon(action, null, size = 22.dp, tint = AppTheme.colors.accent)
                         }
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            AlbumArt(pick.artwork, Modifier.size(112.dp), cornerRadius = 0.dp)
-                            Column(Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            AlbumArt(pick.artwork, Modifier.size(88.dp), cornerRadius = 16.dp)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                                 AppText(pick.label, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1)
-                                AppText(pick.title, AppTheme.typography.body.copy(fontSize = 16.sp, lineHeight = 21.sp, fontWeight = FontWeight.SemiBold), maxLines = 2)
+                                AppText(pick.title, AppTheme.typography.headline, maxLines = 2)
                                 pick.subtitle?.let { AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 2) }
                             }
                         }
