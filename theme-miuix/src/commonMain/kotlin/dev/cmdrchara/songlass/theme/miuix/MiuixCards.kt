@@ -14,6 +14,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -130,9 +132,24 @@ internal fun MiuixDetails(kind: String, title: String, subtitle: String?, onSubt
             action()
         }
         AppText(meta, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MiuixAction(playLabel, AppIcons.Play, onPlay, Modifier.weight(1f), primary = true)
-            MiuixAction(shuffleLabel, AppIcons.Shuffle, onShuffle, Modifier.weight(1f))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val measurer = rememberTextMeasurer()
+            val density = LocalDensity.current
+            val requiredWidth = with(density) {
+                maxOf(measurer.measure(playLabel, AppTheme.typography.headline).size.width,
+                    measurer.measure(shuffleLabel, AppTheme.typography.headline).size.width).toDp() + 20.dp + 8.dp + 32.dp
+            }
+            if ((maxWidth - 12.dp) / 2 >= requiredWidth) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    MiuixAction(playLabel, AppIcons.Play, onPlay, Modifier.weight(1f), primary = true)
+                    MiuixAction(shuffleLabel, AppIcons.Shuffle, onShuffle, Modifier.weight(1f))
+                }
+            } else {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MiuixAction(playLabel, AppIcons.Play, onPlay, Modifier.fillMaxWidth(), primary = true)
+                    MiuixAction(shuffleLabel, AppIcons.Shuffle, onShuffle, Modifier.fillMaxWidth())
+                }
+            }
         }
     }
 }

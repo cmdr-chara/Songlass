@@ -35,6 +35,9 @@ internal fun renderLyricsCard(
     label: String,
 ): ImageBitmap? {
     val ink = if (colors.isDark) Color.White else Color(0xFF19191D)
+    val verseSurface = if (look.verseInset > 0) colors.secondaryBackground.compositeOver(colors.background) else colors.background
+    // Artwork-derived palettes can pair a light quote panel with a dark page.
+    val verseInk = if (verseSurface.luminance() > 0.179f) Color.Black else Color.White
     val inset = 76f
     val width = 928f
     val textWidth = (width - look.verseInset * 2).toInt()
@@ -45,7 +48,7 @@ internal fun renderLyricsCard(
         val measured = lines.map { line -> measurer.measure(
             AnnotatedString(line),
             style = textStyle.copy(fontSize = size.sp, lineHeight = (size * 1.26f).sp,
-                fontWeight = FontWeight.Bold, color = ink),
+                fontWeight = FontWeight.Bold, color = verseInk),
             constraints = Constraints(maxWidth = textWidth),
             density = Density(1f),
         ) }

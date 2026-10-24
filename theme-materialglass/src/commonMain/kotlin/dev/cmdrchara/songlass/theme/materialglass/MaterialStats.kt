@@ -13,6 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cmdrchara.songlass.designsystem.StatFigure
@@ -23,25 +27,54 @@ import dev.cmdrchara.songlass.theme.liquidglass.ListeningPlotStyle
 /** M3 tonal cards: the lead figure in the primary container, the others on the card tone. */
 @Composable
 internal fun MaterialStatSummary(figures: List<StatFigure>, modifier: Modifier) {
+    val typography = AppTheme.typography
+    val valueStyle = typography.largeTitle.copy(fontWeight = FontWeight.Medium, fontSize = 36.sp, lineHeight = 40.sp)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val availableWidth = constraints.maxWidth
+        val padding = with(density) { 28.dp.roundToPx() }
+        val gap = with(density) { 8.dp.roundToPx() }
+        val cell = ((availableWidth - gap * (figures.size - 1).coerceAtLeast(0)) / figures.size.coerceAtLeast(1) - padding).coerceAtLeast(1)
+        fun fits(text: String, style: TextStyle, lines: Int) = !measurer.measure(text, style,
+            softWrap = lines > 1, maxLines = lines, constraints = Constraints(maxWidth = cell)).hasVisualOverflow
+        val vertical = figures.any { !fits(it.value, valueStyle, 1) || !fits(it.label, typography.subheadline, 2) ||
+            it.change?.let { change -> !fits(change, typography.caption1, 3) } == true }
+        if (vertical) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            figures.forEachIndexed { index, figure ->
+                val pairFits = measurer.measure(figure.value, valueStyle, softWrap = false).size.width +
+                    measurer.measure(figure.label, typography.subheadline, softWrap = false).size.width + gap <= availableWidth - padding
+                MaterialSummaryFigure(figure, index == 0, valueStyle, Modifier.fillMaxWidth(), compact = true, pairFits = pairFits)
+            }
+        } else Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            figures.forEachIndexed { index, figure ->
+                MaterialSummaryFigure(figure, index == 0, valueStyle, Modifier.weight(1f).fillMaxHeight(), compact = false, pairFits = false)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MaterialSummaryFigure(figure: StatFigure, lead: Boolean, valueStyle: TextStyle, modifier: Modifier, compact: Boolean, pairFits: Boolean) {
     val palette = currentPalette()
     val typography = AppTheme.typography
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        figures.forEachIndexed { index, figure ->
-            val lead = index == 0
-            val ink = if (lead) palette.onPrimaryContainer else palette.label
-            Column(
-                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(24.dp))
-                    .background(if (lead) palette.primaryContainer else palette.container)
-                    .padding(horizontal = 14.dp, vertical = 16.dp)
-                    .semantics(mergeDescendants = true) {},
-            ) {
-                AppText(figure.value, typography.largeTitle.copy(fontWeight = FontWeight.Medium, fontSize = 36.sp, lineHeight = 40.sp), color = ink, maxLines = 1)
-                Spacer(Modifier.height(4.dp))
-                AppText(figure.label, typography.subheadline, color = ink, maxLines = 2)
-                figure.change?.let {
-                    Spacer(Modifier.weight(1f).heightIn(min = 8.dp))
-                    AppText(it, typography.caption1, color = ink.copy(alpha = 0.72f), maxLines = 3)
-                }
+    val ink = if (lead) palette.onPrimaryContainer else palette.label
+    Column(modifier.clip(RoundedCornerShape(24.dp)).background(if (lead) palette.primaryContainer else palette.container)
+        .padding(horizontal = 14.dp, vertical = if (compact) 12.dp else 16.dp).semantics(mergeDescendants = true) {}) {
+        if (compact && pairFits) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                AppText(figure.label, typography.subheadline, color = ink)
+                figure.change?.let { AppText(it, typography.caption1, color = ink.copy(alpha = 0.72f)) }
+            }
+            AppText(figure.value, valueStyle, color = ink)
+        } else {
+            AppText(figure.value, valueStyle, color = ink)
+            Spacer(Modifier.height(4.dp))
+            AppText(figure.label, typography.subheadline, color = ink)
+            figure.change?.let {
+                if (compact) Spacer(Modifier.height(8.dp)) else Spacer(Modifier.weight(1f).heightIn(min = 8.dp))
+                AppText(it, typography.caption1, color = ink.copy(alpha = 0.72f))
             }
         }
     }

@@ -115,7 +115,7 @@ fun AlbumTile(album: Album, onClick: () -> Unit, modifier: Modifier = Modifier) 
     Column(modifier.prefetchArtworkOnPress(album.artwork()).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
         AlbumArt(album.artwork(), Modifier.fillMaxWidth().aspectRatio(1f), cornerRadius = 10.dp)
         Spacer(Modifier.size(6.dp))
-        AppText(albumTitle(album.title), AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
+        AppText(albumTitle(album.title), AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 2)
         AppText(artistName(album.artist), AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 1)
     }
 }

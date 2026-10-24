@@ -12,6 +12,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.indication
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.InteractionSource
@@ -20,6 +22,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -39,10 +42,13 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
@@ -290,39 +296,67 @@ internal fun MaterialSettingsToggleRow(
     }
 }
 
-/** Connected Material choices grow with their labels; there is no fixed-height text clip. */
+/** Connected choices keep labels intact, scrolling only when their measured content needs it. */
 @Composable
 internal fun MaterialSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    Row(modifier.fillMaxWidth().height(IntrinsicSize.Min).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        options.forEachIndexed { index, option ->
-            val selected = index == selectedIndex
-            val inner by animateDpAsState(if (selected) 12.dp else 4.dp,
-                if (reduceMotion) snap() else MaterialMotion.spatial(), label = "segmentCorner")
-            val shape = RoundedCornerShape(
-                topStart = if (index == 0) 24.dp else inner.coerceIn(4.dp, 12.dp),
-                bottomStart = if (index == 0) 24.dp else inner.coerceIn(4.dp, 12.dp),
-                topEnd = if (index == options.lastIndex) 24.dp else inner.coerceIn(4.dp, 12.dp),
-                bottomEnd = if (index == options.lastIndex) 24.dp else inner.coerceIn(4.dp, 12.dp),
-            )
-            val fill by animateColorAsState(if (selected) palette.primaryContainer else palette.containerHigh,
-                if (reduceMotion) snap() else MaterialMotion.effects(), label = "segmentFill")
-            Row(
-                Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp).clip(shape).background(fill)
-                    .then(if (selected) Modifier else Modifier.border(1.dp, palette.secondaryLabel.copy(alpha = 0.18f), shape))
-                    .selectable(selected, remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.RadioButton) { onSelect(index) }
-                    .padding(horizontal = 10.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (selected) {
-                    AppIcon(AppIcons.Checkmark, contentDescription = null, size = 18.dp, tint = palette.onPrimaryContainer)
-                    Spacer(Modifier.width(6.dp))
+    val labelStyle = AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium)
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val minimumSegmentWidth = with(density) {
+        (options.maxOfOrNull { measurer.measure(it, labelStyle, softWrap = false, maxLines = 1).size.width } ?: 0).toDp() + 44.dp
+    }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val rowWidth = maxOf(maxWidth, minimumSegmentWidth * options.size + 2.dp * (options.size - 1).coerceAtLeast(0))
+        val scroll = rememberScrollState()
+        val viewportWidth = constraints.maxWidth
+        val rowWidthPx = with(density) { rowWidth.roundToPx() }
+        val gapPx = with(density) { 2.dp.roundToPx() }
+        LaunchedEffect(selectedIndex, rowWidthPx, viewportWidth, scroll.maxValue) {
+            if (selectedIndex in options.indices) {
+                val segmentWidth = (rowWidthPx - gapPx * (options.size - 1)) / options.size
+                val start = selectedIndex * (segmentWidth + gapPx)
+                val end = start + segmentWidth
+                val target = when {
+                    start < scroll.value -> start
+                    end > scroll.value + viewportWidth -> end - viewportWidth
+                    else -> scroll.value
                 }
-                AppText(option, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium),
-                    color = if (selected) palette.onPrimaryContainer else palette.label,
-                    modifier = Modifier.weight(1f, fill = false))
+                scroll.scrollTo(target.coerceAtLeast(0))
+            }
+        }
+        Box(Modifier.horizontalScroll(scroll)) {
+            Row(Modifier.width(rowWidth).height(IntrinsicSize.Min).selectableGroup(), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                options.forEachIndexed { index, option ->
+                    val selected = index == selectedIndex
+                    val inner by animateDpAsState(if (selected) 12.dp else 4.dp,
+                        if (reduceMotion) snap() else MaterialMotion.spatial(), label = "segmentCorner")
+                    val shape = RoundedCornerShape(
+                        topStart = if (index == 0) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                        bottomStart = if (index == 0) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                        topEnd = if (index == options.lastIndex) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                        bottomEnd = if (index == options.lastIndex) 24.dp else inner.coerceIn(4.dp, 12.dp),
+                    )
+                    val fill by animateColorAsState(if (selected) palette.primaryContainer else palette.containerHigh,
+                        if (reduceMotion) snap() else MaterialMotion.effects(), label = "segmentFill")
+                    Row(
+                        Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp).clip(shape).background(fill)
+                            .then(if (selected) Modifier else Modifier.border(1.dp, palette.secondaryLabel.copy(alpha = 0.18f), shape))
+                            .selectable(selected, remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.RadioButton) { onSelect(index) }
+                            .padding(horizontal = 10.dp, vertical = 12.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (selected) {
+                            AppIcon(AppIcons.Checkmark, contentDescription = null, size = 18.dp, tint = palette.onPrimaryContainer)
+                            Spacer(Modifier.width(6.dp))
+                        }
+                        AppText(option, labelStyle,
+                            color = if (selected) palette.onPrimaryContainer else palette.label,
+                            modifier = Modifier.weight(1f, fill = false), maxLines = 1)
+                    }
+                }
             }
         }
     }

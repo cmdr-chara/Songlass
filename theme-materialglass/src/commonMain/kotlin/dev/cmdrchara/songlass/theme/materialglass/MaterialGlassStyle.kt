@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -51,21 +52,28 @@ internal fun MaterialTransportControls(
     onNext: () -> Unit,
     modifier: Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TransportPill(AppIcons.Previous, labels.previous, onPrevious, width = 84.dp, prominent = false, playing = false)
-        TransportPill(
-            icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
-            description = if (isPlaying) labels.pause else labels.play,
-            onClick = onPlayPause,
-            width = 124.dp,
-            prominent = true,
-            playing = isPlaying,
-        )
-        TransportPill(AppIcons.Next, labels.next, onNext, width = 84.dp, prominent = false, playing = false)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        // Reserve both side buttons symmetrically before measuring the prominent control.
+        val gap = minOf(10.dp, ((maxWidth - 144.dp) / 2).coerceAtLeast(0.dp))
+        val buttonsWidth = minOf(292.dp, maxWidth - gap * 2)
+        val sideWidth = (buttonsWidth * (84f / 292f)).coerceAtLeast(48.dp)
+        val playWidth = (buttonsWidth - sideWidth * 2).coerceAtLeast(48.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TransportPill(AppIcons.Previous, labels.previous, onPrevious, width = sideWidth, prominent = false, playing = false)
+            TransportPill(
+                icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
+                description = if (isPlaying) labels.pause else labels.play,
+                onClick = onPlayPause,
+                width = playWidth,
+                prominent = true,
+                playing = isPlaying,
+            )
+            TransportPill(AppIcons.Next, labels.next, onNext, width = sideWidth, prominent = false, playing = false)
+        }
     }
 }
 

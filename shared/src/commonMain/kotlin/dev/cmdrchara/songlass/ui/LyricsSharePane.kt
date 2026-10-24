@@ -21,6 +21,8 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.cmdrchara.songlass.core.lyrics.Lyrics
@@ -59,7 +61,7 @@ internal fun LyricsShareDialog(track: Track, lyrics: Lyrics, active: Int, onClos
       Column(Modifier.fillMaxSize().background(colors.background).windowInsetsPadding(WindowInsets.safeDrawing)
           .padding(horizontal = 24.dp, vertical = 12.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            AppText(stringResource(if (preview) Res.string.lyrics_card_preview else Res.string.lyrics_share_select), AppTheme.typography.headline)
+            AppText(stringResource(if (preview) Res.string.lyrics_card_preview else Res.string.lyrics_share_select), AppTheme.typography.headline, modifier = Modifier.weight(1f))
             IconButton(AppIcons.Close, stringResource(Res.string.lyrics_share_close), { if (!working) onClose() })
         }
         Spacer(Modifier.height(16.dp))
@@ -89,11 +91,38 @@ internal fun LyricsShareDialog(track: Track, lyrics: Lyrics, active: Int, onClos
             }
             if (failed) AppText(stringResource(Res.string.lyrics_share_failed), AppTheme.typography.footnote, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             if (sharer == null) AppText(stringResource(Res.string.lyrics_share_unavailable), AppTheme.typography.footnote)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                ActionButton(stringResource(Res.string.lyrics_share_edit), { if (!working) preview = false }, Modifier.weight(1f))
-                if (bitmap != null && sharer != null && !working) ActionButton(stringResource(Res.string.lyrics_share_image), {
-                    working = true; failed = false; sharer(bitmap, track.title)
-                }, Modifier.weight(1f), icon = AppIcons.Share)
+            val editLabel = stringResource(Res.string.lyrics_share_edit)
+            val shareLabel = stringResource(Res.string.lyrics_share_image)
+            val canShare = bitmap != null && sharer != null && !working
+            val density = LocalDensity.current
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                // Cover the existing theme button roles and their largest padding/icon allowance.
+                val headlineStyle = AppTheme.typography.headline
+                val bodyStyle = AppTheme.typography.body.copy(fontWeight = FontWeight.Medium)
+                fun labelWidth(text: String) = maxOf(
+                    measurer.measure(text, headlineStyle, softWrap = false).size.width,
+                    measurer.measure(text, bodyStyle, softWrap = false).size.width,
+                )
+                val padding = with(density) { 40.dp.roundToPx() }
+                val shareIcon = with(density) { 28.dp.roundToPx() }
+                val gap = with(density) { 8.dp.roundToPx() }
+                val half = (constraints.maxWidth - gap) / 2
+                val stack = canShare && (labelWidth(editLabel) + padding > half || labelWidth(shareLabel) + padding + shareIcon > half)
+                val editAction: @Composable (Modifier) -> Unit = { actionModifier ->
+                    ActionButton(editLabel, { if (!working) preview = false }, actionModifier)
+                }
+                val shareAction: @Composable (Modifier) -> Unit = { actionModifier ->
+                    if (bitmap != null && sharer != null && !working) ActionButton(shareLabel, {
+                        working = true; failed = false; sharer(bitmap, track.title)
+                    }, actionModifier, icon = AppIcons.Share)
+                }
+                if (stack) Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    editAction(Modifier.fillMaxWidth())
+                    shareAction(Modifier.fillMaxWidth())
+                } else Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    editAction(Modifier.weight(1f))
+                    if (canShare) shareAction(Modifier.weight(1f))
+                }
             }
         } else {
             Row(Modifier.fillMaxWidth().padding(bottom = 24.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -401,7 +401,7 @@ private fun FolderTile(folder: Folder, modifier: Modifier, onClick: () -> Unit) 
     Column(modifier.prefetchArtworkOnPress(folder.artwork()).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
         FolderCover(folder, Modifier.fillMaxWidth().aspectRatio(1f))
         Spacer(Modifier.height(6.dp))
-        AppText(folder.name, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 1)
+        AppText(folder.name, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 2)
         AppText(folderSummary(folder), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
     }
 }

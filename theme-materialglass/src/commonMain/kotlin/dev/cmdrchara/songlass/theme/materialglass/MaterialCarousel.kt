@@ -149,7 +149,11 @@ private fun ShapedPins(items: List<ShelfItem>, itemSize: Dp, modifier: Modifier)
                     item.artwork?.let { AlbumArt(it, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize()) }
                 }
                 Spacer(Modifier.height(8.dp))
-                AppText(item.title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, textAlign = TextAlign.Center)
+                AppText(item.title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.SemiBold), maxLines = 2, textAlign = TextAlign.Center)
+                item.subtitle?.let {
+                    AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel,
+                        maxLines = 2, textAlign = TextAlign.Center)
+                }
             }
         }
     }

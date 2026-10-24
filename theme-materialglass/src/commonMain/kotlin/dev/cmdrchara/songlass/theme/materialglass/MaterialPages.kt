@@ -14,6 +14,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -49,6 +50,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -80,33 +83,62 @@ internal fun MaterialCollectionDetails(
     modifier: Modifier,
 ) {
     val palette = currentPalette()
-    Column(modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-        MaterialTag(kind, Modifier)
-        Spacer(Modifier.height(10.dp))
-        AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
-        if (subtitle != null) {
-            AppText(
-                subtitle,
-                AppTheme.typography.headline.copy(fontWeight = FontWeight.SemiBold),
-                color = if (onSubtitleClick != null) palette.primary else AppTheme.colors.secondaryLabel,
-                maxLines = 1,
-                modifier = Modifier.padding(top = 4.dp).then(
-                    if (onSubtitleClick != null) Modifier.clip(CircleShape).clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onSubtitleClick) else Modifier,
-                ),
-            )
+    BoxWithConstraints(modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+        val measurer = rememberTextMeasurer()
+        val density = LocalDensity.current
+        val labelStyle = AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold)
+        val requiredWidth = with(density) {
+            maxOf(measurer.measure(playLabel, labelStyle).size.width,
+                measurer.measure(shuffleLabel, labelStyle).size.width).toDp() + 22.dp + 8.dp + 24.dp
         }
-        AppText(meta, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(top = 2.dp))
-        Spacer(Modifier.height(16.dp))
-        val playInteraction = remember { MutableInteractionSource() }
-        val shuffleInteraction = remember { MutableInteractionSource() }
-        val playPressed by playInteraction.collectIsPressedAsState()
-        val shufflePressed by shuffleInteraction.collectIsPressedAsState()
-        Row(Modifier.fillMaxWidth().height(56.dp).padding(bottom = 0.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            GroupButton(AppIcons.Play, playLabel, palette.primary, palette.onPrimary, playInteraction, onPlay, widen = playPressed, giveWay = shufflePressed)
-            GroupButton(AppIcons.Shuffle, shuffleLabel, palette.primaryContainer, palette.onPrimaryContainer, shuffleInteraction, onShuffle, widen = shufflePressed, giveWay = playPressed)
-            action()
+        // Reserve the pin and both gaps, including the narrower pill during a press.
+        val compact = (maxWidth - 48.dp - 16.dp) * (0.9f / 2.05f) >= requiredWidth
+        Column(Modifier.fillMaxWidth()) {
+            MaterialTag(kind, Modifier)
+            Spacer(Modifier.height(10.dp))
+            AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
+            if (subtitle != null) {
+                AppText(
+                    subtitle,
+                    AppTheme.typography.headline.copy(fontWeight = FontWeight.SemiBold),
+                    color = if (onSubtitleClick != null) palette.primary else AppTheme.colors.secondaryLabel,
+                    maxLines = 1,
+                    modifier = Modifier.padding(top = 4.dp).then(
+                        if (onSubtitleClick != null) Modifier.clip(CircleShape).clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onSubtitleClick) else Modifier,
+                    ),
+                )
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppText(meta, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
+                    modifier = Modifier.weight(1f).padding(top = 2.dp))
+                if (!compact) action()
+            }
+            Spacer(Modifier.height(16.dp))
+            val playInteraction = remember { MutableInteractionSource() }
+            val shuffleInteraction = remember { MutableInteractionSource() }
+            val playPressed by playInteraction.collectIsPressedAsState()
+            val shufflePressed by shuffleInteraction.collectIsPressedAsState()
+            if (compact) {
+                Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    GroupButton(AppIcons.Play, playLabel, palette.primary, palette.onPrimary, playInteraction, onPlay, widen = playPressed, giveWay = shufflePressed)
+                    GroupButton(AppIcons.Shuffle, shuffleLabel, palette.primaryContainer, palette.onPrimaryContainer, shuffleInteraction, onShuffle, widen = shufflePressed, giveWay = playPressed)
+                    action()
+                }
+            } else {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth()) {
+                        GroupButton(AppIcons.Play, playLabel, palette.primary, palette.onPrimary, playInteraction, onPlay,
+                            widen = false, giveWay = false, compact = false)
+                    }
+                    Row(Modifier.fillMaxWidth()) {
+                        GroupButton(AppIcons.Shuffle, shuffleLabel, palette.primaryContainer, palette.onPrimaryContainer, shuffleInteraction, onShuffle,
+                            widen = false, giveWay = false, compact = false)
+                    }
+                }
+            }
+            Spacer(Modifier.height(16.dp))
         }
-        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -120,6 +152,7 @@ private fun RowScope.GroupButton(
     onClick: () -> Unit,
     widen: Boolean,
     giveWay: Boolean,
+    compact: Boolean = true,
 ) {
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val weight by animateFloatAsState(
@@ -137,16 +170,18 @@ private fun RowScope.GroupButton(
     Row(
         Modifier
             .weight(weight)
-            .fillMaxHeight()
+            .then(if (compact) Modifier.fillMaxHeight() else Modifier.heightIn(min = 56.dp))
             .clip(RoundedCornerShape(corner))
             .background(container)
-            .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClick = onClick),
+            .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClick = onClick)
+            .then(if (compact) Modifier else Modifier.padding(horizontal = 16.dp, vertical = 12.dp)),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppIcon(icon, contentDescription = null, size = 22.dp, tint = content)
         Spacer(Modifier.width(8.dp))
-        AppText(label, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), color = content, maxLines = 1)
+        AppText(label, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), color = content,
+            maxLines = if (compact) 1 else Int.MAX_VALUE)
     }
 }
 
