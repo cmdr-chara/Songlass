@@ -13,6 +13,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.LaunchedEffect
@@ -167,29 +168,36 @@ private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted:
     val pressed by interaction.collectIsPressedAsState()
     val press = animateFloatAsState(if (pressed && highlighted && !reduced) 1.05f else 1f,
         if (reduced) snap() else MaterialMotion.press(), label = "materialNavPress")
-    val iconTint by animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
-        if (reduced) snap() else MaterialMotion.effects(), label = "materialNavIcon")
-    val labelTint by animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
-        if (reduced) snap() else MaterialMotion.effects(), label = "materialNavLabel")
+    val tint = animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
+        if (reduced) snap() else MaterialMotion.effects(), label = "materialNavTint")
     val target = modifier.fillMaxHeight().clip(CircleShape)
         .selectable(selected, interactionSource = interaction, indication = MaterialRipple, role = Role.Tab, onClick = onClick)
-    val icon: @Composable () -> Unit = {
-        AppIcon(tab.icon, contentDescription = null, size = 22.dp, tint = iconTint,
-            modifier = Modifier.graphicsLayer { scaleX = press.value; scaleY = press.value })
-    }
     if (inlineLabel) {
         Row(target.padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically) {
-            icon()
-            AppText(tab.label, AppTheme.typography.subheadline, color = labelTint, maxLines = 1,
+            MaterialNavigationIcon(tab, tint, press)
+            MaterialNavigationLabel(tab.label, inlineLabel = true, tint = tint,
                 modifier = Modifier.weight(1f, fill = false))
         }
     } else {
         Column(target.padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
-            icon()
-            AppText(tab.label, AppTheme.typography.caption1, color = labelTint, maxLines = 1)
+            MaterialNavigationIcon(tab, tint, press)
+            MaterialNavigationLabel(tab.label, inlineLabel = false, tint = tint)
         }
     }
+}
+
+/** Read animated ink inside its own scope; rebuilding the selectable target is unnecessary. */
+@Composable
+private fun MaterialNavigationIcon(tab: TabItem, tint: State<Color>, press: State<Float>) {
+    AppIcon(tab.icon, contentDescription = null, size = 22.dp, tint = tint.value,
+        modifier = Modifier.graphicsLayer { scaleX = press.value; scaleY = press.value })
+}
+
+@Composable
+private fun MaterialNavigationLabel(text: String, inlineLabel: Boolean, tint: State<Color>, modifier: Modifier = Modifier) {
+    AppText(text, if (inlineLabel) AppTheme.typography.subheadline else AppTheme.typography.caption1,
+        color = tint.value, maxLines = 1, modifier = modifier)
 }
