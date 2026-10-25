@@ -335,12 +335,12 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
                 }
                 LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.AppIcon,
                     stringResource(Res.string.settings_app_icon), choices, stringResource(Res.string.action_cancel),
-                    stringResource(Res.string.settings_app_icon_hint), lastInGroup = true,
+                    launcherIconHint(), lastInGroup = true,
                     modifier = Modifier.padding(horizontal = pageInset))
             }
         }
         item {
-            val hint = stringResource(Res.string.settings_app_icon_hint)
+            val hint = launcherIconHint()
             LocalGlassLook.current.SettingsAppearanceHint(hint) { SettingsHint(hint) }
         }
     }
@@ -384,7 +384,7 @@ private fun AppIconPreview(icon: LauncherIconVariant) {
         LauncherIconVariant.MiuixLight -> Res.drawable.songlass_icon_miuix_light
         LauncherIconVariant.MiuixDark -> Res.drawable.songlass_icon_miuix_dark
     }
-    Image(painterResource(asset), contentDescription = null,
+    Image(platformLauncherIconPainter(icon) ?: painterResource(asset), contentDescription = null,
         modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).clearAndSetSemantics { })
 }
 

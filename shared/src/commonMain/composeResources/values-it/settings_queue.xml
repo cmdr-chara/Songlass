@@ -27,5 +27,6 @@
     <string name="settings_app_icon_violet">Viola</string>
     <string name="settings_app_icon_automatic">Automatica</string>
     <string name="settings_app_icon_night">Notte</string>
-    <string name="settings_app_icon_hint">Automatica segue stile e tema.</string>
+    <string name="settings_app_icon_hint">Automatica segue stile e colori del telefono.</string>
+    <string name="settings_app_icon_hint_ios">Automatica segue lo stile. La tinta della Home è gestita da iOS.</string>
 </resources>

@@ -27,5 +27,6 @@
     <string name="settings_app_icon_violet">Violet</string>
     <string name="settings_app_icon_automatic">Automatic</string>
     <string name="settings_app_icon_night">Night</string>
-    <string name="settings_app_icon_hint">Automatic follows your interface style and appearance.</string>
+    <string name="settings_app_icon_hint">Automatic follows your style and the phone’s colors.</string>
+    <string name="settings_app_icon_hint_ios">Automatic follows your style. Home Screen tint is managed by iOS.</string>
 </resources>

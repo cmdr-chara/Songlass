@@ -11,6 +11,55 @@
     "miuix_light",
     "miuix_dark"
   ],
+  "android_dynamic_palettes": {
+    "liquid_light": {
+      "background": [
+        "@android:color/system_neutral1_0",
+        "@android:color/system_neutral1_50",
+        "@android:color/system_accent2_100"
+      ],
+      "bars": "@android:color/system_neutral1_600",
+      "heart": "@android:color/system_accent1_600"
+    },
+    "liquid_dark": {
+      "background": [
+        "@android:color/system_neutral1_700",
+        "@android:color/system_neutral1_800",
+        "@android:color/system_neutral1_900"
+      ],
+      "bars": "@android:color/system_neutral1_50",
+      "heart": "@android:color/system_accent1_200"
+    },
+    "material_light": {
+      "background": [
+        "@android:color/system_accent1_100"
+      ],
+      "bars": "@android:color/system_accent1_700",
+      "heart": "@android:color/system_accent3_600"
+    },
+    "material_dark": {
+      "background": [
+        "@android:color/system_accent1_800"
+      ],
+      "bars": "@android:color/system_accent1_100",
+      "heart": "@android:color/system_accent3_200"
+    },
+    "miuix_light": {
+      "background": [
+        "@android:color/system_accent1_600"
+      ],
+      "bars": "@android:color/system_accent1_0",
+      "heart": "@android:color/system_accent3_100"
+    },
+    "miuix_dark": {
+      "background": [
+        "@android:color/system_accent1_300"
+      ],
+      "bars": "@android:color/system_accent1_900",
+      "heart": "@android:color/system_accent3_900"
+    }
+  },
+  "android_style_resource_root": "shared/src/androidMain/res",
   "files": [
     {
       "path": "design/icon/styles/violet.svg",
@@ -163,92 +212,92 @@
       "bytes": 2065
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_light_background.xml",
-      "sha256": "a68110ea2a86b603cf22bd4d83f17f1c8bcd69927c6abaf03b0696305b86738d",
-      "bytes": 743
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_liquid_light_background.xml",
+      "sha256": "275a965f620dc4d439377b879c8eddc73fdd197028f331c3d537fc4198e3b091",
+      "bytes": 814
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_light_foreground.xml",
-      "sha256": "9a8016ed0e19b3255c54762776ae96b4fd1a4d1fb13bf55e1a2385ff32c12668",
-      "bytes": 2065
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_liquid_light_foreground.xml",
+      "sha256": "d473fee6f7b0dd0397939b7dba985121f15baac70c230213bb87665dbc3e657e",
+      "bytes": 2339
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_light_monochrome.xml",
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_liquid_light_monochrome.xml",
       "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
       "bytes": 2065
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_dark_background.xml",
-      "sha256": "85750cf6b140f9ca0fe07f03fc929eb5471b16fc71479075e4d6d976e884609f",
-      "bytes": 742
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_liquid_dark_background.xml",
+      "sha256": "1cfae070a7c17288192859eba09d01cdbfce1ad80878ffd3ba4836b5887a1308",
+      "bytes": 817
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_dark_foreground.xml",
-      "sha256": "ba8cb760b756a30043ddf041704b07f32f956772ecaac430854b7965c7253ee7",
-      "bytes": 2065
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_liquid_dark_foreground.xml",
+      "sha256": "c37a0522b287a253d1b62dd4bfc8e56d9a33886a3ab590e48a1b1073bd72d76e",
+      "bytes": 2329
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_dark_monochrome.xml",
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_liquid_dark_monochrome.xml",
       "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
       "bytes": 2065
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_material_light_background.xml",
-      "sha256": "6448228b6a30bef9eedb1e80f8c0674256c9cc2fb255ee8c868bf10d63d7d860",
-      "bytes": 441
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_material_light_background.xml",
+      "sha256": "275a37694d8fa17e495a2b3a901bfda9eb0ec677a6730bdd71ba0d8d599304df",
+      "bytes": 465
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_material_light_foreground.xml",
-      "sha256": "b816172d49c779760eb8a4db2f690d7459e3af788aa7502c4e42f2e59c289b56",
-      "bytes": 2065
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_material_light_foreground.xml",
+      "sha256": "8e09b826bc10edfa8f85ad817a0f47c5f7e87c92740a47781512ca063b6660a4",
+      "bytes": 2329
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_material_light_monochrome.xml",
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_material_light_monochrome.xml",
       "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
       "bytes": 2065
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_material_dark_background.xml",
-      "sha256": "d9b548382882569c8d66f3809e07892557a7afa30a3093b9d76efefe9fdcc827",
-      "bytes": 441
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_material_dark_background.xml",
+      "sha256": "66a745a0e0572da7a929d62e933b8f93b18f125ae18abf38821fe479cbb0513b",
+      "bytes": 465
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_material_dark_foreground.xml",
-      "sha256": "2b1fe069c03724f3eba0a42ddfa4ec9d530333912b4e0dfe80c344cf3ebbf690",
-      "bytes": 2065
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_material_dark_foreground.xml",
+      "sha256": "6785513ab690c650e889874acb78a7e74e1925cb28117d9c4a5e991639475637",
+      "bytes": 2329
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_material_dark_monochrome.xml",
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_material_dark_monochrome.xml",
       "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
       "bytes": 2065
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_light_background.xml",
-      "sha256": "2e6b3166fed7977a42a944623306f38ea26a4d4d1f6474ef6799cef3a931e41d",
-      "bytes": 441
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_miuix_light_background.xml",
+      "sha256": "d02f3453f87d5a839c7bb81f8ad2796ed5c0539d985a3fa386d3f4355fa6b0d3",
+      "bytes": 465
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_light_foreground.xml",
-      "sha256": "7c5e5f3d926dfbd1f2e685b04af920cfbab3e7637c21e5b73bc045f2e39a400b",
-      "bytes": 2065
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_miuix_light_foreground.xml",
+      "sha256": "7b907e1a76565363a75f9c1ddb0363e180dc656c2052c93d8a2d6d9d7774d792",
+      "bytes": 2309
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_light_monochrome.xml",
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_miuix_light_monochrome.xml",
       "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
       "bytes": 2065
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_dark_background.xml",
-      "sha256": "48302f058a53a0537f9cb1a8fa6fa7cbba40210b1ea2a4b757d41b925a1cc3d4",
-      "bytes": 441
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_miuix_dark_background.xml",
+      "sha256": "8d9c6882810263ebbce1b6ef7c374dd8158879412154739ce8cda4abf2f0928e",
+      "bytes": 465
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_dark_foreground.xml",
-      "sha256": "2dd9102cd70bb9a939d4799cee96f864fe279ec4d6efef1985de04de454092c7",
-      "bytes": 2065
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_miuix_dark_foreground.xml",
+      "sha256": "139cc2277e8535f0d24ab1ccd5c5ba7dce6fbb8d1e259264aecb2f25d29f9350",
+      "bytes": 2329
     },
     {
-      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_dark_monochrome.xml",
+      "path": "shared/src/androidMain/res/drawable/ic_launcher_miuix_dark_monochrome.xml",
       "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
       "bytes": 2065
     },
@@ -263,32 +312,32 @@
       "bytes": 417
     },
     {
-      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_liquid_light.xml",
+      "path": "shared/src/androidMain/res/mipmap-anydpi/ic_launcher_liquid_light.xml",
       "sha256": "b4873c265c4ca200659828910fd1d94082f29a64c48ca2365f3cfa16bda832cb",
       "bytes": 438
     },
     {
-      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_liquid_dark.xml",
+      "path": "shared/src/androidMain/res/mipmap-anydpi/ic_launcher_liquid_dark.xml",
       "sha256": "06839dfec8c3659589bc7bb43c96d1c0893c726772b58825fbf048b2b71621ce",
       "bytes": 435
     },
     {
-      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_material_light.xml",
+      "path": "shared/src/androidMain/res/mipmap-anydpi/ic_launcher_material_light.xml",
       "sha256": "85a6c6a5c3a76b8dfa721129c686e9cbec651c4515c3c8ca781c461c96a14f73",
       "bytes": 444
     },
     {
-      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_material_dark.xml",
+      "path": "shared/src/androidMain/res/mipmap-anydpi/ic_launcher_material_dark.xml",
       "sha256": "48a0ed3ca54be5a6823be6dc93779171d68e094f1b6d2bbe2314ab99e85cd28c",
       "bytes": 441
     },
     {
-      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_miuix_light.xml",
+      "path": "shared/src/androidMain/res/mipmap-anydpi/ic_launcher_miuix_light.xml",
       "sha256": "bd53d594fa4358da573d15b03906ef95a453dc7220e15a1b5c7457240a35c5b2",
       "bytes": 435
     },
     {
-      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_miuix_dark.xml",
+      "path": "shared/src/androidMain/res/mipmap-anydpi/ic_launcher_miuix_dark.xml",
       "sha256": "6d5b307ee843349c2ecfb0dc535561c175a9fe60ff16e60ae344ca4391a79b17",
       "bytes": 432
     },

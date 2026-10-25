@@ -10,6 +10,7 @@ Each icon has a background layer, a foreground layer and a one-colour monochrome
 share one description for SVG previews and Android VectorDrawables. Legacy palettes are unchanged.
 
   python3 design/icon/build_style_icons.py          # SVG previews in design/icon/styles/
+  python3 design/icon/build_style_icons.py --android-only  # only dynamic Android style resources + manifest
   python3 design/icon/build_style_icons.py --apply  # also the Android resources, the splash, the iOS icons
                                                     # and the marks shown inside the app
 """
@@ -21,6 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 RES = ROOT / "androidApp/src/main/res"
+SHARED_RES = ROOT / "shared/src/androidMain/res"
 OUT = ROOT / "design/icon/styles"
 C = 54.0
 
@@ -136,6 +138,40 @@ VARIANT_PALETTES = {
 }
 
 
+# Public Android tonal colours; fallback previews and iOS keep VARIANT_PALETTES.
+ANDROID_PALETTES = {
+    "liquid_light": {"background": ["neutral1_0", "neutral1_50", "accent2_100"], "bars": "neutral1_600", "heart": "accent1_600"},
+    "liquid_dark": {"background": ["neutral1_700", "neutral1_800", "neutral1_900"], "bars": "neutral1_50", "heart": "accent1_200"},
+    "material_light": {"background": ["accent1_100"], "bars": "accent1_700", "heart": "accent3_600"},
+    "material_dark": {"background": ["accent1_800"], "bars": "accent1_100", "heart": "accent3_200"},
+    "miuix_light": {"background": ["accent1_600"], "bars": "accent1_0", "heart": "accent3_100"},
+    "miuix_dark": {"background": ["accent1_300"], "bars": "accent1_900", "heart": "accent3_900"},
+}
+
+
+def android_colour(tone):
+    return "@android:color/system_" + tone
+
+
+def android_icon(name):
+    palette = ANDROID_PALETTES[name]
+    background = [android_colour(tone) for tone in palette["background"]]
+    if name.startswith("liquid_"):
+        fallback = VARIANT_PALETTES[name][0]
+        background = Lin(fallback.x1, fallback.y1, fallback.x2, fallback.y2,
+                         [(offset, a(colour)) for (offset, _), colour in zip(fallback.stops, background)])
+    else:
+        background = background[0]
+    return ([Shape(rect(0, 0, 108, 108), background)],
+            [Shape(b, android_colour(palette["bars"])) for b in glyph_bars(SAFE)] +
+            [Shape(heart(SAFE), android_colour(palette["heart"]))],
+            [Shape(b, "FFFFFF") for b in glyph_bars(SAFE)] + [Shape(heart(SAFE), "FFFFFF")])
+
+
+def android_res(name):
+    return SHARED_RES if name in ANDROID_PALETTES else RES
+
+
 def variant_icon(name, scale=SAFE):
     bg, bars, centre = VARIANT_PALETTES[name]
     return ([Shape(rect(0, 0, 108, 108), bg)],
@@ -189,8 +225,13 @@ def svg(background, foreground, mask="squircle", size=108):
 
 
 def vd_paint(p, attr="fillColor"):
-    def argb(h, al): return f"#{int(round(al * 255)):02X}{h}"
-    if isinstance(p, str): return f'android:{attr}="#FF{p}"'
+    def argb(h, al):
+        if h.startswith("@android:color/system_"):
+            if al != 1.0:
+                raise ValueError("System colour references require opaque alpha")
+            return h
+        return f"#{int(round(al * 255)):02X}{h}"
+    if isinstance(p, str): return f'android:{attr}="{p if p.startswith("@android:color/system_") else "#FF" + p}"'
     if isinstance(p, tuple): return f'android:{attr}="{argb(*p)}"'
     items = "".join(f'<item android:offset="{o}" android:color="{argb(c, al)}"/>' for o, (c, al) in p.stops)
     if isinstance(p, Lin):
@@ -314,9 +355,9 @@ def generated_paths(apply):
     """Explicit allowlist; unknown files are never removed or inventoried as generated."""
     paths = [OUT / f"{name}{suffix}.svg" for name in ICONS for suffix in ("", "-squircle", "-circle")]
     if apply:
-        paths += [RES / f"drawable/ic_launcher_{name}_{layer}.xml" for name in ICONS
+        paths += [android_res(name) / f"drawable/ic_launcher_{name}_{layer}.xml" for name in ICONS
                   for layer in ("background", "foreground", "monochrome")]
-        paths += [RES / f"mipmap-anydpi/ic_launcher_{name}.xml" for name in ICONS]
+        paths += [android_res(name) / f"mipmap-anydpi/ic_launcher_{name}.xml" for name in ICONS]
         paths += [RES / "mipmap-anydpi/ic_launcher.xml", RES / "drawable/splash_icon.xml"]
         assets = ROOT / "iosApp/iosApp/Assets.xcassets"
         paths += [assets / f"{asset}.appiconset/{filename}" for asset in ("AppIcon", *IOS_SETS.values())
@@ -328,26 +369,37 @@ def generated_paths(apply):
 
 
 def main():
-    apply = "--apply" in sys.argv
+    android_only = "--android-only" in sys.argv
+    apply = "--apply" in sys.argv or android_only
     OUT.mkdir(parents=True, exist_ok=True)
     for name, make in ICONS.items():
         bg, fg, mono = make()
-        for suffix, mask in (("", "none"), ("-squircle", "squircle"), ("-circle", "circle")):
-            (OUT / f"{name}{suffix}.svg").write_text(svg(bg, fg, mask))
-        if apply:
+        if not android_only:
+            for suffix, mask in (("", "none"), ("-squircle", "squircle"), ("-circle", "circle")):
+                (OUT / f"{name}{suffix}.svg").write_text(svg(bg, fg, mask))
+        if apply and (not android_only or name in ANDROID_PALETTES):
+            target = android_res(name)
+            (target / "drawable").mkdir(parents=True, exist_ok=True)
+            (target / "mipmap-anydpi").mkdir(parents=True, exist_ok=True)
+            if name in ANDROID_PALETTES:
+                bg, fg, mono = android_icon(name)
             for layer, shapes in (("background", bg), ("foreground", fg), ("monochrome", mono)):
-                (RES / f"drawable/ic_launcher_{name}_{layer}.xml").write_text(vector(shapes))
-            (RES / f"mipmap-anydpi/ic_launcher_{name}.xml").write_text(
+                (target / f"drawable/ic_launcher_{name}_{layer}.xml").write_text(vector(shapes))
+            (target / f"mipmap-anydpi/ic_launcher_{name}.xml").write_text(
                 '<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated by design/icon/build_style_icons.py -->\n'
                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
                 f'    <background android:drawable="@drawable/ic_launcher_{name}_background" />\n'
                 f'    <foreground android:drawable="@drawable/ic_launcher_{name}_foreground" />\n'
                 f'    <monochrome android:drawable="@drawable/ic_launcher_{name}_monochrome" />\n'
                 '</adaptive-icon>\n')
-    if apply:
+    if apply and not android_only:
         write_apply()
     manifest = {"generator": "design/icon/build_style_icons.py", "applied": apply,
-                "variants": list(ICONS), "files": [
+                "variants": list(ICONS),
+                "android_dynamic_palettes": {name: {role: [android_colour(t) for t in tones] if isinstance(tones, list)
+                                                     else android_colour(tones) for role, tones in palette.items()}
+                                             for name, palette in ANDROID_PALETTES.items()},
+                "android_style_resource_root": str(SHARED_RES.relative_to(ROOT)), "files": [
                     {"path": str(p.relative_to(ROOT)), "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
                      "bytes": p.stat().st_size} for p in generated_paths(apply)]}
     (ROOT / "design/icon/generated-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
