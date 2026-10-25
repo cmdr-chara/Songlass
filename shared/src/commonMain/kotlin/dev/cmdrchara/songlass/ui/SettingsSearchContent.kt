@@ -191,7 +191,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.QueueEnd -> queueEndLabel(preferences.queueEnd)
         SettingsTarget.ShuffleBias -> shuffleBiasLabel(preferences.shuffleBias)
         SettingsTarget.KeepShuffle -> enabled(preferences.keepShuffleOnSelection)
-        SettingsTarget.AppIcon -> stringResource(if (preferences.appIcon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
+        SettingsTarget.AppIcon -> appIconName(preferences.appIcon)
         SettingsTarget.FocusDucking -> focusDuckingLabel(preferences.audioFocus.ducking)
         SettingsTarget.ResumeOnFocusGain -> enabled(preferences.audioFocus.resumeOnFocusGain)
         SettingsTarget.ResumeAfterCall -> enabled(preferences.audioFocus.resumeAfterCall)

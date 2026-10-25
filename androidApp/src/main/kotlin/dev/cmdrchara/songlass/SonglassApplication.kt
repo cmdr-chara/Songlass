@@ -121,6 +121,7 @@ class SonglassApplication : Application() {
 
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        LauncherIcons.refresh(this)
         // Liquid widgets compute their colours for light or dark mode.
         NowPlayingWidgets.refresh(this)
     }

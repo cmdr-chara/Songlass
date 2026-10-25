@@ -327,10 +327,11 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
         mark(SettingsTarget.AppIcon)
         item {
             SettingsSearchAnchor(SettingsTarget.AppIcon, request) {
-                val choices = AppIconChoice.entries.map { icon ->
-                    val title = stringResource(if (icon == AppIconChoice.Violet) Res.string.settings_app_icon_violet else Res.string.settings_app_icon_night)
-                    SettingsVisualChoice(title, preferences.appIcon == icon,
-                        { settings.setAppIcon(icon) }) { AppIconPreview(icon) }
+                val dark = AppTheme.colors.isDark
+                val choices = listOf(AppIconChoice.Automatic, AppIconChoice.LiquidGlass, AppIconChoice.MaterialGlass,
+                    AppIconChoice.Miuix, AppIconChoice.Violet, AppIconChoice.Night).map { icon ->
+                    SettingsVisualChoice(appIconName(icon), preferences.appIcon == icon,
+                        { settings.setAppIcon(icon) }) { AppIconPreview(icon.resolve(preferences.interfaceStyle, dark)) }
                 }
                 LocalGlassLook.current.SettingsVisualChoices(SettingsVisualChoiceKind.AppIcon,
                     stringResource(Res.string.settings_app_icon), choices, stringResource(Res.string.action_cancel),
@@ -362,10 +363,30 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
 }
 
 @Composable
-private fun AppIconPreview(icon: AppIconChoice) {
+internal fun appIconName(icon: AppIconChoice): String = when (icon) {
+    AppIconChoice.Violet -> stringResource(Res.string.settings_app_icon_violet)
+    AppIconChoice.Night -> stringResource(Res.string.settings_app_icon_night)
+    AppIconChoice.Automatic -> stringResource(Res.string.settings_app_icon_automatic)
+    AppIconChoice.LiquidGlass -> stringResource(Res.string.settings_liquid_glass)
+    AppIconChoice.MaterialGlass -> stringResource(Res.string.settings_material_glass)
+    AppIconChoice.Miuix -> stringResource(Res.string.settings_miuix)
+}
+
+@Composable
+private fun AppIconPreview(icon: LauncherIconVariant) {
     Box(Modifier.fillMaxWidth().height(76.dp).clearAndSetSemantics { }.clip(RoundedCornerShape(12.dp))
         .background(AppTheme.colors.background), contentAlignment = Alignment.Center) {
-        Image(painterResource(if (icon == AppIconChoice.Violet) Res.drawable.songlass_brand_light else Res.drawable.songlass_icon_night),
+        val asset = when (icon) {
+            LauncherIconVariant.Violet -> Res.drawable.songlass_brand_light
+            LauncherIconVariant.Night -> Res.drawable.songlass_icon_night
+            LauncherIconVariant.LiquidLight -> Res.drawable.songlass_icon_liquid_light
+            LauncherIconVariant.LiquidDark -> Res.drawable.songlass_icon_liquid_dark
+            LauncherIconVariant.MaterialLight -> Res.drawable.songlass_icon_material_light
+            LauncherIconVariant.MaterialDark -> Res.drawable.songlass_icon_material_dark
+            LauncherIconVariant.MiuixLight -> Res.drawable.songlass_icon_miuix_light
+            LauncherIconVariant.MiuixDark -> Res.drawable.songlass_icon_miuix_dark
+        }
+        Image(painterResource(asset),
             contentDescription = null, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(14.dp)))
     }
 }

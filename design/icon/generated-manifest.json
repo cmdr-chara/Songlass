@@ -1,0 +1,511 @@
+{
+  "generator": "design/icon/build_style_icons.py",
+  "applied": true,
+  "variants": [
+    "violet",
+    "night",
+    "liquid_light",
+    "liquid_dark",
+    "material_light",
+    "material_dark",
+    "miuix_light",
+    "miuix_dark"
+  ],
+  "files": [
+    {
+      "path": "design/icon/styles/violet.svg",
+      "sha256": "3364aba1504e3d9d606899f4586f6f8669bc25ed9f61cb6bccecab906ef7b076",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/violet-squircle.svg",
+      "sha256": "756a23e8fe8594684ee33aaa15143a64f579d75110359535df719ea6294094c6",
+      "bytes": 1893
+    },
+    {
+      "path": "design/icon/styles/violet-circle.svg",
+      "sha256": "8ef7240e7ea2a80d09650cf656f8708a7749b6e6f2e43ae10c126062e88ccaa9",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/night.svg",
+      "sha256": "22e38241b0fdf7a157bd6bc670a6638aaa680770003c267a19625268cbd89191",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/night-squircle.svg",
+      "sha256": "5ff4511ffd5e795217d9c7f8a4368f7dec083bb6c6df4d5f8da2d93c8e7ea834",
+      "bytes": 1893
+    },
+    {
+      "path": "design/icon/styles/night-circle.svg",
+      "sha256": "b75bcbb6f0a2501b674f028a75dcc140ccda7c42166aaad9fe388a1acc8744a7",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/liquid_light.svg",
+      "sha256": "585c0db368cafc811905455598a89c66b3bcaefbffe101bac254347381baee6f",
+      "bytes": 2147
+    },
+    {
+      "path": "design/icon/styles/liquid_light-squircle.svg",
+      "sha256": "abf478a77b6d68ce51d1c84393078d3d002edd131d72721d3030c97fc1b1c385",
+      "bytes": 2175
+    },
+    {
+      "path": "design/icon/styles/liquid_light-circle.svg",
+      "sha256": "609f5bf4a2f5fa13c423be7c80307f5454762dbff1b4e126e3688d490784ee30",
+      "bytes": 2147
+    },
+    {
+      "path": "design/icon/styles/liquid_dark.svg",
+      "sha256": "c9faea8f7ef219bc4b84563f93187bf75db22f0371c75cdddba34815fdb18bc3",
+      "bytes": 2146
+    },
+    {
+      "path": "design/icon/styles/liquid_dark-squircle.svg",
+      "sha256": "cd60cafe3e87b2526e80a6d04ad6c0d7c4b618d9587a7027c86e54bb582f76fb",
+      "bytes": 2174
+    },
+    {
+      "path": "design/icon/styles/liquid_dark-circle.svg",
+      "sha256": "f1e0224c8b27e1df1400d79bc2106341d1fc8acad487ce397fff6dec5e291391",
+      "bytes": 2146
+    },
+    {
+      "path": "design/icon/styles/material_light.svg",
+      "sha256": "9a045352f6049bd8e703da9a2ee6efaf00da608ac6ff6457521cf6955b4216e7",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/material_light-squircle.svg",
+      "sha256": "7f809887f66cf0d0cc132901cdef9a8ef64bf0e47114f80300c4c0741330ead1",
+      "bytes": 1893
+    },
+    {
+      "path": "design/icon/styles/material_light-circle.svg",
+      "sha256": "1c62751e5f6e5ff51598c9509fc813066d53199539300c796c6c5afa457e5b45",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/material_dark.svg",
+      "sha256": "9aac74868c65635c3d9567f70199625065f5af4246daea3b2f02283ab8c58caf",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/material_dark-squircle.svg",
+      "sha256": "e22a18b0281dfce81dfae4866559e59d6f98d83daf1626cab5b0b07d5c39b35f",
+      "bytes": 1893
+    },
+    {
+      "path": "design/icon/styles/material_dark-circle.svg",
+      "sha256": "2582c8f2028fbb052e9c672e2bbfa47a386247cb416fd81b4463e50ccaedfbd3",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/miuix_light.svg",
+      "sha256": "b9ac910d8b410c69d49bb5a645db8e22067b50c72134037716b5466f14e22ee7",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/miuix_light-squircle.svg",
+      "sha256": "82838e6e6cd250d440b03d750ed167339ff3339cdf7af20ea7f3280c3b636cc7",
+      "bytes": 1893
+    },
+    {
+      "path": "design/icon/styles/miuix_light-circle.svg",
+      "sha256": "6614165c7bb5d2f26994df1001d30163237da0229b17fc136684697d7d7f4ca8",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/miuix_dark.svg",
+      "sha256": "9633e524e4109b7c9460d17179a165d23a558751b8b6f57ff17bd11c97e8e4db",
+      "bytes": 1865
+    },
+    {
+      "path": "design/icon/styles/miuix_dark-squircle.svg",
+      "sha256": "a059bafd19333e438d3f00ccf7560e054d24e5f92b17cfd7a758205f7166f7d7",
+      "bytes": 1893
+    },
+    {
+      "path": "design/icon/styles/miuix_dark-circle.svg",
+      "sha256": "a74228488748a7ca32d285bb315899b6561e5d47d2b651b182b89bcd3c82ac03",
+      "bytes": 1865
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_violet_background.xml",
+      "sha256": "c8fdb1cc018163daf6f61b600c2aa32a91753ecdf52d9c81169046dfc5a64364",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_violet_foreground.xml",
+      "sha256": "17aa5260643c336ce8d59f2b7abb06eafcfa5a5e2779fa53eb20f1ecc6f8055e",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_violet_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_night_background.xml",
+      "sha256": "3872591b2066d3b976e6eeea529302632cdb6c0367f44e464ffb2af9f3a100bd",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_night_foreground.xml",
+      "sha256": "39470be3f1b359fc39428f1bc8390528105f2c812a405aeb2b3dbe05bb3eea88",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_night_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_light_background.xml",
+      "sha256": "a68110ea2a86b603cf22bd4d83f17f1c8bcd69927c6abaf03b0696305b86738d",
+      "bytes": 743
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_light_foreground.xml",
+      "sha256": "9a8016ed0e19b3255c54762776ae96b4fd1a4d1fb13bf55e1a2385ff32c12668",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_light_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_dark_background.xml",
+      "sha256": "85750cf6b140f9ca0fe07f03fc929eb5471b16fc71479075e4d6d976e884609f",
+      "bytes": 742
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_dark_foreground.xml",
+      "sha256": "ba8cb760b756a30043ddf041704b07f32f956772ecaac430854b7965c7253ee7",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_liquid_dark_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_material_light_background.xml",
+      "sha256": "6448228b6a30bef9eedb1e80f8c0674256c9cc2fb255ee8c868bf10d63d7d860",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_material_light_foreground.xml",
+      "sha256": "b816172d49c779760eb8a4db2f690d7459e3af788aa7502c4e42f2e59c289b56",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_material_light_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_material_dark_background.xml",
+      "sha256": "d9b548382882569c8d66f3809e07892557a7afa30a3093b9d76efefe9fdcc827",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_material_dark_foreground.xml",
+      "sha256": "2b1fe069c03724f3eba0a42ddfa4ec9d530333912b4e0dfe80c344cf3ebbf690",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_material_dark_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_light_background.xml",
+      "sha256": "2e6b3166fed7977a42a944623306f38ea26a4d4d1f6474ef6799cef3a931e41d",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_light_foreground.xml",
+      "sha256": "7c5e5f3d926dfbd1f2e685b04af920cfbab3e7637c21e5b73bc045f2e39a400b",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_light_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_dark_background.xml",
+      "sha256": "48302f058a53a0537f9cb1a8fa6fa7cbba40210b1ea2a4b757d41b925a1cc3d4",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_dark_foreground.xml",
+      "sha256": "2dd9102cd70bb9a939d4799cee96f864fe279ec4d6efef1985de04de454092c7",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/ic_launcher_miuix_dark_monochrome.xml",
+      "sha256": "621b675cbb68dafd5fe767a5bfafb83dea819d0cc0440c5539b2e8a9c111c2ee",
+      "bytes": 2065
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_violet.xml",
+      "sha256": "2b8f3779e8dd3b33cb1ed5339567bc435b6a79f9bae1c0f71f9cbe701755d036",
+      "bytes": 420
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_night.xml",
+      "sha256": "833304fac07d623059ee2093d92b0e06484ea4f8e3f7855e496c99d7920dd360",
+      "bytes": 417
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_liquid_light.xml",
+      "sha256": "b4873c265c4ca200659828910fd1d94082f29a64c48ca2365f3cfa16bda832cb",
+      "bytes": 438
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_liquid_dark.xml",
+      "sha256": "06839dfec8c3659589bc7bb43c96d1c0893c726772b58825fbf048b2b71621ce",
+      "bytes": 435
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_material_light.xml",
+      "sha256": "85a6c6a5c3a76b8dfa721129c686e9cbec651c4515c3c8ca781c461c96a14f73",
+      "bytes": 444
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_material_dark.xml",
+      "sha256": "48a0ed3ca54be5a6823be6dc93779171d68e094f1b6d2bbe2314ab99e85cd28c",
+      "bytes": 441
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_miuix_light.xml",
+      "sha256": "bd53d594fa4358da573d15b03906ef95a453dc7220e15a1b5c7457240a35c5b2",
+      "bytes": 435
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher_miuix_dark.xml",
+      "sha256": "6d5b307ee843349c2ecfb0dc535561c175a9fe60ff16e60ae344ca4391a79b17",
+      "bytes": 432
+    },
+    {
+      "path": "androidApp/src/main/res/mipmap-anydpi/ic_launcher.xml",
+      "sha256": "2b8f3779e8dd3b33cb1ed5339567bc435b6a79f9bae1c0f71f9cbe701755d036",
+      "bytes": 420
+    },
+    {
+      "path": "androidApp/src/main/res/drawable/splash_icon.xml",
+      "sha256": "cecdbece1fdad0ec22244f3f2541d91c16bf859bae37cb59b88928eb88bb0be6",
+      "bytes": 10036
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon.png",
+      "sha256": "d3216e003f5eaa0f90491332e85bacca8e6962733757b81da289e0f4dbc1b77b",
+      "bytes": 31570
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon-dark.png",
+      "sha256": "8eba81dc6b400aee5f8743bf0f9f4d84992a521ab9ae7fed3d45f4b9eb8f80e7",
+      "bytes": 33338
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconNight.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconNight.appiconset/AppIcon.png",
+      "sha256": "c63ccf363effc99e67d451d18dd53dd7fe657b750567988be55dc15d8fe9fdca",
+      "bytes": 31597
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconNight.appiconset/AppIcon-dark.png",
+      "sha256": "c63ccf363effc99e67d451d18dd53dd7fe657b750567988be55dc15d8fe9fdca",
+      "bytes": 31597
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconNight.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidLight.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidLight.appiconset/AppIcon.png",
+      "sha256": "82f6012faf0e04b31fa0de3e55c7e6543d1bd78c46c16a6b3c70d4937ad4e870",
+      "bytes": 94332
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidLight.appiconset/AppIcon-dark.png",
+      "sha256": "e848c1b8b87d3cbef4520a6f210a3c034cce50b2c00755b3ed192d112ddc678e",
+      "bytes": 94596
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidLight.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidDark.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidDark.appiconset/AppIcon.png",
+      "sha256": "e848c1b8b87d3cbef4520a6f210a3c034cce50b2c00755b3ed192d112ddc678e",
+      "bytes": 94596
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidDark.appiconset/AppIcon-dark.png",
+      "sha256": "e848c1b8b87d3cbef4520a6f210a3c034cce50b2c00755b3ed192d112ddc678e",
+      "bytes": 94596
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconLiquidDark.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialLight.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialLight.appiconset/AppIcon.png",
+      "sha256": "0dbbeeb5d97b64398d684e3569b76186289e65ca17524f4e9c313dc344314feb",
+      "bytes": 31954
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialLight.appiconset/AppIcon-dark.png",
+      "sha256": "0c51f173ecb6911d2f0f533faff1317350c52527091d02f1abe313906644c942",
+      "bytes": 33313
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialLight.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialDark.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialDark.appiconset/AppIcon.png",
+      "sha256": "0c51f173ecb6911d2f0f533faff1317350c52527091d02f1abe313906644c942",
+      "bytes": 33313
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialDark.appiconset/AppIcon-dark.png",
+      "sha256": "0c51f173ecb6911d2f0f533faff1317350c52527091d02f1abe313906644c942",
+      "bytes": 33313
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMaterialDark.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixLight.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixLight.appiconset/AppIcon.png",
+      "sha256": "9e7c48ae37d4ae1232495df0d50786f0019383ced46018ee4c9fdd2eb4ce876f",
+      "bytes": 31580
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixLight.appiconset/AppIcon-dark.png",
+      "sha256": "2f04b69fd8675afaec2738c7b4aa28234d3c51dd5ac5d2b64b653587b1f86655",
+      "bytes": 30792
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixLight.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixDark.appiconset/Contents.json",
+      "sha256": "22dedb68f97b0c885aa0bca409a0e9c43527175197fcc9c93b92e582701f3e36",
+      "bytes": 699
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixDark.appiconset/AppIcon.png",
+      "sha256": "2f04b69fd8675afaec2738c7b4aa28234d3c51dd5ac5d2b64b653587b1f86655",
+      "bytes": 30792
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixDark.appiconset/AppIcon-dark.png",
+      "sha256": "2f04b69fd8675afaec2738c7b4aa28234d3c51dd5ac5d2b64b653587b1f86655",
+      "bytes": 30792
+    },
+    {
+      "path": "iosApp/iosApp/Assets.xcassets/AppIconMiuixDark.appiconset/AppIcon-tinted.png",
+      "sha256": "d16cb40f56da02b590cb927bb7a7dfdb5ca1ac425739705b5f68ffbd4ffcafc7",
+      "bytes": 33041
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_brand_light.png",
+      "sha256": "6d18a3e0a5bef97d46512ffbec458f23ea58835452d913e9f6a5fe1c9cac0756",
+      "bytes": 6795
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_brand_dark.png",
+      "sha256": "20c18d63713c1dc0929d771074b831b3c5650444946302c437a3b669fb499a86",
+      "bytes": 7181
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_night.png",
+      "sha256": "5733a9215847a40f18d8de0ac69fe7ad283566ad227728d37433fe1e5ebb6c74",
+      "bytes": 6856
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_liquid_light.png",
+      "sha256": "8c1a661f25c0c5af01a03b8fa6d0d7dd402e4152e5f57e0c9e9467275bcd85b2",
+      "bytes": 15459
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_liquid_dark.png",
+      "sha256": "7a24236a22e73fba47187a6b9b347c1f2e765688fb4a58b03c6d0ca02247f164",
+      "bytes": 15748
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_material_light.png",
+      "sha256": "784c8615f9b25fd84475286012b6facfe6b97e6542b7fa78762aa48a82489a9e",
+      "bytes": 6913
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_material_dark.png",
+      "sha256": "9ab8161c2cdc6c94dbd8c5520193f1934a9ffc57047f021222ff9440943050c6",
+      "bytes": 7192
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_miuix_light.png",
+      "sha256": "eb80778b0dd4b037f389ee65c62bb48cccf77116cd94e0e145f0fc204c5765ae",
+      "bytes": 6784
+    },
+    {
+      "path": "shared/src/commonMain/composeResources/drawable/songlass_icon_miuix_dark.png",
+      "sha256": "247df682ab736a41c7de9df63fd33ac01aea90108b6533734ed9b071ea2af2b3",
+      "bytes": 6617
+    }
+  ]
+}

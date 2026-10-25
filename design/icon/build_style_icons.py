@@ -3,15 +3,18 @@ The Songlass launcher icon, from one description.
 
   violet  white bars radiating from a yellow heart on violet: the icon for every interface style
   night   the same drawing in gold bars and a red heart on near-black: an optional alternative
+  liquid/material/miuix light/dark: bundled finishes of the same original drawing
 
 Each icon has a background layer, a foreground layer and a one-colour monochrome layer on Android's
-108-unit adaptive grid (safe zone: the central 66 units). Only paths and flat fills are used, so the
-same description writes the SVG previews and the VectorDrawables.
+108-unit adaptive grid (safe zone: the central 66 units). Paths, flat fills and subtle vector gradients
+share one description for SVG previews and Android VectorDrawables. Legacy palettes are unchanged.
 
   python3 design/icon/build_style_icons.py          # SVG previews in design/icon/styles/
   python3 design/icon/build_style_icons.py --apply  # also the Android resources, the splash, the iOS icons
                                                     # and the marks shown inside the app
 """
+import hashlib
+import json
 import math
 import sys
 from pathlib import Path
@@ -122,7 +125,32 @@ def violet(): return icon("violet")
 def night(): return icon("night")
 
 
-ICONS = {"violet": violet, "night": night}
+# Bundled alternatives share the exact same heart and ten-bar geometry.
+VARIANT_PALETTES = {
+    "liquid_light": (Lin(12, 0, 96, 108, [(0, a("FFFFFF")), (0.48, a("ECEEF5")), (1, a("CFD6E3"))]), "58657D", "D45561"),
+    "liquid_dark": (Lin(8, 0, 100, 108, [(0, a("414653")), (0.5, a("242833")), (1, a("11151E"))]), "E8EDF6", "FFD16C"),
+    "material_light": ("DDE3FF", "485B95", "A93650"),
+    "material_dark": ("26324F", "B7C7FF", "FFB4AB"),
+    "miuix_light": ("16B9C2", "FFFFFF", "9B173F"),
+    "miuix_dark": ("DE626B", "FFF0DF", "234E60"),
+}
+
+
+def variant_icon(name, scale=SAFE):
+    bg, bars, centre = VARIANT_PALETTES[name]
+    return ([Shape(rect(0, 0, 108, 108), bg)],
+            [Shape(b, bars) for b in glyph_bars(scale)] + [Shape(heart(scale), centre)],
+            [Shape(b, "FFFFFF") for b in glyph_bars(scale)] + [Shape(heart(scale), "FFFFFF")])
+
+
+ICONS = {"violet": violet, "night": night,
+         **{name: (lambda name=name: variant_icon(name)) for name in VARIANT_PALETTES}}
+IOS_SETS = {
+    "night": "AppIconNight", "liquid_light": "AppIconLiquidLight", "liquid_dark": "AppIconLiquidDark",
+    "material_light": "AppIconMaterialLight", "material_dark": "AppIconMaterialDark",
+    "miuix_light": "AppIconMiuixLight", "miuix_dark": "AppIconMiuixDark",
+}
+
 
 
 # --- writers ----------------------------------------------------------------------------------
@@ -233,47 +261,82 @@ def splash():
 
 
 def render_png(background, foreground, size, path, mask="none"):
-    import subprocess, tempfile
-    with tempfile.NamedTemporaryFile("w", suffix=".svg", delete=False) as f:
-        f.write(svg(background, foreground, mask))
-    subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size), f.name, "-o", str(path)], check=True)
+    """Rasterise deterministic SVG via the existing renderer; no metadata or temporary files."""
+    import subprocess
+    payload = svg(background, foreground, mask).encode("utf-8")
+    result = subprocess.run(["rsvg-convert", "-w", str(size), "-h", str(size)],
+                            input=payload, stdout=subprocess.PIPE, check=True)
+    path.write_bytes(result.stdout)
+
+
+def ios_contents():
+    return {"images": [
+        {"idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": "AppIcon.png"},
+        {"idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": "AppIcon-dark.png",
+         "appearances": [{"appearance": "luminosity", "value": "dark"}]},
+        {"idiom": "universal", "platform": "ios", "size": "1024x1024", "filename": "AppIcon-tinted.png",
+         "appearances": [{"appearance": "luminosity", "value": "tinted"}]},
+    ], "info": {"author": "xcode", "version": 1}}
 
 
 def write_apply():
     bg, fg, mono = violet()
     night_bg, night_fg, _ = night()
-    # The launcher's default icon is the violet one.
+    # Legacy assets retain their original geometry, colours and rendering.
     (RES / "mipmap-anydpi/ic_launcher.xml").write_text((RES / "mipmap-anydpi/ic_launcher_violet.xml").read_text())
     (RES / "drawable/splash_icon.xml").write_text(splash())
     ios = ROOT / "iosApp/iosApp/Assets.xcassets/AppIcon.appiconset"
     render_png(bg, fg, 1024, ios / "AppIcon.png")
-    # Dark: the same drawing on a deeper violet. Tinted icons are grey values that iOS recolours.
     deep = [Shape(rect(0, 0, 108, 108), "2A1472")]
     render_png(deep, fg, 1024, ios / "AppIcon-dark.png")
-    render_png([Shape(rect(0, 0, 108, 108), "141414")],
-               [Shape(b, "FFFFFF") for b in glyph_bars(SAFE)] + [Shape(heart(SAFE), "C8C8C8")], 1024, ios / "AppIcon-tinted.png")
+    tinted_bg = [Shape(rect(0, 0, 108, 108), "141414")]
+    tinted_fg = [Shape(b, "FFFFFF") for b in glyph_bars(SAFE)] + [Shape(heart(SAFE), "C8C8C8")]
+    render_png(tinted_bg, tinted_fg, 1024, ios / "AppIcon-tinted.png")
     shared = ROOT / "shared/src/commonMain/composeResources/drawable"
     render_png(bg, fg, 256, shared / "songlass_brand_light.png")
     render_png(deep, fg, 256, shared / "songlass_brand_dark.png")
     render_png(night_bg, night_fg, 256, shared / "songlass_icon_night.png")
+    for name, asset_name in IOS_SETS.items():
+        icon_bg, icon_fg, _ = ICONS[name]()
+        dark_name = name.replace("_light", "_dark")
+        dark_bg, dark_fg, _ = ICONS[dark_name]()
+        target = ios.parent / (asset_name + ".appiconset")
+        target.mkdir(exist_ok=True)
+        (target / "Contents.json").write_text(json.dumps(ios_contents(), indent=2) + "\n")
+        render_png(icon_bg, icon_fg, 1024, target / "AppIcon.png")
+        render_png(dark_bg, dark_fg, 1024, target / "AppIcon-dark.png")
+        render_png(tinted_bg, tinted_fg, 1024, target / "AppIcon-tinted.png")
+        if name != "night":
+            render_png(icon_bg, icon_fg, 256, shared / f"songlass_icon_{name}.png")
+
+
+def generated_paths(apply):
+    """Explicit allowlist; unknown files are never removed or inventoried as generated."""
+    paths = [OUT / f"{name}{suffix}.svg" for name in ICONS for suffix in ("", "-squircle", "-circle")]
+    if apply:
+        paths += [RES / f"drawable/ic_launcher_{name}_{layer}.xml" for name in ICONS
+                  for layer in ("background", "foreground", "monochrome")]
+        paths += [RES / f"mipmap-anydpi/ic_launcher_{name}.xml" for name in ICONS]
+        paths += [RES / "mipmap-anydpi/ic_launcher.xml", RES / "drawable/splash_icon.xml"]
+        assets = ROOT / "iosApp/iosApp/Assets.xcassets"
+        paths += [assets / f"{asset}.appiconset/{filename}" for asset in ("AppIcon", *IOS_SETS.values())
+                  for filename in ("Contents.json", "AppIcon.png", "AppIcon-dark.png", "AppIcon-tinted.png")]
+        shared = ROOT / "shared/src/commonMain/composeResources/drawable"
+        paths += [shared / filename for filename in ("songlass_brand_light.png", "songlass_brand_dark.png", "songlass_icon_night.png")]
+        paths += [shared / f"songlass_icon_{name}.png" for name in VARIANT_PALETTES]
+    return paths
 
 
 def main():
+    apply = "--apply" in sys.argv
     OUT.mkdir(parents=True, exist_ok=True)
-    for old in OUT.glob("*"):
-        old.unlink()
     for name, make in ICONS.items():
         bg, fg, mono = make()
-        (OUT / f"{name}.svg").write_text(svg(bg, fg, "none"))
-        (OUT / f"{name}-squircle.svg").write_text(svg(bg, fg, "squircle"))
-        (OUT / f"{name}-circle.svg").write_text(svg(bg, fg, "circle"))
-        if "--apply" in sys.argv:
-            for old in RES.glob(f"drawable/ic_launcher_*_*.xml"):
-                if not old.stem.startswith(("ic_launcher_violet", "ic_launcher_night")):
-                    old.unlink()
-            (RES / f"drawable/ic_launcher_{name}_background.xml").write_text(vector(bg))
-            (RES / f"drawable/ic_launcher_{name}_foreground.xml").write_text(vector(fg))
-            (RES / f"drawable/ic_launcher_{name}_monochrome.xml").write_text(vector(mono))
+        for suffix, mask in (("", "none"), ("-squircle", "squircle"), ("-circle", "circle")):
+            (OUT / f"{name}{suffix}.svg").write_text(svg(bg, fg, mask))
+        if apply:
+            for layer, shapes in (("background", bg), ("foreground", fg), ("monochrome", mono)):
+                (RES / f"drawable/ic_launcher_{name}_{layer}.xml").write_text(vector(shapes))
             (RES / f"mipmap-anydpi/ic_launcher_{name}.xml").write_text(
                 '<?xml version="1.0" encoding="utf-8"?>\n<!-- Generated by design/icon/build_style_icons.py -->\n'
                 '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'
@@ -281,10 +344,13 @@ def main():
                 f'    <foreground android:drawable="@drawable/ic_launcher_{name}_foreground" />\n'
                 f'    <monochrome android:drawable="@drawable/ic_launcher_{name}_monochrome" />\n'
                 '</adaptive-icon>\n')
-    if "--apply" in sys.argv:
-        for stale in ("liquid", "material", "miuix"):
-            (RES / f"mipmap-anydpi/ic_launcher_{stale}.xml").unlink(missing_ok=True)
+    if apply:
         write_apply()
+    manifest = {"generator": "design/icon/build_style_icons.py", "applied": apply,
+                "variants": list(ICONS), "files": [
+                    {"path": str(p.relative_to(ROOT)), "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
+                     "bytes": p.stat().st_size} for p in generated_paths(apply)]}
+    (ROOT / "design/icon/generated-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
 
 
 if __name__ == "__main__":

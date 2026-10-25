@@ -81,7 +81,7 @@ class AppGraph(
     /** The phone this runs on; null switches the first-run welcome off. */
     device: dev.cmdrchara.songlass.core.onboarding.DeviceInfo? = null,
     /** Shows the chosen launcher icon. Null where the platform cannot switch icons. */
-    private val applyLauncherIcon: ((dev.cmdrchara.songlass.core.settings.AppIconChoice) -> Unit)? = null,
+    private val applyLauncherIcon: ((dev.cmdrchara.songlass.core.settings.AppIconSelection) -> Unit)? = null,
 ) {
     // First, so a fresh install's style is in the store before the settings read it.
     val onboarding = dev.cmdrchara.songlass.core.onboarding.Onboarding(store, device)
@@ -155,7 +155,9 @@ class AppGraph(
         applyLauncherIcon?.let { apply ->
             // Also runs once at start, so a stale alias from an earlier choice is put right.
             scope.launch {
-                settings.state.map { it.appIcon }.distinctUntilChanged().collect { apply(it) }
+                settings.state.map {
+                    dev.cmdrchara.songlass.core.settings.AppIconSelection(it.appIcon, it.interfaceStyle, it.appearance)
+                }.distinctUntilChanged().collect { apply(it) }
             }
         }
         scope.launch {
@@ -470,8 +472,9 @@ class AppGraph(
         private const val DEMO_TICK_MS = 250L
 
         /** Fictional library and silent player, for platforms without real playback yet. */
-        fun demo(scope: CoroutineScope, store: KeyValueStore = InMemoryKeyValueStore(), device: dev.cmdrchara.songlass.core.onboarding.DeviceInfo? = null) =
-            AppGraph(FakeAudioPlayer(), DemoMusicSource, store, scope, device = device)
+        fun demo(scope: CoroutineScope, store: KeyValueStore = InMemoryKeyValueStore(), device: dev.cmdrchara.songlass.core.onboarding.DeviceInfo? = null,
+            applyLauncherIcon: ((dev.cmdrchara.songlass.core.settings.AppIconSelection) -> Unit)? = null) =
+            AppGraph(FakeAudioPlayer(), DemoMusicSource, store, scope, device = device, applyLauncherIcon = applyLauncherIcon)
     }
 }
 

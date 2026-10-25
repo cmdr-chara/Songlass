@@ -6,7 +6,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
-import dev.cmdrchara.songlass.core.settings.AppIconChoice
+import dev.cmdrchara.songlass.core.settings.AppIconSelection
+import dev.cmdrchara.songlass.core.settings.LauncherIconVariant
+import android.content.res.Configuration
 
 /**
  * Switches the launcher icon between the activity aliases, one per icon. Exactly one is enabled: the new one
@@ -18,12 +20,19 @@ import dev.cmdrchara.songlass.core.settings.AppIconChoice
  */
 internal object LauncherIcons {
     private val aliases = mapOf(
-        AppIconChoice.Violet to ".LauncherViolet",
-        AppIconChoice.Night to ".LauncherNight",
+        LauncherIconVariant.Violet to ".LauncherViolet",
+        LauncherIconVariant.Night to ".LauncherNight",
+        LauncherIconVariant.LiquidLight to ".LauncherLiquidLight",
+        LauncherIconVariant.LiquidDark to ".LauncherLiquidDark",
+        LauncherIconVariant.MaterialLight to ".LauncherMaterialLight",
+        LauncherIconVariant.MaterialDark to ".LauncherMaterialDark",
+        LauncherIconVariant.MiuixLight to ".LauncherMiuixLight",
+        LauncherIconVariant.MiuixDark to ".LauncherMiuixDark",
     )
 
     private var started = 0
-    private var pending: AppIconChoice? = null
+    private var pending: AppIconSelection? = null
+    private var latest: AppIconSelection? = null
 
     fun watch(application: Application) {
         application.registerActivityLifecycleCallbacks(object : Application.ActivityLifecycleCallbacks {
@@ -31,7 +40,7 @@ internal object LauncherIcons {
             override fun onActivityStopped(activity: Activity) {
                 started = (started - 1).coerceAtLeast(0)
                 val icon = pending
-                if (started == 0 && icon != null) { pending = null; commit(application, icon) }
+                if (started == 0 && icon != null) { pending = null; commit(application, resolve(application, icon)) }
             }
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) = Unit
             override fun onActivityResumed(activity: Activity) = Unit
@@ -41,11 +50,19 @@ internal object LauncherIcons {
         })
     }
 
-    fun apply(context: Context, icon: AppIconChoice) {
-        if (started > 0) pending = icon else { pending = null; commit(context, icon) }
+    fun apply(context: Context, icon: AppIconSelection) {
+        latest = icon
+        if (started > 0) pending = icon else { pending = null; commit(context, resolve(context, icon)) }
     }
 
-    private fun commit(context: Context, icon: AppIconChoice) {
+    /** Re-evaluate System appearance without changing the saved icon preference. */
+    fun refresh(context: Context) { latest?.let { apply(context, it) } }
+
+    private fun resolve(context: Context, selection: AppIconSelection): LauncherIconVariant = selection.resolve(
+        context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES,
+    )
+
+    private fun commit(context: Context, icon: LauncherIconVariant) {
         val packages = context.packageManager
         val wanted = aliases.getValue(icon)
         fun component(name: String) = ComponentName(context.packageName, context.packageName + name)

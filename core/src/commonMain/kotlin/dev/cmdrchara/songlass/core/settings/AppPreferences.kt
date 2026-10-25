@@ -35,13 +35,15 @@ enum class InterfaceStyle {
 /** The preferences one settings page restores together with "Restore defaults". */
 enum class SettingsArea { Appearance, Sound, Player, Queue, Library }
 
-/** The launcher icon. The same one for every interface style; the alternative is a matter of taste. */
+/** A fixed legacy icon, an explicit finish, or a finish that follows the interface. */
 enum class AppIconChoice(val storageKey: String) {
-    /** White bars and a yellow heart on violet (default). */
+    /** Kept as the default so existing installations retain their chosen identity. */
     Violet("violet"),
-
-    /** Gold bars and a red heart on near-black. */
-    Night("night");
+    Night("night"),
+    Automatic("automatic"),
+    LiquidGlass("liquid"),
+    MaterialGlass("material"),
+    Miuix("miuix");
 
     companion object {
         fun fromStorageKey(key: String?): AppIconChoice = entries.firstOrNull { it.storageKey == key } ?: Violet

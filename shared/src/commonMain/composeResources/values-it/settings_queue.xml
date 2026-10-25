@@ -25,6 +25,7 @@
     <string name="settings_theme">Tema</string>
     <string name="settings_app_icon">Icona dell’app</string>
     <string name="settings_app_icon_violet">Viola</string>
+    <string name="settings_app_icon_automatic">Automatica</string>
     <string name="settings_app_icon_night">Notte</string>
-    <string name="settings_app_icon_hint">L’icona nella schermata Home cambia quando esci da Songlass.</string>
+    <string name="settings_app_icon_hint">Automatica segue stile e tema.</string>
 </resources>
