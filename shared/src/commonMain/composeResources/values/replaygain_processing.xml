@@ -1,15 +1,15 @@
 <resources>
     <string name="settings_rg_processing">Advanced ReplayGain</string>
-    <string name="settings_rg_processing_hint">Opt in to positive gain, preamplification and the limiter. Applied only in Track or Album mode. While off, playback keeps the previous attenuation-only behaviour.</string>
+    <string name="settings_rg_processing_hint">Enables positive gain, preamp and limiter in Track or Album mode. Off: attenuation only.</string>
     <string name="settings_rg_preamp">Preamp with ReplayGain tags</string>
     <string name="settings_rg_missing_preamp">Preamp without ReplayGain tags</string>
     <string name="settings_rg_limiter">ReplayGain limiter</string>
-    <string name="settings_rg_limiter_hint">Uses known file peaks and limits PCM sample peaks after EQ, linking channels. With it off, positive gain may clip. This is not a true-peak guarantee.</string>
+    <string name="settings_rg_limiter_hint">Uses file peaks and limits linked PCM sample peaks after EQ. Off: positive gain may clip. No true-peak guarantee.</string>
     <string name="settings_rg_db">%1$d dB</string>
     <string name="settings_rg_less">−1 dB</string>
     <string name="settings_rg_more">+1 dB</string>
-    <string name="audio_rg_processing_behavior">The adjustment is the PCM gain before dynamic limiting. Known peaks can reduce it; linked sample-peak limiting follows EQ. Device volume, focus and fades remain separate. Inter-sample peaks are not measured.</string>
-    <string name="settings_rg_fallback_hint">Track and album tags fall back to each other. When neither is present, the separate untagged preamp applies.</string>
+    <string name="audio_rg_processing_behavior">PCM gain before limiting; file peaks may reduce it. Linked-channel limiting follows EQ. Volume, focus and fades are separate. Inter-sample peaks are not measured.</string>
+    <string name="settings_rg_fallback_hint">Track and album tags fall back to each other. If both are missing, the untagged preamp applies.</string>
     <string name="settings_rg_processing_short">Positive gain and PCM controls for Track or Album mode.</string>
     <string name="settings_rg_limiter_short">Reduces PCM sample peaks with linked channels.</string>
 </resources>

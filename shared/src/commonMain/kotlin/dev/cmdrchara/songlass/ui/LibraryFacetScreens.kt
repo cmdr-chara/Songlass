@@ -60,11 +60,7 @@ fun LibraryFacetListScreen(kind: LibraryFacetKind, state: AppState, backLabel: S
         else AlphabeticalIndex.build(facets.map { it.value }).takeIf { it.size > 1 }.orEmpty() }
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), state = listState, contentPadding = contentPadding) {
         item { BackPageTitle(facetKindLabel(kind), backLabel, state::goBack) }
-        item {
-            AppText(stringResource(Res.string.library_metadata_hint), AppTheme.typography.footnote,
-                color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp))
-        }
-        if (sections.isNotEmpty()) item { LibraryAlphabetButton(state, sections, listState, scrollScope) { index -> index + 3 } }
+        if (sections.isNotEmpty()) item { LibraryAlphabetButton(state, sections, listState, scrollScope) { index -> index + 2 } }
         if (facets.isEmpty()) item {
             AppText(stringResource(Res.string.library_metadata_empty), AppTheme.typography.body, modifier = Modifier.padding(24.dp))
         }

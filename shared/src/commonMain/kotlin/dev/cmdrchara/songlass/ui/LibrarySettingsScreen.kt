@@ -24,7 +24,7 @@ import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import org.jetbrains.compose.resources.stringResource
 
 @Composable
-fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: () -> Unit, onRestoreDefaults: (dev.cmdrchara.songlass.core.settings.SettingsArea) -> Unit, contentPadding: PaddingValues, backLabel: String, searchFocus: SettingsFocusRequest? = null) {
+fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: () -> Unit, onRestoreDefaults: (dev.cmdrchara.songlass.core.settings.SettingsArea) -> Unit, contentPadding: PaddingValues, backLabel: String, searchFocus: SettingsFocusRequest? = null, searchResultOrigin: Boolean = true) {
     val preferences by graph.settings.state.collectAsState()
     val refreshFailure by graph.libraryRefreshFailure.collectAsState()
     val loading by graph.isLibraryLoading.collectAsState()
@@ -50,13 +50,13 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
 LocalGlassLook.current.SettingsPage {
         LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
         item { LocalGlassLook.current.SettingsPageTitle(stringResource(Res.string.library_settings),
-            if (searchFocus == null) backLabel else stringResource(Res.string.settings_search_results), onBack, Modifier) }
+            if (searchFocus == null || !searchResultOrigin) backLabel else stringResource(Res.string.settings_search_results), onBack, Modifier) }
         item { LibraryHint(stringResource(Res.string.library_filter_count, library.tracks.size, tracks.size)) }
         item(key = "rescan") {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
                 ListRow(
                     title = stringResource(Res.string.library_rescan),
-                    subtitle = stringResource(if (loading) Res.string.library_scanning else Res.string.library_rescan_hint),
+                    subtitle = if (loading) stringResource(Res.string.library_scanning) else null,
                     leading = { AppIcon(AppIcons.Library, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                     onClick = if (loading) null else graph::requestLibraryRefresh,
                 )

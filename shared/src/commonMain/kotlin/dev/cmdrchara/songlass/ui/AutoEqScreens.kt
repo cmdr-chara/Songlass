@@ -10,7 +10,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.semantics
@@ -18,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.equalizer.*
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
-import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
@@ -59,10 +57,7 @@ fun AutoEqCatalogScreen(repository: AutoEqRepository, state: AppState, contentPa
     val focus = LocalFocusManager.current
     LocalGlassLook.current.SettingsToolPage {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding()) {
-            SettingsPageHeader(stringResource(Res.string.autoeq_title), stringResource(Res.string.eq_title), state::goBack) {
-                BackLink(stringResource(Res.string.eq_title), state::goBack)
-                AutoEqHeading(stringResource(Res.string.autoeq_title))
-            }
+            SettingsPageHeader(stringResource(Res.string.autoeq_title), stringResource(Res.string.eq_title), state::goBack)
             SearchField(state.autoEqQuery, { state.autoEqQuery = it },
                 stringResource(Res.string.autoeq_search), stringResource(Res.string.search_clear),
                 Modifier.padding(horizontal = pageInset, vertical = 8.dp))
@@ -120,10 +115,7 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
     val description = stringResource(Res.string.autoeq_curve_description, entry.name)
     LocalGlassLook.current.SettingsToolPage {
         LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
-            item { SettingsPageHeader(entry.name, stringResource(Res.string.autoeq_title), onBack) {
-                BackLink(stringResource(Res.string.autoeq_title), onBack)
-                AutoEqHeading(entry.name)
-            } }
+            item { SettingsPageHeader(entry.name, stringResource(Res.string.autoeq_title), onBack) }
             item { FeatureHint(stringResource(Res.string.autoeq_measured_by, entry.source)) }
             when (correction) {
                 AutoEqLoad.Loading -> item { FeatureHint(stringResource(Res.string.autoeq_loading_profile)) }
@@ -166,11 +158,4 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
             }
         }
     }
-}
-
-/** Secondary-page titles wrap long model/variant names instead of truncating a root app bar. */
-@Composable
-private fun AutoEqHeading(text: String) {
-    AppText(text, AppTheme.typography.largeTitle,
-        modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp).semantics { heading() })
 }

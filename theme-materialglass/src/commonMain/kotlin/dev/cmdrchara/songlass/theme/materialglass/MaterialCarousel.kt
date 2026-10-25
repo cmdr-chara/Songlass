@@ -8,6 +8,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.splineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
@@ -79,7 +81,8 @@ internal fun MaterialArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, ite
     val covers = items.filter { it.icon == null }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (actions.isNotEmpty()) {
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 actions.forEach { TonalButton(it) }
             }
         }

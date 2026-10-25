@@ -12,12 +12,12 @@
     <string name="settings_pause_disconnect_hint">Stops if headphones are unplugged or Bluetooth drops, so the speaker never starts by surprise.</string>
     <string name="settings_headset_connection">Connection</string>
     <string name="settings_headset_buttons">Buttons</string>
-    <string name="settings_headset_multi">Count presses</string>
-    <string name="settings_headset_multi_hint">One press plays or pauses, two skip to the next song, three go back. Off: every press plays or pauses.</string>
+    <string name="settings_headset_multi">Multiple presses</string>
+    <string name="settings_headset_multi_hint">2: next · 3: previous.</string>
     <string name="library_rescan">Scan again</string>
     <string name="library_rescan_hint">Look for added, moved or removed music now</string>
     <string name="settings_online_lyrics">Online sources</string>
     <string name="settings_lrclib">Synced lyrics from LRCLIB</string>
-    <string name="settings_lrclib_hint">When you open Lyrics, looks up title, artist, album and length on lrclib.net. Never the audio. Off uses only lyrics in the file or imported.</string>
+    <string name="settings_lrclib_hint">Online search using title, artist, album and duration.</string>
     <string name="settings_sound_tools">Tools</string>
 </resources>

@@ -77,6 +77,7 @@ import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.designsystem.ActionButton
+import dev.cmdrchara.songlass.designsystem.BackPageTitle
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.ArtistAvatar
 import dev.cmdrchara.songlass.designsystem.CollectionDetails
@@ -316,14 +317,7 @@ fun LibraryCategoryScreen(
         else -> Unit
     }
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), state = listState, contentPadding = contentPadding) {
-        item { BackLink(backLabel) { state.goBack() } }
-        item {
-            AppText(
-                stringResource(category.label),
-                AppTheme.typography.largeTitle,
-                modifier = Modifier.padding(horizontal = pageInset, vertical = 8.dp),
-            )
-        }
+        item { BackPageTitle(stringResource(category.label), backLabel, state::goBack) }
         if (category == LibraryCategory.Albums) item {
             SegmentedControl(listOf(stringResource(Res.string.library_layout_grid), stringResource(Res.string.library_layout_list)),
                 if (albumLayout == AlbumLayout.Grid) 0 else 1,
@@ -331,7 +325,7 @@ fun LibraryCategoryScreen(
                 Modifier.padding(horizontal = pageInset, vertical = 8.dp))
         }
         if (alphabet.isNotEmpty()) item {
-            val firstItem = 3 + if (category == LibraryCategory.Albums || category == LibraryCategory.Songs) 1 else 0
+            val firstItem = 2 + if (category == LibraryCategory.Albums || category == LibraryCategory.Songs) 1 else 0
             LibraryAlphabetButton(state, alphabet, listState, scrollScope) { index ->
                 firstItem + if (category == LibraryCategory.Albums && albumLayout == AlbumLayout.Grid) index / 2 else index
             }
@@ -494,18 +488,19 @@ internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)
             style = AppTheme.typography.title3,
             textAlign = TextAlign.Center,
         )
-        Spacer(Modifier.height(8.dp))
-        AppText(
-            text = stringResource(when {
-                !hasAccess -> Res.string.library_access_message
-                loading -> Res.string.library_scanning_hint
-                filtered -> Res.string.library_filtered_hint
-                else -> Res.string.library_empty_hint
-            }),
-            style = AppTheme.typography.subheadline,
-            color = AppTheme.colors.secondaryLabel,
-            textAlign = TextAlign.Center,
-        )
+        if (!hasAccess || !loading) {
+            Spacer(Modifier.height(8.dp))
+            AppText(
+                text = stringResource(when {
+                    !hasAccess -> Res.string.library_access_message
+                    filtered -> Res.string.library_filtered_hint
+                    else -> Res.string.library_empty_hint
+                }),
+                style = AppTheme.typography.subheadline,
+                color = AppTheme.colors.secondaryLabel,
+                textAlign = TextAlign.Center,
+            )
+        }
         if (!hasAccess && onRequestAccess != null) {
             Spacer(Modifier.height(20.dp))
             ActionButton(stringResource(Res.string.library_access_button), onClick = onRequestAccess)

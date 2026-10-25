@@ -3,7 +3,7 @@
     <string name="settings_pause_fade">Pausa e ripresa</string>
     <string name="settings_stop_fade">Stop</string>
     <string name="settings_seek_fade">Spostamento nel brano</string>
-    <string name="settings_transport_fades_hint">Indipendenti dal crossfade tra brani. Pausa sfuma il suono e Riprendi lo rialza. Stop sfuma prima di scaricare il brano. Lo spostamento divide la durata prima e dopo il salto, escluso il buffering. Chiamate e scollegamento delle cuffie interrompono subito.</string>
+    <string name="settings_transport_fades_hint">Separate dal crossfade: pausa/ripresa sfumate, stop che scarica il brano dopo la dissolvenza. Il seek divide la durata prima e dopo il salto, escluso il buffering. Chiamate e scollegamento cuffie interrompono subito.</string>
     <string name="settings_transport_fades_invalid">Inserisci un numero intero da 0 a %1$d ms.</string>
-    <string name="settings_transport_fades_range">0 disattiva la dissolvenza. Sono accettati tutti i numeri interi fino a %1$d ms.</string>
+    <string name="settings_transport_fades_range">Millisecondi interi fino a %1$d. 0 disattiva la dissolvenza.</string>
 </resources>

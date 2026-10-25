@@ -14,6 +14,6 @@
     <string name="settings_crossfade_reason_unknown_duration">Nessuna sovrapposizione: la durata di un brano era sconosciuta.</string>
     <string name="settings_crossfade_reason_too_short">Nessuna sovrapposizione: l’audio residuo non bastava per la transizione.</string>
     <string name="settings_crossfade_reason_not_ready">Nessuna sovrapposizione: il player successivo non era pronto in tempo.</string>
-    <string name="settings_crossfade_reason_prepare_failed">Nessuna sovrapposizione: non è stato possibile preparare il brano in ingresso.</string>
-    <string name="settings_crossfade_reason_interrupted">La transizione è stata interrotta da un comando o da una variazione dello stato audio.</string>
+    <string name="settings_crossfade_reason_prepare_failed">Nessuna sovrapposizione: preparazione del brano non riuscita.</string>
+    <string name="settings_crossfade_reason_interrupted">Interrotta da un comando o da un cambiamento audio.</string>
 </resources>

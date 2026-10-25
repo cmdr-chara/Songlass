@@ -3,5 +3,5 @@
     <string name="settings_focus_resume">Riprendi dopo le interruzioni</string>
     <string name="settings_call_resume">Riprendi dopo le chiamate</string>
     <string name="settings_focus_pause">Pausa</string>
-    <string name="settings_focus_policy_hint">La percentuale indica il volume rimasto. Pausa manuale, stop, scollegamento e crossfade interrotto annullano la ripresa automatica.</string>
+    <string name="settings_focus_policy_hint">Pausa o stop manuali annullano la ripresa automatica.</string>
 </resources>

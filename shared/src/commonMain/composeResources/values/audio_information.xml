@@ -15,10 +15,10 @@
     <string name="audio_float_depth">32-bit floating point</string>
     <string name="audio_file_path">File path</string>
     <string name="audio_album_artist">Album artist</string>
-    <string name="audio_source_note">These properties come from the file extractor. A lossy file has no original PCM bit depth to display. The output device may use a different format.</string>
+    <string name="audio_source_note">File properties; lossy files have no original PCM bit depth. The output format may differ.</string>
     <string name="audio_source_properties">About these values</string>
     <string name="audio_processor_format">PCM inside the player</string>
-    <string name="audio_processor_note">Observed at Songlass’s audio processor, before the system mixer and device processing. This is not the DAC format.</string>
+    <string name="audio_processor_note">Observed before system/device processing; not the DAC format.</string>
     <string name="audio_eq_observed">Equalizer processing</string>
     <string name="audio_eq_active">Applied</string>
     <string name="audio_eq_flat">Bypassed · no sound correction</string>
@@ -26,7 +26,7 @@
     <string name="audio_eq_unsupported">Bypassed · unsupported PCM format</string>
     <string name="audio_eq_configured">Selected sound</string>
     <string name="audio_eq_headroom">EQ headroom attenuation</string>
-    <string name="audio_eq_headroom_hint">Songlass lowers the gain to leave room for the estimated EQ boosts. This helps prevent clipping; later processing and the output device can still affect the sound.</string>
+    <string name="audio_eq_headroom_hint">Lowers gain for estimated EQ boosts to reduce clipping. Later processing and the output device can still change the sound.</string>
     <string name="audio_eq_manual_fallback">Manual fallback</string>
     <string name="audio_eq_saved_active">Active for this output</string>
     <string name="audio_eq_saved_inactive">Saved · currently inactive</string>
@@ -40,7 +40,7 @@
     <string name="audio_rg_zero">Silent · multiplier is zero</string>
     <string name="audio_rg_track_tag">Track gain tag</string>
     <string name="audio_rg_album_tag">Album gain tag</string>
-    <string name="audio_rg_behavior">ReplayGain only lowers volume here. Positive gains are capped at 0 dB; a known sample peak can add attenuation. Device volume, audio focus and crossfade fades are separate.</string>
+    <string name="audio_rg_behavior">Attenuation only: positive gain capped at 0 dB; known peaks may lower it further. Device volume, audio focus and fades are separate.</string>
     <string name="audio_rg_note">How normalization works</string>
     <string name="audio_output_unknown">Output not reported</string>
     <string name="audio_output_multiple">Multiple selected outputs</string>
@@ -54,12 +54,12 @@
     <string name="audio_output_other">Other audio output</string>
     <string name="audio_output_device">Output %1$d</string>
     <string name="audio_output_dac">Final DAC format</string>
-    <string name="audio_output_note">Android reports the selected media route, but does not expose the final DAC sample rate, bit depth or every effect in the system or device. No hardware format is inferred from the file or advertised capabilities.</string>
+    <string name="audio_output_note">Android reports the selected output, not the final DAC rate/depth or all system/device effects. Hardware format is not inferred from file properties or advertised capabilities.</string>
     <string name="audio_output_limits">What can be observed</string>
     <string name="audio_transition_automatic">Automatic overlap setting</string>
     <string name="audio_transition_manual">Manual overlap setting</string>
     <string name="audio_transition_duration">%1$d ms</string>
-    <string name="audio_transition_note">Overlap durations describe the player’s plan, not measured audio timing. Zero keeps the existing gapless or immediate-change behavior.</string>
+    <string name="audio_transition_note">Planned overlap, not measured audio timing. 0 keeps gapless or immediate changes.</string>
     <string name="audio_transition_last">Last transition plan</string>
     <string name="audio_transition_applied">%1$d ms requested · %2$d ms applied</string>
     <string name="audio_transition_no_overlap">No overlap applied</string>

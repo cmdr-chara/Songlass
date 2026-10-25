@@ -34,7 +34,7 @@ fun GlassFormField(value: String, onValueChange: (String) -> Unit, label: String
         .background(colors.label.copy(alpha = if (material) 0.07f else 0.04f), shape)
         .border(if (focused) 2.dp else 1.dp, if (focused) colors.accent else colors.label.copy(alpha = 0.12f), shape)
         .padding(horizontal = 16.dp, vertical = 12.dp)) {
-        AppText(label, AppTheme.typography.caption1, color = if (focused) colors.accent else colors.secondaryLabel,
+        AppText(label, AppTheme.typography.caption1, color = if (focused) colors.accent else if (enabled && !colors.isDark) colors.label else colors.secondaryLabel,
             modifier = Modifier.padding(bottom = 6.dp))
         BasicTextField(value, onValueChange, Modifier.fillMaxWidth().semantics { contentDescription = label },
             enabled = enabled, singleLine = true, textStyle = AppTheme.typography.body.copy(color = colors.label),

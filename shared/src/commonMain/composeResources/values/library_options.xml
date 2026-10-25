@@ -5,7 +5,7 @@
     <string name="library_counting_nearly_all">90% of the song</string>
     <string name="library_counting_hint">Only listening time counts: pauses, buffering and seeking don’t. Applies from the next song; unknown duration uses 30 seconds.</string>
     <string name="stats_counting_current">Future plays: %1$s.</string>
-    <string name="stats_history_details">Each playback counts at most once. Seeking within a song does not start a new count; restarting from the beginning does. Periods use dated plays retained for two years or 50,000 plays. All time also includes earlier totals. Statistics cover visible songs only. Artist credits may overlap. Everything stays on this device.</string>
+    <string name="stats_history_details">Periods keep up to two years or 50,000 dated plays. All Time includes earlier totals. Only visible songs count; artist credits may overlap.</string>
     <string name="playlist_insert_title">Add songs to playlist</string>
     <string name="playlist_insert_start">Add at the beginning</string>
     <string name="playlist_insert_end">Add at the end</string>
@@ -41,4 +41,5 @@
     <string name="library_refresh_failed_hint">Saved playlists and listening history are unchanged. Check access to your music and whether its storage is available, then try again. The last library may be out of date.</string>
     <string name="library_identity_failed_hint">Songlass could not verify the saved file identities. Your playlists, history and recovery data have been kept. Try again after checking storage; do not clear app data to bypass this check.</string>
     <string name="library_refresh_retry">Retry library scan</string>
+    <string name="stats_counting_settings">Play counting</string>
 </resources>

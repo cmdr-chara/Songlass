@@ -39,16 +39,17 @@ fun GlassPlaybackToolsHost(
     onDismiss: () -> Unit,
     headerLeading: (@Composable () -> Unit)? = null,
     headerTrailing: (@Composable () -> Unit)? = null,
+    onBackPress: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
     LiquidGlassActionSheet(visible, title, subtitle, null, emptyList(), closeLabel, onDismiss,
-        field = content, contentKey = title, headerLeading = headerLeading, headerTrailing = headerTrailing)
+        field = content, contentKey = title, headerLeading = headerLeading, headerTrailing = headerTrailing, onBackPress = onBackPress)
 }
 
 /** Inset grouped rows: content stays opaque while the player/navigation retain their glass. */
 @Composable
 internal fun LiquidPlaybackTools(visible: Boolean, title: String, subtitle: String?, groups: List<PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, dismiss: () -> Unit) {
-    GlassPlaybackToolsHost(visible, title, subtitle, closeLabel, dismiss) {
+    GlassPlaybackToolsHost(visible, title, subtitle, closeLabel, dismiss, onBackPress = onBack) {
         val colors = AppTheme.colors
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             if (onBack != null && backLabel != null) {

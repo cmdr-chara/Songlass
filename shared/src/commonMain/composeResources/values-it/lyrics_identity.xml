@@ -7,12 +7,12 @@
     <string name="lyrics_identity_write_failed">Non è stato possibile leggere o aggiornare i testi salvati. I testi esistenti sono stati conservati. Riprova.</string>
     <string name="lyrics_identity_recover">Recupera importazioni</string>
     <string name="lyrics_identity_close">Chiudi recupero</string>
-    <string name="lyrics_identity_intro">Questi testi non hanno un’associazione verificata con un brano disponibile. Scegli un testo, controlla l’anteprima e associalo al brano aperto. Le vecchie importazioni sono conservate qui perché non è possibile identificare con sicurezza il file originale.</string>
+    <string name="lyrics_identity_intro">Testi senza un brano verificato. Scegli un testo, controlla l’anteprima e collegalo al brano aperto.</string>
     <string name="lyrics_identity_empty">Nessuna importazione da ricollegare.</string>
     <string name="lyrics_identity_unknown">Importazione conservata</string>
     <string name="lyrics_identity_invalid">Questo documento non può essere associato perché il formato è danneggiato o non supportato. Resta conservato e incluso nei backup manuali. Puoi importare un file LRC, TTML o TXT corretto.</string>
     <string name="lyrics_identity_target">Associa a «%1$s»</string>
-    <string name="lyrics_identity_link_hint">Controlla che queste parole appartengano al brano. L’associazione cambia solo il collegamento salvato, senza modificare il file audio.</string>
+    <string name="lyrics_identity_link_hint">Controlla brano e parole. Il collegamento non modifica il file audio.</string>
     <string name="lyrics_identity_replace_hint">Questo brano ha già un testo importato. La conferma lo sostituisce con il testo qui sotto. Annullando, entrambi i testi restano come sono.</string>
     <string name="lyrics_identity_link">Usa per questo brano</string>
     <string name="lyrics_identity_replace">Sostituisci con questo testo</string>
@@ -22,11 +22,11 @@
     <string name="lyrics_identity_backup_hint">Restano salvati senza collegamento a un file. Apri i testi di un brano e scegli Recupera importazioni per collegarli.</string>
     <string name="lyrics_identity_import_hint">Controlla le parole e il brano destinatario prima di importare. Il file audio non viene modificato.</string>
     <string name="lyrics_identity_import_reading">Lettura del documento selezionato…</string>
-    <string name="lyrics_identity_import_unavailable">Questo brano non è attualmente verificato. Riprova aggiorna la libreria; quando il brano sarà disponibile, controlla di nuovo l’importazione. Se il brano originale non esiste più, annulla e scegli quello desiderato. Il testo non viene importato nel brano attualmente in riproduzione.</string>
+    <string name="lyrics_identity_import_unavailable">Brano non verificato. Riprova aggiorna la libreria: poi ricontrolla l’importazione. Se il brano manca, annulla e scegline un altro. Nulla viene importato nel brano in riproduzione.</string>
     <string name="lyrics_identity_import_invalid">Impossibile leggere il documento oppure formato del testo non supportato. Controlla l’accesso al file selezionato, riprova o scegli un altro file LRC, TTML o TXT. I testi esistenti non sono stati modificati.</string>
     <string name="lyrics_identity_import_cancel">Annulla importazione</string>
     <string name="lyrics_identity_import_choose">Scegli un altro file</string>
     <string name="lyrics_identity_import_confirm">Importa questo testo</string>
     <string name="lyrics_identity_import_done">Fine</string>
-    <string name="lyrics_identity_import_start_unavailable">L’importazione non è stata avviata perché il brano non è stato verificato. Chiudi questa finestra, attendi il caricamento della libreria o aggiornala e controlla l’accesso alla musica, quindi apri il brano desiderato e scegli di nuovo Importa testo. Nessun documento è stato importato.</string>
+    <string name="lyrics_identity_import_start_unavailable">Brano non verificato: nessuna importazione. Chiudi, carica o aggiorna la libreria e controlla l’accesso alla musica. Riapri il brano desiderato e scegli Importa testo.</string>
 </resources>

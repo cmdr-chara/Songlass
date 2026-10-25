@@ -143,7 +143,7 @@ internal fun LyricsShareDialog(track: Track, lyrics: Lyrics, active: Int, onClos
                         val corner = LocalGlassLook.current.lyricsPresentation.selectionCorner.dp
                         Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)
                             .clip(RoundedCornerShape(corner))
-                            .background(if (checked) colors.fill else Color.Transparent)
+                            .background(if (checked) ink.copy(alpha = .12f) else Color.Transparent)
                             .toggleable(value = checked, role = Role.Checkbox, onValueChange = {
                                 val next = LyricsSharing.toggle(lyrics, selected, index)
                                 limited = next == selected && index !in selected

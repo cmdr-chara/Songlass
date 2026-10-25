@@ -82,7 +82,7 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
                     Modifier.padding(horizontal = pageInset, vertical = 8.dp))
                 if (LocalGlassLook.current.homeShortcutKindMenu) {
                     SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
-                        ListRow(kindLabels[kindIndex], subtitle = stringResource(Res.string.homecfg_builder_type),
+                        ListRow(kindLabels[kindIndex],
                             trailing = { AppIcon(AppIcons.ChevronDown, null, tint = AppTheme.colors.tertiaryLabel) },
                             onClick = { kindsVisible = true })
                     }

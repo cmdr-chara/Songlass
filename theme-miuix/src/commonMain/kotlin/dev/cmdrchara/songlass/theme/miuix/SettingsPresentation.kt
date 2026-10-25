@@ -17,6 +17,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -34,27 +37,65 @@ import top.yukonga.miuix.kmp.basic.RadioButton
 
 @Composable
 internal fun MiuixSettingsSectionTitle(title: String) {
-    AppText(title, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
+    val root = LocalMiuixSettingsRoot.current
+    val typography = AppTheme.typography
+    val colors = AppTheme.colors
+    if (root) {
+        Spacer(Modifier.fillMaxWidth().height(12.dp).semantics { heading(); contentDescription = title })
+    } else AppText(title, typography.footnote, color = colors.secondaryLabel,
         modifier = Modifier.padding(start = 30.dp, end = 24.dp, top = 24.dp, bottom = 8.dp).semantics { heading() })
 }
 
 @Composable
 internal fun MiuixSettingsDestinationGroup(modifier: Modifier, content: @Composable () -> Unit) {
+    val root = LocalMiuixSettingsRoot.current
+    val colors = AppTheme.colors
+    val surface = if (root) {
+        if (colors.isDark) Color(0xFF242424) else Color(0xFFF2F2F2)
+    } else colors.secondaryBackground
     Card(modifier.fillMaxWidth(), cornerRadius = 20.dp, insideMargin = PaddingValues(0.dp),
-        colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground)) { content() }
+        colors = CardDefaults.defaultColors(color = surface)) { content() }
 }
 
 @Composable
 internal fun MiuixSettingsDestination(title: String, summary: String, icon: ImageVector, summaryIsValue: Boolean, onClick: () -> Unit) {
     val colors = AppTheme.colors
+    val typography = AppTheme.typography
+    val root = LocalMiuixSettingsRoot.current
     val largeText = LocalDensity.current.fontScale > 1.3f
+    if (root) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val reflow = largeText || maxWidth < 340.dp
+            BasicComponent(
+                modifier = Modifier.fillMaxWidth().heightIn(min = 58.dp).semantics(mergeDescendants = true) { },
+                insideMargin = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                startAction = { Box(Modifier.padding(end = 16.dp)) { MiuixSettingsCategoryIcon(icon, Modifier) } },
+                endActions = {
+                    Row(Modifier.padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (summaryIsValue && !reflow) AppText(summary, typography.subheadline.copy(fontSize = 15.sp),
+                            Modifier.widthIn(max = 128.dp), colors.secondaryLabel, maxLines = 2)
+                        AppIcon(AppIcons.ChevronRight, null, size = 16.dp, tint = colors.tertiaryLabel)
+                    }
+                },
+                role = Role.Button,
+                onClick = onClick,
+            ) {
+                AppText(title, typography.body.copy(fontSize = 17.sp, lineHeight = 23.sp, fontWeight = FontWeight.Medium),
+                    color = colors.label)
+                if (summaryIsValue && reflow) AppText(summary, typography.subheadline,
+                    color = colors.secondaryLabel)
+            }
+        }
+        return
+    }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val reflow = largeText || maxWidth < 340.dp
         MiuixRow(title, if (summaryIsValue && reflow) summary else null,
             leading = { MiuixSettingsCategoryIcon(icon, Modifier) },
             trailing = {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (summaryIsValue && !reflow) AppText(summary, AppTheme.typography.subheadline,
+                    if (summaryIsValue && !reflow) AppText(summary, typography.subheadline,
                         modifier = Modifier.widthIn(max = 144.dp), color = colors.secondaryLabel, maxLines = 1)
                     AppIcon(AppIcons.ChevronRight, null, size = 16.dp, tint = colors.tertiaryLabel)
                 }
@@ -84,7 +125,21 @@ internal fun MiuixSettingsSearchResult(title: String, path: String, value: Strin
 
 @Composable
 internal fun MiuixSettingsCategoryIcon(icon: ImageVector, modifier: Modifier) {
-    val color = when (icon) {
+    val root = LocalMiuixSettingsRoot.current
+    val color = if (root) when (icon) {
+        AppIcons.Settings -> Color(0xFF3487F8)
+        AppIcons.Home -> Color(0xFF8C6EF2)
+        AppIcons.SpeakerLow -> Color(0xFFFA5546)
+        AppIcons.Equalizer -> Color(0xFF20C645)
+        AppIcons.AudioOutput -> Color(0xFF3487F8)
+        AppIcons.Queue -> Color(0xFFF5AA00)
+        AppIcons.Library -> Color(0xFF20A4C5)
+        AppIcons.InfoCircle -> Color(0xFF91A3B0)
+        AppIcons.Lyrics -> Color(0xFF39A9BB)
+        AppIcons.Person -> Color(0xFF4D9CF0)
+        AppIcons.ImportFile -> Color(0xFF4AA788)
+        else -> Color(0xFF83838D)
+    } else when (icon) {
         AppIcons.Settings -> Color(0xFF4C85F5)
         AppIcons.Home -> Color(0xFF8C6EF2)
         AppIcons.Equalizer -> Color(0xFF55A473)

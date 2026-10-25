@@ -70,6 +70,8 @@ interface GlassLook {
     val usesHazeBackdrop: Boolean get() = true
     val recedesUnderPlayer: Boolean get() = true
     val tintsNavigation: Boolean get() = true
+    /** False when collection artwork is inset below a status bar on the theme canvas. */
+    val artworkHeaderCoversStatusBar: Boolean get() = true
     @Composable
     fun contentSource(modifier: Modifier): Modifier = modifier
 
@@ -224,6 +226,15 @@ interface GlassLook {
 
     /** The grouped preferences page has a different content plane from media browsing. */
     val usesInsetSettingsForm: Boolean get() = true
+
+    val settingsRootHorizontalInset: Dp get() = contentHorizontalInset
+
+    @Composable
+    fun SettingsRootChrome(enabled: Boolean, title: String, listState: androidx.compose.foundation.lazy.LazyListState, content: @Composable () -> Unit) = content()
+
+    @Composable
+    fun SettingsRootTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
+        SettingsPageTitle(title, backLabel, onBack, modifier)
 
     @Composable
     fun SettingsPage(content: @Composable () -> Unit) = LiquidSettingsPage(content)

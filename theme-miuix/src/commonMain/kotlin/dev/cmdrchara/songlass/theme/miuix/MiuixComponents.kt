@@ -45,6 +45,8 @@ import top.yukonga.miuix.kmp.basic.RadioButton as NativeRadioButton
 import top.yukonga.miuix.kmp.basic.Slider as NativeSlider
 import top.yukonga.miuix.kmp.basic.Switch as NativeSwitch
 import top.yukonga.miuix.kmp.basic.TextField as NativeField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults as NativeFieldDefaults
+import top.yukonga.miuix.kmp.theme.MiuixTheme as NativeMiuixTheme
 
 @Composable
 internal fun MiuixAction(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = false, enabled: Boolean = true) {
@@ -113,14 +115,27 @@ internal fun MiuixIconAction(icon: ImageVector, label: String, onClick: () -> Un
 @Composable
 internal fun MiuixBack(label: String, onClick: () -> Unit, modifier: Modifier) = MiuixIconAction(AppIcons.ArrowBack, label, onClick, false, true, modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp))
 
+/** Preserve native chrome/states; enabled labels need readable roles on both field surfaces. */
+@Composable
+internal fun readableMiuixFieldColors(enabled: Boolean = true): top.yukonga.miuix.kmp.basic.TextFieldColors {
+    val palette = AppTheme.colors
+    val nativeScheme = NativeMiuixTheme.colorScheme
+    val defaults = NativeFieldDefaults.textFieldColors()
+    return if (enabled) {
+        val label = if (palette.isDark) nativeScheme.onSurface else nativeScheme.onSurfaceVariantSummary
+        defaults.copy(labelColor = label)
+    } else defaults
+}
+
 @Composable
 internal fun MiuixField(
     value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier,
     keyboardOptions: androidx.compose.foundation.text.KeyboardOptions = androidx.compose.foundation.text.KeyboardOptions.Default,
     keyboardActions: androidx.compose.foundation.text.KeyboardActions = androidx.compose.foundation.text.KeyboardActions.Default,
 ) {
+    val colors = readableMiuixFieldColors(enabled)
     NativeField(value, onValueChange, modifier.fillMaxWidth().padding(vertical = 6.dp).semantics { contentDescription = label }, label = label, cornerRadius = 18.dp, singleLine = true, enabled = enabled,
-        keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
+        colors = colors, keyboardOptions = keyboardOptions, keyboardActions = keyboardActions)
 }
 
 @Composable

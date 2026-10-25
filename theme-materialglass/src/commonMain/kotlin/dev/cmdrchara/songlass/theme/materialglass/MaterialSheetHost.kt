@@ -42,8 +42,9 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalAppColors
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
 import dev.cmdrchara.songlass.designsystem.theme.LocalSheetTint
+import dev.cmdrchara.songlass.theme.liquidglass.SheetWindowHost
 
-/** Root overlay: the app owns Back, while the sheet owns only its scrim and explicit controls. */
+/** A modal window keeps this surface above app chrome; the host preserves nested Back. */
 @Composable
 internal fun MaterialSheetHost(
     visible: Boolean,
@@ -70,50 +71,54 @@ internal fun MaterialSheetHost(
         LocalContentColor provides palette.label,
         LocalSheetTint provides null,
     ) {
-        Box(Modifier.fillMaxSize()) {
-            transition.AnimatedVisibility(
-                visible = { it },
-                enter = fadeIn(if (reduceMotion) snap() else MaterialMotion.effects()),
-                exit = fadeOut(if (reduceMotion) snap() else MaterialMotion.effects()),
-            ) {
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.32f))
-                    .clickable(remember { MutableInteractionSource() }, indication = null, enabled = visible,
-                        role = Role.Button, onClickLabel = closeLabel, onClick = onDismiss)
-                    .semantics { contentDescription = closeLabel })
-            }
-            BoxWithConstraints(Modifier.fillMaxSize()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(top = 16.dp)) {
-                val availableHeight = maxHeight
+        if (!visibility.isIdle || visibility.currentState || visibility.targetState) SheetWindowHost(
+            onDismiss = { if (visible) (onBack ?: onDismiss)() },
+        ) {
+            Box(Modifier.fillMaxSize()) {
                 transition.AnimatedVisibility(
                     visible = { it },
-                    enter = fadeIn(if (reduceMotion) snap() else MaterialMotion.effects()) +
-                        slideInVertically(if (reduceMotion) snap() else MaterialMotion.spatial()) { if (reduceMotion) 0 else it },
-                    exit = fadeOut(if (reduceMotion) snap() else MaterialMotion.effects()) +
-                        slideOutVertically(if (reduceMotion) snap() else MaterialMotion.spatial()) { if (reduceMotion) 0 else it },
-                    modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth(),
+                    enter = fadeIn(if (reduceMotion) snap() else MaterialMotion.effects()),
+                    exit = fadeOut(if (reduceMotion) snap() else MaterialMotion.effects()),
                 ) {
-                    Column(Modifier.fillMaxWidth().heightIn(max = availableHeight)
-                        .shadow(8.dp, shape).clip(shape).background(palette.container)
-                        .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-                        .pointerInput(Unit) { detectTapGestures { } }
-                        .semantics { dialog(); paneTitle = title }) {
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if (onBack != null && backLabel != null) IconButton(AppIcons.ArrowBack, backLabel,
-                                { if (visible) onBack() }, Modifier.size(48.dp))
-                            if (artwork != null) AlbumArt(artwork, Modifier.size(56.dp), cornerRadius = MaterialShapes.Medium)
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                AppText(title, AppTheme.typography.title3, color = palette.label,
-                                    maxLines = 3, modifier = Modifier.semantics { heading() })
-                                subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = palette.secondaryLabel, maxLines = 2) }
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.32f))
+                        .clickable(remember { MutableInteractionSource() }, indication = null, enabled = visible,
+                            role = Role.Button, onClickLabel = closeLabel, onClick = onDismiss)
+                        .semantics { contentDescription = closeLabel })
+                }
+                BoxWithConstraints(Modifier.fillMaxSize()
+                    .windowInsetsPadding(WindowInsets.statusBars)
+                    .padding(top = 16.dp)) {
+                    val availableHeight = maxHeight
+                    transition.AnimatedVisibility(
+                        visible = { it },
+                        enter = fadeIn(if (reduceMotion) snap() else MaterialMotion.effects()) +
+                            slideInVertically(if (reduceMotion) snap() else MaterialMotion.spatial()) { if (reduceMotion) 0 else it },
+                        exit = fadeOut(if (reduceMotion) snap() else MaterialMotion.effects()) +
+                            slideOutVertically(if (reduceMotion) snap() else MaterialMotion.spatial()) { if (reduceMotion) 0 else it },
+                        modifier = Modifier.align(Alignment.BottomCenter).widthIn(max = 640.dp).fillMaxWidth(),
+                    ) {
+                        Column(Modifier.fillMaxWidth().heightIn(max = availableHeight)
+                            .shadow(8.dp, shape).clip(shape).background(palette.container)
+                            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                            .pointerInput(Unit) { detectTapGestures { } }
+                            .semantics { dialog(); paneTitle = title }) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                if (onBack != null && backLabel != null) IconButton(AppIcons.ArrowBack, backLabel,
+                                    { if (visible) onBack() }, Modifier.size(48.dp))
+                                if (artwork != null) AlbumArt(artwork, Modifier.size(56.dp), cornerRadius = MaterialShapes.Medium)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    AppText(title, AppTheme.typography.title3, color = palette.label,
+                                        maxLines = 3, modifier = Modifier.semantics { heading() })
+                                    subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = palette.secondaryLabel, maxLines = 2) }
+                                }
+                                IconButton(AppIcons.Close, closeLabel, { if (visible) onDismiss() }, Modifier.size(48.dp))
                             }
-                            IconButton(AppIcons.Close, closeLabel, { if (visible) onDismiss() }, Modifier.size(48.dp))
+                            Column(Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(scroll)
+                                .padding(horizontal = 16.dp).padding(bottom = 16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
                         }
-                        Column(Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(scroll)
-                            .padding(horizontal = 16.dp).padding(bottom = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp), content = content)
                     }
                 }
             }

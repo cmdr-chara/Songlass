@@ -12,12 +12,12 @@
     <string name="settings_pause_disconnect_hint">Si ferma se scolleghi le cuffie o cade il Bluetooth, così l’altoparlante non parte a sorpresa.</string>
     <string name="settings_headset_connection">Collegamento</string>
     <string name="settings_headset_buttons">Tasti</string>
-    <string name="settings_headset_multi">Conta le pressioni</string>
-    <string name="settings_headset_multi_hint">Una pressione è play/pausa, due brano successivo, tre precedente. Spento: ogni pressione è play/pausa.</string>
+    <string name="settings_headset_multi">Pressioni multiple</string>
+    <string name="settings_headset_multi_hint">2: avanti · 3: indietro.</string>
     <string name="library_rescan">Scansiona di nuovo</string>
     <string name="library_rescan_hint">Cerca subito musica aggiunta, spostata o rimossa</string>
     <string name="settings_online_lyrics">Fonti online</string>
     <string name="settings_lrclib">Testi sincronizzati da LRCLIB</string>
-    <string name="settings_lrclib_hint">Quando apri Testo, cerca titolo, artista, album e durata su lrclib.net. Mai l’audio. Se disattivato usa solo i testi nel file o importati.</string>
+    <string name="settings_lrclib_hint">Ricerca online con titolo, artista, album e durata.</string>
     <string name="settings_sound_tools">Strumenti</string>
 </resources>

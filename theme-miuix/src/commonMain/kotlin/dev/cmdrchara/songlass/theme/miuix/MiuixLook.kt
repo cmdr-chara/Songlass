@@ -7,6 +7,7 @@ import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import dev.cmdrchara.songlass.designsystem.HomeHighlight
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.KeyboardActions
@@ -66,6 +67,7 @@ object MiuixLook : GlassLook {
     override val usesHazeBackdrop = false
     override val recedesUnderPlayer = false
     override val tintsNavigation = false
+    override val artworkHeaderCoversStatusBar = false
     @Composable
     override fun contentSource(modifier: Modifier): Modifier = LocalMiuixBackdrop.current?.let { modifier.layerBackdrop(it) } ?: modifier
 
@@ -132,9 +134,18 @@ object MiuixLook : GlassLook {
     @Composable
     override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) = MiuixAction(text, icon, onClick, modifier)
     override val usesInsetSettingsForm = false
+    override val settingsRootHorizontalInset = 12.dp
 
     @Composable
     override fun SettingsPage(content: @Composable () -> Unit) = content()
+
+    @Composable
+    override fun SettingsRootChrome(enabled: Boolean, title: String, listState: LazyListState, content: @Composable () -> Unit) =
+        MiuixSettingsRootChrome(enabled, title, listState, content)
+
+    @Composable
+    override fun SettingsRootTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
+        MiuixSettingsRootTitle(title, modifier)
 
     @Composable
     override fun SettingsPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
@@ -155,6 +166,7 @@ object MiuixLook : GlassLook {
     override fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =
         top.yukonga.miuix.kmp.basic.TextField(value, onValueChange, modifier,
             label = label, cornerRadius = 18.dp, singleLine = true,
+            colors = readableMiuixFieldColors(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             keyboardActions = KeyboardActions(onDone = { onSubmit() }))
 

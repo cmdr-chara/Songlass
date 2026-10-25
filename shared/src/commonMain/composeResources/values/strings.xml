@@ -214,7 +214,7 @@
     <string name="library_all_durations">Show all songs</string>
     <string name="library_duration_seconds">At least %1$d seconds</string>
     <string name="library_excluded_folders">Excluded folders</string>
-    <string name="library_exclusions_hint">Subfolders are included; your files stay on the device.</string>
+    <string name="library_exclusions_hint">Includes subfolders.</string>
     <string name="library_parent_excluded">Hidden by an excluded parent folder</string>
     <string name="library_no_folders">No music folders found.</string>
     <string name="stats_title">Your listening</string>
@@ -292,7 +292,7 @@
     <string name="eq_outputs_remove">Remove saved output sound</string>
     <string name="eq_outputs_hint">Connect and select your headphones or car, shape the sound, then save it for that output. Enable automatic switching to recall it. Other outputs keep your manual sound.</string>
     <string name="tags_edit">Edit tags and cover</string>
-    <string name="tags_hint">Changes are saved to this audio file only when you tap Save. Other songs are not modified.</string>
+    <string name="tags_hint">Save changes the selected audio file.</string>
     <string name="tags_loading">Reading file tags…</string>
     <string name="tags_read_failed">Unable to read tags from this file.</string>
     <string name="tags_cover">Choose front cover</string>
@@ -343,7 +343,7 @@
     <string name="autoeq_apply_failed">The audio output changed. Check the selected output and try again.</string>
     <string name="settings_lyrics">Lyrics</string>
     <string name="settings_amll">AMLL word-timed lyrics</string>
-    <string name="settings_amll_hint">When you open Lyrics, looks up title, artist and album on AMLL. Off leaves the other sources.</string>
+    <string name="settings_amll_hint">Online search using title, artist and album.</string>
     <string name="track_menu_artists">Artists</string>
     <string name="track_menu_use_as">Use as…</string>
     <string name="default_sound_ringtone">Default ringtone</string>

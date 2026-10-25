@@ -214,7 +214,7 @@
     <string name="library_all_durations">Mostra tutti i brani</string>
     <string name="library_duration_seconds">Almeno %1$d secondi</string>
     <string name="library_excluded_folders">Cartelle escluse</string>
-    <string name="library_exclusions_hint">Le sottocartelle sono incluse; i file restano sul dispositivo.</string>
+    <string name="library_exclusions_hint">Include le sottocartelle.</string>
     <string name="library_parent_excluded">Nascosta dalla cartella superiore esclusa</string>
     <string name="library_no_folders">Nessuna cartella musicale trovata.</string>
     <string name="stats_title">Il tuo ascolto</string>
@@ -292,7 +292,7 @@
     <string name="eq_outputs_remove">Rimuovi il suono salvato per questa uscita</string>
     <string name="eq_outputs_hint">Collega e seleziona cuffie o auto, regola il suono e salvalo per quella uscita. Attiva il cambio automatico per richiamarlo. Le altre uscite mantengono il suono manuale.</string>
     <string name="tags_edit">Modifica tag e copertina</string>
-    <string name="tags_hint">Le modifiche vengono scritte in questo file audio solo premendo Salva. Gli altri brani non vengono modificati.</string>
+    <string name="tags_hint">Salva modifica il file audio selezionato.</string>
     <string name="tags_loading">Lettura dei tag del file…</string>
     <string name="tags_read_failed">Impossibile leggere i tag da questo file.</string>
     <string name="tags_cover">Scegli copertina frontale</string>
@@ -343,7 +343,7 @@
     <string name="autoeq_apply_failed">L’uscita audio è cambiata. Controlla quella selezionata e riprova.</string>
     <string name="settings_lyrics">Testi</string>
     <string name="settings_amll">Testi parola per parola da AMLL</string>
-    <string name="settings_amll_hint">Quando apri Testo, cerca titolo, artista e album su AMLL. Se disattivato restano le altre fonti.</string>
+    <string name="settings_amll_hint">Ricerca online con titolo, artista e album.</string>
     <string name="track_menu_artists">Artisti</string>
     <string name="track_menu_use_as">Usa come…</string>
     <string name="default_sound_ringtone">Suoneria predefinita</string>

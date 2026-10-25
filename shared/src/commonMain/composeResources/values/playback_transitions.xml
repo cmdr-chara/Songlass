@@ -14,6 +14,6 @@
     <string name="settings_crossfade_reason_unknown_duration">No overlap: a track duration was unknown.</string>
     <string name="settings_crossfade_reason_too_short">No overlap: there was too little audio left for a safe transition.</string>
     <string name="settings_crossfade_reason_not_ready">No overlap: the next player was not ready in time.</string>
-    <string name="settings_crossfade_reason_prepare_failed">No overlap: the incoming track could not be prepared.</string>
-    <string name="settings_crossfade_reason_interrupted">The transition was interrupted by a command or a change in audio state.</string>
+    <string name="settings_crossfade_reason_prepare_failed">No overlap: incoming track preparation failed.</string>
+    <string name="settings_crossfade_reason_interrupted">Interrupted by a command or audio-state change.</string>
 </resources>

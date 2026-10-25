@@ -136,11 +136,10 @@ internal fun LyricsPane(
                     AppTheme.typography.title3,
                     textAlign = TextAlign.Center,
                 )
-                if (result != null) {
+                if (result != null && lyrics?.instrumental != true) {
                     Spacer(Modifier.height(8.dp))
                     AppText(
                         stringResource(when {
-                            lyrics?.instrumental == true -> Res.string.lyrics_instrumental_hint
                             result == LyricsUnavailable -> Res.string.lyrics_identity_unavailable_hint
                             result == LyricsResult.Failed -> Res.string.lyrics_error_hint
                             else -> Res.string.lyrics_not_found_hint

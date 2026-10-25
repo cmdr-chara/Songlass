@@ -3,5 +3,5 @@
     <string name="settings_focus_resume">Resume after interruptions</string>
     <string name="settings_call_resume">Resume after calls</string>
     <string name="settings_focus_pause">Pause</string>
-    <string name="settings_focus_policy_hint">Percentages set the remaining volume. Manual pause, stop, disconnect or an interrupted crossfade cancels automatic resume.</string>
+    <string name="settings_focus_policy_hint">Manual pause or stop cancels automatic resume.</string>
 </resources>

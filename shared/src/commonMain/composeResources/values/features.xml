@@ -6,7 +6,7 @@
     <string name="settings_home_customization">Customize Home</string>
     <string name="settings_backup">Backup and restore</string>
     <string name="backup_title">Backup and restore</string>
-    <string name="backup_intro">Saves favourites, playlists, history, Home, settings and EQ profiles to a file. Music and cache are not included.</string>
+    <string name="backup_intro">Backs up favorites, playlists, history, Home, settings and EQ profiles. Excludes music and cache.</string>
     <string name="backup_export">Create backup</string>
     <string name="backup_import">Open backup</string>
     <string name="backup_unavailable">File access is not available on this platform yet.</string>
@@ -32,4 +32,6 @@
     <string name="backup_conflicting">Songs with uncertain matches</string>
     <string name="backup_conflict_hint">Uncertain matches are left out of restored lists and history, so nothing is linked to the wrong song.</string>
     <string name="backup_omitted_lyrics">Some imported lyrics could not fit in this backup. The other app data is included.</string>
+    <string name="backup_export_summary">Settings, collections and history</string>
+    <string name="backup_import_summary">.songlass file</string>
 </resources>

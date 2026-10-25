@@ -6,14 +6,16 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import dev.cmdrchara.songlass.core.history.*
+import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
 import org.jetbrains.compose.resources.pluralStringResource
@@ -56,9 +58,7 @@ fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPaddin
     val titles = mapOf("t" to stringResource(Res.string.stats_top_tracks), "a" to stringResource(Res.string.stats_top_artists),
         "al" to stringResource(Res.string.stats_top_albums))
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), contentPadding = contentPadding) {
-        item { BackLink(stringResource(Res.string.tab_home), state::goBack) }
-        item { AppText(stringResource(Res.string.stats_title), AppTheme.typography.largeTitle,
-            modifier = Modifier.padding(horizontal = pageInset, vertical = 16.dp).semantics { heading() }) }
+        item { BackPageTitle(stringResource(Res.string.stats_title), stringResource(Res.string.tab_home), state::goBack) }
         item {
             // Four exclusive periods: a full-width segmented control, as in each style's own idiom.
             SegmentedControl(periods.map { stringResource(when (it) {
@@ -126,12 +126,14 @@ fun ListeningStatsScreen(state: AppState, currentTrackId: String?, contentPaddin
                 }
             }
         }
-        item { AppText(stringResource(Res.string.stats_counting_current, playCountRuleLabel(preferences.playCountRule)), AppTheme.typography.footnote,
-            color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) }
-        item { ActionButton(stringResource(Res.string.library_counting_title), { state.open(Route.LibrarySettings) },
-            Modifier.padding(horizontal = pageInset)) }
-        item { AppText(stringResource(Res.string.stats_history_details), AppTheme.typography.footnote,
-            color = AppTheme.colors.secondaryLabel, modifier = Modifier.padding(24.dp)) }
+        item(key = "play-counting") {
+            SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
+                ListRow(stringResource(Res.string.stats_counting_settings),
+                    subtitle = playCountRuleLabel(preferences.playCountRule),
+                    trailing = { AppIcon(AppIcons.ChevronRight, null, size = 16.dp, tint = AppTheme.colors.secondaryLabel) },
+                    onClick = { state.openSettingsResult(SettingsTarget.PlayCountRule) })
+            }
+        }
     }
 }
 
@@ -167,10 +169,12 @@ private fun <T> LazyListScope.rankedSection(
     val open = key in expanded
     items(entries.take(if (open) EXPANDED_ENTRIES else COLLAPSED_ENTRIES)) { row(it) }
     if (entries.size > COLLAPSED_ENTRIES) item(key = "$key:more") {
-        ActionButton(
+        ListRow(
             if (open) stringResource(Res.string.stats_show_fewer)
             else stringResource(Res.string.stats_show_all, minOf(entries.size, EXPANDED_ENTRIES)),
-            onToggle, Modifier.padding(horizontal = pageInset, vertical = 8.dp),
+            trailing = { AppIcon(AppIcons.ChevronDown, null, size = 18.dp, tint = AppTheme.colors.accent,
+                modifier = Modifier.rotate(if (open) 180f else 0f)) },
+            onClick = onToggle, modifier = Modifier.padding(horizontal = pageInset),
         )
     }
 }

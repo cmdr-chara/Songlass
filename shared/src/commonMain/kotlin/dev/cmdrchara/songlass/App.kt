@@ -49,6 +49,7 @@ import dev.cmdrchara.songlass.shared.resources.tab_home
 import dev.cmdrchara.songlass.shared.resources.tab_library
 import dev.cmdrchara.songlass.shared.resources.tab_search
 import dev.cmdrchara.songlass.theme.liquidglass.LiquidGlassTheme
+import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import dev.cmdrchara.songlass.ui.AlbumScreen
 import dev.cmdrchara.songlass.ui.AppState
 import dev.cmdrchara.songlass.ui.ArtistScreen
@@ -91,7 +92,9 @@ fun App(
     graph: AppGraph,
     onRequestLibraryAccess: (() -> Unit)? = null,
     artworkLoader: ArtworkImageLoader? = null,
+    navigationState: AppState? = null,
 ) {
+    val state = remember(graph, navigationState) { navigationState ?: AppState(graph) }
     val preferences by graph.settings.state.collectAsState()
     val presentation = when (preferences.artworkStyle) {
         ArtworkStyle.FullBleed -> ArtworkPresentation.FullBleed
@@ -100,11 +103,11 @@ fun App(
     CompositionLocalProvider(
         LocalArtworkImageLoader provides artworkLoader,
         LocalArtworkPresentation provides presentation,
-    ) { AppContent(graph, onRequestLibraryAccess, preferences) }
+    ) { AppContent(graph, onRequestLibraryAccess, preferences, state) }
 }
 
 @Composable
-private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, preferences: AppPreferences) {
+private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, preferences: AppPreferences, state: AppState) {
     val systemAccessibility = rememberSystemAccessibility()
     val accessibility = UiAccessibility(
         reduceMotion = preferences.reduceMotion || systemAccessibility.reduceMotion,
@@ -117,7 +120,6 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         AppearanceMode.Dark -> true
     }
     // Navigation state outlives a change of interface style.
-    val state = remember(graph) { AppState(graph) }
     val restoration by graph.restoreMutations.state.collectAsState()
     val playingQueue by graph.controller.queue.collectAsState()
     val visibleLibrary by graph.library.collectAsState()
@@ -162,8 +164,12 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val routeArtwork = state.currentRoute.pageArtwork(state)
         val routeTint = rememberArtworkTint(routeArtwork, darkTheme, followArtwork)
         var playerStatusBarLightIcons by remember { mutableStateOf<Boolean?>(null) }
+        // Keep the composition-local read outside the changing player-override branch.
+        val artworkHeaderCoversStatusBar = LocalGlassLook.current.artworkHeaderCoversStatusBar
         SystemBarAppearance(
-            lightIcons = playerStatusBarLightIcons ?: if (routeArtwork != null) routeTint.isDark else darkTheme,
+            // Inset collection headers leave the theme canvas, rather than cover art, behind the status bar.
+            lightIcons = playerStatusBarLightIcons ?: if (routeArtwork != null && artworkHeaderCoversStatusBar)
+                routeTint.isDark else darkTheme,
             navigationLightIcons = if (tintedArtwork != null) tintIsDark else darkTheme,
         )
         val tabTitles = mapOf(
@@ -222,58 +228,67 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             Route.ListeningStatistics -> stringResource(Res.string.stats_title)
                             else -> tabTitles.getValue(destination.tab)
                         }
-                        when (val route = destination.route) {
-                            Route.Settings -> {
-                                // Each animated destination keeps its own session while leaving.
-                                // A player shortcut can place Settings above another Settings page.
-                                val pageSearch = remember(destination) { state.settingsSearch }
-                                var pagePane by remember(destination) { mutableStateOf(state.settingsPane) }
-                                val playerReturn = remember(destination) { state.returnsToPlayerFrom(destination) }
-                                if (state.destination == destination) pagePane = state.settingsPane
-                                SettingsScreen(
-                                pane = pagePane,
-                                search = pageSearch,
-                                onSearchResult = state::openSettingsResult,
-                                onPaneChanged = state::selectSettingsPane,
-                                isActive = state.destination == destination && !nowPlayingVisible && !state.hasOverlay,
-                                settings = graph.settings,
-                                preferences = preferences,
-                                supportsAmllLyrics = graph.supportsAmllLyrics,
-                                supportsOnlineLyrics = graph.supportsOnlineLyrics,
-                                supportsCrossfade = graph.player.supportsCrossfade,
-                                supportsTransportFades = graph.player.supportsTransportFades,
-                                supportsReplayGainProcessing = graph.player.supportsReplayGainProcessing,
-                                supportsAudioEffects = graph.player.supportsAudioEffects,
-                                supportsAudioFocusSettings = graph.player.supportsAudioFocusSettings,
-                                supportsHeadphoneSettings = graph.player.supportsHeadphoneSettings,
-                                supportsAppIconChoice = graph.supportsAppIconChoice,
-                                systemAccessibility = systemAccessibility,
-                                equalizer = graph.equalizer,
-                                sleepTimer = sleepTimer,
-                                onOpenSleepTimer = state::openSleepMenu,
-                                onRestoreDefaults = state::askRestoreDefaults,
-                                onOpenEqualizer = { state.open(Route.Equalizer) },
-                                onOpenLibrary = { state.open(Route.LibrarySettings) },
-                                onOpenAbout = { state.open(Route.About) },
-                                onOpenHomeCustomization = { state.open(Route.HomeCustomization) },
-                                onOpenBackup = { state.open(Route.Backup) },
-                                backLabel = backLabel,
-                                onBack = state::goBack,
-                                contentPadding = padding,
-                                returnToPlayer = playerReturn,
+                        val settingsPage: @Composable (Boolean) -> Unit = { active ->
+                            // Each animated destination keeps its own session while leaving.
+                            // A player shortcut can place Settings above another Settings page.
+                            val pageSearch = remember(destination) { state.settingsSearch }
+                            var pagePane by remember(destination) { mutableStateOf(state.settingsPane) }
+                            val playerReturn = remember(destination) { state.returnsToPlayerFrom(destination) }
+                            if (state.destination == destination) pagePane = state.settingsPane
+                            SettingsScreen(
+                            pane = pagePane,
+                            search = pageSearch,
+                            onSearchResult = state::openSettingsResult,
+                            onPaneChanged = state::selectSettingsPane,
+                            isActive = active && state.destination == destination && !nowPlayingVisible && !state.hasOverlay,
+                            settings = graph.settings,
+                            preferences = preferences,
+                            supportsAmllLyrics = graph.supportsAmllLyrics,
+                            supportsOnlineLyrics = graph.supportsOnlineLyrics,
+                            supportsCrossfade = graph.player.supportsCrossfade,
+                            supportsTransportFades = graph.player.supportsTransportFades,
+                            supportsReplayGainProcessing = graph.player.supportsReplayGainProcessing,
+                            supportsAudioEffects = graph.player.supportsAudioEffects,
+                            supportsAudioFocusSettings = graph.player.supportsAudioFocusSettings,
+                            supportsHeadphoneSettings = graph.player.supportsHeadphoneSettings,
+                            supportsAppIconChoice = graph.supportsAppIconChoice,
+                            systemAccessibility = systemAccessibility,
+                            equalizer = graph.equalizer,
+                            sleepTimer = sleepTimer,
+                            onOpenSleepTimer = state::openSleepMenu,
+                            onRestoreDefaults = state::askRestoreDefaults,
+                            onOpenEqualizer = { state.open(Route.Equalizer) },
+                            onOpenLibrary = { state.open(Route.LibrarySettings) },
+                            onOpenAbout = { state.open(Route.About) },
+                            onOpenHomeCustomization = { state.open(Route.HomeCustomization) },
+                            onOpenBackup = { state.open(Route.Backup) },
+                            backLabel = backLabel,
+                            onBack = state::goBack,
+                            contentPadding = padding,
+                            returnToPlayer = playerReturn,
                             )
-                            }
+                        }
+                        when (val route = destination.route) {
+                            Route.Settings -> settingsPage(true)
                             Route.HomeCustomization -> dev.cmdrchara.songlass.ui.HomeCustomizationScreen(
                                 state = state,
                                 backLabel = stringResource(Res.string.settings_title), onBack = state::goBack, contentPadding = padding,
                                 searchFocus = state.settingsFocusFor(Route.HomeCustomization),
                             )
-                            Route.Backup -> dev.cmdrchara.songlass.ui.BackupScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.Backup))
+                            Route.Backup -> dev.cmdrchara.songlass.ui.BackupScreen(
+                                graph, state::goBack, padding, state.settingsFocusFor(Route.Backup),
+                                background = { settingsPage(false) },
+                                isActive = state.destination == destination && !nowPlayingVisible && !state.hasOverlay,
+                            )
                             is Route.Bookmarks -> dev.cmdrchara.songlass.ui.BookmarksScreen(route.track, state, backLabel, padding,
                                 isActive = { state.destination == destination && !state.isNowPlayingOpen && !state.hasOverlay })
                             Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.About))
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
-                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(graph, state::goBack, state::openLibraryDurationPicker, state::askRestoreDefaults, padding, backLabel, state.settingsFocusFor(Route.LibrarySettings))
+                            Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(
+                                graph, state::goBack, state::openLibraryDurationPicker, state::askRestoreDefaults, padding,
+                                backLabel, state.settingsFocusFor(Route.LibrarySettings),
+                                searchResultOrigin = destination.parentRoute == Route.Settings && state.settingsSearch.query.isNotBlank(),
+                            )
                             is Route.SmartPlaylistDetail -> dev.cmdrchara.songlass.ui.SmartPlaylistScreen(route.id, state, currentId, backLabel, padding)
                             is Route.SmartPlaylistEditor -> dev.cmdrchara.songlass.ui.SmartPlaylistEditorScreen(route.id, state, backLabel, padding)
                             is Route.TagEditor -> dev.cmdrchara.songlass.ui.TagEditorScreen(route.track, graph, state, backLabel, padding)

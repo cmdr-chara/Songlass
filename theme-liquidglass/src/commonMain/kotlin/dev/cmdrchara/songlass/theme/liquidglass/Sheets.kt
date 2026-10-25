@@ -92,13 +92,14 @@ internal fun LiquidGlassActionSheet(
     dismissOnAction: Boolean = true,
     headerLeading: (@Composable () -> Unit)? = null,
     headerTrailing: (@Composable () -> Unit)? = null,
+    onBackPress: (() -> Unit)? = null,
 ) {
     val sheetTint = LocalSheetTint.current
     if (sheetTint == null) {
-        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction, headerLeading = headerLeading, headerTrailing = headerTrailing)
+        ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = false, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction, headerLeading = headerLeading, headerTrailing = headerTrailing, onBackPress = onBackPress)
     } else {
         ProvideArtworkTint(sheetTint) {
-            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction, headerLeading = headerLeading, headerTrailing = headerTrailing)
+            ActionSheetContent(visible, title, subtitle, artwork, actions, cancelLabel, onDismiss, details, tinted = true, field = field, contentKey = contentKey, dismissOnAction = dismissOnAction, headerLeading = headerLeading, headerTrailing = headerTrailing, onBackPress = onBackPress)
         }
     }
 }
@@ -172,6 +173,7 @@ private fun ActionSheetContent(
     dismissOnAction: Boolean = true,
     headerLeading: (@Composable () -> Unit)? = null,
     headerTrailing: (@Composable () -> Unit)? = null,
+    onBackPress: (() -> Unit)? = null,
 ) {
     val scroll = rememberScrollState()
     LaunchedEffect(contentKey, title, visible, actions.firstOrNull()?.isBackAction) {
@@ -196,83 +198,92 @@ private fun ActionSheetContent(
     val transition = rememberTransition(visibility, label = "actionSheet")
     val fadeDuration = if (reduceMotion) LiquidGlassMotion.ReducedMillis else LiquidGlassMotion.FadeMillis
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        val cardMaxHeight = maxHeight * 0.78f
-        transition.AnimatedVisibility(
-            visible = { it },
-            enter = fadeIn(tween(fadeDuration)),
-            exit = fadeOut(tween(if (reduceMotion) fadeDuration else LiquidGlassMotion.NavigationMillis)),
-        ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.35f))
-                    .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onDismiss)
-                    .semantics { onClick(label = cancelLabel) { onDismiss(); true } },
-            )
-        }
-        transition.AnimatedVisibility(
-            visible = { it },
-            enter = if (reduceMotion) {
-                fadeIn(tween(fadeDuration))
-            } else {
-                slideInVertically(tween(LiquidGlassMotion.SheetMillis, easing = LiquidGlassMotion.Emphasized)) { it } +
-                    fadeIn(tween(fadeDuration))
-            },
-            exit = if (reduceMotion) {
-                fadeOut(tween(fadeDuration))
-            } else {
-                slideOutVertically(tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)) { it } +
-                    fadeOut(tween(LiquidGlassMotion.NavigationMillis))
-            },
-            modifier = Modifier.align(Alignment.BottomCenter),
-        ) {
-            CompositionLocalProvider(LocalContentColor provides colors.label) {
-                if (bottomSheet) {
-                    BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight, scroll, dismissOnAction, headerLeading, headerTrailing)
-                    return@CompositionLocalProvider
-                }
-                Column(
+    if (!visibility.isIdle || visibility.currentState || visibility.targetState) SheetWindowHost(
+        onDismiss = {
+            if (visible) {
+                val back = onBackPress ?: actions.firstOrNull { it.isBackAction }?.onClick
+                if (back != null) back() else onDismiss()
+            }
+        },
+    ) {
+        BoxWithConstraints(Modifier.fillMaxSize()) {
+            val cardMaxHeight = maxHeight * 0.78f
+            transition.AnimatedVisibility(
+                visible = { it },
+                enter = fadeIn(tween(fadeDuration)),
+                exit = fadeOut(tween(if (reduceMotion) fadeDuration else LiquidGlassMotion.NavigationMillis)),
+            ) {
+                Box(
                     Modifier
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                ) {
-                    Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(scroll)) {
-                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (artwork != null) {
-                                LiquidGlassAlbumArt(artwork, cornerRadius = 8.dp, modifier = Modifier.size(48.dp))
-                                Spacer(Modifier.width(12.dp))
-                            }
-                            Column {
-                                AppText(title, AppTheme.typography.headline, maxLines = 1)
-                                if (subtitle != null) {
-                                    AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel, maxLines = 1)
-                                }
-                            }
-                        }
-                        field?.invoke()
-                        details.forEach { detail ->
-                            Separator()
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
-                                AppText(detail.label, AppTheme.typography.caption1, color = colors.secondaryLabel)
-                                AppText(detail.value, AppTheme.typography.body)
-                            }
-                        }
-                        if (actions.isNotEmpty()) Separator()
-                        actions.forEachIndexed { index, action ->
-                            if (index > 0) Separator()
-                            SheetRow(action.label, action.icon) {
-                                if (visible) {
-                                    if (dismissOnAction && action.dismissOnClick) onDismiss()
-                                    action.onClick()
-                                }
-                            }
-                        }
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .clickable(remember { MutableInteractionSource() }, indication = null, enabled = visible, onClick = onDismiss)
+                        .semantics { onClick(label = cancelLabel) { if (visible) { onDismiss(); true } else false } },
+                )
+            }
+            transition.AnimatedVisibility(
+                visible = { it },
+                enter = if (reduceMotion) {
+                    fadeIn(tween(fadeDuration))
+                } else {
+                    slideInVertically(tween(LiquidGlassMotion.SheetMillis, easing = LiquidGlassMotion.Emphasized)) { it } +
+                        fadeIn(tween(fadeDuration))
+                },
+                exit = if (reduceMotion) {
+                    fadeOut(tween(fadeDuration))
+                } else {
+                    slideOutVertically(tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)) { it } +
+                        fadeOut(tween(LiquidGlassMotion.NavigationMillis))
+                },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            ) {
+                CompositionLocalProvider(LocalContentColor provides colors.label) {
+                    if (bottomSheet) {
+                        BottomSheetContent(visible, title, subtitle, artwork, actions, onDismiss, details, field, surface, cardMaxHeight, scroll, dismissOnAction, headerLeading, headerTrailing)
+                        return@CompositionLocalProvider
                     }
-                    Spacer(Modifier.height(8.dp))
-                    Box(Modifier.fillMaxWidth().shadow(16.dp, SheetShape).clip(SheetShape).background(surface)) {
-                        SheetRow(cancelLabel, icon = null, bold = true, centered = true, onClick = onDismiss)
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                    ) {
+                        Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(scroll)) {
+                            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (artwork != null) {
+                                    LiquidGlassAlbumArt(artwork, cornerRadius = 8.dp, modifier = Modifier.size(48.dp))
+                                    Spacer(Modifier.width(12.dp))
+                                }
+                                Column {
+                                    AppText(title, AppTheme.typography.headline, maxLines = 1)
+                                    if (subtitle != null) {
+                                        AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel, maxLines = 1)
+                                    }
+                                }
+                            }
+                            field?.invoke()
+                            details.forEach { detail ->
+                                Separator()
+                                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+                                    AppText(detail.label, AppTheme.typography.caption1, color = colors.secondaryLabel)
+                                    AppText(detail.value, AppTheme.typography.body)
+                                }
+                            }
+                            if (actions.isNotEmpty()) Separator()
+                            actions.forEachIndexed { index, action ->
+                                if (index > 0) Separator()
+                                SheetRow(action.label, action.icon) {
+                                    if (visible) {
+                                        if (dismissOnAction && action.dismissOnClick) onDismiss()
+                                        action.onClick()
+                                    }
+                                }
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Box(Modifier.fillMaxWidth().shadow(16.dp, SheetShape).clip(SheetShape).background(surface)) {
+                            SheetRow(cancelLabel, icon = null, bold = true, centered = true, onClick = { if (visible) onDismiss() })
+                        }
                     }
                 }
             }

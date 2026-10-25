@@ -1,5 +1,7 @@
 package dev.cmdrchara.songlass.theme.miuix
 
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
@@ -35,6 +37,15 @@ import top.yukonga.miuix.kmp.theme.MiuixTheme
 @Composable
 internal fun MiuixSearch(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) {
     val colors = AppTheme.colors
+    val nativeScheme = MiuixTheme.colorScheme
+    val nativeTextStyles = MiuixTheme.textStyles
+    val parentIndication = LocalIndication.current
+    val parentOverscroll = LocalOverscrollFactory.current
+    // InputField reads this role directly for its label; entered text uses LocalContentColor.
+    // Scope the readable role to this search field without altering its actual fill or states.
+    val fieldScheme = nativeScheme.copy(
+        onSurfaceContainerHigh = if (colors.isDark) nativeScheme.onSurface else nativeScheme.onSurfaceVariantSummary,
+    )
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     val interaction = remember { MutableInteractionSource() }
@@ -45,41 +56,48 @@ internal fun MiuixSearch(query: String, onQueryChange: (String) -> Unit, placeho
     LaunchedEffect(focused, query.isEmpty()) {
         if (!focused && query.isEmpty()) expanded = false
     }
-    InputField(
-        query = query,
-        onQueryChange = onQueryChange,
-        onSearch = { focusManager.clearFocus(); keyboard?.hide() },
-        expanded = expanded,
-        onExpandedChange = { expanded = it },
-        modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).semantics { contentDescription = placeholder },
-        label = placeholder,
-        textStyle = AppTheme.typography.body.copy(fontSize = 17.sp),
-        color = colors.fill,
-        interactionSource = interaction,
-        leadingIcon = {
-            AppIcon(AppIcons.Search, null, modifier = Modifier.padding(start = 16.dp, end = 10.dp),
-                size = 20.dp, tint = colors.secondaryLabel)
-        },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(
-                    onClick = { onQueryChange("") },
-                    modifier = Modifier.padding(end = 4.dp).semantics { contentDescription = clearLabel; role = Role.Button },
-                    backgroundColor = Color.Transparent,
-                    minWidth = 48.dp,
-                    minHeight = 48.dp,
-                    cornerRadius = 24.dp,
-                ) {
-                    Box(Modifier.size(22.dp).background(colors.secondaryLabel.copy(alpha = 0.14f), CircleShape),
-                        contentAlignment = Alignment.Center) {
-                        AppIcon(AppIcons.Close, null, size = 14.dp, tint = colors.secondaryLabel)
+    MiuixTheme(colors = fieldScheme, textStyles = nativeTextStyles) {
+        CompositionLocalProvider(
+            LocalIndication provides parentIndication,
+            LocalOverscrollFactory provides parentOverscroll,
+        ) {
+            InputField(
+                query = query,
+                onQueryChange = onQueryChange,
+                onSearch = { focusManager.clearFocus(); keyboard?.hide() },
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                modifier = modifier.fillMaxWidth().heightIn(min = 52.dp).semantics { contentDescription = placeholder },
+                label = placeholder,
+                textStyle = AppTheme.typography.body.copy(fontSize = 17.sp),
+                color = colors.fill,
+                interactionSource = interaction,
+                leadingIcon = {
+                    AppIcon(AppIcons.Search, null, modifier = Modifier.padding(start = 16.dp, end = 10.dp),
+                        size = 20.dp, tint = colors.secondaryLabel)
+                },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(
+                            onClick = { onQueryChange("") },
+                            modifier = Modifier.padding(end = 4.dp).semantics { contentDescription = clearLabel; role = Role.Button },
+                            backgroundColor = Color.Transparent,
+                            minWidth = 48.dp,
+                            minHeight = 48.dp,
+                            cornerRadius = 24.dp,
+                        ) {
+                            Box(Modifier.size(22.dp).background(colors.secondaryLabel.copy(alpha = 0.14f), CircleShape),
+                                contentAlignment = Alignment.Center) {
+                                AppIcon(AppIcons.Close, null, size = 14.dp, tint = colors.secondaryLabel)
+                            }
+                        }
+                    } else {
+                        Spacer(Modifier.width(16.dp))
                     }
-                }
-            } else {
-                Spacer(Modifier.width(16.dp))
-            }
-        },
-    )
+                },
+            )
+        }
+    }
 }
 
 /**

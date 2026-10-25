@@ -88,8 +88,7 @@ fun TagEditorScreen(track: Track, graph: AppGraph, state: AppState, backLabel: S
     }
     val snapshot = original
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding(), contentPadding = contentPadding) {
-        item { BackLink(backLabel, { if (!saving) state.goBack() }) }
-        item { SectionTitle(stringResource(Res.string.tags_edit)) }
+        item { BackPageTitle(stringResource(Res.string.tags_edit), backLabel, { if (!saving) state.goBack() }) }
         item { FeatureHint(stringResource(Res.string.tags_hint)) }
         item {
             TagRecoveryPanel(editor, refreshKey = recoveryRefresh, onRecoveryArchived = {

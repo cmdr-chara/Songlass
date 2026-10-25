@@ -5,7 +5,7 @@
 
     <string name="homecfg_show_title">Sezioni</string>
     <string name="homecfg_order_title">Ordine</string>
-    <string name="homecfg_order_hint">Usa le frecce per spostare una sezione in alto o in basso. Le sezioni nascoste mantengono il loro posto.</string>
+    <string name="homecfg_order_hint">Le sezioni nascoste mantengono il loro posto.</string>
     <string name="homecfg_hidden">Nascosta</string>
     <string name="homecfg_position">Posizione %1$d di %2$d</string>
     <string name="homecfg_move_up">Sposta %1$s in alto</string>

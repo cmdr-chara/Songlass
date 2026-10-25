@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="welcome_title">Welcome to Songlass</string>
-    <string name="welcome_style_body">Three styles, the same music. We picked %1$s, the one that suits your phone. You can change it any time in Settings.</string>
+    <string name="welcome_style_body">Recommended for your phone: %1$s. Change styles here or in Settings.</string>
     <string name="welcome_continue">Continue</string>
     <string name="welcome_access_title">Your music</string>
-    <string name="welcome_access_body">Songlass reads the audio files on your phone. They stay on the device and are never sent anywhere.</string>
+    <string name="welcome_access_body">Read music on your phone. Audio files stay on this device.</string>
     <string name="welcome_access_allow">Allow access</string>
     <string name="welcome_not_now">Not now</string>
     <string name="welcome_ready_title">All set</string>
-    <string name="welcome_ready_body">Songlass is ready. Your music is in the Library.</string>
+    <string name="welcome_ready_body">Find your music in Library.</string>
     <string name="welcome_ready_searching">Looking for your music…</string>
     <string name="welcome_ready_no_access">You can allow music access later from the Library.</string>
     <string name="welcome_ready_empty">No songs found yet.</string>

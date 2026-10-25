@@ -5,7 +5,7 @@
     <string name="eq_band_count_value">%1$s bande</string>
     <string name="eq_tone_less">Diminuisci di 0,5 dB</string>
     <string name="eq_tone_more">Aumenta di 0,5 dB</string>
-    <string name="eq_tuning_hint">Bassi e alti seguono l’interruttore EQ e valgono per tutte le uscite. Ogni formato conserva le sue regolazioni; al primo uso riprende la curva a dieci bande. Scorri in orizzontale i grafici a 15 e 31 bande.</string>
+    <string name="eq_tuning_hint">Bassi e alti seguono l’EQ su tutte le uscite. Ogni formato conserva le sue regolazioni, inizialmente dalla curva a dieci bande. Scorri i grafici a 15 e 31 bande in orizzontale.</string>
     <string name="eq_tone_less_short">−0,5</string>
     <string name="eq_tone_more_short">+0,5</string>
 </resources>

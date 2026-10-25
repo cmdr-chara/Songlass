@@ -6,7 +6,7 @@
     <string name="settings_home_customization">Personalizza Home</string>
     <string name="settings_backup">Backup e ripristino</string>
     <string name="backup_title">Backup e ripristino</string>
-    <string name="backup_intro">Salva preferiti, playlist, cronologia, Home, impostazioni e profili EQ in un file. Musica e cache non sono incluse.</string>
+    <string name="backup_intro">Salva preferiti, playlist, cronologia, Home, impostazioni e profili EQ. Esclude musica e cache.</string>
     <string name="backup_export">Crea backup</string>
     <string name="backup_import">Apri backup</string>
     <string name="backup_unavailable">L’accesso ai file non è ancora disponibile su questa piattaforma.</string>
@@ -32,4 +32,6 @@
     <string name="backup_conflicting">Brani con corrispondenza incerta</string>
     <string name="backup_conflict_hint">I riferimenti incerti vengono esclusi da liste e cronologia, per non collegarli al brano sbagliato.</string>
     <string name="backup_omitted_lyrics">Alcuni testi importati superano lo spazio disponibile per questo backup. Gli altri dati dell’app sono inclusi.</string>
+    <string name="backup_export_summary">Impostazioni, raccolte e cronologia</string>
+    <string name="backup_import_summary">File .songlass</string>
 </resources>

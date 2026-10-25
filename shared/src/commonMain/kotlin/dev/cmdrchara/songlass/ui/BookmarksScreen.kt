@@ -101,9 +101,9 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
     val active = isActive() && state.restoreMutations.canMutate
     LaunchedEffect(attention, edit, failure, selection != null, active) {
         if (!isActive() || !state.restoreMutations.canMutate) return@LaunchedEffect
-        if (failure != null) listState.scrollToItem(2)
+        if (failure != null) listState.scrollToItem(1)
         else if (edit != null) {
-            listState.scrollToItem(if (selection != null) 3 else 2)
+            listState.scrollToItem(if (selection != null) 2 else 1)
             withFrameNanos { }
             // Outgoing transition content may still be composed after Back/tab/player navigation.
             // Read the live destination again, as well as whether Save/Cancel removed the field.
@@ -116,7 +116,6 @@ fun BookmarksScreen(track: Track?, state: AppState, backLabel: String, padding: 
         item {
             BackPageTitle(stringResource(Res.string.bookmark_open), backLabel, state::goBack)
         }
-        item { FeatureHint(stringResource(Res.string.bookmark_intro)) }
         if (failure != null) item(key = "bookmark-error") {
             SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)
                 .semantics { liveRegion = LiveRegionMode.Polite }) {

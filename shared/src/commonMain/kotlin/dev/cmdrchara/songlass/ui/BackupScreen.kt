@@ -5,6 +5,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.LibrarySnapshotUnavailableException
@@ -12,6 +13,7 @@ import dev.cmdrchara.songlass.core.backup.BackupPreview
 import dev.cmdrchara.songlass.core.backup.BackupPreviewChangedException
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.designsystem.*
+import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.*
@@ -26,7 +28,14 @@ private enum class BackupNotice { None, Saved, Restored, Failed, Invalid, Previe
 
 /** The file is validated and previewed before an explicit replacement of app data. */
 @Composable
-fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
+fun BackupScreen(
+    graph: AppGraph,
+    onBack: () -> Unit,
+    contentPadding: PaddingValues,
+    searchFocus: SettingsFocusRequest? = null,
+    background: (@Composable () -> Unit)? = null,
+    isActive: Boolean = true,
+) {
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val searchReveal = SettingsSearchScroll(searchFocus, listState, if (searchFocus?.target == SettingsTarget.Backup) 0 else null)
@@ -77,7 +86,54 @@ fun BackupScreen(graph: AppGraph, onBack: () -> Unit, contentPadding: PaddingVal
         }
     }
     val working = busy || restoring
-LocalGlassLook.current.SettingsPage {
+    // Keep this owner and both document launchers composed throughout chooser and IO work.
+    PlatformBackHandler(isActive && working) { }
+    fun startExport() {
+        if (!isActive || busy || restoring) return
+        val export = exporter ?: return
+        if (!graph.isLibraryReadyForBackup()) { notice = BackupNotice.LibraryUnavailable; return }
+        busy = true; notice = BackupNotice.None
+        scope.launch {
+            try {
+                val archive = withContext(Dispatchers.Default) { graph.exportBackup() }
+                omittedLyrics = archive.omittedLyrics > 0
+                export("Songlass-backup.songlass", archive.text)
+            } catch (cancelled: CancellationException) { busy = false; throw cancelled }
+            catch (_: LibrarySnapshotUnavailableException) { busy = false; notice = BackupNotice.LibraryUnavailable }
+            catch (_: Exception) { busy = false; notice = BackupNotice.Failed }
+        }
+    }
+    fun startImport() {
+        if (!isActive || busy || restoring) return
+        val requestImport = importer ?: return
+        if (!graph.isLibraryReadyForBackup()) { notice = BackupNotice.LibraryUnavailable; return }
+        busy = true; notice = BackupNotice.None
+        preview = null; source = null; confirming = false
+        requestImport()
+    }
+    val compact = background != null && !working && libraryReady && importer != null && exporter != null &&
+        notice == BackupNotice.None && !omittedLyrics && preview == null && source == null && !confirming
+    if (compact) {
+        Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().clearAndSetSemantics { }) { background?.invoke() }
+            PlaybackToolsSheet(
+                visible = isActive,
+                title = stringResource(Res.string.backup_title),
+                subtitle = null,
+                groups = listOf(PlaybackToolGroup(null, listOf(
+                    PlaybackToolRow(stringResource(Res.string.backup_export),
+                        stringResource(Res.string.backup_export_summary), AppIcons.Folder, ::startExport),
+                    PlaybackToolRow(stringResource(Res.string.backup_import),
+                        stringResource(Res.string.backup_import_summary), AppIcons.ImportFile, ::startImport),
+                ))),
+                closeLabel = stringResource(Res.string.action_cancel),
+                backLabel = null,
+                onBack = null,
+                // Read current state: a stale dismiss callback after a row tap must not leave.
+                onDismiss = { if (isActive && !busy && !restoring) onBack() },
+            )
+        }
+    } else LocalGlassLook.current.SettingsPage {
         LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
         item {
             SettingsSearchAnchor(SettingsTarget.Backup, searchFocus) {
@@ -106,27 +162,11 @@ LocalGlassLook.current.SettingsPage {
         if (importer == null || exporter == null) item { FeatureHint(stringResource(Res.string.backup_unavailable)) }
         if (!working && libraryReady) {
             if (exporter != null) item {
-                ActionButton(stringResource(Res.string.backup_export), {
-                    if (!graph.isLibraryReadyForBackup()) { notice = BackupNotice.LibraryUnavailable; return@ActionButton }
-                    busy = true; notice = BackupNotice.None
-                    scope.launch {
-                        try {
-                            val archive = withContext(Dispatchers.Default) { graph.exportBackup() }
-                            omittedLyrics = archive.omittedLyrics > 0
-                            exporter("Songlass-backup.songlass", archive.text)
-                        } catch (cancelled: CancellationException) { busy = false; throw cancelled }
-                        catch (_: LibrarySnapshotUnavailableException) { busy = false; notice = BackupNotice.LibraryUnavailable }
-                        catch (_: Exception) { busy = false; notice = BackupNotice.Failed }
-                    }
-                }, Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 6.dp))
+                ActionButton(stringResource(Res.string.backup_export), ::startExport,
+                    Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 6.dp))
             }
             if (importer != null) item {
-                ActionButton(stringResource(Res.string.backup_import), {
-                    if (!graph.isLibraryReadyForBackup()) { notice = BackupNotice.LibraryUnavailable; return@ActionButton }
-                    busy = true; notice = BackupNotice.None
-                    preview = null; source = null; confirming = false
-                    importer()
-                },
+                ActionButton(stringResource(Res.string.backup_import), ::startImport,
                     Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 6.dp))
             }
             if (preview == null && source != null) item {

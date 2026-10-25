@@ -52,7 +52,7 @@ internal fun MiuixWelcome(model: WelcomeModel) {
     Column(Modifier.fillMaxSize().background(colors.background).windowInsetsPadding(WindowInsets.systemBars).padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(24.dp))
         // The illustration takes whatever height the page below it leaves free.
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.CenterStart) {
+        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             val room = minOf(maxHeight, maxWidth * 0.8f, 300.dp).coerceAtLeast(96.dp)
             Crossfade(model.covers.size >= 3, label = "hero") { covers -> if (covers) CoverGrid(model, minOf((maxWidth - 20.dp) / 3, (maxHeight - 10.dp) / 2)) else BarTile(room) }
         }

@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
@@ -34,13 +35,23 @@ import top.yukonga.miuix.kmp.overlay.OverlayBottomSheet
 internal fun MiuixPlaybackTools(visible: Boolean, title: String, subtitle: String?, groups: List<PlaybackToolGroup>, closeLabel: String, backLabel: String?, onBack: (() -> Unit)?, dismiss: () -> Unit) {
     val scroll = rememberScrollState()
     LaunchedEffect(title, visible) { scroll.scrollTo(0) }
-    OverlayBottomSheet(show = visible, title = title, onDismissRequest = dismiss,
-        startAction = if (onBack != null && backLabel != null) ({
-            MiuixIconAction(AppIcons.ArrowBack, backLabel, { if (visible) onBack() }, false, false, Modifier)
-        }) else null,
-        endAction = { MiuixIconAction(AppIcons.Close, closeLabel, dismiss, false, false, Modifier) },
+    OverlayBottomSheet(show = visible, title = null, onDismissRequest = dismiss,
+        // The native header overlays its slots. A single full-width slot reserves real space
+        // for both native icon actions, so long titles wrap without colliding with Close.
+        endAction = {
+            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (onBack != null && backLabel != null) {
+                    MiuixIconAction(AppIcons.ArrowBack, backLabel, { if (visible) onBack() }, false, false, Modifier.size(48.dp))
+                } else Spacer(Modifier.width(48.dp))
+                AppText(title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Medium),
+                    color = AppTheme.colors.label, textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp).semantics { heading() })
+                MiuixIconAction(AppIcons.Close, closeLabel, { if (visible) dismiss() }, false, false, Modifier.size(48.dp))
+            }
+        },
     ) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(scroll), verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Column(Modifier.fillMaxWidth().navigationBarsPadding().heightIn(max = 520.dp)
+            .verticalScroll(scroll).padding(bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel) }
             groups.forEach { group ->
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -141,62 +141,67 @@ fun SettingsScreen(
             val request = search.focus?.takeIf { isActive && page == pane && it.target.settingsPane == page }
             val positions = remember(page) { SettingsItemPositions() }
             val reveal = SettingsSearchScroll(request, scroll, positions)
-            LazyColumn(
-                Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding().then(reveal),
-                state = scroll,
-                contentPadding = contentPadding,
-            ) {
-                val items = SettingsItems(this, positions)
-                items.item(key = "title") {
-                    val title = when (page) {
-                        SettingsPane.Overview -> Res.string.settings_title
-                        SettingsPane.Appearance -> Res.string.settings_appearance
-                        SettingsPane.Sound -> Res.string.settings_sound
-                        SettingsPane.Player -> Res.string.settings_playback
-                        SettingsPane.Queue -> Res.string.settings_queue
-                    }
-                    LocalGlassLook.current.SettingsPageTitle(stringResource(title),
-                        when (page) {
-                            SettingsPane.Overview -> if (search.query.isNotEmpty()) stringResource(Res.string.settings_title) else backLabel
-                            SettingsPane.Sound -> stringResource(when {
-                                search.durationDraft != null -> Res.string.action_cancel
-                                returnToPlayer -> Res.string.player_return
-                                search.resultPane == page -> Res.string.settings_search_results
-                                else -> Res.string.settings_title
-                            })
-                            else -> if (search.resultPane == page) stringResource(Res.string.settings_search_results) else stringResource(Res.string.settings_title)
-                        },
-                        if (page == SettingsPane.Overview && search.query.isEmpty()) onBack else ({ backFrom(page) }), Modifier)
-                }
-                when (page) {
-                    SettingsPane.Overview -> {
-                        items.item(key = "settings-search") {
-                            SearchField(search.query, search::updateQuery, stringResource(Res.string.settings_search_placeholder),
-                                stringResource(Res.string.search_clear), Modifier.padding(horizontal = pageInset, vertical = 8.dp))
+            val look = LocalGlassLook.current
+            val isRoot = page == SettingsPane.Overview && !searching
+            look.SettingsRootChrome(isRoot, stringResource(Res.string.settings_title), scroll) {
+                LazyColumn(
+                    Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding().then(reveal),
+                    state = scroll,
+                    contentPadding = contentPadding,
+                ) {
+                    val items = SettingsItems(this, positions)
+                    items.item(key = "title") {
+                        val title = when (page) {
+                            SettingsPane.Overview -> Res.string.settings_title
+                            SettingsPane.Appearance -> Res.string.settings_appearance
+                            SettingsPane.Sound -> Res.string.settings_sound
+                            SettingsPane.Player -> Res.string.settings_playback
+                            SettingsPane.Queue -> Res.string.settings_queue
                         }
-                        if (searching) settingsSearchResults(results, documents, preferences, eqState, systemAccessibility) {
-                            focus.clearFocus(); keyboard?.hide(); onSearchResult(it)
-                        } else {
-                            items.overviewSettings(preferences, eqState, onPaneChanged, onOpenEqualizer,
-                                onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
-                        }
+                        val titleBackLabel = when (page) {
+                                SettingsPane.Overview -> if (search.query.isNotEmpty()) stringResource(Res.string.settings_title) else backLabel
+                                SettingsPane.Sound -> stringResource(when {
+                                    search.durationDraft != null -> Res.string.action_cancel
+                                    returnToPlayer -> Res.string.player_return
+                                    search.resultPane == page -> Res.string.settings_search_results
+                                    else -> Res.string.settings_title
+                                })
+                                else -> if (search.resultPane == page) stringResource(Res.string.settings_search_results) else stringResource(Res.string.settings_title)
+                            }
+                        val titleBack: () -> Unit = if (isRoot) onBack else ({ backFrom(page) })
+                        if (isRoot) look.SettingsRootTitle(stringResource(title), titleBackLabel, titleBack, Modifier)
+                        else look.SettingsPageTitle(stringResource(title), titleBackLabel, titleBack, Modifier)
                     }
-                    SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
-                    SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
-                        { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings,
-                        search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
-                    SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics, supportsHeadphoneSettings)
-                    SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
+                    when (page) {
+                        SettingsPane.Overview -> {
+                            items.item(key = "settings-search") {
+                                SearchField(search.query, search::updateQuery, stringResource(Res.string.settings_search_placeholder),
+                                    stringResource(Res.string.search_clear), Modifier.padding(horizontal = look.settingsRootHorizontalInset, vertical = 8.dp))
+                            }
+                            if (searching) settingsSearchResults(results, documents, preferences, eqState, systemAccessibility) {
+                                focus.clearFocus(); keyboard?.hide(); onSearchResult(it)
+                            } else {
+                                items.overviewSettings(preferences, eqState, onPaneChanged, onOpenEqualizer,
+                                    onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
+                            }
+                        }
+                        SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
+                        SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
+                            { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings,
+                            search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
+                        SettingsPane.Player -> items.playerSettings(settings, preferences, request, supportsAmllLyrics, supportsOnlineLyrics, supportsHeadphoneSettings)
+                        SettingsPane.Queue -> items.queueSettings(settings, preferences, request)
+                    }
+                    val restoreArea = when (page) {
+                        SettingsPane.Overview -> null
+                        SettingsPane.Appearance -> SettingsArea.Appearance
+                        SettingsPane.Sound -> SettingsArea.Sound
+                        SettingsPane.Player -> SettingsArea.Player
+                        SettingsPane.Queue -> SettingsArea.Queue
+                    }
+                    if (restoreArea != null) items.item(key = "restore-defaults") { RestoreDefaultsButton(restoreArea, onRestoreDefaults) }
+                    items.item(key = "end") { Spacer(Modifier.height(20.dp)) }
                 }
-                val restoreArea = when (page) {
-                    SettingsPane.Overview -> null
-                    SettingsPane.Appearance -> SettingsArea.Appearance
-                    SettingsPane.Sound -> SettingsArea.Sound
-                    SettingsPane.Player -> SettingsArea.Player
-                    SettingsPane.Queue -> SettingsArea.Queue
-                }
-                if (restoreArea != null) items.item(key = "restore-defaults") { RestoreDefaultsButton(restoreArea, onRestoreDefaults) }
-                items.item(key = "end") { Spacer(Modifier.height(20.dp)) }
             }
         }
     }
@@ -214,7 +219,7 @@ private fun SettingsItems.overviewSettings(
 ) {
     item { SettingsSection(stringResource(Res.string.settings_personalization)) }
     item {
-        SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
+        SettingsDestinations(Modifier.padding(horizontal = LocalGlassLook.current.settingsRootHorizontalInset)) {
             SettingsLink(stringResource(Res.string.settings_appearance),
                 "${styleName(preferences.interfaceStyle)} · ${appearanceName(preferences.appearance)}", AppIcons.Settings, summaryIsValue = true) {
                 open(SettingsPane.Appearance)
@@ -225,7 +230,7 @@ private fun SettingsItems.overviewSettings(
     }
     item { SettingsSection(stringResource(Res.string.settings_audio_section)) }
     item {
-        SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
+        SettingsDestinations(Modifier.padding(horizontal = LocalGlassLook.current.settingsRootHorizontalInset)) {
             SettingsLink(stringResource(Res.string.settings_sound),
                 stringResource(Res.string.settings_sound_summary), AppIcons.SpeakerLow) { open(SettingsPane.Sound) }
             SettingsLink(stringResource(Res.string.eq_title),
@@ -235,7 +240,7 @@ private fun SettingsItems.overviewSettings(
     }
     item { SettingsSection(stringResource(Res.string.settings_music_section)) }
     item {
-        SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
+        SettingsDestinations(Modifier.padding(horizontal = LocalGlassLook.current.settingsRootHorizontalInset)) {
             SettingsLink(stringResource(Res.string.settings_playback),
                 stringResource(Res.string.settings_player_summary), AppIcons.AudioOutput) { open(SettingsPane.Player) }
             SettingsLink(stringResource(Res.string.settings_queue),
@@ -246,7 +251,7 @@ private fun SettingsItems.overviewSettings(
     }
     item { SettingsSection(stringResource(Res.string.settings_app_section)) }
     item {
-        SettingsDestinations(Modifier.padding(horizontal = pageInset)) {
+        SettingsDestinations(Modifier.padding(horizontal = LocalGlassLook.current.settingsRootHorizontalInset)) {
             SettingsLink(stringResource(Res.string.settings_backup),
                 stringResource(Res.string.settings_backup_summary), AppIcons.ImportFile, onClick = onBackup)
             SettingsLink(stringResource(Res.string.about_title),
@@ -629,7 +634,6 @@ private fun SettingsItems.soundSettings(
             }
         }
     }
-    item(key = "automatic-crossfade-hint") { SettingsHint(stringResource(Res.string.settings_crossfade_automatic_hint)) }
     mark(SettingsTarget.ManualCrossfadeDuration)
     item(key = "manual-crossfade") {
         SettingsSearchAnchor(SettingsTarget.ManualCrossfadeDuration, request) {
@@ -674,7 +678,6 @@ private fun SettingsItems.soundSettings(
             }
         }
     }
-    item(key = "transport-fades-hint") { SettingsHint(stringResource(Res.string.settings_transport_fades_hint)) }
     if (!supportsTransportFades) item(key = "transport-fades-unsupported") { SettingsHint(stringResource(Res.string.settings_crossfade_unsupported)) }
     item { SettingsSection(stringResource(Res.string.settings_interruptions)) }
     mark(SettingsTarget.AudioFocus)
@@ -753,7 +756,7 @@ private fun SettingsItems.playerSettings(
             }
             SettingsSearchAnchor(SettingsTarget.PauseOnDisconnect, request) {
                 SettingsToggleRow(stringResource(Res.string.settings_pause_disconnect), preferences.pauseOnDisconnect,
-                    settings::setPauseOnDisconnect, subtitle = stringResource(Res.string.settings_pause_disconnect_hint))
+                    settings::setPauseOnDisconnect)
             }
             SettingsSearchAnchor(SettingsTarget.HeadsetMultiPress, request) {
                 SettingsToggleRow(stringResource(Res.string.settings_headset_multi), preferences.headsetMultiPress,
@@ -761,7 +764,6 @@ private fun SettingsItems.playerSettings(
             }
         }
     }
-    item(key = "headphone-resume-hint") { SettingsHint(stringResource(Res.string.settings_headphone_resume_hint)) }
     mark(SettingsTarget.BluetoothCommandDelay)
     item(key = "bluetooth-command-delay") {
         SettingsSearchAnchor(SettingsTarget.BluetoothCommandDelay, request) {
@@ -784,7 +786,7 @@ private fun SettingsItems.playerSettings(
         SettingsSearchAnchor(SettingsTarget.ResumePerTrack, request) {
             SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
                 SettingsToggleRow(stringResource(Res.string.settings_long_resume), preferences.resumePerTrack,
-                    settings::setResumePerTrack, subtitle = stringResource(Res.string.settings_long_resume_hint))
+                    settings::setResumePerTrack)
             }
         }
     }
