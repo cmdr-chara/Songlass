@@ -1,0 +1,77 @@
+name: iOS unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'build/ios-ipa-*'
+    paths:
+      - '.github/workflows/ios-ipa.yml'
+      - 'tools/build-ios-ipa.sh'
+      - 'iosApp/**'
+      - 'shared/**'
+      - 'core/**'
+      - 'designsystem/**'
+      - 'theme-liquidglass/**'
+      - 'theme-materialglass/**'
+      - 'theme-miuix/**'
+      - 'gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '*.gradle.kts'
+      - 'gradle.properties'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - name: Check out source 
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up JDK 21
+        uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Limit first-build memory and concurrency
+        shell: bash
+        run: |
+          task_gradle_home="$RUNNER_TEMP/songlass-gradle"
+          mkdir -p "$task_gradle_home"
+          echo "GRADLE_USER_HOME=$task_gradle_home" >> "$GITHUB_ENV"
+          cat > "$task_gradle_home/gradle.properties" <<'PROPERTIES'
+          org.gradle.jvmargs=-Xmx3072m -Dfile.encoding=UTF-8
+          org.gradle.workers.max=2
+          org.gradle.parallel=false
+          kotlin.compiler.execution.strategy=in-process
+          PROPERTIES
+      - name: Build actual iPhone app and package unsigned IPA
+        shell: bash
+        run: bash tools/build-ios-ipa.sh
+      - name: Upload unsigned IPA and build identity
+        if: success()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Songlass-unsigned-iphoneos
+          path: |
+            build/ios-ipa/run-*/Songlass-unsigned.ipa
+            build/ios-ipa/run-*/Songlass-unsigned.ipa.sha256
+            build/ios-ipa/run-*/build-info.json
+          if-no-files-found: error
+          retention-days: 3
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Songlass-ios-build-logs
+          path: |
+            build/ios-ipa/run-*/build.log
+            build/ios-ipa/run-*/executable-info.txt
+          if-no-files-found: warn
+          retention-days: 3
