@@ -374,21 +374,18 @@ internal fun appIconName(icon: AppIconChoice): String = when (icon) {
 
 @Composable
 private fun AppIconPreview(icon: LauncherIconVariant) {
-    Box(Modifier.fillMaxWidth().height(76.dp).clearAndSetSemantics { }.clip(RoundedCornerShape(12.dp))
-        .background(AppTheme.colors.background), contentAlignment = Alignment.Center) {
-        val asset = when (icon) {
-            LauncherIconVariant.Violet -> Res.drawable.songlass_brand_light
-            LauncherIconVariant.Night -> Res.drawable.songlass_icon_night
-            LauncherIconVariant.LiquidLight -> Res.drawable.songlass_icon_liquid_light
-            LauncherIconVariant.LiquidDark -> Res.drawable.songlass_icon_liquid_dark
-            LauncherIconVariant.MaterialLight -> Res.drawable.songlass_icon_material_light
-            LauncherIconVariant.MaterialDark -> Res.drawable.songlass_icon_material_dark
-            LauncherIconVariant.MiuixLight -> Res.drawable.songlass_icon_miuix_light
-            LauncherIconVariant.MiuixDark -> Res.drawable.songlass_icon_miuix_dark
-        }
-        Image(painterResource(asset),
-            contentDescription = null, modifier = Modifier.size(60.dp).clip(RoundedCornerShape(14.dp)))
+    val asset = when (icon) {
+        LauncherIconVariant.Violet -> Res.drawable.songlass_brand_light
+        LauncherIconVariant.Night -> Res.drawable.songlass_icon_night
+        LauncherIconVariant.LiquidLight -> Res.drawable.songlass_icon_liquid_light
+        LauncherIconVariant.LiquidDark -> Res.drawable.songlass_icon_liquid_dark
+        LauncherIconVariant.MaterialLight -> Res.drawable.songlass_icon_material_light
+        LauncherIconVariant.MaterialDark -> Res.drawable.songlass_icon_material_dark
+        LauncherIconVariant.MiuixLight -> Res.drawable.songlass_icon_miuix_light
+        LauncherIconVariant.MiuixDark -> Res.drawable.songlass_icon_miuix_dark
     }
+    Image(painterResource(asset), contentDescription = null,
+        modifier = Modifier.size(36.dp).clip(RoundedCornerShape(9.dp)).clearAndSetSemantics { })
 }
 
 /** Small related choices fit a native segmented control; large text gets full-width rows. */

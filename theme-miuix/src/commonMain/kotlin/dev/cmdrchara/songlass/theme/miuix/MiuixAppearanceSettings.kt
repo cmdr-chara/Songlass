@@ -59,6 +59,7 @@ internal fun MiuixSettingsVisualChoices(
         lastInGroup = lastInGroup,
         description = description,
         modifier = modifier,
+        optionPreview = if (kind == SettingsVisualChoiceKind.AppIcon) { index -> choices[index].preview() } else null,
     )
 }
 
@@ -86,6 +87,7 @@ internal fun AppearancePreference(
     description: String?,
     modifier: Modifier,
     contentInset: Dp = 16.dp,
+    optionPreview: (@Composable (Int) -> Unit)? = null,
 ) {
     if (labels.isEmpty()) return
     var expanded by remember(title) { mutableStateOf(false) }
@@ -157,6 +159,9 @@ internal fun AppearancePreference(
                             .background(if (checked) colors.accent.copy(alpha = 0.07f) else colors.secondaryBackground)
                             .semantics(mergeDescendants = true) { role = Role.RadioButton; selected = checked },
                         insideMargin = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                        startAction = optionPreview?.let { preview -> {
+                            Box(Modifier.padding(end = 14.dp).size(36.dp).clearAndSetSemantics { }) { preview(index) }
+                        } },
                         endActions = {
                             Box(Modifier.padding(start = 16.dp).clearAndSetSemantics { }) {
                                 RadioButton(selected = checked, onClick = null)

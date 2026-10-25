@@ -56,6 +56,7 @@ internal fun MaterialSettingsChoiceOptions(
     leadingIcon: ImageVector? = null,
     emphasized: Boolean = false,
     contentInset: Dp? = null,
+    optionPreview: (@Composable (Int) -> Unit)? = null,
 ) {
     var expanded by remember(title) { mutableStateOf(false) }
     val palette = currentPalette()
@@ -138,7 +139,7 @@ internal fun MaterialSettingsChoiceOptions(
                             MaterialSettingsChoiceRow(label, index == selectedIndex, {
                                 onSelect(index)
                                 expanded = false
-                            }, Modifier.fillMaxWidth())
+                            }, Modifier.fillMaxWidth(), leading = optionPreview?.let { preview -> { preview(index) } })
                         }
                     }
                 }

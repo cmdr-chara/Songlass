@@ -115,7 +115,7 @@ internal fun MaterialSettingsPreviewChoice(title: String, selected: Boolean, onC
     }
 }
 
-/** Appearance uses the same compact textual picker for every kind; previews stay uncomposed. */
+/** Appearance stays compact; launcher choices show their real icon beside the label. */
 @Composable
 internal fun MaterialSettingsVisualChoices(
     kind: SettingsVisualChoiceKind,
@@ -141,6 +141,7 @@ internal fun MaterialSettingsVisualChoices(
                 SettingsVisualChoiceKind.AppIcon -> AppIcons.AppTile
             },
             emphasized = kind == SettingsVisualChoiceKind.InterfaceStyle,
+            optionPreview = if (kind == SettingsVisualChoiceKind.AppIcon) { index -> choices[index].preview() } else null,
         )
     }
 }

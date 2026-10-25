@@ -50,7 +50,7 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
-/** Four compact settings rows share one continuous group; visual previews remain uncomposed. */
+/** Four compact rows share one group; only launcher choices compose real icon previews. */
 @Composable
 internal fun LiquidAppearanceChoices(
     kind: SettingsVisualChoiceKind,
@@ -75,7 +75,8 @@ internal fun LiquidAppearanceChoices(
         LiquidAppearanceOptionRow(title, choices.map { it.title }, choices.indexOfFirst { it.selected },
             { index -> choices[index].onClick() }, closeLabel, description, icon, iconColor,
             firstInGroup = kind == SettingsVisualChoiceKind.InterfaceStyle, lastInGroup = lastInGroup,
-            accentValue = kind == SettingsVisualChoiceKind.InterfaceStyle, modifier = modifier)
+            accentValue = kind == SettingsVisualChoiceKind.InterfaceStyle, modifier = modifier,
+            optionPreview = if (kind == SettingsVisualChoiceKind.AppIcon) { index -> choices[index].preview() } else null)
     }
 }
 
@@ -97,6 +98,7 @@ private fun LiquidAppearanceOptionRow(
     title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit,
     closeLabel: String, description: String?, icon: ImageVector, iconColor: Color,
     firstInGroup: Boolean, lastInGroup: Boolean, accentValue: Boolean, modifier: Modifier,
+    optionPreview: (@Composable (Int) -> Unit)? = null,
 ) {
     var expanded by remember(title) { mutableStateOf(false) }
     val colors = AppTheme.colors
@@ -141,7 +143,7 @@ private fun LiquidAppearanceOptionRow(
         }
     }
     if (expanded) LiquidSettingsChoicePicker(title, labels, selectedIndex, closeLabel, description,
-        onDismiss = { expanded = false }, onSelect = { index -> onSelect(index); expanded = false })
+        onDismiss = { expanded = false }, onSelect = { index -> onSelect(index); expanded = false }, optionPreview = optionPreview)
 }
 
 /** Feedback stays within the row's clipped neutral surface and respects Reduce Motion. */
@@ -156,11 +158,12 @@ internal fun liquidSettingsPressedColor(interaction: MutableInteractionSource): 
     return color
 }
 
-/** A bounded textual picker: selected options use a trailing checkmark, not a miniature preview. */
+/** A bounded picker with a trailing checkmark and optional decorative option previews. */
 @Composable
 internal fun LiquidSettingsChoicePicker(
     title: String, labels: List<String>, selectedIndex: Int, closeLabel: String, description: String?,
     onDismiss: () -> Unit, onSelect: (Int) -> Unit,
+    optionPreview: (@Composable (Int) -> Unit)? = null,
 ) {
     val colors = AppTheme.colors
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -197,6 +200,9 @@ internal fun LiquidSettingsChoicePicker(
                                 onClick = { onSelect(index) })
                             .heightIn(min = 52.dp).padding(horizontal = 20.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            optionPreview?.let { preview ->
+                                Box(Modifier.size(36.dp).clearAndSetSemantics { }) { preview(index) }
+                            }
                             AppText(label, AppTheme.typography.body, color = colors.label, modifier = Modifier.weight(1f))
                             Box(Modifier.size(20.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
                                 if (index == selectedIndex) AppIcon(AppIcons.Checkmark, null, size = 20.dp, tint = colors.accent)

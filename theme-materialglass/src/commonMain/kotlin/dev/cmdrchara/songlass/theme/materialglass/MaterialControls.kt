@@ -208,7 +208,8 @@ internal fun MaterialBackButton(label: String, onClick: () -> Unit, modifier: Mo
 
 /** Whole-row radio choices use a quiet tonal selection and a trailing state indicator. */
 @Composable
-internal fun MaterialSettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+internal fun MaterialSettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier,
+    leading: (@Composable () -> Unit)? = null) {
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val interaction = remember { MutableInteractionSource() }
@@ -220,9 +221,13 @@ internal fun MaterialSettingsChoiceRow(title: String, selected: Boolean, onClick
     Row(
         modifier.fillMaxWidth().heightIn(min = 64.dp).background(fill)
             .selectable(selected, interaction, indication = MaterialRipple, role = Role.RadioButton, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 16.dp, vertical = if (leading == null) 16.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        leading?.let { preview ->
+            Box(Modifier.size(36.dp).clearAndSetSemantics { }) { preview() }
+            Spacer(Modifier.width(14.dp))
+        }
         AppText(title, AppTheme.typography.body, color = palette.label, modifier = Modifier.weight(1f))
         Spacer(Modifier.width(16.dp))
         Box(Modifier.size(24.dp).clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
