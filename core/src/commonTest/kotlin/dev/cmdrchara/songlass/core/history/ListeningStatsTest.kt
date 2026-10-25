@@ -75,6 +75,24 @@ class ListeningStatsTest {
         assertEquals(StatChange(previous = 2, current = 1), comparison.tracks)
         assertEquals(-1, comparison.tracks.difference)
     }
+    @Test fun comparisonPreservesDuplicateRowsWithoutMultiplyingArtistMemberships() {
+        val first = track("a").copy(artist = "Alpha", artists = listOf("Alpha", "Beta", "Beta"), albumArtist = null)
+        val second = track("b").copy(artist = "Beta", artists = listOf("Beta", "Gamma"), albumArtist = null)
+        val library = MusicLibrary(listOf(first, first.copy(title = "Repeated source row"), second))
+        val previousFrom = now - 14 * day
+        val from = now - 7 * day
+        val history = HistorySnapshot(trackingStartedMs = 0, datedPlays = listOf(
+            DatedPlay("a", previousFrom), DatedPlay("a", from - 1), DatedPlay("b", previousFrom + day),
+            DatedPlay("missing", previousFrom + 1), DatedPlay("b", previousFrom - 1),
+            DatedPlay("a", from), DatedPlay("b", now + 1),
+        ))
+        val current = ListeningStats.build(library, history, StatsPeriod.Week, now, from)
+        val comparison = assertNotNull(ListeningStats.compare(library, history, StatsPeriod.Week, current, previousFrom, from))
+        assertEquals(StatChange(5, 2), comparison.plays)
+        assertEquals(StatChange(3, 2), comparison.tracks)
+        assertEquals(StatChange(3, 2), comparison.artists)
+    }
+
     @Test fun comparisonIsWithheldWhenTheEarlierPeriodIsNotFullyRecorded() {
         val library = MusicLibrary(listOf(track("a")))
         val current = ListeningStats.build(library, HistorySnapshot(), StatsPeriod.Week, now, now - 7 * day)

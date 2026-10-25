@@ -60,11 +60,26 @@ data class ListeningStats(
             val oldest = history.datedPlays.minOfOrNull { it.atMs }
             if (history.datedPlays.size >= ListeningHistory.MAX_DATED_PLAYS && (oldest == null || oldest > previousFromMs)) return null
             if (oldest == null && history.trackingStartedMs == null) return null
-            val previous = build(library, history, period, fromMs - 1, previousFromMs)
+            // The comparison needs counts only, not the previous period's ranked lists.
+            val counts = history.datedPlays.filter { it.atMs in previousFromMs..(fromMs - 1) }
+                .groupingBy { it.trackId }.eachCount()
+            var previousPlays = 0
+            var previousTracks = 0
+            for (track in library.tracks) {
+                val plays = counts[track.id] ?: 0
+                if (plays > 0) {
+                    previousPlays += plays
+                    previousTracks++
+                }
+            }
+            var previousArtists = 0
+            for (artist in library.artists) {
+                if (artist.tracks.sumOf { counts[it.id] ?: 0 } > 0) previousArtists++
+            }
             return PeriodComparison(
-                StatChange(previous.totalPlays, current.totalPlays),
-                StatChange(previous.differentTracks, current.differentTracks),
-                StatChange(previous.differentArtists, current.differentArtists),
+                StatChange(previousPlays, current.totalPlays),
+                StatChange(previousTracks, current.differentTracks),
+                StatChange(previousArtists, current.differentArtists),
             )
         }
 
