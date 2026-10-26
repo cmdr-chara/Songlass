@@ -29,7 +29,8 @@ fun WelcomeFlow(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?) {
     var index by rememberSaveable { mutableIntStateOf(0) }
     val step = steps[index.coerceIn(steps.indices)]
     fun next() { index = (index + 1).coerceAtMost(steps.lastIndex) }
-    PlatformBackHandler(index > 0) { index-- }
+    fun previous() { index = (index - 1).coerceAtLeast(0) }
+    PlatformBackHandler(index > 0, ::previous)
     // The permission dialog answers on its own: move on as soon as access arrives.
     LaunchedEffect(hasAccess) {
         // The app behind the welcome reads the library when access changes; until it is shown, the welcome must too.
@@ -58,8 +59,10 @@ fun WelcomeFlow(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?) {
         )
         WelcomeStep.Access -> WelcomeModel(
             step = common.first, stepCount = common.second, stepDescription = common.third, title = stringResource(Res.string.welcome_access_title), body = stringResource(Res.string.welcome_access_body),
-            primaryLabel = stringResource(Res.string.welcome_access_allow), onPrimary = { onRequestLibraryAccess?.invoke() },
-            secondaryLabel = stringResource(Res.string.welcome_not_now), onSecondary = ::next,
+            primaryLabel = stringResource(if (hasAccess) Res.string.welcome_continue else Res.string.welcome_access_allow),
+            onPrimary = { if (hasAccess) next() else onRequestLibraryAccess?.invoke() },
+            secondaryLabel = if (hasAccess) null else stringResource(Res.string.welcome_not_now), onSecondary = ::next,
+            backLabel = stringResource(Res.string.back), onBack = ::previous,
         )
         WelcomeStep.Ready -> WelcomeModel(
             step = common.first, stepCount = common.second, stepDescription = common.third, title = stringResource(Res.string.welcome_ready_title), body = stringResource(Res.string.welcome_ready_body),
@@ -71,6 +74,7 @@ fun WelcomeFlow(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?) {
             },
             covers = covers,
             primaryLabel = stringResource(Res.string.welcome_start), onPrimary = { graph.onboarding.complete() },
+            backLabel = stringResource(Res.string.back), onBack = ::previous,
         )
     }
     Welcome(model)

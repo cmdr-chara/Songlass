@@ -113,11 +113,20 @@ internal fun MaterialWelcome(model: WelcomeModel, palette: SeaPalette) {
                 }
             }
             Spacer(Modifier.height(14.dp))
-            Box(
-                Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(CircleShape).background(palette.primary)
-                    .clickable(remember { MutableInteractionSource() }, MaterialRipple, role = Role.Button, onClick = model.onPrimary),
-                contentAlignment = Alignment.Center,
-            ) { AppText(model.primaryLabel, AppTheme.typography.headline, color = palette.onPrimary) }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val onBack = model.onBack
+                val backLabel = model.backLabel
+                if (onBack != null && backLabel != null) {
+                    MaterialIconButton(AppIcons.ArrowBack, backLabel, onBack, selected = false,
+                        filled = true, modifier = Modifier.size(56.dp))
+                }
+                Box(
+                    Modifier.weight(1f).heightIn(min = 56.dp).clip(CircleShape).background(palette.primary)
+                        .clickable(remember { MutableInteractionSource() }, MaterialRipple, role = Role.Button, onClick = model.onPrimary),
+                    contentAlignment = Alignment.Center,
+                ) { AppText(model.primaryLabel, AppTheme.typography.headline, color = palette.onPrimary) }
+            }
             val onSecondary = model.onSecondary
             val secondary = model.secondaryLabel
             if (secondary != null && onSecondary != null) {

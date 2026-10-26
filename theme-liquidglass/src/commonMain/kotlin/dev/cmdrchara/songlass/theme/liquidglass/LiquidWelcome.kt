@@ -129,14 +129,23 @@ internal fun LiquidWelcome(model: WelcomeModel) {
                     }
                 }
                 Spacer(Modifier.height(16.dp))
-                Box(
-                    Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(Pill)
-                        .background(Brush.verticalGradient(listOf(colors.accent.copy(alpha = 0.95f), colors.accent.copy(alpha = 0.78f))))
-                        .border(BorderStroke(0.8.dp, Color.White.copy(alpha = 0.45f)), Pill)
-                        .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = model.onPrimary),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    AppText(model.primaryLabel, AppTheme.typography.headline, color = if (colors.isDark) Color.Black else Color.White)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    val onBack = model.onBack
+                    val backLabel = model.backLabel
+                    if (onBack != null && backLabel != null) {
+                        LiquidGlassIconButton(AppIcons.ArrowBack, backLabel, onBack, selected = false,
+                            modifier = Modifier, hitSize = 56.dp, filled = true)
+                    }
+                    Box(
+                        Modifier.weight(1f).heightIn(min = 56.dp).clip(Pill)
+                            .background(Brush.verticalGradient(listOf(colors.accent.copy(alpha = 0.95f), colors.accent.copy(alpha = 0.78f))))
+                            .border(BorderStroke(0.8.dp, Color.White.copy(alpha = 0.45f)), Pill)
+                            .clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = model.onPrimary),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        AppText(model.primaryLabel, AppTheme.typography.headline, color = if (colors.isDark) Color.Black else Color.White)
+                    }
                 }
                 val onSecondary = model.onSecondary
                 val secondary = model.secondaryLabel

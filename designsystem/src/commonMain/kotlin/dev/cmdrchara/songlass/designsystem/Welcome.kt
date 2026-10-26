@@ -57,6 +57,9 @@ data class WelcomeModel(
     val stepDescription: String = "",
     /** Real covers from the person's library, on the last page only; the looks show them in place of the mark. */
     val covers: List<Artwork> = emptyList(),
+    /** Visible return action on every page after the first; independent of permission skipping. */
+    val backLabel: String? = null,
+    val onBack: (() -> Unit)? = null,
 )
 
 @Composable

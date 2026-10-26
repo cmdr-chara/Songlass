@@ -104,7 +104,16 @@ internal fun MiuixWelcome(model: WelcomeModel) {
                 }
             }
             Spacer(Modifier.height(16.dp))
-            MiuixAction(model.primaryLabel, null, model.onPrimary, Modifier.fillMaxWidth().heightIn(min = 52.dp), primary = true)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                val onBack = model.onBack
+                val backLabel = model.backLabel
+                if (onBack != null && backLabel != null) {
+                    MiuixIconAction(AppIcons.ArrowBack, backLabel, onBack, selected = false,
+                        filled = true, modifier = Modifier.size(52.dp))
+                }
+                MiuixAction(model.primaryLabel, null, model.onPrimary, Modifier.weight(1f).heightIn(min = 52.dp), primary = true)
+            }
             val onSecondary = model.onSecondary
             val label = model.secondaryLabel
             if (label != null && onSecondary != null) {
