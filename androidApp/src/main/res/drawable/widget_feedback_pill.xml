@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Foreground-only outlines stay independent of the widget's runtime background and icon tints. -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android" android:constantSize="true">
+    <item android:state_enabled="false" android:drawable="@android:color/transparent" />
+    <!-- Keep the focus outline when keyboard activation also presses the control. -->
+    <item android:state_focused="true" android:state_pressed="true">
+        <layer-list>
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="23dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="2dp" android:color="#E6000000" />
+                </shape>
+            </item>
+            <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="21dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="2dp" android:color="#FFFFFFFF" />
+                </shape>
+            </item>
+            <item android:left="6dp" android:top="6dp" android:right="6dp" android:bottom="6dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="18dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="1dp" android:color="#66000000" />
+                </shape>
+            </item>
+            <item android:left="7dp" android:top="7dp" android:right="7dp" android:bottom="7dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="17dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="1dp" android:color="#99FFFFFF" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_focused="true">
+        <layer-list>
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="23dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="2dp" android:color="#E6000000" />
+                </shape>
+            </item>
+            <item android:left="3dp" android:top="3dp" android:right="3dp" android:bottom="3dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="21dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="2dp" android:color="#FFFFFFFF" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:state_pressed="true">
+        <layer-list>
+            <item android:left="1dp" android:top="1dp" android:right="1dp" android:bottom="1dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="23dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="1dp" android:color="#66000000" />
+                </shape>
+            </item>
+            <item android:left="2dp" android:top="2dp" android:right="2dp" android:bottom="2dp">
+                <shape android:shape="rectangle">
+                    <corners android:radius="22dp" />
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="1dp" android:color="#99FFFFFF" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item android:drawable="@android:color/transparent" />
+</selector>

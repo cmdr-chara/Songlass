@@ -50,7 +50,7 @@ internal fun Modifier.navigationBarGlass(
     edges: Boolean = true,
 ): Modifier = LocalGlassLook.current.navigationBarSurface(this, shape, interactionSource, edges)
 
-/** Apple's Liquid Glass material, the default [GlassLook.navigationSurface]. */
+/** Songlass's Liquid Glass approximation, the default [GlassLook.navigationSurface]. */
 @OptIn(ExperimentalHazeApi::class)
 @Composable
 internal fun Modifier.appleGlass(

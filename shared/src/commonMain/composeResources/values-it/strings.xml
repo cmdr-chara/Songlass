@@ -8,6 +8,8 @@
     <string name="library_albums">Album</string>
     <string name="library_artists">Artisti</string>
     <string name="library_empty">La tua libreria è vuota</string>
+    <string name="library_albums_empty">Nessun album da mostrare</string>
+    <string name="library_albums_empty_hint">Per visualizzare un album servono almeno %1$d brani visibili con gli stessi dati dell'album. I singoli restano disponibili in Brani.</string>
 
     <string name="unknown_artist">Artista sconosciuto</string>
     <string name="unknown_album">Album sconosciuto</string>

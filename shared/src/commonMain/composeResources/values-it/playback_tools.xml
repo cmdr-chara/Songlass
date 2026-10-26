@@ -14,6 +14,11 @@
     <string name="player_timer_minutes">%1$d min</string>
     <string name="player_timer_track_end">Fine brano</string>
     <string name="player_queue_short">Coda</string>
+    <string name="playback_shuffle_state_on">Attivata</string>
+    <string name="playback_shuffle_state_off">Disattivata</string>
+    <string name="playback_repeat_state_off">Disattivata</string>
+    <string name="playback_repeat_state_all">Tutti i brani</string>
+    <string name="playback_repeat_state_one">Un brano</string>
     <string name="queue_saved_playlist">Salvata: %1$s</string>
     <string name="queue_saved_open">Apri playlist</string>
     <string name="audio_tools_output_volume">Uscita e volume</string>

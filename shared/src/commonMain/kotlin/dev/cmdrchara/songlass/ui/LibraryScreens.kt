@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.foundation.lazy.rememberLazyListState
 import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,7 @@ import androidx.compose.runtime.getValue
 import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.library.LibraryFilter
 import dev.cmdrchara.songlass.core.library.AlphabeticalIndex
 import dev.cmdrchara.songlass.core.settings.AlbumLayout
 import dev.cmdrchara.songlass.core.library.PinnedItem
@@ -68,8 +70,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.history.PlayContext
@@ -77,6 +82,7 @@ import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.library.Playlist
 import dev.cmdrchara.songlass.designsystem.ActionButton
+import dev.cmdrchara.songlass.designsystem.artworkTileFeedback
 import dev.cmdrchara.songlass.designsystem.BackPageTitle
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.ArtistAvatar
@@ -104,6 +110,8 @@ import dev.cmdrchara.songlass.shared.resources.action_shuffle
 import dev.cmdrchara.songlass.shared.resources.album_minutes
 import dev.cmdrchara.songlass.shared.resources.favorites_empty
 import dev.cmdrchara.songlass.shared.resources.library_albums
+import dev.cmdrchara.songlass.shared.resources.library_albums_empty
+import dev.cmdrchara.songlass.shared.resources.library_albums_empty_hint
 import dev.cmdrchara.songlass.shared.resources.library_artists
 import dev.cmdrchara.songlass.shared.resources.library_favorites
 import dev.cmdrchara.songlass.shared.resources.library_songs
@@ -113,6 +121,8 @@ import dev.cmdrchara.songlass.shared.resources.settings_title
 import dev.cmdrchara.songlass.shared.resources.bookmark_open
 import dev.cmdrchara.songlass.shared.resources.bookmark_library_hint
 import dev.cmdrchara.songlass.shared.resources.library_metadata
+import dev.cmdrchara.songlass.shared.resources.library_metadata_empty
+import dev.cmdrchara.songlass.shared.resources.library_rescan
 import dev.cmdrchara.songlass.shared.resources.library_layout_list
 import dev.cmdrchara.songlass.shared.resources.library_layout_grid
 import org.jetbrains.compose.resources.pluralStringResource
@@ -291,13 +301,35 @@ fun LibraryCategoryScreen(
     state: AppState,
     currentTrackId: String?,
     favoriteIds: List<String>,
+    hasAccess: Boolean,
+    onRequestAccess: (() -> Unit)?,
     backLabel: String,
     contentPadding: PaddingValues,
 ) {
     val library = state.library
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
+    val favoriteIdSet = remember(favoriteIds) { favoriteIds.toSet() }
     val preferences by state.settings.state.collectAsState()
+    val loading by state.isLibraryLoading.collectAsState()
+    val completeScan by state.hasCompleteLibraryScan.collectAsState()
+    val refreshFailure by state.libraryRefreshFailure.collectAsState()
+    val allTracks by state.allTracks.collectAsState()
+    val favoritesFilteredOut = remember(category, favoriteTracks.isEmpty(), favoriteIdSet, allTracks, preferences.libraryFilter) {
+        category == LibraryCategory.Favorites && favoriteTracks.isEmpty() &&
+            allTracks.any { it.id in favoriteIdSet && !preferences.libraryFilter.includes(it) }
+    }
     val albumLayout = preferences.albumLayout
+    val categoryEmpty = when (category) {
+        LibraryCategory.Artists -> library.artists.isEmpty()
+        LibraryCategory.Albums -> library.albums.isEmpty()
+        LibraryCategory.Songs -> library.tracks.isEmpty()
+        LibraryCategory.Favorites -> favoriteTracks.isEmpty()
+    }
+    val libraryUnavailable = !hasAccess || library.tracks.isEmpty()
+    val showRefreshNotice = hasAccess && refreshFailure != null
+    val hasContent = hasAccess && !categoryEmpty
+    val showAlbumLayout = hasContent && category == LibraryCategory.Albums
+    val showPlayback = hasContent && (category == LibraryCategory.Songs || category == LibraryCategory.Favorites)
     val listState = rememberLazyListState()
     val scrollScope = rememberCoroutineScope()
     val alphabet = remember(category, library) {
@@ -310,25 +342,93 @@ fun LibraryCategoryScreen(
         if (titles.size < ALPHABET_MIN_ITEMS) emptyList()
         else AlphabeticalIndex.build(titles).takeIf { it.size > 1 }.orEmpty()
     }
+    val showAlphabet = hasContent && alphabet.isNotEmpty()
+    // These are the exact lazy items preceding the first artist, album row or song.
+    val firstContentItem = 1 + (if (showRefreshNotice) 1 else 0) +
+        (if (showAlbumLayout) 1 else 0) + (if (showAlphabet) 1 else 0) + (if (showPlayback) 1 else 0)
+    // A scan notice can appear while the alphabet picker retains its selection callback.
+    val currentContentStart by rememberUpdatedState(firstContentItem)
+    val currentAlbumGrid by rememberUpdatedState(category == LibraryCategory.Albums && albumLayout == AlbumLayout.Grid)
     val albumRows = remember(library) { library.albums.chunked(2) }
-    when (category) {
-        LibraryCategory.Songs -> PrefetchTrackRowArtwork(listState, library.tracks)
-        LibraryCategory.Favorites -> PrefetchTrackRowArtwork(listState, favoriteTracks)
-        else -> Unit
+    if (hasContent) {
+        when (category) {
+            LibraryCategory.Songs -> PrefetchTrackRowArtwork(listState, library.tracks)
+            LibraryCategory.Favorites -> PrefetchTrackRowArtwork(listState, favoriteTracks)
+            else -> Unit
+        }
     }
     LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars), state = listState, contentPadding = contentPadding) {
         item { BackPageTitle(stringResource(category.label), backLabel, state::goBack) }
-        if (category == LibraryCategory.Albums) item {
+        if (showRefreshNotice) item(key = "category.scan-error") {
+            LibraryRefreshNotice(refreshFailure, loading, state.requestLibraryRefresh)
+        }
+        if (!hasContent) {
+            // A failed empty scan has its own retry notice; do not call it an empty library.
+            if (libraryUnavailable && showRefreshNotice) return@LazyColumn
+            item(key = "category.empty") {
+                if (libraryUnavailable) {
+                    LibraryEmptyState(
+                        hasAccess = hasAccess,
+                        onRequestAccess = onRequestAccess,
+                        loading = loading || !completeScan,
+                        filtered = allTracks.isNotEmpty() && preferences.libraryFilter != LibraryFilter(),
+                        onOpenSettings = { state.open(Route.LibrarySettings) },
+                        onRescan = state.requestLibraryRefresh,
+                    )
+                } else if (favoritesFilteredOut) {
+                    LibraryEmptyState(
+                        hasAccess = hasAccess,
+                        onRequestAccess = onRequestAccess,
+                        filtered = true,
+                        onOpenSettings = { state.open(Route.LibrarySettings) },
+                    )
+                } else if (category == LibraryCategory.Albums) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 24.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        AppText(stringResource(Res.string.library_albums_empty), AppTheme.typography.title3)
+                        AppText(
+                            stringResource(Res.string.library_albums_empty_hint, MusicLibrary.MIN_ALBUM_TRACKS),
+                            AppTheme.typography.subheadline,
+                            color = AppTheme.colors.secondaryLabel,
+                        )
+                        ActionButton(stringResource(Res.string.library_songs),
+                            onClick = { state.open(Route.LibraryPage(LibraryCategory.Songs)) },
+                            modifier = Modifier.fillMaxWidth(), icon = AppIcons.MusicNote)
+                        if (preferences.libraryFilter != LibraryFilter()) {
+                            ActionButton(stringResource(Res.string.settings_title),
+                                onClick = { state.open(Route.LibrarySettings) }, modifier = Modifier.fillMaxWidth())
+                        }
+                    }
+                } else {
+                    AppText(
+                        stringResource(if (category == LibraryCategory.Favorites) Res.string.favorites_empty else Res.string.library_metadata_empty),
+                        AppTheme.typography.subheadline,
+                        color = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.padding(horizontal = pageInset, vertical = 12.dp),
+                    )
+                }
+            }
+            return@LazyColumn
+        }
+        if (showAlbumLayout) item {
             SegmentedControl(listOf(stringResource(Res.string.library_layout_grid), stringResource(Res.string.library_layout_list)),
                 if (albumLayout == AlbumLayout.Grid) 0 else 1,
                 { state.settings.setAlbumLayout(if (it == 0) AlbumLayout.Grid else AlbumLayout.List) },
                 Modifier.padding(horizontal = pageInset, vertical = 8.dp))
         }
-        if (alphabet.isNotEmpty()) item {
-            val firstItem = 2 + if (category == LibraryCategory.Albums || category == LibraryCategory.Songs) 1 else 0
+        if (showAlphabet) item {
             LibraryAlphabetButton(state, alphabet, listState, scrollScope) { index ->
-                firstItem + if (category == LibraryCategory.Albums && albumLayout == AlbumLayout.Grid) index / 2 else index
+                currentContentStart + if (currentAlbumGrid) index / 2 else index
             }
+        }
+        if (showPlayback) item {
+            PlayShuffleRow(
+                if (category == LibraryCategory.Favorites) favoriteTracks else library.tracks,
+                if (category == LibraryCategory.Favorites) PlayContext.Favorites else null,
+                state,
+            )
         }
         when (category) {
             LibraryCategory.Artists -> items(library.artists) { artist ->
@@ -344,24 +444,13 @@ fun LibraryCategoryScreen(
                 }
             }
             LibraryCategory.Songs -> {
-                item { PlayShuffleRow(library.tracks, null, state) }
                 itemsIndexed(library.tracks, key = { _, t -> t.id }) { index, track ->
                     TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                         state.tapTrack(library.tracks, index)
                     }
                 }
             }
-            LibraryCategory.Favorites -> if (favoriteTracks.isEmpty()) {
-                item {
-                    AppText(
-                        stringResource(Res.string.favorites_empty),
-                        AppTheme.typography.subheadline,
-                        color = AppTheme.colors.secondaryLabel,
-                        modifier = Modifier.padding(horizontal = pageInset, vertical = 12.dp),
-                    )
-                }
-            } else {
-                item { PlayShuffleRow(favoriteTracks, PlayContext.Favorites, state) }
+            LibraryCategory.Favorites -> {
                 itemsIndexed(favoriteTracks, key = { _, t -> t.id }) { index, track ->
                     TrackRow(track, highlighted = track.id == currentTrackId, onMore = { state.openMenu(track) }) {
                         state.tapTrack(favoriteTracks, index, PlayContext.Favorites)
@@ -372,12 +461,42 @@ fun LibraryCategoryScreen(
     }
 }
 
-/** Play and Shuffle side by side above a list of songs, as in Apple Music. */
+/** Play and Shuffle share a row only while both labels fit the current typography. */
 @Composable
 private fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: AppState) {
-    Row(Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        ActionButton(stringResource(Res.string.action_play), onClick = { state.controller.playTracks(tracks, context = context) }, modifier = Modifier.weight(1f), icon = AppIcons.Play)
-        ActionButton(stringResource(Res.string.action_shuffle), onClick = { state.controller.shuffleTracks(tracks, context) }, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
+    val playLabel = stringResource(Res.string.action_play)
+    val shuffleLabel = stringResource(Res.string.action_shuffle)
+    val measurer = rememberTextMeasurer()
+    val typography = AppTheme.typography
+    val density = LocalDensity.current
+    val widestLabelPx = listOf(playLabel, shuffleLabel).maxOf { label ->
+        maxOf(
+            measurer.measure(label, typography.headline, softWrap = false, maxLines = 1).size.width,
+            measurer.measure(label, typography.body.copy(fontWeight = FontWeight.Medium), softWrap = false, maxLines = 1).size.width,
+        )
+    }
+    // Match the largest current icon, gap and padding footprint, including pixel rounding.
+    val buttonOverheadPx = with(density) {
+        maxOf(
+            2 * 20.dp.roundToPx() + 18.dp.roundToPx() + 8.dp.roundToPx(),
+            2 * 16.dp.roundToPx() + 20.dp.roundToPx() + 8.dp.roundToPx(),
+        )
+    }
+    val gapPx = with(density) { 12.dp.roundToPx() }
+    val onPlay = { state.controller.playTracks(tracks, context = context) }
+    val onShuffle = { state.controller.shuffleTracks(tracks, context) }
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 8.dp)) {
+        if (constraints.maxWidth - gapPx >= 2 * (widestLabelPx + buttonOverheadPx)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActionButton(playLabel, onClick = onPlay, modifier = Modifier.weight(1f), icon = AppIcons.Play)
+                ActionButton(shuffleLabel, onClick = onShuffle, modifier = Modifier.weight(1f), icon = AppIcons.Shuffle)
+            }
+        } else {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ActionButton(playLabel, onClick = onPlay, modifier = Modifier.fillMaxWidth(), icon = AppIcons.Play)
+                ActionButton(shuffleLabel, onClick = onShuffle, modifier = Modifier.fillMaxWidth(), icon = AppIcons.Shuffle)
+            }
+        }
     }
 }
 
@@ -392,7 +511,12 @@ internal fun FolderGridRow(folders: List<Folder>, state: AppState) {
 
 @Composable
 private fun FolderTile(folder: Folder, modifier: Modifier, onClick: () -> Unit) {
-    Column(modifier.prefetchArtworkOnPress(folder.artwork()).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
+    val interaction = remember { MutableInteractionSource() }
+    Column(
+        modifier.prefetchArtworkOnPress(folder.artwork())
+            .artworkTileFeedback(interaction, RoundedCornerShape(10.dp))
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
+    ) {
         FolderCover(folder, Modifier.fillMaxWidth().aspectRatio(1f))
         Spacer(Modifier.height(6.dp))
         AppText(folder.name, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 2)
@@ -473,7 +597,14 @@ fun ArtistScreen(artist: Artist, state: AppState, currentTrackId: String?, backL
 
 /** Shown before the user grants access to their music, or when no music was found. */
 @Composable
-internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)?, loading: Boolean = false, filtered: Boolean = false) {
+internal fun LibraryEmptyState(
+    hasAccess: Boolean,
+    onRequestAccess: (() -> Unit)?,
+    loading: Boolean = false,
+    filtered: Boolean = false,
+    onOpenSettings: (() -> Unit)? = null,
+    onRescan: (() -> Unit)? = null,
+) {
     Column(
         Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -504,6 +635,14 @@ internal fun LibraryEmptyState(hasAccess: Boolean, onRequestAccess: (() -> Unit)
         if (!hasAccess && onRequestAccess != null) {
             Spacer(Modifier.height(20.dp))
             ActionButton(stringResource(Res.string.library_access_button), onClick = onRequestAccess)
+        } else if (hasAccess && !loading) {
+            if (filtered && onOpenSettings != null) {
+                Spacer(Modifier.height(20.dp))
+                ActionButton(stringResource(Res.string.settings_title), onClick = onOpenSettings)
+            } else if (onRescan != null) {
+                Spacer(Modifier.height(20.dp))
+                ActionButton(stringResource(Res.string.library_rescan), onClick = onRescan)
+            }
         }
     }
 }
@@ -579,8 +718,10 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
                 )
             },
             trailing = {
-                AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-                MoreButton { state.openMenu(track) }
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AppText(formatDuration(track.durationMs), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
+                    MoreButton { state.openMenu(track) }
+                }
             },
             highlighted = track.id == currentTrackId,
             onClick = { state.tapTrack(album.tracks, index, album.playContext()) },

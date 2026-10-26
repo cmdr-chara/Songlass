@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
@@ -140,14 +141,25 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                     Modifier.fillMaxWidth()
                         .then(if (AppTheme.accessibility.reduceMotion) Modifier else Modifier.animateContentSize()),
                 ) {
+                    val shuffleState = stringResource(if (queue.isShuffled) Res.string.playback_shuffle_state_on else Res.string.playback_shuffle_state_off)
+                    val repeatState = stringResource(when (queue.repeatMode) {
+                        RepeatMode.Off -> Res.string.playback_repeat_state_off
+                        RepeatMode.All -> Res.string.playback_repeat_state_all
+                        RepeatMode.One -> Res.string.playback_repeat_state_one
+                    })
                     val shuffle: @Composable () -> Unit = {
-                        IconButton(AppIcons.Shuffle, stringResource(Res.string.playback_shuffle), onClick = { controller.setShuffle(!queue.isShuffled) }, selected = queue.isShuffled, filled = queue.isShuffled)
+                        IconButton(AppIcons.Shuffle, stringResource(Res.string.playback_shuffle),
+                            onClick = { controller.setShuffle(!queue.isShuffled) },
+                            modifier = Modifier.semantics { stateDescription = shuffleState },
+                            selected = queue.isShuffled, filled = queue.isShuffled)
                     }
                     val repeat: @Composable () -> Unit = {
                         IconButton(
                             if (queue.repeatMode == RepeatMode.One) AppIcons.RepeatOne else AppIcons.Repeat,
-                            stringResource(if (queue.repeatMode == RepeatMode.One) Res.string.playback_repeat_one else Res.string.playback_repeat),
-                            onClick = controller::cycleRepeatMode, selected = queue.repeatMode != RepeatMode.Off, filled = queue.repeatMode != RepeatMode.Off,
+                            stringResource(Res.string.playback_repeat),
+                            onClick = controller::cycleRepeatMode,
+                            modifier = Modifier.semantics { stateDescription = repeatState },
+                            selected = queue.repeatMode != RepeatMode.Off, filled = queue.repeatMode != RepeatMode.Off,
                         )
                     }
                     if (compact) {

@@ -20,7 +20,7 @@ import dev.cmdrchara.songlass.designsystem.theme.UiAccessibility
 
 // Neutral colors follow the iOS system palette. The accent is a placeholder brand color:
 // deliberately not Apple Music red, to be replaced when the app identity is defined.
-private val Accent = Color(0xFF7B5CFA)
+private val Accent = Color(0xFF6644E0)
 private val AccentDark = Color(0xFF9F87FF)
 
 internal val LightColors = AppColors(
@@ -28,7 +28,7 @@ internal val LightColors = AppColors(
     background = Color.White,
     secondaryBackground = Color(0xFFF2F2F7),
     label = Color.Black,
-    secondaryLabel = Color(0x993C3C43),
+    secondaryLabel = Color(0xC43C3C43),
     tertiaryLabel = Color(0x4D3C3C43),
     separator = Color(0x4A3C3C43),
     fill = Color(0x1F787880),

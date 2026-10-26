@@ -8,6 +8,8 @@
     <string name="library_albums">Albums</string>
     <string name="library_artists">Artists</string>
     <string name="library_empty">Your library is empty</string>
+    <string name="library_albums_empty">No albums to show</string>
+    <string name="library_albums_empty_hint">Albums need at least %1$d visible songs with matching album details. Individual songs are still available in Songs.</string>
 
     <string name="unknown_artist">Unknown Artist</string>
     <string name="unknown_album">Unknown Album</string>

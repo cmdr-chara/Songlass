@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -33,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -112,23 +115,46 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
     val tracks = availability.tracks
     val context = PlayContext.UserPlaylist(id)
     val editing = state.editingPlaylistId == id
-    // Drag calculations use the same font-scaled height as the row, including large text.
-    val editRowHeight = EditRowHeight * LocalDensity.current.fontScale.coerceAtLeast(1f)
-    val rowHeightPx = with(LocalDensity.current) { editRowHeight.toPx() }
-    var draggedId by remember { mutableStateOf<String?>(null) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
-    val currentTracks by rememberUpdatedState(tracks)
+    val density = LocalDensity.current
+    val rowMetrics = remember(id, density.density, density.fontScale, AppTheme.typography.body, AppTheme.typography.subheadline) {
+        PlaylistEditRowMetrics()
+    }
+    val fallbackRowHeightPx = with(density) { EditRowHeight.toPx() }
+    var draggedId by remember(rowMetrics) { mutableStateOf<String?>(null) }
+    var dragOffset by remember(rowMetrics) { mutableFloatStateOf(0f) }
+    val visibleTrackIds = remember(tracks) { tracks.mapTo(mutableSetOf()) { it.id } }
+    val currentVisibleTrackIds by rememberUpdatedState(visibleTrackIds)
     val reorderLabel = stringResource(Res.string.action_reorder)
     val removeLabel = stringResource(Res.string.playlist_remove_song)
     val upLabel = stringResource(Res.string.playlist_move_up)
     val downLabel = stringResource(Res.string.playlist_move_down)
 
+    LaunchedEffect(editing, rowMetrics) {
+        draggedId = null
+        dragOffset = 0f
+        if (!editing) {
+            rowMetrics.heights.clear()
+            rowMetrics.widthPx = 0
+        }
+    }
+
+    fun adjacentVisibleIndex(ids: List<String>, from: Int, direction: Int): Int? {
+        if (from !in ids.indices || ids[from] !in currentVisibleTrackIds) return null
+        var target = from + direction
+        while (target in ids.indices) {
+            if (ids[target] in currentVisibleTrackIds) return target
+            target += direction
+        }
+        return null
+    }
+
     fun moveVisible(trackId: String, offset: Int): Boolean {
-        val position = currentTracks.indexOfFirst { it.id == trackId }
-        val destination = currentTracks.getOrNull(position + offset) ?: return false
+        // Read stored order: its update can precede the next UI recomposition during a drag.
         val all = state.userPlaylists.get(id)?.trackIds ?: return false
-        state.userPlaylists.move(id, all.indexOf(trackId), all.indexOf(destination.id))
-        return true
+        val from = all.indexOf(trackId)
+        val to = adjacentVisibleIndex(all, from, offset) ?: return false
+        state.userPlaylists.move(id, from, to)
+        return state.userPlaylists.get(id)?.trackIds?.indexOf(trackId) == to
     }
 
     ArtworkCollectionPage(
@@ -189,9 +215,28 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
         }
         // Stored-index mapping keeps hidden/missing entries intact when visible rows move.
         val dragging = track.id == draggedId
+        DisposableEffect(track.id, rowMetrics) {
+            onDispose {
+                // Keep measurements bounded to composed rows, including lazy prefetch items.
+                rowMetrics.heights.remove(track.id)
+                if (draggedId == track.id) {
+                    draggedId = null
+                    dragOffset = 0f
+                }
+            }
+        }
         Box(
             Modifier
-                .height(editRowHeight)
+                .heightIn(min = EditRowHeight)
+                .onSizeChanged { size ->
+                    if (rowMetrics.widthPx != 0 && rowMetrics.widthPx != size.width) {
+                        rowMetrics.heights.clear()
+                        draggedId = null
+                        dragOffset = 0f
+                    }
+                    rowMetrics.widthPx = size.width
+                    rowMetrics.heights[track.id] = size.height
+                }
                 .zIndex(if (dragging) 1f else 0f)
                 .graphicsLayer { translationY = if (dragging) dragOffset else 0f }
                 .semantics {
@@ -216,23 +261,31 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
                             .size(48.dp)
                             .padding(10.dp)
                             .semantics { contentDescription = reorderLabel }
-                            .pointerInput(track.id, rowHeightPx) {
+                            .pointerInput(track.id, rowMetrics) {
                                 detectDragGestures(
                                     onDragStart = { draggedId = track.id; dragOffset = 0f },
                                     onDragEnd = { draggedId = null; dragOffset = 0f },
                                     onDragCancel = { draggedId = null; dragOffset = 0f },
                                 ) { change, amount ->
+                                    if (draggedId != track.id) return@detectDragGestures
                                     change.consume()
                                     dragOffset += amount.y
-                                    val position = currentTracks.indexOfFirst { it.id == track.id }
                                     val all = state.userPlaylists.get(id)?.trackIds ?: return@detectDragGestures
                                     val from = all.indexOf(track.id)
-                                    if (dragOffset > rowHeightPx / 2 && position < currentTracks.lastIndex) {
-                                        state.userPlaylists.move(id, from, all.indexOf(currentTracks[position + 1].id))
-                                        dragOffset -= rowHeightPx
-                                    } else if (dragOffset < -rowHeightPx / 2 && position > 0) {
-                                        state.userPlaylists.move(id, from, all.indexOf(currentTracks[position - 1].id))
-                                        dragOffset += rowHeightPx
+                                    val direction = if (dragOffset > 0f) 1 else -1
+                                    val to = adjacentVisibleIndex(all, from, direction)
+                                    val ownHeight = rowMetrics.heights[track.id]?.toFloat() ?: fallbackRowHeightPx
+                                    val neighborHeight = to?.let { rowMetrics.heights[all[it]] }?.toFloat()
+                                    if (neighborHeight == null) {
+                                        // Bound dragging at list edges and defer swaps across
+                                        // unmeasured lazy rows; their height must not be guessed.
+                                        dragOffset = dragOffset.coerceIn(-ownHeight, ownHeight)
+                                        return@detectDragGestures
+                                    }
+                                    // Cross the neighbor's midpoint, then compensate by the
+                                    // measured space it occupied to keep the row under the finger.
+                                    if (dragOffset * direction > neighborHeight / 2 && moveVisible(track.id, direction)) {
+                                        dragOffset -= direction * neighborHeight
                                     }
                                 }
                             },
@@ -245,6 +298,11 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
 }
 
 private val EditRowHeight = 64.dp
+
+private class PlaylistEditRowMetrics {
+    var widthPx: Int = 0
+    val heights = mutableMapOf<String, Int>()
+}
 
 /** The user's playlists in the Library: a row of covers, with New and Import at the start. */
 @Composable

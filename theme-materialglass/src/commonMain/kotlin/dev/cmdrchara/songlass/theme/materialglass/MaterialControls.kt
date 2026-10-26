@@ -51,9 +51,15 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.addOutline
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
@@ -70,6 +76,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.sp
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -96,7 +103,23 @@ internal object MaterialRipple : IndicationNodeFactory {
     override fun hashCode(): Int = 7
 }
 
-private class RippleNode(private val source: InteractionSource) : Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+/** Icon feedback stays centered when the touch target is larger than its visual surface. */
+internal object MaterialCenteredRipple : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = RippleNode(interactionSource, centered = true)
+    override fun equals(other: Any?): Boolean = other === this
+    override fun hashCode(): Int = 13
+}
+
+/** Only the feedback is clipped; a tile's title may reach the edges of its rectangular layout. */
+internal data class MaterialShapeRipple(private val shape: Shape) : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode = RippleNode(interactionSource, clipShape = shape)
+}
+
+private class RippleNode(
+    private val source: InteractionSource,
+    private val centered: Boolean = false,
+    private val clipShape: Shape? = null,
+) : Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
     private val radius = Animatable(0f)
     private val alpha = Animatable(0f)
     private var origin = Offset.Unspecified
@@ -104,6 +127,11 @@ private class RippleNode(private val source: InteractionSource) : Node(), DrawMo
     private val focuses = mutableSetOf<FocusInteraction.Focus>()
     private val hovers = mutableSetOf<HoverInteraction.Enter>()
     private var rippleJob: Job? = null
+    private var shapePath: Path? = null
+    private var shapeSize = Size.Zero
+    private var shapeLayoutDirection: LayoutDirection? = null
+    private var shapeDensity = Float.NaN
+    private var shapeFontScale = Float.NaN
 
     override fun onAttach() {
         coroutineScope.launch {
@@ -164,23 +192,43 @@ private class RippleNode(private val source: InteractionSource) : Node(), DrawMo
 
     override fun ContentDrawScope.draw() {
         drawContent()
-        clipRect {
-            val color = currentValueOf(LocalContentColor)
-            val stateAlpha = when {
-                focuses.isNotEmpty() -> 0.12f
-                hovers.isNotEmpty() -> 0.08f
-                else -> 0f
-            }
-            val a = alpha.value
-            drawRect(color.copy(alpha = max(stateAlpha, 0.08f * a)))
-            if (a <= 0f) return@clipRect
-            val center = if (origin.isSpecified) origin else Offset(size.width / 2f, size.height / 2f)
-            val farthest = max(
-                max(hypot(center.x, center.y), hypot(size.width - center.x, center.y)),
-                max(hypot(center.x, size.height - center.y), hypot(size.width - center.x, size.height - center.y)),
-            )
-            drawCircle(color.copy(alpha = 0.1f * a), farthest * (if (currentValueOf(LocalUiAccessibility).reduceMotion) 1f else radius.value), center)
+        val shape = clipShape
+        if (shape == null) {
+            clipRect { drawFeedback() }
+        } else {
+            clipPath(feedbackPath(shape)) { drawFeedback() }
         }
+    }
+
+    private fun DrawScope.feedbackPath(shape: Shape): Path {
+        val path = shapePath ?: Path().also { shapePath = it }
+        if (shapeSize != size || shapeLayoutDirection != layoutDirection || shapeDensity != density || shapeFontScale != fontScale) {
+            path.reset()
+            path.addOutline(shape.createOutline(size, layoutDirection, this))
+            shapeSize = size
+            shapeLayoutDirection = layoutDirection
+            shapeDensity = density
+            shapeFontScale = fontScale
+        }
+        return path
+    }
+
+    private fun DrawScope.drawFeedback() {
+        val color = currentValueOf(LocalContentColor)
+        val stateAlpha = when {
+            focuses.isNotEmpty() -> 0.12f
+            hovers.isNotEmpty() -> 0.08f
+            else -> 0f
+        }
+        val a = alpha.value
+        drawRect(color.copy(alpha = max(stateAlpha, 0.08f * a)))
+        if (a <= 0f) return
+        val center = if (!centered && origin.isSpecified) origin else Offset(size.width / 2f, size.height / 2f)
+        val farthest = max(
+            max(hypot(center.x, center.y), hypot(size.width - center.x, center.y)),
+            max(hypot(center.x, size.height - center.y), hypot(size.width - center.x, size.height - center.y)),
+        )
+        drawCircle(color.copy(alpha = 0.1f * a), farthest * (if (currentValueOf(LocalUiAccessibility).reduceMotion) 1f else radius.value), center)
     }
 }
 
@@ -198,7 +246,7 @@ internal fun MaterialBackButton(label: String, onClick: () -> Unit, modifier: Mo
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(palette.container).indication(interaction, MaterialRipple),
+            Modifier.size(40.dp).clip(CircleShape).background(palette.container).indication(interaction, MaterialCenteredRipple),
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(AppIcons.ArrowBack, contentDescription = null, size = 24.dp, tint = AppTheme.colors.label)

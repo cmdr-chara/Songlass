@@ -47,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
@@ -242,10 +241,9 @@ private fun CarouselItem(item: ShelfItem, largePx: Float, scroll: () -> Float) {
             },
             contentAlignment = Alignment.BottomStart,
         ) {
-            if (item.icon == null) {
-                Box(Modifier.fillMaxWidth().height(sizeDp * 0.55f).background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.62f)))))
-            }
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Column(Modifier.fillMaxWidth()
+                .then(if (item.icon == null) Modifier.materialArtworkCaptionScrim() else Modifier)
+                .padding(start = 14.dp, end = 14.dp, top = MaterialArtworkCaptionFadeHeight, bottom = 12.dp)) {
                 val ink = if (item.icon != null) palette.onPrimaryContainer else Color.White
                 AppText(item.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Bold), color = ink, maxLines = 1)
                 item.subtitle?.let { AppText(it, AppTheme.typography.caption1, color = ink.copy(alpha = 0.82f), maxLines = 1) }

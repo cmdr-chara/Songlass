@@ -48,6 +48,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
@@ -190,10 +191,10 @@ private fun RowScope.GroupButton(
 internal fun MaterialTag(text: String, modifier: Modifier) {
     Box(
         modifier
-            .height(28.dp)
+            .heightIn(min = 28.dp)
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, AppTheme.colors.label.copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
         AppText(text, AppTheme.typography.caption1.copy(fontWeight = FontWeight.SemiBold), color = AppTheme.colors.secondaryLabel, maxLines = 1)
@@ -306,6 +307,7 @@ internal fun MaterialSearchField(query: String, onQueryChange: (String) -> Unit,
 internal fun MaterialIconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) {
     val palette = currentPalette()
     val reduceMotion = AppTheme.accessibility.reduceMotion
+    val interaction = remember { MutableInteractionSource() }
     val corner by animateDpAsState(if (selected) 14.dp else 24.dp, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "iconButtonShape")
     val container = when {
         selected -> palette.primary
@@ -321,7 +323,11 @@ internal fun MaterialIconButton(icon: ImageVector, contentDescription: String, o
     Box(
         modifier
             .size(48.dp)
-            .semantics { this.contentDescription = contentDescription },
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics {
+                this.contentDescription = contentDescription
+                if (selected) this.selected = true
+            },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -329,7 +335,7 @@ internal fun MaterialIconButton(icon: ImageVector, contentDescription: String, o
                 .size(size)
                 .clip(RoundedCornerShape(corner))
                 .background(container)
-                .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick),
+                .indication(interaction, MaterialCenteredRipple),
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(icon, contentDescription = null, size = 24.dp, tint = tint)

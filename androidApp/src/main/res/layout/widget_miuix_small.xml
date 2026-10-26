@@ -24,6 +24,10 @@
         android:layout_margin="8dp"
         android:background="@drawable/widget_button_miuix"
         android:contentDescription="@string/widget_play"
+        android:defaultFocusHighlightEnabled="false"
+        android:focusable="true"
+        android:foreground="@drawable/widget_feedback_miuix_button"
+        android:foregroundGravity="fill"
         android:paddingVertical="14dp"
         android:src="@drawable/widget_play"
         android:tint="@color/widget_miuix_on_accent" />

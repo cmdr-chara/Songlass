@@ -3,11 +3,13 @@ package dev.cmdrchara.songlass.theme.liquidglass
 import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.ShelfItem
 import dev.cmdrchara.songlass.designsystem.EqBand
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
 import dev.cmdrchara.songlass.designsystem.HomeHighlight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import dev.cmdrchara.songlass.designsystem.InfoRow
@@ -101,6 +103,10 @@ object LiquidGlassStyle : UiStyle {
     @Composable
     override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
         LocalGlassLook.current.ActionButton(text, icon, onClick, modifier)
+
+    @Composable
+    override fun artworkTileFeedback(modifier: Modifier, interactionSource: InteractionSource, shape: Shape): Modifier =
+        LocalGlassLook.current.artworkTileFeedback(modifier, interactionSource, shape)
 
     @Composable
     override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) =

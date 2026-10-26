@@ -46,6 +46,10 @@
         android:layout_margin="10dp"
         android:background="@drawable/widget_circle"
         android:contentDescription="@string/widget_play"
+        android:defaultFocusHighlightEnabled="false"
+        android:focusable="true"
+        android:foreground="@drawable/widget_feedback_circle"
+        android:foregroundGravity="fill"
         android:padding="15dp"
         android:src="@drawable/widget_play" />
 </FrameLayout>

@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -50,10 +48,6 @@ internal fun MaterialPosterCard(label: String, title: String, subtitle: String?,
             .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick),
     ) {
         AlbumArt(artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
-        Box(
-            Modifier.align(Alignment.BottomCenter).fillMaxWidth().fillMaxHeight(0.55f)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f)))),
-        )
         AppText(
             label,
             AppTheme.typography.caption1.copy(fontWeight = FontWeight.Bold),
@@ -61,7 +55,8 @@ internal fun MaterialPosterCard(label: String, title: String, subtitle: String?,
             maxLines = 1,
             modifier = Modifier.padding(12.dp).clip(CircleShape).background(palette.primaryContainer).padding(horizontal = 12.dp, vertical = 6.dp),
         )
-        Column(Modifier.align(Alignment.BottomStart).padding(start = 18.dp, end = 18.dp, bottom = 16.dp)) {
+        Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().materialArtworkCaptionScrim()
+            .padding(start = 18.dp, end = 18.dp, top = MaterialArtworkCaptionFadeHeight, bottom = 16.dp)) {
             AppText(title, AppTheme.typography.title2.copy(fontWeight = FontWeight.Bold), color = Color.White, maxLines = 2)
             if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline, color = Color.White.copy(alpha = 0.85f), maxLines = 1)
         }

@@ -302,7 +302,8 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.FacetDetail -> dev.cmdrchara.songlass.ui.LibraryFacetScreen(route.context, state, currentId, backLabel, padding)
                             is Route.FolderDetail -> FolderScreen(route.folder, state, currentId, backLabel, padding)
                             is Route.UserPlaylistDetail -> UserPlaylistScreen(route.id, state, currentId, backLabel, padding)
-                            is Route.LibraryPage -> LibraryCategoryScreen(route.category, state, currentId, favoriteIds, backLabel, padding)
+                            is Route.LibraryPage -> LibraryCategoryScreen(route.category, state, currentId, favoriteIds,
+                                hasLibraryAccess, onRequestLibraryAccess, backLabel, padding)
                             null -> when (destination.tab) {
                                 Tab.Home -> HomeScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)
                                 Tab.Library -> LibraryScreen(state, currentId, favoriteIds, hasLibraryAccess, onRequestLibraryAccess, padding)

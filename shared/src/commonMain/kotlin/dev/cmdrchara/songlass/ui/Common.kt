@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.Dp
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.artworkTileFeedback
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.BackButton
 import dev.cmdrchara.songlass.designsystem.ListRow
@@ -112,7 +114,12 @@ fun MoreButton(onClick: () -> Unit) {
 
 @Composable
 fun AlbumTile(album: Album, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(modifier.prefetchArtworkOnPress(album.artwork()).clickable(remember { MutableInteractionSource() }, indication = null, role = Role.Button, onClick = onClick)) {
+    val interaction = remember { MutableInteractionSource() }
+    Column(
+        modifier.prefetchArtworkOnPress(album.artwork())
+            .artworkTileFeedback(interaction, RoundedCornerShape(10.dp))
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick),
+    ) {
         AlbumArt(album.artwork(), Modifier.fillMaxWidth().aspectRatio(1f), cornerRadius = 10.dp)
         Spacer(Modifier.size(6.dp))
         AppText(albumTitle(album.title), AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Medium), maxLines = 2)

@@ -181,6 +181,11 @@ interface GlassLook {
     @Composable
     fun pressIndication(): Indication? = null
 
+    /** Draw tile feedback without clipping its artwork or title content. */
+    @Composable
+    fun artworkTileFeedback(modifier: Modifier, interactionSource: InteractionSource, shape: Shape): Modifier =
+        liquidArtworkTileFeedback(modifier, interactionSource, shape)
+
     // Components a look may redraw in its own shape. Kept here, not in a separate UiStyle, so a
     // change of look keeps the same composition tree (no rebuilt screens when switching style).
 

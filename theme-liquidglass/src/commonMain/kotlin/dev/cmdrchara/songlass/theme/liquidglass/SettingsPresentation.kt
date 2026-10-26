@@ -95,6 +95,7 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
     val largeText = LocalDensity.current.fontScale > 1.3f
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp)
         .background(if (pressed) colors.fill else Color.Transparent)
+        .liquidFocusIndicator(interaction)
         .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
         .padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         LiquidSettingsCategoryIcon(icon, Modifier)
@@ -126,6 +127,7 @@ internal fun LiquidSettingsSearchResult(title: String, path: String, value: Stri
     LiquidSettingsPageGroup(modifier) {
         Row(Modifier.fillMaxWidth().heightIn(min = 64.dp)
             .background(if (pressed) colors.fill else Color.Transparent)
+            .liquidFocusIndicator(interaction)
             .semantics(mergeDescendants = true) { }
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 14.dp),
@@ -154,6 +156,7 @@ internal fun LiquidSettingsPreviewChoice(title: String, selected: Boolean, onCli
     val colors = AppTheme.colors
     val interaction = remember { MutableInteractionSource() }
     Column(modifier.semantics(mergeDescendants = true) { }
+        .liquidFocusIndicator(interaction, RoundedCornerShape(12.dp))
         .selectable(selected, interaction, LocalGlassLook.current.pressIndication(), role = Role.RadioButton, onClick = onClick)
         .padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.width(54.dp), contentAlignment = Alignment.Center) { preview() }

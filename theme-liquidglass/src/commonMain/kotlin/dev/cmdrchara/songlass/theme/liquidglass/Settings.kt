@@ -73,6 +73,7 @@ internal fun LiquidGlassSettingsChoiceRow(
             .heightIn(min = 52.dp)
             .background(pressedColor)
             .settingsSeparator()
+            .liquidFocusIndicator(interaction)
             .selectable(selected, interaction, indication = null, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -110,7 +111,12 @@ internal fun LiquidGlassSettingsToggleRow(
         label = "settingsSwitchThumb",
     )
     val trackColor by animateColorAsState(
-        targetValue = if (checked) colors.accent else if (colors.isDark) Color(0xFF636366) else Color(0xFF8E8E93),
+        targetValue = when {
+            !enabled -> colors.label.copy(alpha = 0.24f)
+            checked -> colors.accent
+            colors.isDark -> Color(0xFF636366)
+            else -> Color(0xFF8E8E93)
+        },
         animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "settingsSwitchTrack",
     )
@@ -120,6 +126,7 @@ internal fun LiquidGlassSettingsToggleRow(
             .heightIn(min = 56.dp)
             .background(pressedColor)
             .settingsSeparator()
+            .liquidFocusIndicator(interaction, enabled = enabled)
             .toggleable(
                 value = checked,
                 interactionSource = interaction,
@@ -132,13 +139,13 @@ internal fun LiquidGlassSettingsToggleRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            AppText(title, AppTheme.typography.body, color = colors.label)
+            AppText(title, AppTheme.typography.body, color = if (enabled) colors.label else colors.secondaryLabel)
             if (subtitle != null) {
                 AppText(
                     subtitle,
                     AppTheme.typography.footnote,
                     modifier = Modifier.padding(top = 4.dp),
-                    color = colors.label.copy(alpha = 0.7f),
+                    color = if (enabled) colors.label.copy(alpha = 0.7f) else colors.secondaryLabel,
                 )
             }
         }

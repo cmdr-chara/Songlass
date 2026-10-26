@@ -35,6 +35,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.AlbumArt
+import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.WelcomeLayout
 import dev.cmdrchara.songlass.designsystem.WelcomeModel
 import dev.cmdrchara.songlass.designsystem.WelcomePages
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
@@ -53,73 +55,80 @@ import dev.cmdrchara.songlass.designsystem.welcomeEnter
 @Composable
 internal fun MaterialWelcome(model: WelcomeModel, palette: SeaPalette) {
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    Column(Modifier.fillMaxSize().background(palette.background).windowInsetsPadding(WindowInsets.systemBars).padding(horizontal = 24.dp)) {
-        Spacer(Modifier.height(8.dp))
-        // The illustration takes whatever height the page below it leaves free.
-        BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-            val room = minOf(maxHeight, maxWidth * 1.15f, 340.dp).coerceAtLeast(110.dp)
-            Crossfade(model.covers.size >= 3, label = "hero") { covers ->
-                if (covers) CoverShapes(model, room, maxWidth) else ExpressiveMark(model.step, palette, room)
+    WelcomeLayout(
+        step = model.step,
+        modifier = Modifier.fillMaxSize().background(palette.background).windowInsetsPadding(WindowInsets.systemBars).padding(horizontal = 24.dp),
+        topSpacing = 8.dp,
+        minimumHeroHeight = 110.dp,
+        hero = {
+            val room = minOf(maxHeight, maxWidth, 340.dp)
+            // The outgoing cover page keeps its own images when Back clears the latest model.
+            val coverSnapshot = model.covers.takeIf { it.size >= 3 }?.take(4)
+            Crossfade(coverSnapshot, label = "hero") { covers ->
+                if (covers != null) CoverShapes(covers, minOf(room, maxWidth / 1.12f)) else ExpressiveMark(model.step, palette, room)
             }
-        }
-        Spacer(Modifier.height(12.dp))
-        WelcomePages(model) { page ->
-            AppText(page.title, AppTheme.typography.largeTitle.copy(fontWeight = FontWeight.Medium), color = palette.label)
-            Spacer(Modifier.height(10.dp))
-            AppText(page.body, AppTheme.typography.body, color = palette.secondaryLabel)
-            if (page.choices.isNotEmpty()) {
-                Spacer(Modifier.height(20.dp))
-                Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    page.choices.forEach { choice ->
-                        val shape = RoundedCornerShape(26.dp)
-                        Column(
-                            Modifier.weight(1f).clip(shape)
-                                .background(if (choice.selected) palette.primaryContainer else palette.containerHigh)
-                                .selectable(choice.selected, remember { MutableInteractionSource() }, MaterialRipple, role = Role.RadioButton, onClick = choice.onSelect)
-                                .padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            choice.preview(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)))
-                            Row(Modifier.heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
-                                if (choice.selected) AppIcon(AppIcons.Checkmark, null, size = 14.dp, tint = palette.onPrimaryContainer, modifier = Modifier.padding(end = 4.dp))
-                                AppText(choice.label, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium),
-                                    color = if (choice.selected) palette.onPrimaryContainer else palette.label, maxLines = 2, modifier = Modifier.weight(1f, fill = false))
+        },
+        content = {
+            WelcomePages(model) { page ->
+                AppText(page.title, AppTheme.typography.largeTitle.copy(fontWeight = FontWeight.Medium), color = palette.label)
+                Spacer(Modifier.height(10.dp))
+                AppText(page.body, AppTheme.typography.body, color = palette.secondaryLabel)
+                if (page.choices.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        page.choices.forEach { choice ->
+                            val shape = RoundedCornerShape(26.dp)
+                            Column(
+                                Modifier.weight(1f).clip(shape)
+                                    .background(if (choice.selected) palette.primaryContainer else palette.containerHigh)
+                                    .selectable(choice.selected, remember { MutableInteractionSource() }, MaterialRipple, role = Role.RadioButton, onClick = choice.onSelect)
+                                    .padding(8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                choice.preview(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)))
+                                Row(Modifier.heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    if (choice.selected) AppIcon(AppIcons.Checkmark, null, size = 14.dp, tint = palette.onPrimaryContainer, modifier = Modifier.padding(end = 4.dp))
+                                    AppText(choice.label, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium),
+                                        color = if (choice.selected) palette.onPrimaryContainer else palette.label, maxLines = 2, modifier = Modifier.weight(1f, fill = false))
+                                }
                             }
                         }
                     }
                 }
-            }
-            page.status?.let {
-                Spacer(Modifier.height(18.dp))
-                Box(Modifier.clip(RoundedCornerShape(16.dp)).background(palette.primaryContainer).padding(horizontal = 14.dp, vertical = 10.dp)) {
-                    AppText(it, AppTheme.typography.subheadline, color = palette.onPrimaryContainer)
+                page.status?.let {
+                    Spacer(Modifier.height(18.dp))
+                    Box(Modifier.clip(RoundedCornerShape(16.dp)).background(palette.primaryContainer).padding(horizontal = 14.dp, vertical = 10.dp)) {
+                        AppText(it, AppTheme.typography.subheadline, color = palette.onPrimaryContainer)
+                    }
                 }
             }
-        }
-        Spacer(Modifier.height(16.dp))
-        Row(Modifier.semantics { contentDescription = model.stepDescription }, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            repeat(model.stepCount) { i ->
-                val current = i + 1 == model.step
-                val width by animateFloatAsState(if (current) 32f else 8f, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "dot")
-                Box(Modifier.height(8.dp).width(width.dp).clip(CircleShape).background(if (current) palette.primary else palette.containerHigh))
+        },
+        footer = {
+            Spacer(Modifier.height(16.dp))
+            Row(Modifier.semantics { contentDescription = model.stepDescription }, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                repeat(model.stepCount) { i ->
+                    val current = i + 1 == model.step
+                    val width by animateFloatAsState(if (current) 32f else 8f, if (reduceMotion) snap() else MaterialMotion.spatial(), label = "dot")
+                    Box(Modifier.height(8.dp).width(width.dp).clip(CircleShape).background(if (current) palette.primary else palette.containerHigh))
+                }
             }
-        }
-        Spacer(Modifier.height(14.dp))
-        Box(
-            Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(CircleShape).background(palette.primary)
-                .clickable(remember { MutableInteractionSource() }, MaterialRipple, role = Role.Button, onClick = model.onPrimary),
-            contentAlignment = Alignment.Center,
-        ) { AppText(model.primaryLabel, AppTheme.typography.headline, color = palette.onPrimary) }
-        val onSecondary = model.onSecondary
-        val secondary = model.secondaryLabel
-        if (secondary != null && onSecondary != null) {
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                AppText(secondary, AppTheme.typography.body.copy(fontWeight = FontWeight.Medium), color = palette.primary,
-                    modifier = Modifier.padding(top = 4.dp).clip(CircleShape).clickable(remember { MutableInteractionSource() }, MaterialRipple, role = Role.Button, onClick = onSecondary)
-                        .padding(horizontal = 24.dp, vertical = 14.dp))
-            }
-        } else Spacer(Modifier.height(14.dp))
-    }
+            Spacer(Modifier.height(14.dp))
+            Box(
+                Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(CircleShape).background(palette.primary)
+                    .clickable(remember { MutableInteractionSource() }, MaterialRipple, role = Role.Button, onClick = model.onPrimary),
+                contentAlignment = Alignment.Center,
+            ) { AppText(model.primaryLabel, AppTheme.typography.headline, color = palette.onPrimary) }
+            val onSecondary = model.onSecondary
+            val secondary = model.secondaryLabel
+            if (secondary != null && onSecondary != null) {
+                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    AppText(secondary, AppTheme.typography.body.copy(fontWeight = FontWeight.Medium), color = palette.primary,
+                        modifier = Modifier.padding(top = 4.dp).clip(CircleShape).clickable(remember { MutableInteractionSource() }, MaterialRipple, role = Role.Button, onClick = onSecondary)
+                            .padding(horizontal = 24.dp, vertical = 14.dp))
+                }
+            } else Spacer(Modifier.height(14.dp))
+        },
+    )
 }
 
 /** A large shape, a different one on each page, turning slowly behind the Songlass mark. */
@@ -144,8 +153,7 @@ private fun ExpressiveMark(step: Int, palette: SeaPalette, room: androidx.compos
 
 /** Three of the person's covers, each cut into an expressive shape. */
 @Composable
-private fun CoverShapes(model: WelcomeModel, room: androidx.compose.ui.unit.Dp, width: androidx.compose.ui.unit.Dp) {
-    val covers = model.covers
+private fun CoverShapes(covers: List<Artwork>, room: androidx.compose.ui.unit.Dp) {
     val shapes: List<Shape> = listOf(ExpressiveShapes.Cookie, ExpressiveShapes.Arch, ExpressiveShapes.Clover)
     Box(Modifier.size(room * 1.12f, room)) {
         Box(Modifier.align(Alignment.Center).offset(y = (-room * 0.02f)).size(room * 0.78f).welcomeEnter(0).clip(shapes[0])) {

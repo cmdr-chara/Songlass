@@ -59,6 +59,10 @@
                 android:layout_height="48dp"
                 android:background="@drawable/widget_tonal_material"
                 android:contentDescription="@string/widget_previous"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="true"
+                android:foreground="@drawable/widget_feedback_circle"
+                android:foregroundGravity="fill"
                 android:padding="13dp"
                 android:src="@drawable/widget_previous"
                 android:tint="@color/widget_material_on_tonal" />
@@ -70,6 +74,10 @@
                 android:layout_marginHorizontal="6dp"
                 android:background="@drawable/widget_pill_material"
                 android:contentDescription="@string/widget_play"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="true"
+                android:foreground="@drawable/widget_feedback_pill"
+                android:foregroundGravity="fill"
                 android:paddingVertical="13dp"
                 android:src="@drawable/widget_play"
                 android:tint="@color/widget_material_on_primary" />
@@ -80,6 +88,10 @@
                 android:layout_height="48dp"
                 android:background="@drawable/widget_tonal_material"
                 android:contentDescription="@string/widget_next"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="true"
+                android:foreground="@drawable/widget_feedback_circle"
+                android:foregroundGravity="fill"
                 android:padding="13dp"
                 android:src="@drawable/widget_next"
                 android:tint="@color/widget_material_on_tonal" />

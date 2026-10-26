@@ -871,6 +871,7 @@ internal fun LiquidGlassIconButton(
     Box(
         modifier = modifier
             .size(hitSize)
+            .liquidFocusIndicator(interaction, CircleShape)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {

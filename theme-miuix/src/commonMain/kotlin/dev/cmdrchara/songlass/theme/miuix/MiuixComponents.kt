@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -151,7 +152,11 @@ internal fun MiuixSeek(positionMs: Long, durationMs: Long, quality: String?, onS
     Column(modifier) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             AppText(time((fraction * duration).toLong()), AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel)
-            quality?.let { AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1) }
+            quality?.let {
+                AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel,
+                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    textAlign = TextAlign.Center, maxLines = 1)
+            }
             AppText("−" + time((duration - fraction * duration).toLong().coerceAtLeast(0)), AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel)
         }
         NativeSlider(fraction, { dragging = it }, Modifier.fillMaxWidth().heightIn(min = 44.dp),

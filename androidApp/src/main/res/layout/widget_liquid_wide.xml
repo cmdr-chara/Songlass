@@ -56,6 +56,10 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:contentDescription="@string/widget_previous"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="true"
+                android:foreground="@drawable/widget_feedback_circle"
+                android:foregroundGravity="fill"
                 android:padding="13dp"
                 android:src="@drawable/widget_previous" />
 
@@ -66,6 +70,10 @@
                 android:layout_marginHorizontal="6dp"
                 android:background="@drawable/widget_circle"
                 android:contentDescription="@string/widget_play"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="true"
+                android:foreground="@drawable/widget_feedback_circle"
+                android:foregroundGravity="fill"
                 android:padding="13dp"
                 android:src="@drawable/widget_play" />
 
@@ -74,6 +82,10 @@
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:contentDescription="@string/widget_next"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="true"
+                android:foreground="@drawable/widget_feedback_circle"
+                android:foregroundGravity="fill"
                 android:padding="13dp"
                 android:src="@drawable/widget_next" />
         </LinearLayout>

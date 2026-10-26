@@ -130,6 +130,10 @@ object MiuixLook : GlassLook {
     override fun pressIndication(): Indication? = if (AppTheme.accessibility.reduceMotion) null else MiuixIndication(AppTheme.colors.label)
 
     @Composable
+    override fun artworkTileFeedback(modifier: Modifier, interactionSource: InteractionSource, shape: Shape): Modifier =
+        miuixArtworkTileFeedback(modifier, interactionSource, shape)
+
+    @Composable
     override fun NavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) = MiuixNavigation(tabs, selectedTab, onTabSelected, modifier)
     @Composable
     override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) = MiuixAction(text, icon, onClick, modifier)

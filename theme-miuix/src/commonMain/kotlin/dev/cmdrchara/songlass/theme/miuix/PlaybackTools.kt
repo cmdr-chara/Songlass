@@ -85,7 +85,9 @@ internal fun MiuixPlaybackTools(visible: Boolean, title: String, subtitle: Strin
                                 role = if (row.onClick != null) Role.Button else null,
                             ) {
                                 AppText(row.title, AppTheme.typography.body, color = AppTheme.colors.label)
-                                AppText(row.value, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel)
+                                if (row.value.isNotEmpty()) {
+                                    AppText(row.value, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel)
+                                }
                             }
                         }
                     }, Modifier)

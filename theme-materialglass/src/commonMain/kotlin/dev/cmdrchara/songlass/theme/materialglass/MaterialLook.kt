@@ -4,6 +4,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.PaddingValues
@@ -355,6 +356,10 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @Composable
     override fun pressIndication(): Indication = MaterialRipple
+
+    @Composable
+    override fun artworkTileFeedback(modifier: Modifier, interactionSource: InteractionSource, shape: Shape): Modifier =
+        modifier.indication(interactionSource, remember(shape) { MaterialShapeRipple(shape) })
 
     @Composable
     override fun NavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) =

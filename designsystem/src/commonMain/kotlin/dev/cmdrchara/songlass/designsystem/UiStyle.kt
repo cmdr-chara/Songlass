@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.designsystem
 
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.runtime.Composable
@@ -8,6 +9,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 
@@ -237,6 +239,10 @@ interface UiStyle {
     /** Prominent action such as "Play" or "Shuffle" on an album. */
     @Composable
     fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier)
+
+    /** Feedback on the same bounds as the tile's click target; content remains unclipped. */
+    @Composable
+    fun artworkTileFeedback(modifier: Modifier, interactionSource: InteractionSource, shape: Shape): Modifier
 
     /**
      * Icon-only button with a hit area of at least 44×44 dp. [filled] adds a translucent circle

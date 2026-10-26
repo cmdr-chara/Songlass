@@ -90,8 +90,11 @@ internal fun MiuixNavigation(tabs: List<TabItem>, selectedTab: Int, onTabSelecte
                 translationX = 3.dp.toPx() * pull.value
             }
             .pointerInput(tabs.size, slotPx, rtl) {
+                fun isWithinVerticalBounds(y: Float): Boolean =
+                    y in -viewConfiguration.touchSlop..(size.height + viewConfiguration.touchSlop)
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                    if (!isWithinVerticalBounds(down.position.y)) return@awaitEachGesture
                     down.consume()
                     motion.touching = true
                     motion.destination = indexAt(down.position.x).toFloat()
@@ -103,9 +106,12 @@ internal fun MiuixNavigation(tabs: List<TabItem>, selectedTab: Int, onTabSelecte
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                             val change = event.changes.firstOrNull { it.id == activePointer } ?: break
+                            // Leaving vertically cancels this gesture, including a release outside.
+                            if (!isWithinVerticalBounds(change.position.y)) break
                             if (!change.pressed) {
                                 val continuation = event.changes.firstOrNull { it.pressed && it.id != activePointer }
                                 if (continuation != null) {
+                                    if (!isWithinVerticalBounds(continuation.position.y)) break
                                     change.consume()
                                     activePointer = continuation.id
                                     previousX = continuation.position.x
