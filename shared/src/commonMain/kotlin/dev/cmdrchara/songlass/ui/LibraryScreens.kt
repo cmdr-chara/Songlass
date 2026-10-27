@@ -23,6 +23,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.shared.resources.library_playlists
+import dev.cmdrchara.songlass.shared.resources.artwork_online_action
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.LibraryFilter
 import dev.cmdrchara.songlass.core.library.AlphabeticalIndex
@@ -690,8 +691,12 @@ fun PlaylistRow(playlist: Playlist, onClick: () -> Unit) {
 fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabel: String, contentPadding: PaddingValues) {
     val isCompilation = album.tracks.any { it.artist != album.artist }
     val artist = state.library.artists.firstOrNull { it.name == album.artist }
+    // A cover the user downloaded and applied replaces the album's own; the entry point next to the
+    // pin opens the picker (and is where that cover is removed again).
+    val cover = rememberAlbumCoverView(album)
+    val onlineArtworkAvailable = LocalOnlineArtwork.current != null
     ArtworkCollectionPage(
-        artwork = album.artwork(),
+        artwork = cover.artwork,
         kind = stringResource(Res.string.tag_album),
         title = albumTitle(album.title),
         subtitle = artistName(album.artist),
@@ -703,6 +708,21 @@ fun AlbumScreen(album: Album, state: AppState, currentTrackId: String?, backLabe
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
+        headerAction = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PinButton(album.playContext(), state)
+                if (onlineArtworkAvailable) {
+                    IconButton(
+                        AppIcons.Search,
+                        stringResource(Res.string.artwork_online_action),
+                        onClick = { state.open(Route.OnlineArtwork(album)) },
+                        selected = cover.downloaded != null,
+                        filled = true,
+                    )
+                }
+            }
+        },
+        extra = if (cover.downloaded == null) null else ({ downloadedCoverNotice() }),
         rowArtwork = false,
     ) { index, track ->
         ListRow(
@@ -749,6 +769,12 @@ fun FolderScreen(folder: Folder, state: AppState, currentTrackId: String?, backL
         state = state,
         backLabel = backLabel,
         contentPadding = contentPadding,
+        headerAction = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ResumeOverrideButton(state, context)
+                PinButton(context, state)
+            }
+        },
         extra = if (folder.children.isEmpty()) null else {
             {
                 item { SectionTitle(stringResource(Res.string.library_folders)) }

@@ -12,6 +12,8 @@ enum class SettingsTarget {
     ResumeBluetooth, BluetoothCommandDelay,
     FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
+    OnlineArtworkEnabled, OnlineArtworkWifiOnly, LastFm,
+    ResumeOverrides,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -35,7 +37,7 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     }
 
     /** Only registered, available destinations are returned. Searching never changes a preference. */
-    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true, supportsAudioFocusSettings: Boolean = true, supportsHeadphoneSettings: Boolean = true): List<SettingsTarget> {
+    fun search(query: String, supportsAmllLyrics: Boolean, supportsCrossfade: Boolean = true, supportsOnlineLyrics: Boolean = true, supportsTransportFades: Boolean = true, supportsReplayGainProcessing: Boolean = true, supportsAudioEffects: Boolean = true, supportsAudioFocusSettings: Boolean = true, supportsHeadphoneSettings: Boolean = true, supportsOnlineArtwork: Boolean = true, supportsScrobbling: Boolean = true): List<SettingsTarget> {
         val normalized = normalizeSettingsText(query)
         if (normalized.isEmpty()) return emptyList()
         val tokens = normalized.split(' ').distinct()
@@ -48,6 +50,8 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
             if (!supportsHeadphoneSettings && entry.target in setOf(SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay)) return@mapIndexedNotNull null
             if (!supportsAudioFocusSettings && entry.target in setOf(SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall)) return@mapIndexedNotNull null
             if (!supportsAudioEffects && entry.target in audioEffectTargets) return@mapIndexedNotNull null
+            if (!supportsOnlineArtwork && entry.target in onlineArtworkTargets) return@mapIndexedNotNull null
+            if (!supportsScrobbling && entry.target in scrobblingTargets) return@mapIndexedNotNull null
             entry.match(normalized, tokens)?.let { Match(entry.target, it.first, it.second, order) }
         }.sortedWith(compareBy<Match> { it.priority }.thenBy { it.cost }.thenBy { it.order })
             .map { it.target }
@@ -56,6 +60,8 @@ class SettingsSearchIndex(documents: List<SettingsSearchDocument>) {
     private data class Match(val target: SettingsTarget, val priority: Int, val cost: Int, val order: Int)
 
     private companion object {
+        val onlineArtworkTargets = setOf(SettingsTarget.OnlineArtworkEnabled, SettingsTarget.OnlineArtworkWifiOnly)
+        val scrobblingTargets = setOf(SettingsTarget.LastFm)
         val audioEffectTargets = setOf(SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb, SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands)
         val replayGainProcessingTargets = setOf(SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter)
         val transportFadeTargets = setOf(SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration)
@@ -238,6 +244,15 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "shortcuts|scorciatoie|sections|sezioni|order|ordine|pins|fissati|home")
     SettingsTarget.Backup -> terms("Backup", "Backup and restore", "Backup e ripristino",
         aliases = "export|esporta|import|importa|importazione|esportazione|restore|ripristina|save|salva|dati|settings|preferences|impostazioni|preferenze")
+    SettingsTarget.OnlineArtworkEnabled -> terms("Online covers", "Cover search", "Copertine online", "Ricerca copertine",
+        aliases = "artwork|cover|copertina|copertine|album art|download|scaricare|itunes|internet|rete|network|privacy|immagini|images")
+    SettingsTarget.OnlineArtworkWifiOnly -> terms("Download on Wi-Fi only", "Scarica solo in Wi-Fi", "Wi-Fi only covers",
+        aliases = "wifi|wi fi|dati mobili|mobile data|metered|rete|network|download|scaricare|copertine|covers|risparmio dati|data saver")
     SettingsTarget.About -> terms("About", "Informazioni",
         aliases = "privacy|licenses|licenze|data|dati|permissions|permessi|source|fonti|songlass")
+    SettingsTarget.LastFm -> terms("Last.fm", "Last.fm scrobbling", "Scrobbling Last.fm",
+        aliases = "lastfm|last fm|scrobble|scrobbling|scrobbler|scrobbli|ascolti|listening|account|profilo|profile|collega|connect|sessione|session|api|chiave|key|social")
+    SettingsTarget.ResumeOverrides -> terms("Resume by collection", "Collection resume", "Ripresa per raccolta",
+        "Eccezioni di ripresa", "Ripresa per cartella",
+        aliases = "resume|ripresa|riprendi|continua|continuare|collection|raccolta|raccolte|folder|cartella|cartelle|playlist|override|eccezione|eccezioni|exception|exceptions|threshold|soglia|ripresa automatica")
 }

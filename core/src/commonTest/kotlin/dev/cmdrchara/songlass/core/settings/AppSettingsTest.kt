@@ -1,6 +1,7 @@
 package dev.cmdrchara.songlass.core.settings
 
 import dev.cmdrchara.songlass.core.library.Favorites
+import dev.cmdrchara.songlass.core.scrobble.LastFmStorageKeys
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -494,5 +495,44 @@ class AppSettingsTest {
         settings.resetToDefaults(SettingsArea.Appearance)
         assertEquals(AppIconChoice.Violet, settings.state.value.appIcon)
         assertEquals(null, store.getString(AppSettings.APP_ICON_KEY))
+    }
+
+    @Test
+    fun lastFmIsOffByDefaultTrimmedAndForgottenOnlyOnRequest() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        assertEquals(false, settings.state.value.lastFmEnabled)
+        assertEquals("", settings.state.value.lastFmApiKey)
+        assertEquals("", settings.state.value.lastFmApiSecret)
+
+        settings.setLastFmEnabled(true)
+        settings.setLastFmApiCredentials("  pasted-key  ", " pasted-secret ")
+        // Trimmed on write, so whitespace from a paste never breaks the signature.
+        assertEquals("pasted-key", settings.state.value.lastFmApiKey)
+        assertEquals("pasted-secret", settings.state.value.lastFmApiSecret)
+        val restored = AppSettings(store).state.value
+        assertEquals(true, restored.lastFmEnabled)
+        assertEquals("pasted-key", restored.lastFmApiKey)
+        assertEquals("pasted-secret", restored.lastFmApiSecret)
+
+        // Credentials, session and queue stay out of the .songlass v1 backup prefixes on purpose.
+        for (key in LastFmStorageKeys.ALL) {
+            assertTrue(key.startsWith("lastfm."), "$key must not travel in a settings/library/home backup")
+        }
+        store.putString(LastFmStorageKeys.SESSION_KEY, "session-key")
+        store.putString(LastFmStorageKeys.SESSION_USERNAME, "listener")
+        store.putString(LastFmStorageKeys.QUEUE, "pending")
+
+        // Resetting the appearance page never touches scrobbling.
+        settings.resetToDefaults(SettingsArea.Appearance)
+        assertEquals(true, settings.state.value.lastFmEnabled)
+        assertEquals("pasted-key", settings.state.value.lastFmApiKey)
+
+        settings.resetLastFm()
+        assertEquals(false, settings.state.value.lastFmEnabled)
+        assertEquals("", settings.state.value.lastFmApiKey)
+        assertEquals("", settings.state.value.lastFmApiSecret)
+        for (key in LastFmStorageKeys.ALL) assertEquals(null, store.getString(key), key)
+        assertEquals(settings.state.value, AppSettings(store).state.value)
     }
 }

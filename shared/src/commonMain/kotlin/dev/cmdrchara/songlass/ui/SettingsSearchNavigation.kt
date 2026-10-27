@@ -77,7 +77,7 @@ internal val SettingsTarget.settingsPane: SettingsPane?
     get() = when (this) {
         SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon,
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency, SettingsTarget.TextScale,
-        SettingsTarget.BlurIntensity -> SettingsPane.Appearance
+        SettingsTarget.BlurIntensity, SettingsTarget.OnlineArtworkEnabled, SettingsTarget.OnlineArtworkWifiOnly -> SettingsPane.Appearance
         SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb,
         SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter,
         SettingsTarget.ReplayGain, SettingsTarget.Crossfade, SettingsTarget.SleepTimer,
@@ -98,10 +98,11 @@ internal val SettingsTarget.settingsRoute: Route
         SettingsTarget.Equalizer, SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles,
         SettingsTarget.HeadphoneCorrection -> Route.Equalizer
         SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
-        SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> Route.LibrarySettings
+        SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout, SettingsTarget.ResumeOverrides -> Route.LibrarySettings
         SettingsTarget.HomeCustomization -> Route.HomeCustomization
         SettingsTarget.Backup -> Route.Backup
         SettingsTarget.About -> Route.About
+        SettingsTarget.LastFm -> Route.LastFm
         else -> Route.Settings
     }
 

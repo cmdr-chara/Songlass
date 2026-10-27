@@ -1,0 +1,28 @@
+<resources>
+    <!-- Resumption overrides for folders and playlists (Feature 8). -->
+    <string name="resume_override_title">Resume</string>
+    <string name="resume_override_hint">The global Resume setting applies unless this collection has its own exception.</string>
+    <string name="resume_override_action_enable">Resume this collection</string>
+    <string name="resume_override_action_disable">Do not resume this collection</string>
+    <string name="resume_override_threshold">Resume threshold: %1$s</string>
+    <string name="resume_override_threshold_title">Resume threshold</string>
+    <string name="resume_override_threshold_hint">Tracks shorter than this keep no resume point.</string>
+    <string name="resume_override_global_threshold">Use global setting (%1$s)</string>
+    <string name="resume_override_use_global">Use the global settings</string>
+    <string name="resume_override_state_on">Resume on</string>
+    <string name="resume_override_state_off">Resume off</string>
+    <string name="resume_override_state_global">Resume: global</string>
+    <string name="resume_override_threshold_short">Threshold %1$s</string>
+    <string name="resume_override_threshold_global">Threshold: global (%1$s)</string>
+    <string name="resume_override_unavailable">Collection unavailable</string>
+    <string name="resume_override_settings_title">Resume by collection</string>
+    <string name="resume_override_settings_hint">Exceptions replace the global Resume setting for one folder or playlist. Unavailable collections stay listed until you remove them.</string>
+    <string name="resume_override_empty">No exceptions: every folder and playlist uses the global Resume setting.</string>
+    <string name="resume_override_remove">Remove exception</string>
+    <string name="resume_override_remove_all">Remove all exceptions</string>
+    <string name="resume_override_playlist">Playlist</string>
+    <plurals name="resume_override_count">
+        <item quantity="one">%1$d collection</item>
+        <item quantity="other">%1$d collections</item>
+    </plurals>
+</resources>

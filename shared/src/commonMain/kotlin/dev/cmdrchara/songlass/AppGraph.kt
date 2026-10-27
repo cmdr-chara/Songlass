@@ -24,6 +24,7 @@ import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Pins
 import dev.cmdrchara.songlass.core.library.Ratings
+import dev.cmdrchara.songlass.core.library.ResumeOverrides
 import dev.cmdrchara.songlass.core.playlists.UserPlaylists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.LibraryIndex
@@ -91,12 +92,15 @@ class AppGraph(
     val trackMarkers = TrackMarkers(store) { Clock.System.now().toEpochMilliseconds() }
     val artworkAvailability = dev.cmdrchara.songlass.core.artwork.ArtworkAvailability()
     val controller = PlaybackController(player, scope, markers = trackMarkers,
+        resumeOverrides = ResumeOverrides(store, restoreMutations),
         onUserTransport = { outputResume.cancel() }, preferences = { settings.state.value },
         playCountOf = { track -> history.state.value.playCounts[track.id] ?: 0 })
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store, restoreMutations)
     val pins = Pins(store, restoreMutations)
     val ratings = Ratings(store, restoreMutations)
+    /** The same overrides the controller applies; the folder/playlist pages edit them here. */
+    val resumeOverrides: ResumeOverrides = controller.resumeOverrides
     val searchHistory = dev.cmdrchara.songlass.core.search.SearchHistory(store, restoreMutations)
     val smartPlaylists = dev.cmdrchara.songlass.core.playlists.SmartPlaylists(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
     val userPlaylists = UserPlaylists(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
@@ -131,6 +135,19 @@ class AppGraph(
     )
     val autoEq = dev.cmdrchara.songlass.ui.autoEqRepository(store, equalizer)
     val history = ListeningHistory(store, restoreMutations, clock = { Clock.System.now().toEpochMilliseconds() })
+
+    /**
+     * Last.fm scrobbling for the whole process. It only observes the playback samples below; the
+     * opt-in switch and the API credentials are read from preferences on demand, so a disabled
+     * feature performs no network work and writes no preference.
+     */
+    val lastFm = dev.cmdrchara.songlass.core.scrobble.LastFmScrobbler(
+        store = store,
+        scope = scope,
+        transport = dev.cmdrchara.songlass.core.net.platformHttpTransport(),
+        clock = { Clock.System.now().toEpochMilliseconds() },
+        config = { dev.cmdrchara.songlass.core.scrobble.lastFmConfig(settings.state.value) },
+    )
     private val playCounter = PlayCounter()
     private val playbackClock = TimeSource.Monotonic.markNow()
     private val bluetoothCommands = BluetoothCommandFilter { player.monotonicTimeMs }
@@ -231,11 +248,19 @@ class AppGraph(
             combine(controller.queue, player.state, controller.timeline, isRestoringBackup) { queue, state, timeline, restoring ->
                 val entry = queue.current
                 val duration = entry?.track?.durationMs ?: 0L
+                val playing = !restoring && entry?.isAvailable == true &&
+                    state.playWhenReady && state.status == PlayerStatus.Ready
+                // Same sample that feeds the play counter: no second collector, no duplicate events.
+                lastFm.observePlayback(
+                    track = entry?.track, occurrenceId = timeline.occurrenceId,
+                    discontinuityId = timeline.discontinuityId, positionMs = state.positionMs,
+                    durationMs = duration, playing = playing,
+                    elapsedRealtimeMs = playbackClock.elapsedNow().inWholeMilliseconds,
+                )
                 val counted = playCounter.update(
                     entryId = entry?.id, occurrenceId = timeline.occurrenceId,
                     discontinuityId = timeline.discontinuityId, positionMs = state.positionMs,
-                    durationMs = duration, playing = !restoring && entry?.isAvailable == true &&
-                        state.playWhenReady && state.status == PlayerStatus.Ready,
+                    durationMs = duration, playing = playing,
                     elapsedRealtimeMs = playbackClock.elapsedNow().inWholeMilliseconds,
                     rule = settings.state.value.playCountRule,
                 )
@@ -351,6 +376,7 @@ class AppGraph(
                                         favorites.prepareReload(staged.store),
                                         pins.prepareReload(staged.store),
                                         ratings.prepareReload(staged.store),
+                                        resumeOverrides.prepareReload(staged.store),
                                         history.prepareReload(staged.store),
                                         userPlaylists.prepareReload(staged.store),
                                         smartPlaylists.prepareReload(staged.store),

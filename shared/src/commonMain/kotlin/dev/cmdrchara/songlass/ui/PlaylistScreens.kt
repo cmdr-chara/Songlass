@@ -203,7 +203,10 @@ fun UserPlaylistScreen(id: String, state: AppState, currentTrackId: String?, bac
             if (editing) {
                 IconButton(AppIcons.Checkmark, stringResource(Res.string.playlist_done), onClick = { state.editingPlaylistId = null }, selected = true, filled = true)
             } else {
-                IconButton(AppIcons.More, stringResource(Res.string.action_more), onClick = { state.openPlaylistOptions(id) }, filled = true)
+                Row {
+                    ResumeOverrideButton(state, context, filled = true)
+                    IconButton(AppIcons.More, stringResource(Res.string.action_more), onClick = { state.openPlaylistOptions(id) }, filled = true)
+                }
             }
         },
     ) { index, track ->

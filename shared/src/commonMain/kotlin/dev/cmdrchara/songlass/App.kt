@@ -57,6 +57,11 @@ import dev.cmdrchara.songlass.shared.resources.tab_search
 import dev.cmdrchara.songlass.theme.liquidglass.LiquidGlassTheme
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import dev.cmdrchara.songlass.ui.AlbumScreen
+import dev.cmdrchara.songlass.ui.LocalOnlineArtwork
+import dev.cmdrchara.songlass.ui.OnlineArtworkScreen
+import dev.cmdrchara.songlass.ui.rememberAlbumCoverView
+import dev.cmdrchara.songlass.ui.rememberOnlineArtworkController
+import dev.cmdrchara.songlass.ui.rememberOnlineArtworkImageLoader
 import dev.cmdrchara.songlass.ui.AppState
 import dev.cmdrchara.songlass.ui.ArtistScreen
 import dev.cmdrchara.songlass.ui.HomeScreen
@@ -64,6 +69,10 @@ import dev.cmdrchara.songlass.ui.LibraryScreen
 import dev.cmdrchara.songlass.ui.SystemBarAppearance
 import dev.cmdrchara.songlass.ui.SettingsScreen
 import dev.cmdrchara.songlass.shared.resources.settings_title
+import dev.cmdrchara.songlass.shared.resources.lastfm_connected_as
+import dev.cmdrchara.songlass.shared.resources.lastfm_disabled
+import dev.cmdrchara.songlass.shared.resources.lastfm_no_key
+import dev.cmdrchara.songlass.shared.resources.lastfm_not_connected
 import dev.cmdrchara.songlass.shared.resources.stats_title
 import dev.cmdrchara.songlass.ui.EqualizerScreen
 import dev.cmdrchara.songlass.ui.rememberSystemAccessibility
@@ -111,9 +120,14 @@ fun App(
     // (see AppFontScale), which keeps the largest combinations inside the existing layouts.
     val density = LocalDensity.current
     val fontScale = AppFontScale.resolve(density.fontScale, preferences.textScale)
+    // Online covers: the controller exists only where the platform can reach a provider, and it
+    // decorates the platform image loader so a downloaded cover draws like any other cover.
+    val onlineArtwork = rememberOnlineArtworkController()
+    val resolvedArtworkLoader = rememberOnlineArtworkImageLoader(onlineArtwork, artworkLoader)
     CompositionLocalProvider(
         LocalDensity provides Density(density.density, fontScale),
-        LocalArtworkImageLoader provides artworkLoader,
+        LocalArtworkImageLoader provides resolvedArtworkLoader,
+        LocalOnlineArtwork provides onlineArtwork,
         LocalArtworkPresentation provides presentation,
         LocalBlurStrength provides preferences.blurIntensity.toBlurStrength(),
     ) { AppContent(graph, onRequestLibraryAccess, preferences, state) }
@@ -129,6 +143,7 @@ private fun BlurIntensity.toBlurStrength(): BlurStrength = when (this) {
 
 @Composable
 private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, preferences: AppPreferences, state: AppState) {
+    val onlineArtwork = LocalOnlineArtwork.current
     val systemAccessibility = rememberSystemAccessibility()
     val accessibility = UiAccessibility(
         reduceMotion = preferences.reduceMotion || systemAccessibility.reduceMotion,
@@ -256,6 +271,14 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             var pagePane by remember(destination) { mutableStateOf(state.settingsPane) }
                             val playerReturn = remember(destination) { state.returnsToPlayerFrom(destination) }
                             if (state.destination == destination) pagePane = state.settingsPane
+                            val lastFmState by graph.lastFm.state.collectAsState()
+                            val lastFmSummary = lastFmState.username?.let { name ->
+                                stringResource(Res.string.lastfm_connected_as, name)
+                            } ?: when {
+                                !lastFmState.configured -> stringResource(Res.string.lastfm_no_key)
+                                !lastFmState.enabled -> stringResource(Res.string.lastfm_disabled)
+                                else -> stringResource(Res.string.lastfm_not_connected)
+                            }
                             SettingsScreen(
                             pane = pagePane,
                             search = pageSearch,
@@ -273,6 +296,9 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             supportsAudioFocusSettings = graph.player.supportsAudioFocusSettings,
                             supportsHeadphoneSettings = graph.player.supportsHeadphoneSettings,
                             supportsAppIconChoice = graph.supportsAppIconChoice,
+                            supportsOnlineArtwork = onlineArtwork?.downloadsAvailable == true,
+                            supportsScrobbling = lastFmState.supported,
+                            lastFmSummary = lastFmSummary,
                             systemAccessibility = systemAccessibility,
                             equalizer = graph.equalizer,
                             sleepTimer = sleepTimer,
@@ -283,6 +309,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             onOpenAbout = { state.open(Route.About) },
                             onOpenHomeCustomization = { state.open(Route.HomeCustomization) },
                             onOpenBackup = { state.open(Route.Backup) },
+                            onOpenLastFm = { state.open(Route.LastFm) },
                             backLabel = backLabel,
                             onBack = state::goBack,
                             contentPadding = padding,
@@ -304,6 +331,16 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.Bookmarks -> dev.cmdrchara.songlass.ui.BookmarksScreen(route.track, state, backLabel, padding,
                                 isActive = { state.destination == destination && !state.isNowPlayingOpen && !state.hasOverlay })
                             Route.About -> dev.cmdrchara.songlass.ui.AboutScreen(graph, state::goBack, padding, state.settingsFocusFor(Route.About))
+                            Route.LastFm -> dev.cmdrchara.songlass.ui.LastFmSettingsPage(
+                                settings = graph.settings,
+                                scrobbler = graph.lastFm,
+                                backLabel = backLabel,
+                                onBack = state::goBack,
+                                // Forgetting also revokes the account session and drops queued listens.
+                                onForget = { graph.lastFm.disconnect(); graph.settings.resetLastFm() },
+                                contentPadding = padding,
+                                searchFocus = state.settingsFocusFor(Route.LastFm),
+                            )
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
                             Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(
                                 graph, state::goBack, state::openLibraryDurationPicker, state::askRestoreDefaults, padding,
@@ -318,6 +355,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.AutoEqDetail -> dev.cmdrchara.songlass.ui.AutoEqDetailScreen(route.entry, graph.autoEq, graph.equalizer,
                                 state::goBack, { state.goBack(); state.goBack() }, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
+                            is Route.OnlineArtwork -> OnlineArtworkScreen(route.album, state, backLabel, padding)
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                             is Route.FacetList -> dev.cmdrchara.songlass.ui.LibraryFacetListScreen(route.kind, state, backLabel, padding)
                             is Route.FacetDetail -> dev.cmdrchara.songlass.ui.LibraryFacetScreen(route.context, state, currentId, backLabel, padding)
@@ -384,7 +422,7 @@ private fun InterfaceTheme(style: InterfaceStyle, darkTheme: Boolean, accessibil
 /** The cover a page is tinted with (album, folder, artist, playlist), so the bars match it. */
 @Composable
 private fun Route?.pageArtwork(state: AppState): Artwork? = when (this) {
-    is Route.AlbumDetail -> album.artwork()
+    is Route.AlbumDetail -> rememberAlbumCoverView(album).artwork
     is Route.FolderDetail -> folder.artwork()
     is Route.ArtistDetail -> artist.albums.firstOrNull()?.artwork() ?: artist.tracks.firstOrNull()?.artwork()
     is Route.FacetDetail -> state.library.facet(context)?.tracks?.firstOrNull()?.artwork()

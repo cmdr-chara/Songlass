@@ -65,6 +65,9 @@ fun SettingsScreen(
     supportsAudioFocusSettings: Boolean,
     supportsHeadphoneSettings: Boolean,
     supportsAppIconChoice: Boolean,
+    supportsOnlineArtwork: Boolean,
+    supportsScrobbling: Boolean,
+    lastFmSummary: String,
     systemAccessibility: UiAccessibility,
     equalizer: Equalizer,
     sleepTimer: SleepTimerState,
@@ -80,6 +83,7 @@ fun SettingsScreen(
     onOpenAbout: () -> Unit,
     onOpenHomeCustomization: () -> Unit,
     onOpenBackup: () -> Unit,
+    onOpenLastFm: () -> Unit,
     backLabel: String,
     onBack: () -> Unit,
     contentPadding: PaddingValues,
@@ -128,8 +132,8 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings) {
-        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings)
+    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings, supportsOnlineArtwork, supportsScrobbling) {
+        index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings, supportsOnlineArtwork, supportsScrobbling)
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -182,10 +186,14 @@ fun SettingsScreen(
                                 focus.clearFocus(); keyboard?.hide(); onSearchResult(it)
                             } else {
                                 items.overviewSettings(preferences, eqState, onPaneChanged, onOpenEqualizer,
-                                    onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout)
+                                    onOpenLibrary, onOpenHomeCustomization, onOpenBackup, onOpenAbout,
+                                    supportsScrobbling, lastFmSummary, onOpenLastFm)
                             }
                         }
-                        SettingsPane.Appearance -> items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
+                        SettingsPane.Appearance -> {
+                            items.appearanceSettings(settings, preferences, request, supportsAppIconChoice, systemAccessibility)
+                            if (supportsOnlineArtwork) items.onlineArtworkSettings(settings, preferences, request)
+                        }
                         SettingsPane.Sound -> items.soundSettings(settings, preferences, equalizer, sleepTimer, onOpenSleepTimer,
                             { closeDurationEditor(); onOpenEqualizer() }, request, supportsCrossfade, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings,
                             search.durationDraft, ::openDurationEditor, ::closeDurationEditor)
@@ -216,6 +224,9 @@ private fun SettingsItems.overviewSettings(
     onHome: () -> Unit,
     onBackup: () -> Unit,
     onAbout: () -> Unit,
+    supportsScrobbling: Boolean,
+    lastFmSummary: String,
+    onLastFm: () -> Unit,
 ) {
     item { SettingsSection(stringResource(Res.string.settings_personalization)) }
     item {
@@ -252,6 +263,8 @@ private fun SettingsItems.overviewSettings(
     item { SettingsSection(stringResource(Res.string.settings_app_section)) }
     item {
         SettingsDestinations(Modifier.padding(horizontal = LocalGlassLook.current.settingsRootHorizontalInset)) {
+            if (supportsScrobbling) SettingsLink(stringResource(Res.string.lastfm_title), lastFmSummary,
+                AppIcons.MusicNote, summaryIsValue = true, onClick = onLastFm)
             SettingsLink(stringResource(Res.string.settings_backup),
                 stringResource(Res.string.settings_backup_summary), AppIcons.ImportFile, onClick = onBackup)
             SettingsLink(stringResource(Res.string.about_title),

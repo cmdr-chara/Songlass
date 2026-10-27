@@ -1,0 +1,28 @@
+<resources>
+    <!-- Eccezioni di ripresa per cartelle e playlist (funzione 8). -->
+    <string name="resume_override_title">Ripresa</string>
+    <string name="resume_override_hint">Valgono le impostazioni globali della Ripresa finché questa raccolta non ha un’eccezione.</string>
+    <string name="resume_override_action_enable">Riprendi i brani di questa raccolta</string>
+    <string name="resume_override_action_disable">Non riprendere i brani di questa raccolta</string>
+    <string name="resume_override_threshold">Soglia di ripresa: %1$s</string>
+    <string name="resume_override_threshold_title">Soglia di ripresa</string>
+    <string name="resume_override_threshold_hint">I brani più brevi di questa soglia non conservano un punto di ripresa.</string>
+    <string name="resume_override_global_threshold">Usa l’impostazione globale (%1$s)</string>
+    <string name="resume_override_use_global">Usa le impostazioni globali</string>
+    <string name="resume_override_state_on">Ripresa attiva</string>
+    <string name="resume_override_state_off">Ripresa disattivata</string>
+    <string name="resume_override_state_global">Ripresa: globale</string>
+    <string name="resume_override_threshold_short">Soglia %1$s</string>
+    <string name="resume_override_threshold_global">Soglia: globale (%1$s)</string>
+    <string name="resume_override_unavailable">Raccolta non disponibile</string>
+    <string name="resume_override_settings_title">Ripresa per raccolta</string>
+    <string name="resume_override_settings_hint">Le eccezioni sostituiscono l’impostazione globale della Ripresa per una singola cartella o playlist. Le raccolte non disponibili restano in elenco finché non le rimuovi.</string>
+    <string name="resume_override_empty">Nessuna eccezione: ogni cartella e playlist usa l’impostazione globale della Ripresa.</string>
+    <string name="resume_override_remove">Rimuovi eccezione</string>
+    <string name="resume_override_remove_all">Rimuovi tutte le eccezioni</string>
+    <string name="resume_override_playlist">Playlist</string>
+    <plurals name="resume_override_count">
+        <item quantity="one">%1$d raccolta</item>
+        <item quantity="other">%1$d raccolte</item>
+    </plurals>
+</resources>

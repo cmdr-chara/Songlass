@@ -34,6 +34,7 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
         SettingsTarget.ExcludedFolders -> 4
         SettingsTarget.PlayCountRule -> 8
         SettingsTarget.AlbumLayout -> 11
+        SettingsTarget.ResumeOverrides -> 12
         else -> null
     }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
@@ -126,6 +127,7 @@ LocalGlassLook.current.SettingsPage {
                     Modifier.padding(horizontal = pageInset).heightIn(min = 48.dp))
             }
         }
+        item { ResumeOverridesSettingsSection(graph, preferences, searchFocus) }
         if (refreshFailure != null) item {
             LibraryRefreshNotice(refreshFailure, loading, graph::requestLibraryRefresh)
         }

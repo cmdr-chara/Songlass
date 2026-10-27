@@ -92,7 +92,12 @@ sealed interface Route {
     data class SmartPlaylistEditor(val id: String? = null) : Route
     data object LibrarySettings : Route
     data object ListeningStatistics : Route
+
+    /** Last.fm account, credentials and pending scrobbles; a sub-page of Settings. */
+    data object LastFm : Route
     data class AlbumDetail(val album: Album) : Route
+    /** Cover picker for one album; the album snapshot is the one the page was opened from. */
+    data class OnlineArtwork(val album: Album) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class FacetList(val kind: LibraryFacetKind) : Route
     data class FacetDetail(val context: PlayContext.Facet) : Route

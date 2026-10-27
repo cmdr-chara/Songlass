@@ -62,6 +62,7 @@ fun SmartPlaylistScreen(id: String, state: AppState, currentTrackId: String?, ba
         extra = if (tracks.isEmpty()) {{ item { FeatureHint(stringResource(Res.string.smart_empty)) } }} else null,
         headerAction = {
             Row {
+                ResumeOverrideButton(state, PlayContext.SmartPlaylist(id), filled = true)
                 IconButton(AppIcons.Lyrics, stringResource(Res.string.smart_edit), { state.open(Route.SmartPlaylistEditor(id)) }, filled = true)
                 if (exporter != null) IconButton(AppIcons.ImportFile, stringResource(Res.string.playlist_export), exporter, filled = true)
                 IconButton(AppIcons.Close, stringResource(Res.string.playlist_delete), { state.askDeleteSmartPlaylist(id) }, filled = true)

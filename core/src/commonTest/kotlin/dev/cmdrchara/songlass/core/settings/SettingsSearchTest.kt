@@ -225,4 +225,30 @@ class SettingsSearchTest {
         ))
         assertEquals(listOf(SettingsTarget.CrossfadeDuration), unit.search("ms", true))
     }
+
+    @Test
+    fun lastFmIsSearchableInBothLanguagesOnlyWhereTheFeatureExists() {
+        for (query in listOf("last.fm", "lastfm", "scrobbling", "scrobbler", "last fm", "collega", "sessione")) {
+            assertTrue(SettingsTarget.LastFm in index.search(query, true), query)
+        }
+        assertEquals(listOf(SettingsTarget.LastFm), index.search("last.fm", true))
+        assertEquals(listOf(SettingsTarget.LastFm), index.search("scrobbling", true))
+        // A platform without a tested network engine hides the whole destination.
+        assertTrue(index.search("last.fm", true, supportsScrobbling = false).isEmpty())
+        assertTrue(index.search("last.fm", true).contains(SettingsTarget.LastFm))
+    }
+
+    @Test
+    fun collectionResumeExceptionsAreSearchableWithoutHijackingTheGlobalResumeSettings() {
+        assertEquals(SettingsTarget.ResumeOverrides, index.search("resume by collection", true).first())
+        assertEquals(SettingsTarget.ResumeOverrides, index.search("ripresa per raccolta", true).first())
+        assertTrue(SettingsTarget.ResumeOverrides in index.search("eccezioni", true))
+        assertTrue(SettingsTarget.ResumeOverrides in index.search("cartella", true))
+        assertTrue(SettingsTarget.ResumeOverrides in index.search("playlist", true))
+        // The global per-track resume and its threshold keep their own exact results.
+        assertEquals(listOf(SettingsTarget.ResumePerTrack), index.search("resume each track", true))
+        assertEquals(listOf(SettingsTarget.LongTrackThreshold), index.search("soglia brani lunghi", true))
+        assertEquals(listOf(SettingsTarget.LongTrackThreshold), index.search("long track threshold", true))
+        assertEquals(SettingsTarget.ResumePerTrack, index.search("riprendi ogni brano", true).first())
+    }
 }

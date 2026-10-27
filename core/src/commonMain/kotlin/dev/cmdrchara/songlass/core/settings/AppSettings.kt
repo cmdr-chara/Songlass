@@ -11,6 +11,7 @@ import dev.cmdrchara.songlass.core.storage.getStringList
 import dev.cmdrchara.songlass.core.storage.putStringList
 import dev.cmdrchara.songlass.core.library.FolderSort
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
+import dev.cmdrchara.songlass.core.scrobble.LastFmStorageKeys
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -94,6 +95,11 @@ class AppSettings(
         audioFocus = AudioFocusSettings.read(store),
         pauseOnDisconnect = store.getString(PAUSE_DISCONNECT_KEY)?.toBooleanStrictOrNull() ?: true,
         headsetMultiPress = store.getString(MULTI_PRESS_KEY)?.toBooleanStrictOrNull() ?: true,
+        onlineArtworkEnabled = store.getString(ONLINE_ARTWORK_KEY)?.toBooleanStrictOrNull() ?: false,
+        onlineArtworkWifiOnly = store.getString(ONLINE_ARTWORK_WIFI_KEY)?.toBooleanStrictOrNull() ?: true,
+        lastFmEnabled = store.getString(LASTFM_ENABLED_KEY)?.toBooleanStrictOrNull() ?: false,
+        lastFmApiKey = store.getString(LASTFM_API_KEY).orEmpty(),
+        lastFmApiSecret = store.getString(LASTFM_API_SECRET).orEmpty(),
         libraryFilter = LibraryFilter(
             excludedFolders = store.getStringList(EXCLUDED_FOLDERS_KEY).map { it.trim('/') }
                 .filter { it.isNotBlank() }.toSet(),
@@ -344,6 +350,52 @@ class AppSettings(
         _state.update { it.copy(headsetMultiPress = enabled) }
     }
 
+    /** Cover lookup over the network: the switch that has to be on before any request leaves. */
+    fun setOnlineArtworkEnabled(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(ONLINE_ARTWORK_KEY, enabled.toString())
+        _state.update { it.copy(onlineArtworkEnabled = enabled) }
+    }
+
+    /** Keeps downloads off mobile data unless the user turns this off. */
+    fun setOnlineArtworkWifiOnly(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(ONLINE_ARTWORK_WIFI_KEY, enabled.toString())
+        _state.update { it.copy(onlineArtworkWifiOnly = enabled) }
+    }
+
+    /** Scrobbling opt-in. A missing API key pair keeps the feature inactive even when this is on. */
+    fun setLastFmEnabled(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(LASTFM_ENABLED_KEY, enabled.toString())
+        _state.update { it.copy(lastFmEnabled = enabled) }
+    }
+
+    /**
+     * Replaces the Last.fm API key pair. Requests are signed with these values, so an empty pair
+     * leaves the feature unable to run; the settings page explains why.
+     */
+    fun setLastFmApiCredentials(apiKey: String, apiSecret: String) {
+        if (!mutations.canMutate) return
+        val key = apiKey.trim()
+        val secret = apiSecret.trim()
+        if (key == state.value.lastFmApiKey && secret == state.value.lastFmApiSecret) return
+        store.putStrings(mapOf(LASTFM_API_KEY to key, LASTFM_API_SECRET to secret))
+        _state.update { it.copy(lastFmApiKey = key, lastFmApiSecret = secret) }
+    }
+
+    /**
+     * Removes everything the Last.fm feature stores: the opt-in switch, the API credentials, the
+     * session key and the pending queue. They are not preferences alone — the session is an account
+     * authorization and the queue holds listens that were never sent — so the settings page pairs this
+     * with a disconnect (see [LastFmStorageKeys]).
+     */
+    fun resetLastFm() {
+        if (!mutations.canMutate) return
+        store.updateStrings(removing = LastFmStorageKeys.ALL, writing = emptyMap())
+        _state.update { it.copy(lastFmEnabled = false, lastFmApiKey = "", lastFmApiSecret = "") }
+    }
+
     fun setResumePerTrack(enabled: Boolean) {
         if (!mutations.canMutate) return
         store.putString(PER_TRACK_KEY, enabled.toString())
@@ -439,7 +491,7 @@ class AppSettings(
         if (!mutations.canMutate) return
         val keys = when (area) {
             SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY,
-                TEXT_SCALE_KEY, BLUR_INTENSITY_KEY)
+                TEXT_SCALE_KEY, BLUR_INTENSITY_KEY, ONLINE_ARTWORK_KEY, ONLINE_ARTWORK_WIFI_KEY)
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY) + AudioFocusSettings.keys
@@ -454,7 +506,9 @@ class AppSettings(
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
                     appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency,
-                    textScale = defaults.textScale, blurIntensity = defaults.blurIntensity)
+                    textScale = defaults.textScale, blurIntensity = defaults.blurIntensity,
+                    onlineArtworkEnabled = defaults.onlineArtworkEnabled,
+                    onlineArtworkWifiOnly = defaults.onlineArtworkWifiOnly)
                 SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects, equalizerTuning = defaults.equalizerTuning,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, audioFocus = defaults.audioFocus, transportFades = defaults.transportFades)
@@ -539,5 +593,14 @@ class AppSettings(
         const val AUDIO_FOCUS_KEY = "settings.handle_audio_focus"
         const val PAUSE_DISCONNECT_KEY = "settings.pause_on_disconnect"
         const val MULTI_PRESS_KEY = "settings.headset_multi_press"
+        const val ONLINE_ARTWORK_KEY = "settings.online_artwork_enabled"
+        const val ONLINE_ARTWORK_WIFI_KEY = "settings.online_artwork_wifi_only"
+
+        // Last.fm credentials, session and queue deliberately use the `lastfm.` prefix: the
+        // .songlass v1 backup exports only settings.*, library.* and home.*, so no API secret or
+        // session ever travels in a shared backup file. See LastFmStorageKeys.
+        const val LASTFM_ENABLED_KEY = LastFmStorageKeys.ENABLED
+        const val LASTFM_API_KEY = LastFmStorageKeys.API_KEY
+        const val LASTFM_API_SECRET = LastFmStorageKeys.API_SECRET
     }
 }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings -->
+    <string name="settings_online_artwork">Online covers</string>
+    <string name="settings_online_artwork_hint">Looks for an album cover using only the artist and album name. Nothing is downloaded until you choose a cover, and nothing is ever written into the music files.</string>
+    <string name="settings_online_artwork_wifi">Download on Wi-Fi only</string>
+    <string name="settings_online_artwork_wifi_hint">On mobile data the app waits instead of downloading. If the phone cannot report the connection, Wi-Fi only is assumed.</string>
+
+    <!-- Album page entry point -->
+    <string name="settings_online_artwork_stored">%1$s covers stored on this device</string>
+    <string name="settings_online_artwork_clear">Remove all</string>
+    <string name="settings_online_artwork_clear_hint">Frees the space used by downloaded covers.</string>
+    <string name="artwork_online_action">Find cover online</string>
+    <string name="artwork_online_indicator">Downloaded cover</string>
+
+    <!-- Picker page -->
+    <string name="artwork_online_title">Online cover</string>
+    <string name="artwork_online_privacy">Only the artist and album name are sent to the iTunes Search API. Files, folders, song titles and paths never leave the device.</string>
+    <string name="artwork_online_provider">Provider: iTunes Search API</string>
+    <string name="artwork_online_disabled">Online covers are off. Turn them on in Settings, Appearance, to search for a cover.</string>
+    <string name="artwork_online_open_settings">Open settings</string>
+    <string name="artwork_online_waiting_wifi">Waiting for Wi-Fi: downloads are limited to unmetered networks.</string>
+    <string name="artwork_online_searching">Searching…</string>
+    <string name="artwork_online_no_results">No cover found for this album.</string>
+    <string name="artwork_online_error_offline">No connection. Check your network and try again.</string>
+    <string name="artwork_online_error_timeout">The service took too long. Try again.</string>
+    <string name="artwork_online_error_provider">The cover service did not answer correctly. Try again later.</string>
+    <string name="artwork_online_error_malformed">The cover service sent an answer that cannot be used.</string>
+    <string name="artwork_online_retry">Try again</string>
+    <string name="artwork_online_candidates">Covers found</string>
+    <string name="artwork_online_apply">Use this cover</string>
+    <string name="artwork_online_applying">Downloading…</string>
+    <string name="artwork_online_download_failed">The cover could not be downloaded.</string>
+    <string name="artwork_online_downloads_unavailable">This build cannot download images.</string>
+    <string name="artwork_online_current">Current cover</string>
+    <string name="artwork_online_local">From the album files</string>
+    <string name="artwork_online_remove">Remove downloaded cover</string>
+    <string name="artwork_online_remove_hint">Deletes the cover stored on this device. The album goes back to the cover of its own files.</string>
+    <string name="artwork_online_removed">Downloaded cover removed.</string>
+    <string name="artwork_online_applied">Downloaded cover applied.</string>
+    <string name="artwork_online_no_album">This album has no name, so there is nothing to search for.</string>
+    <string name="artwork_online_preview">Preview of %1$s</string>
+</resources>

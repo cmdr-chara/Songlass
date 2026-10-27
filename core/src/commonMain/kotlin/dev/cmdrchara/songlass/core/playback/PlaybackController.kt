@@ -1,6 +1,9 @@
 package dev.cmdrchara.songlass.core.playback
 
 import dev.cmdrchara.songlass.core.history.PlayContext
+import dev.cmdrchara.songlass.core.library.ResumeOverrides
+import dev.cmdrchara.songlass.core.library.ResumePolicy
+import dev.cmdrchara.songlass.core.library.resumePolicy
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.model.TrackAvailability
 import dev.cmdrchara.songlass.core.model.isSameFileAs
@@ -42,6 +45,12 @@ class PlaybackController(
     private val onUserTransport: () -> Unit = {},
     /** Counted plays of a song, for a shuffle that favours the songs played least. */
     private val playCountOf: (Track) -> Int = { 0 },
+    /**
+     * Per-collection resumption overrides. The controller applies them when reading and writing
+     * resume points; the folder/playlist pages edit this same store, so no screen duplicates the
+     * resolution. In-memory by default, as for the other optional collaborators.
+     */
+    val resumeOverrides: ResumeOverrides = ResumeOverrides(),
     // Last, so existing callers can keep passing it as a trailing lambda.
     private val preferences: () -> AppPreferences = { AppPreferences() },
 ) {
@@ -106,10 +115,10 @@ class PlaybackController(
                 if (track != null) {
                     if (status.status == PlayerStatus.Ended) safeMarkers { markers?.completed(track) }
                     else if (status.status == PlayerStatus.Ready && status.positionMs >= 0) {
-                        val enabled = preferences().resumePerTrack
-                        if (enabled && (status.playWhenReady || (wasPlaying && previousSignature == signature))) {
+                        val resume = effectiveResumePolicy()
+                        if (resume.resumePerTrack && (status.playWhenReady || (wasPlaying && previousSignature == signature))) {
                             safeMarkers { markers?.checkpoint(track, status.positionMs,
-                                preferences().longTrackThresholdMs, force = !status.playWhenReady) }
+                                resume.longTrackThresholdMs, force = !status.playWhenReady) }
                         }
                     }
                 }
@@ -182,6 +191,10 @@ class PlaybackController(
 
     /** A one-shot addition is not attributed to the album/playlist it temporarily interrupts. */
     val listeningContext: PlayContext? get() = context.takeUnless { _queue.value.current?.isTemporary == true }
+
+    /** Global preferences with the override of the collection this queue was started from. */
+    private fun effectiveResumePolicy(): ResumePolicy =
+        preferences().resumePolicy(resumeOverrides.overrideFor(context))
 
     /** Replaces the queue with [tracks] and starts playing at [startIndex]. */
     fun playTracks(tracks: List<Track>, startIndex: Int = 0, context: PlayContext? = null, startPositionMs: Long? = null) {
@@ -503,8 +516,9 @@ class PlaybackController(
         // Clear after checkpointing the outgoing decoder: reindexing can resolve both identities
         // to this same file, and an outgoing flush must not reintroduce a deliberate restart.
         if (positionOverrideMs == 0L) safeMarkers { markers?.restart(entry.track) }
-        val chosen = if (explicitSelection && preferences().resumePerTrack)
-            markers?.progressFor(entry.track, preferences().longTrackThresholdMs) else null
+        val resume = effectiveResumePolicy()
+        val chosen = if (explicitSelection && resume.resumePerTrack)
+            markers?.progressFor(entry.track, resume.longTrackThresholdMs) else null
         val start = positionOverrideMs ?: chosen ?: 0L
         _timeline.update { it.copy(
             occurrenceId = it.occurrenceId + 1,
@@ -553,10 +567,11 @@ class PlaybackController(
 
     private fun checkpointCurrent(force: Boolean = false) {
         val track = loadedTrack ?: return
-        if (!preferences().resumePerTrack) return
+        val resume = effectiveResumePolicy()
+        if (!resume.resumePerTrack) return
         val status = player.state.value
         if (status.status == PlayerStatus.Ended) safeMarkers { markers?.completed(track) }
-        else safeMarkers { markers?.checkpoint(track, status.positionMs, preferences().longTrackThresholdMs, force) }
+        else safeMarkers { markers?.checkpoint(track, status.positionMs, resume.longTrackThresholdMs, force) }
     }
 
     private fun onTrackEnded() {

@@ -139,6 +139,15 @@ data class AppPreferences(
     val pauseOnDisconnect: Boolean = true,
     /** Two headset presses skip forward and three go back; off makes every press play/pause at once. */
     val headsetMultiPress: Boolean = true,
+    /** Album cover lookup over the network; off by default, so nothing leaves the device unasked. */
+    val onlineArtworkEnabled: Boolean = false,
+    /** With online covers on, downloads wait for an unmetered connection unless turned off. */
+    val onlineArtworkWifiOnly: Boolean = true,
+    /** Last.fm scrobbling is opt-in; without an API key pair the feature stays inactive. */
+    val lastFmEnabled: Boolean = false,
+    /** Last.fm API credentials, configured on this device: the repository ships without a key. */
+    val lastFmApiKey: String = "",
+    val lastFmApiSecret: String = "",
 ) {
     /** Compatibility summary for callers that still ask whether both connection types resume. */
     val resumeOnReconnect: Boolean get() = headphones.resumeWired && headphones.resumeBluetooth

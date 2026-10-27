@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Impostazioni -->
+    <string name="settings_online_artwork">Copertine online</string>
+    <string name="settings_online_artwork_hint">Cerca la copertina di un album usando solo artista e nome dell\'album. Nulla viene scaricato finché non scegli una copertina, e nulla viene mai scritto nei file musicali.</string>
+    <string name="settings_online_artwork_wifi">Scarica solo in Wi-Fi</string>
+    <string name="settings_online_artwork_wifi_hint">Con i dati mobili l\'app attende invece di scaricare. Se il telefono non può indicare il tipo di connessione, si assume il Wi-Fi.</string>
+
+    <!-- Pagina album -->
+    <string name="settings_online_artwork_stored">%1$s copertine salvate su questo dispositivo</string>
+    <string name="settings_online_artwork_clear">Rimuovi tutte</string>
+    <string name="settings_online_artwork_clear_hint">Libera lo spazio usato dalle copertine scaricate.</string>
+    <string name="artwork_online_action">Cerca copertina online</string>
+    <string name="artwork_online_indicator">Copertina scaricata</string>
+
+    <!-- Pagina di scelta -->
+    <string name="artwork_online_title">Copertina online</string>
+    <string name="artwork_online_privacy">All\'iTunes Search API vengono inviati solo artista e nome dell\'album. File, cartelle, titoli dei brani e percorsi non lasciano il dispositivo.</string>
+    <string name="artwork_online_provider">Provider: iTunes Search API</string>
+    <string name="artwork_online_disabled">Le copertine online sono disattivate. Attivale in Impostazioni, Aspetto, per cercare una copertina.</string>
+    <string name="artwork_online_open_settings">Apri impostazioni</string>
+    <string name="artwork_online_waiting_wifi">In attesa del Wi-Fi: i download sono limitati alle reti non a consumo.</string>
+    <string name="artwork_online_searching">Ricerca in corso…</string>
+    <string name="artwork_online_no_results">Nessuna copertina trovata per questo album.</string>
+    <string name="artwork_online_error_offline">Nessuna connessione. Controlla la rete e riprova.</string>
+    <string name="artwork_online_error_timeout">Il servizio ha impiegato troppo tempo. Riprova.</string>
+    <string name="artwork_online_error_provider">Il servizio copertine non ha risposto correttamente. Riprova più tardi.</string>
+    <string name="artwork_online_error_malformed">Il servizio copertine ha inviato una risposta inutilizzabile.</string>
+    <string name="artwork_online_retry">Riprova</string>
+    <string name="artwork_online_candidates">Copertine trovate</string>
+    <string name="artwork_online_apply">Usa questa copertina</string>
+    <string name="artwork_online_applying">Download in corso…</string>
+    <string name="artwork_online_download_failed">Impossibile scaricare la copertina.</string>
+    <string name="artwork_online_downloads_unavailable">Questa build non può scaricare immagini.</string>
+    <string name="artwork_online_current">Copertina attuale</string>
+    <string name="artwork_online_local">Dai file dell\'album</string>
+    <string name="artwork_online_remove">Rimuovi copertina scaricata</string>
+    <string name="artwork_online_remove_hint">Elimina la copertina salvata su questo dispositivo. L\'album torna alla copertina dei suoi file.</string>
+    <string name="artwork_online_removed">Copertina scaricata rimossa.</string>
+    <string name="artwork_online_applied">Copertina scaricata applicata.</string>
+    <string name="artwork_online_no_album">Questo album non ha un nome: non c\'è nulla da cercare.</string>
+    <string name="artwork_online_preview">Anteprima di %1$s</string>
+</resources>

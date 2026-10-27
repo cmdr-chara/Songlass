@@ -31,7 +31,11 @@ fun RestoreDefaultsSheet(state: AppState) {
         title = stringResource(Res.string.settings_restore_title),
         subtitle = stringResource(Res.string.settings_restore_hint),
         actions = listOf(SheetAction(stringResource(Res.string.settings_restore_action), null) {
-            area?.let { state.settings.resetToDefaults(it) }
+            area?.let {
+                // The Library page also owns the per-collection resumption exceptions.
+                if (it == SettingsArea.Library) state.controller.resumeOverrides.clearAll()
+                state.settings.resetToDefaults(it)
+            }
         }),
         cancelLabel = stringResource(Res.string.action_cancel),
         onDismiss = state::closeRestoreDefaults,

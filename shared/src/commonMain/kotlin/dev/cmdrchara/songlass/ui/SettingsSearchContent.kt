@@ -82,6 +82,10 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.HomeCustomization -> Res.string.homecfg_title
     SettingsTarget.Backup -> Res.string.backup_title
     SettingsTarget.About -> Res.string.about_title
+    SettingsTarget.OnlineArtworkEnabled -> Res.string.settings_online_artwork
+    SettingsTarget.OnlineArtworkWifiOnly -> Res.string.settings_online_artwork_wifi
+    SettingsTarget.LastFm -> Res.string.lastfm_title
+    SettingsTarget.ResumeOverrides -> Res.string.resume_override_settings_title
 })
 
 /** The index receives current localized labels, while core supplies cross-language synonyms. */
@@ -98,7 +102,8 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     val accessibility = stringResource(Res.string.settings_accessibility)
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
-            SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon -> appearance
+            SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon,
+            SettingsTarget.OnlineArtworkEnabled, SettingsTarget.OnlineArtworkWifiOnly -> appearance
             SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb,
             SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter,
             SettingsTarget.FocusDucking, SettingsTarget.ResumeOnFocusGain, SettingsTarget.ResumeAfterCall,
@@ -114,9 +119,10 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands,
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
-            SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> library
+            SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout, SettingsTarget.ResumeOverrides -> library
             SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> "$appearance › ${stringResource(Res.string.settings_accessibility)}"
             SettingsTarget.TextScale, SettingsTarget.BlurIntensity -> "$appearance › ${stringResource(Res.string.settings_text_and_background)}"
+            SettingsTarget.LastFm -> stringResource(Res.string.settings_app_section)
             else -> null
         }
         SettingsSearchDocument(target, settingsTargetTitle(target), listOfNotNull(root, section).joinToString(" › "))
@@ -147,6 +153,11 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.ResumePerTrack -> enabled(preferences.resumePerTrack)
         SettingsTarget.LongTrackThreshold -> stringResource(Res.string.settings_long_minutes,
             (preferences.longTrackThresholdMs / 60_000L).toInt())
+        SettingsTarget.ResumeOverrides -> listOf(
+            stringResource(Res.string.resume_override_state_global),
+            stringResource(Res.string.resume_override_threshold_short,
+                stringResource(Res.string.settings_long_minutes, (preferences.longTrackThresholdMs / 60_000L).toInt())),
+        ).joinToString(" · ")
         SettingsTarget.Balance -> audioEffectValue(AudioEffect.Balance, preferences.audioEffects.balancePercent)
         SettingsTarget.StereoExpand -> audioEffectValue(AudioEffect.StereoExpand, preferences.audioEffects.stereoExpandPercent)
         SettingsTarget.Tempo -> audioEffectValue(AudioEffect.Tempo, preferences.audioEffects.tempoPercent)
@@ -203,6 +214,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.AudioFocus -> enabled(preferences.handleAudioFocus)
         SettingsTarget.PauseOnDisconnect -> enabled(preferences.pauseOnDisconnect)
         SettingsTarget.HeadsetMultiPress -> enabled(preferences.headsetMultiPress)
+        SettingsTarget.OnlineArtworkEnabled -> enabled(preferences.onlineArtworkEnabled)
+        SettingsTarget.OnlineArtworkWifiOnly -> enabled(preferences.onlineArtworkWifiOnly)
+        SettingsTarget.LastFm -> enabled(preferences.lastFmEnabled)
         SettingsTarget.HomeCustomization, SettingsTarget.Backup, SettingsTarget.About, SettingsTarget.SleepTimer -> null
     }
 }
