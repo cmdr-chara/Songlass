@@ -157,7 +157,9 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
         val sourceScope = this
         val captureSize = Size(bounds.width + 2f * bounds.left, bounds.height + 2f * bounds.top)
         layer.record(size = captureSize.roundToIntSize()) {
-            sourceScope.draw(this, layoutDirection, drawContext.canvas, size) {
+            // Preserve the recording parent when redirecting Haze's draw scope. Otherwise
+            // nested source layers are untracked and may be discarded while still sampled.
+            sourceScope.draw(this, layoutDirection, drawContext.canvas, size, graphicsLayer = layer) {
                 sourceScope.drawInput()
             }
         }
