@@ -8,8 +8,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.splineBasedDecay
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.gestures.FlingBehavior
 import androidx.compose.foundation.gestures.Orientation
@@ -22,6 +20,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -56,6 +56,8 @@ import androidx.compose.ui.semantics.ScrollAxisRange
 import androidx.compose.ui.semantics.horizontalScrollAxisRange
 import androidx.compose.ui.semantics.scrollBy
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
@@ -72,6 +74,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MaterialArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) {
     if (style == ShelfStyle.Pins) return ShapedPins(items, itemSize, modifier)
@@ -80,9 +83,9 @@ internal fun MaterialArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, ite
     val covers = items.filter { it.icon == null }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (actions.isNotEmpty()) {
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                actions.forEach { TonalButton(it) }
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                actions.forEach { TonalButton(it, Modifier.weight(1f)) }
             }
         }
         if (covers.isNotEmpty()) MultiBrowseCarousel(covers, itemSize * 1.2f, Modifier)
@@ -91,21 +94,23 @@ internal fun MaterialArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, ite
 
 /** Material filled tonal button: icon and label on a pill in the secondary container. */
 @Composable
-private fun TonalButton(item: ShelfItem) {
+private fun TonalButton(item: ShelfItem, modifier: Modifier = Modifier) {
     val palette = currentPalette()
     Row(
-        Modifier
-            .height(40.dp)
+        modifier
+            .heightIn(min = 48.dp)
             .clip(CircleShape)
             .background(palette.primaryContainer)
             .prefetchArtworkOnPress(item.artwork)
             .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = item.onClick)
-            .padding(start = 16.dp, end = 20.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center,
     ) {
         item.icon?.let { AppIcon(it, contentDescription = null, size = 18.dp, tint = palette.onPrimaryContainer) }
         Spacer(Modifier.width(8.dp))
-        AppText(item.title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.Bold), color = palette.onPrimaryContainer, maxLines = 1)
+        AppText(item.compactTitle ?: item.title, AppTheme.typography.footnote.copy(fontWeight = FontWeight.SemiBold),
+            color = palette.onPrimaryContainer, modifier = Modifier.clearAndSetSemantics { contentDescription = item.title })
     }
 }
 

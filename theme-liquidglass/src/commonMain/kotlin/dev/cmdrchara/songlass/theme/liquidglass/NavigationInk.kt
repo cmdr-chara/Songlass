@@ -79,6 +79,10 @@ internal const val NavigationInkProgram = """
         float2 center = lens.xy;
         float2 uv = center + (p-center)/(1.0+0.12*pressure);
         uv -= normal*(1.8*px*pressure*edge*edge);
+        // Match the unfiltered icon at the lens contour; bend it progressively
+        // farther inside so the two painted halves meet without a spatial seam.
+        float rimBlend = smoothstep(0.0, 8.0*px, max(-distance, 0.0));
+        uv = mix(p, uv, rimBlend);
         half4 color = ink.eval(uv);
         return color*half(coverage);
     }

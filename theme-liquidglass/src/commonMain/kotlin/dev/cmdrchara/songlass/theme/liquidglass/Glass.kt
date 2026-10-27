@@ -80,9 +80,9 @@ internal fun Modifier.appleGlass(
             optics(
                 GlassDefaults.optics.copy(
                     depth = OpticalSizeValue.Fixed(1f),
-                    blurRadius = OpticalSizeValue.Fixed(blur.scale(if (navigationBar) 24.dp else 16.dp)),
-                    refractionDisplacement = if (navigationBar) 10.dp else 24.dp,
-                    refractionStrength = if (navigationBar) 0.38f else GlassDefaults.optics.refractionStrength,
+                    blurRadius = OpticalSizeValue.Fixed(blur.scale(20.dp)),
+                    refractionDisplacement = if (navigationBar) 10.dp else 12.dp,
+                    refractionStrength = if (navigationBar) 0.38f else 0.42f,
                 ),
             )
             // Apple's glass lets colors through: less milky white than Haze's defaults
@@ -90,7 +90,7 @@ internal fun Modifier.appleGlass(
             // shape still reads over a black page. Chroma stays near neutral, otherwise glass
             // over a tinted page turns into a darker, more saturated slab than the page itself.
             whitePoint(if (navigationBar) { if (colors.isDark) -0.02f else 0.20f } else { if (colors.isDark) -0.12f else 0.25f })
-            chromaMultiplier(if (navigationBar) 1.04f else 1.2f)
+            chromaMultiplier(1.04f)
             // Legibility over busy, colourful content (covers scrolling under the bars): pull the
             // material toward the page colour, enough that labels stay readable even over a dark
             // cover in light mode; colour still shows through.
@@ -103,11 +103,11 @@ internal fun Modifier.appleGlass(
             specularExponent(24f)
             ambientResponse(if (colors.isDark) 0.16f else 0.15f)
             fresnelExponent(2.2f)
-            chromaticAberrationStrength(if (navigationBar) 0.035f else 0.15f)
+            chromaticAberrationStrength(0.035f)
             // Press motion comes from liquidPress (whole element); the material only brightens a little.
             pressed {
                 lightingIntensity(0.4f)
-                refractionMultiplier(1.15f)
+                refractionMultiplier(if (accessibility.reduceMotion) 1f else 1.15f)
             }
             if (!edges) {
                 // Just the body of the material: no lens, rim light or edge shadow, so a piece
@@ -115,7 +115,7 @@ internal fun Modifier.appleGlass(
                 optics(
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
-                        blurRadius = OpticalSizeValue.Fixed(blur.scale(if (navigationBar) 24.dp else 16.dp)),
+                        blurRadius = OpticalSizeValue.Fixed(blur.scale(20.dp)),
                         refractionStrength = 0f,
                         refractionDisplacement = 0.dp,
                     ),

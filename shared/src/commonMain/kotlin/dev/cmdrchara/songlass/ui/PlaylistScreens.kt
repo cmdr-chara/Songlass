@@ -318,10 +318,13 @@ internal fun UserPlaylistRow(state: AppState, onImport: (() -> Unit)?) {
     val smartLabel = stringResource(dev.cmdrchara.songlass.shared.resources.Res.string.smart_new)
     val newLabel = stringResource(Res.string.playlist_new)
     val importLabel = stringResource(Res.string.playlist_import)
+    val compactNew = stringResource(Res.string.playlist_action_new)
+    val compactSmart = stringResource(Res.string.playlist_action_smart)
+    val compactImport = stringResource(Res.string.playlist_action_import)
     val shelf = buildList {
-        add(ShelfItem("new", newLabel, null, null, { state.askPlaylistName(PlaylistPrompt.Create(emptyList())) }, icon = AppIcons.AddToQueue, isAction = true))
-        add(ShelfItem("smart-new", smartLabel, null, null, { state.open(Route.SmartPlaylistEditor()) }, icon = AppIcons.ChartBars, isAction = true))
-        if (onImport != null) add(ShelfItem("import", importLabel, null, null, onImport, icon = AppIcons.ImportFile, isAction = true))
+        add(ShelfItem("new", newLabel, null, null, { state.askPlaylistName(PlaylistPrompt.Create(emptyList())) }, icon = AppIcons.AddToQueue, isAction = true, compactTitle = compactNew))
+        add(ShelfItem("smart-new", smartLabel, null, null, { state.open(Route.SmartPlaylistEditor()) }, icon = AppIcons.ChartBars, isAction = true, compactTitle = compactSmart))
+        if (onImport != null) add(ShelfItem("import", importLabel, null, null, onImport, icon = AppIcons.ImportFile, isAction = true, compactTitle = compactImport))
         smart.forEach { playlist ->
             val tracks = playlist.rules.resolve(state.library, history, favorites.toSet(), now)
             add(ShelfItem(playlist.id, playlist.name, pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size),

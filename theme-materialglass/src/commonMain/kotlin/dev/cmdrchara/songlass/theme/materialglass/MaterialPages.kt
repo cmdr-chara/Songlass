@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -87,17 +89,22 @@ internal fun MaterialCollectionDetails(
     BoxWithConstraints(modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
         val measurer = rememberTextMeasurer()
         val density = LocalDensity.current
-        val labelStyle = AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold)
+        val labelStyle = AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold)
+        val buttonHeight = with(density) { maxOf(48.dp, labelStyle.lineHeight.toDp() + 20.dp) }
         val requiredWidth = with(density) {
             maxOf(measurer.measure(playLabel, labelStyle).size.width,
-                measurer.measure(shuffleLabel, labelStyle).size.width).toDp() + 22.dp + 8.dp + 24.dp
+                measurer.measure(shuffleLabel, labelStyle).size.width).toDp() + 20.dp + 6.dp + 24.dp
         }
-        // Reserve the pin and both gaps, including the narrower pill during a press.
-        val compact = (maxWidth - 48.dp - 16.dp) * (0.9f / 2.05f) >= requiredWidth
+        // Move the pin to metadata before stacking the two actions. Only widen on press
+        // when the narrower neighbour still has enough space for its complete label.
+        val inlineAction = (maxWidth - 48.dp - 16.dp) / 2 >= requiredWidth
+        val buttonRoom = maxWidth - if (inlineAction) 48.dp + 16.dp else 8.dp
+        val compact = buttonRoom / 2 >= requiredWidth
+        val canWiden = buttonRoom * (0.9f / 2.05f) >= requiredWidth
         Column(Modifier.fillMaxWidth()) {
             MaterialTag(kind, Modifier)
             Spacer(Modifier.height(10.dp))
-            AppText(title, AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold), maxLines = 3)
+            AppText(title, AppTheme.typography.title2.copy(fontWeight = FontWeight.Bold), maxLines = 3)
             if (subtitle != null) {
                 AppText(
                     subtitle,
@@ -113,18 +120,20 @@ internal fun MaterialCollectionDetails(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 AppText(meta, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel,
                     modifier = Modifier.weight(1f).padding(top = 2.dp))
-                if (!compact) action()
+                if (!inlineAction) action()
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
             val playInteraction = remember { MutableInteractionSource() }
             val shuffleInteraction = remember { MutableInteractionSource() }
             val playPressed by playInteraction.collectIsPressedAsState()
             val shufflePressed by shuffleInteraction.collectIsPressedAsState()
             if (compact) {
-                Row(Modifier.fillMaxWidth().height(56.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    GroupButton(AppIcons.Play, playLabel, palette.primary, palette.onPrimary, playInteraction, onPlay, widen = playPressed, giveWay = shufflePressed)
-                    GroupButton(AppIcons.Shuffle, shuffleLabel, palette.primaryContainer, palette.onPrimaryContainer, shuffleInteraction, onShuffle, widen = shufflePressed, giveWay = playPressed)
-                    action()
+                Row(Modifier.fillMaxWidth().height(buttonHeight), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    GroupButton(AppIcons.Play, playLabel, palette.primary, palette.onPrimary, playInteraction, onPlay,
+                        widen = canWiden && playPressed, giveWay = canWiden && shufflePressed)
+                    GroupButton(AppIcons.Shuffle, shuffleLabel, palette.primaryContainer, palette.onPrimaryContainer, shuffleInteraction, onShuffle,
+                        widen = canWiden && shufflePressed, giveWay = canWiden && playPressed)
+                    if (inlineAction) action()
                 }
             } else {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -138,7 +147,7 @@ internal fun MaterialCollectionDetails(
                     }
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
@@ -171,7 +180,7 @@ private fun RowScope.GroupButton(
     Row(
         Modifier
             .weight(weight)
-            .then(if (compact) Modifier.fillMaxHeight() else Modifier.heightIn(min = 56.dp))
+            .then(if (compact) Modifier.fillMaxHeight() else Modifier.heightIn(min = 48.dp))
             .clip(RoundedCornerShape(corner))
             .background(container)
             .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClick = onClick)
@@ -179,9 +188,9 @@ private fun RowScope.GroupButton(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(icon, contentDescription = null, size = 22.dp, tint = content)
-        Spacer(Modifier.width(8.dp))
-        AppText(label, AppTheme.typography.headline.copy(fontWeight = FontWeight.Bold), color = content,
+        AppIcon(icon, contentDescription = null, size = 20.dp, tint = content)
+        Spacer(Modifier.width(6.dp))
+        AppText(label, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), color = content,
             maxLines = if (compact) 1 else Int.MAX_VALUE)
     }
 }
@@ -198,6 +207,32 @@ internal fun MaterialTag(text: String, modifier: Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         AppText(text, AppTheme.typography.caption1.copy(fontWeight = FontWeight.SemiBold), color = AppTheme.colors.secondaryLabel, maxLines = 1)
+    }
+}
+
+/** Sorting stays compact at normal text size and wraps instead of hiding a choice offscreen. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MaterialSortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
+    val palette = currentPalette()
+    val shape = RoundedCornerShape(MaterialShapes.Medium)
+    FlowRow(modifier.fillMaxWidth().selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        options.forEachIndexed { index, option ->
+            val selected = selectedIndex == index
+            val interaction = remember { MutableInteractionSource() }
+            Box(Modifier.weight(1f).heightIn(min = 48.dp).widthIn(min = 48.dp)
+                .selectable(selected, interaction, indication = null, role = Role.RadioButton) { onSelect(index) }
+                .padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxWidth().clip(shape).background(if (selected) palette.primaryContainer else palette.container)
+                    .indication(interaction, MaterialRipple).padding(horizontal = 12.dp, vertical = 7.dp),
+                    contentAlignment = Alignment.Center) {
+                    AppText(option, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (selected) palette.onPrimaryContainer else palette.label,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                }
+            }
+        }
     }
 }
 

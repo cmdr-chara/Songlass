@@ -139,7 +139,17 @@ class MediaStoreArtworkLoader(
                     // A decode that has started is finished and cached even if its row left
                     // the screen meanwhile, instead of throwing the work away.
                     withContext(NonCancellable + Dispatchers.IO) {
-                        cachedEntry(key, sizePx) ?: decodeAuthorized(key, sizePx)?.also { cacheFor(sizePx).put(cacheKey, it) }
+                        cachedEntry(key, sizePx) ?: decodeAuthorized(key, sizePx)?.also {
+                            cacheFor(sizePx).put(cacheKey, it)
+                            // Keep a small stand-in in the independent thumbnail cache. A large
+                            // carousel can evict its own covers when another tab is visited; on
+                            // return Compose can then draw this immediately while the full-size
+                            // image reloads. Scaling happens here on the IO dispatcher, not on a
+                            // navigation frame, and only for successfully decoded covers.
+                            if (sizePx > SMALL_ARTWORK_PX && it.bitmap != null &&
+                                freshEntry("$key@$SMALL_ARTWORK_PX", SMALL_ARTWORK_PX) == null
+                            ) cachedEntry(key, SMALL_ARTWORK_PX)
+                        }
                     }
                 }
             }

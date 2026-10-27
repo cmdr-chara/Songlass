@@ -101,6 +101,10 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.SegmentedControl(options, selectedIndex, onSelect, modifier)
 
     @Composable
+    override fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        LocalGlassLook.current.SortOptions(options, selectedIndex, onSelect, modifier)
+
+    @Composable
     override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
         LocalGlassLook.current.ActionButton(text, icon, onClick, modifier)
 

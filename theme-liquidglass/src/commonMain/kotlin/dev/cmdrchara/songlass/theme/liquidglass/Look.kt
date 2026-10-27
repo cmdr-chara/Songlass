@@ -336,6 +336,10 @@ interface GlassLook {
         LiquidGlassSegmentedControl(options, selectedIndex, onSelect, modifier)
 
     @Composable
+    fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        LiquidGlassSortOptions(options, selectedIndex, onSelect, modifier)
+
+    @Composable
     fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) = LiquidGlassBackButton(label, onClick, modifier)
 
     @Composable

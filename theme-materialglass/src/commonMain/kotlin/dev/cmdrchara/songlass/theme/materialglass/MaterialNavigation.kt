@@ -4,6 +4,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,7 +38,10 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
@@ -65,6 +69,24 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
     val inlineLabels = LocalDensity.current.fontScale <= 1.2f
     val shape = RoundedCornerShape(MaterialShapes.ExtraLarge)
     val palette = currentPalette()
+    // Keep the selected Material primary opaque. Darken/lighten only its outer bands
+    // away from the onPrimary ink, so the glint cannot reduce the ink contrast.
+    val bubbleFill = remember(palette.primary, palette.onPrimary) {
+        val awayFromInk = if (palette.onPrimary.luminance() > palette.primary.luminance()) Color.Black else Color.White
+        Brush.verticalGradient(
+            0f to lerp(palette.primary, awayFromInk, 0.12f),
+            0.30f to palette.primary,
+            0.70f to palette.primary,
+            1f to lerp(palette.primary, awayFromInk, 0.08f),
+        )
+    }
+    val bubbleRim = remember(palette.onPrimary) {
+        Brush.verticalGradient(
+            0f to palette.onPrimary.copy(alpha = 0.22f),
+            0.5f to palette.onPrimary.copy(alpha = 0.04f),
+            1f to palette.onPrimary.copy(alpha = 0.14f),
+        )
+    }
     val density = LocalDensity.current
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val reduced = AppTheme.accessibility.reduceMotion
@@ -89,7 +111,7 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
     }
     Box(modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally)
         .widthIn(max = preferredWidth).fillMaxWidth().height(look.navigationBarHeight())) {
-        // Only the outer panel samples the page. The moving bubble is an ordinary tonal fill.
+        // Only the outer panel samples the page; the bubble keeps its opaque tonal core.
         Box(look.navigationBarSurface(Modifier.matchParentSize(), shape, null, edges = true))
         Box(Modifier.fillMaxSize().padding(horizontal = 8.dp)
             .onSizeChanged { rowWidth = it.width.toFloat() }
@@ -101,8 +123,10 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 }
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    touching = true
-                    goal = target(down.position.x).roundToInt().toFloat()
+                    // A tap is committed by selectable on release. Do not preview a new
+                    // destination merely because the finger touched its slot.
+                    goal = latestSelected.toFloat()
+                    touching = target(down.position.x).roundToInt() == latestSelected
                     var dragged = false
                     var released = false
                     try {
@@ -110,7 +134,10 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                             val event = awaitPointerEvent(PointerEventPass.Initial)
                             val change = event.changes.firstOrNull { it.id == down.id } ?: break
                             if (!change.pressed) {
-                                released = change.position.y in -viewConfiguration.touchSlop..(size.height+viewConfiguration.touchSlop)
+                                // Compose represents a cancelled pointer as a consumed up.
+                                // Check before we consume a successful drag's release.
+                                released = !change.isConsumed &&
+                                    change.position.y in -viewConfiguration.touchSlop..(size.height+viewConfiguration.touchSlop)
                                 if (dragged) {
                                     goal = target(change.position.x)
                                     change.consume()
@@ -120,14 +147,17 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                             val dx = abs(change.position.x-down.position.x)
                             val dy = abs(change.position.y-down.position.y)
                             if (!dragged && dy > viewConfiguration.touchSlop && dy > dx) break
-                            if (!dragged && dx > viewConfiguration.touchSlop) dragged = true
+                            if (!dragged && dx > viewConfiguration.touchSlop) {
+                                dragged = true
+                                touching = true
+                            }
                             if (dragged) {
                                 goal = target(change.position.x)
                                 change.consume()
                             }
                         }
                     } finally {
-                        val destination = if (released) goal.roundToInt().coerceIn(tabs.indices) else latestSelected
+                        val destination = if (released && dragged) goal.roundToInt().coerceIn(tabs.indices) else latestSelected
                         touching = false
                         goal = destination.toFloat()
                         // Foundation handles taps/keyboard activation; only a drag commits here.
@@ -149,7 +179,7 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 shadowElevation = 1.dp.toPx()+2.dp.toPx()*pressure.value
                 ambientShadowColor = palette.primary.copy(alpha = 0.10f)
                 spotShadowColor = Color.Black.copy(alpha = if (palette.dark) 0.22f else 0.12f)
-            }.background(palette.primary, CircleShape))
+            }.background(bubbleFill, CircleShape).border(0.75.dp, bubbleRim, CircleShape))
             Row(Modifier.fillMaxSize().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
                 tabs.forEachIndexed { index, tab ->
                     MaterialNavigationItem(tab, index == selectedTab, index == preview, inlineLabels,
@@ -171,7 +201,7 @@ private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted:
     val tint = animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
         if (reduced) snap() else MaterialMotion.effects(), label = "materialNavTint")
     val target = modifier.fillMaxHeight().clip(CircleShape)
-        .selectable(selected, interactionSource = interaction, indication = MaterialRipple, role = Role.Tab, onClick = onClick)
+        .selectable(selected, interactionSource = interaction, indication = MaterialNavigationIndication, role = Role.Tab, onClick = onClick)
     if (inlineLabel) {
         Row(target.padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),

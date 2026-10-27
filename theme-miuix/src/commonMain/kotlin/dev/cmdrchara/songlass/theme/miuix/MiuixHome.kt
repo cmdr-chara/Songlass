@@ -1,19 +1,20 @@
 package dev.cmdrchara.songlass.theme.miuix
 
 import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -21,6 +22,7 @@ import dev.cmdrchara.songlass.designsystem.HomeHighlight
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import top.yukonga.miuix.kmp.basic.BasicComponent
 import top.yukonga.miuix.kmp.basic.Card
 import top.yukonga.miuix.kmp.basic.CardDefaults
 import top.yukonga.miuix.kmp.basic.Scaffold
@@ -49,41 +51,65 @@ internal fun MiuixHomePage(title: String, trailing: @Composable () -> Unit, cont
     }
 }
 
-/** Action collections and album recommendations have different visual roles on Home. */
+/** One quiet group; each recommendation keeps its own target, focus and navigation. */
 @Composable
 internal fun MiuixHomeHighlights(items: List<HomeHighlight>, modifier: Modifier) {
-    Column(modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        items.forEach { pick ->
+    if (items.isEmpty()) return
+    Card(
+        modifier = modifier.padding(horizontal = 16.dp).fillMaxWidth(),
+        cornerRadius = 22.dp,
+        insideMargin = PaddingValues(0.dp),
+        colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground),
+    ) {
+        items.forEachIndexed { index, pick ->
             key(pick.key) {
-                Card(
-                    modifier = Modifier.fillMaxWidth().prefetchArtworkOnPress(pick.artwork.takeIf { pick.icon == null }).semantics { role = Role.Button },
-                    cornerRadius = 22.dp,
-                    insideMargin = PaddingValues(0.dp),
-                    colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground),
-                    onClick = pick.onClick,
+                val interaction = remember { MutableInteractionSource() }
+                val rowShape = RoundedCornerShape(
+                    topStart = if (index == 0) 22.dp else 0.dp,
+                    topEnd = if (index == 0) 22.dp else 0.dp,
+                    bottomStart = if (index == items.lastIndex) 22.dp else 0.dp,
+                    bottomEnd = if (index == items.lastIndex) 22.dp else 0.dp,
+                )
+                val action = pick.icon
+                BasicComponent(
+                    modifier = miuixArtworkTileFeedback(
+                        Modifier.fillMaxWidth().prefetchArtworkOnPress(pick.artwork.takeIf { action == null }),
+                        interaction,
+                        rowShape,
+                    ).clickable(
+                        interactionSource = interaction,
+                        indication = MiuixLook.pressIndication(),
+                        role = Role.Button,
+                        onClick = pick.onClick,
+                    ),
+                    insideMargin = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                    interactionSource = interaction,
+                    startAction = {
+                        Box(Modifier.width(68.dp)) {
+                            if (action != null) {
+                                HomeMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) }, Modifier.size(48.dp))
+                            } else {
+                                AlbumArt(pick.artwork, Modifier.size(64.dp), cornerRadius = 14.dp)
+                            }
+                        }
+                    },
+                    endActions = action?.let { { AppIcon(it, null, size = 22.dp, tint = AppTheme.colors.accent) } },
                 ) {
-                    val action = pick.icon
-                    if (action != null) {
-                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            HomeMosaic(pick.artworks.ifEmpty { listOf(pick.artwork) }, Modifier.size(48.dp))
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                AppText(pick.title, AppTheme.typography.headline, maxLines = 2)
-                                pick.subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2) }
-                            }
-                            AppIcon(action, null, size = 22.dp, tint = AppTheme.colors.accent)
-                        }
-                    } else {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            AlbumArt(pick.artwork, Modifier.size(88.dp), cornerRadius = 16.dp)
-                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                                AppText(pick.label, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1)
-                                AppText(pick.title, AppTheme.typography.headline, maxLines = 2)
-                                pick.subtitle?.let { AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 2) }
-                            }
-                        }
+                    if (action == null && pick.label.isNotBlank()) {
+                        AppText(pick.label, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                        Spacer(Modifier.height(2.dp))
                     }
+                    AppText(pick.title, AppTheme.typography.headline, maxLines = 2)
+                    pick.subtitle?.takeIf { it.isNotBlank() }?.let {
+                        Spacer(Modifier.height(2.dp))
+                        AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2)
+                    }
+                }
+                if (index < items.lastIndex) {
+                    Spacer(
+                        Modifier.fillMaxWidth().padding(start = 90.dp, end = 14.dp)
+                            .height(0.5.dp).background(AppTheme.colors.separator),
+                    )
                 }
             }
         }

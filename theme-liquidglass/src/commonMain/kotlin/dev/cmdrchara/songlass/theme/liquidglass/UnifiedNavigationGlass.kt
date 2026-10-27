@@ -27,10 +27,14 @@ import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeSampling
 import dev.chrisbanes.haze.hazeEffect
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.BlurStrength
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 import kotlin.math.sqrt
 
 internal expect val unifiedNavigationSupported: Boolean
 internal expect fun createNavigationShader(): NavigationShader?
+
+internal const val NavigationBackdropBlurDp = 6.5f
 
 /** Mutable GPU resources belong to a single effect node, never the shared factory. */
 internal interface NavigationShader {
@@ -47,16 +51,18 @@ internal class NavigationOpticsFrame {
     val lensPressure = FloatArray(2)
     var smoothing = 0f
     var density = 1f
+    var blurRadiusPx = NavigationBackdropBlurDp
     var dark = false
 }
 
-internal data class NavigationGlassStyle(val link: LiquidLink, val dark: Boolean)
+internal data class NavigationGlassStyle(val link: LiquidLink, val dark: Boolean, val blur: BlurStrength)
 
 @Composable
 internal fun Modifier.unifiedNavigationGlass(link: LiquidLink): Modifier {
     val source = LocalGlassSource.current ?: return this
     val dark = AppTheme.colors.isDark
-    val style = remember(link, dark) { NavigationGlassStyle(link, dark) }
+    val blur = LocalBlurStrength.current
+    val style = remember(link, dark, blur) { NavigationGlassStyle(link, dark, blur) }
     return hazeEffect(NavigationGlassFactory, HazeInput.Sources(source), style, HazeSampling.FullResolution)
 }
 
@@ -118,6 +124,7 @@ private class NavigationGlassRenderer : HazeEffectRenderer<NavigationGlassStyle>
         placeLens(LinkSide.End, search, h, rs, frame.searchLens, 1)
         frame.smoothing = 48.dp.toPx() * sqrt(style.link.merge().coerceIn(0f, 1f))
         frame.density = density
+        frame.blurRadiusPx = style.blur.scale(NavigationBackdropBlurDp.dp).toPx()
         frame.dark = style.dark
         val optical = shader
         if (optical == null) {
@@ -200,7 +207,7 @@ internal val NavigationGlassProgram = """
                       mix(b.yz, a.yz, weightA));
     }
     // Same filtered page input for the body, lifted lens and nearby-colour response.
-    float3 material(float2 p, float3 geometry, float lifted) {
+    float3 material(float2 p, float3 geometry, float lifted, float bodyEdge) {
         float2 normal = geometry.yz / max(length(geometry.yz), 0.001);
         float depth = max(-geometry.x, 0.0) / px;
         float band = 1.0 - smoothstep(0.0, mix(10.0, 13.0, lifted), depth);
@@ -216,8 +223,18 @@ internal val NavigationGlassProgram = """
         }
         float luminance = dot(rgb, float3(0.2126,0.7152,0.0722));
         rgb = mix(float3(luminance), rgb, 1.04);
-        float3 base = mix(float3(0.98 + lifted*0.02), float3(0.08 + lifted*0.10), dark);
-        rgb = mix(rgb, base, mix(0.56, 0.48, dark) - lifted * 0.20);
+        // A restrained smoked base gives dark glass definition even over black content.
+        float3 base = mix(float3(0.98 + lifted*0.02), float3(0.12 + lifted*0.10), dark);
+        // Regular glass adapts to the same blurred sample it refracts. A fixed tint lets
+        // bright artwork wash out light labels in dark appearance (and vice versa).
+        // Preserve colour on compatible backgrounds; add diffusion only where needed.
+        // Pressure changes the lens depth, but never removes this legibility response.
+        float contrastRisk = mix(1.0-smoothstep(0.18,0.72,luminance),
+                                 smoothstep(0.15,0.70,luminance), dark);
+        float restingTint = mix(0.56,0.48,dark) - lifted*0.12;
+        float protectiveTint = mix(0.72,0.78,dark);
+        float tint = mix(restingTint,protectiveTint,contrastRisk*(1.0-lifted*0.15));
+        rgb = mix(rgb, base, tint);
         // One nearby-colour sample at the contour; no second blur or spectral tap loop.
         if (depth < 8.0) {
             half4 reflected = backdrop.eval(p + normal * (7.0 * px));
@@ -228,8 +245,13 @@ internal val NavigationGlassProgram = """
         float bottomLight = max(normal.y, 0.0) * 0.45;
         float rim = exp(-depth / 0.65);
         float soft = exp(-depth / 4.0);
-        rgb += (topLight + bottomLight) * (rim * mix(0.055,0.23,lifted) + soft * 0.012);
+        // A slightly clearer directional rim keeps dark glass visible on black pages.
+        // Keep the light appearance and the raised lens highlight unchanged.
+        float restingRim = mix(0.055,0.085,dark);
+        rgb += (topLight + bottomLight) * (rim * mix(restingRim,0.23,lifted) + soft * 0.012);
         rgb -= (1.0-abs(normal.y)) * rim * 0.035;
+        // Define light glass on a white page without restoring an exterior shadow.
+        rgb -= rim * (1.0-dark) * 0.07 * bodyEdge;
         return clamp(rgb, 0.0, 1.0);
     }
     half4 lensLayer(float2 p, float4 body, float opacity, float pressure, half4 behind) {
@@ -247,9 +269,23 @@ internal val NavigationGlassProgram = """
         if (coverage <= 0.0) return under;
         // A shallow neutral lens keeps the indicator inside the capsule visually.
         // Retain the shared refracted input without the raised-button white rim.
-        float3 rgb = material(p,geometry,pressure);
+        float3 rgb = material(p,geometry,pressure,0.0);
         float3 selectionTint = mix(float3(0.0),float3(1.0),dark);
         rgb = mix(rgb,selectionTint,mix(0.10,0.12,dark)*(1.0-pressure));
+        // Protect the accent ink in the core, including over black/white artwork.
+        // These bounds derive from Songlass's own light/dark accent colours. Keep
+        // the thin optical contour free to reflect colour and reveal the lens depth.
+        float3 bounded;
+        if (dark > 0.5) {
+            float peak = max(rgb.r,max(rgb.g,rgb.b));
+            bounded = rgb * min(1.0,0.18/max(peak,0.001));
+        } else {
+            float trough = min(rgb.r,min(rgb.g,rgb.b));
+            float whiteWeight = clamp((0.89-trough)/max(1.0-trough,0.001),0.0,1.0);
+            bounded = mix(rgb,float3(1.0),whiteWeight);
+        }
+        float core = smoothstep(1.5,5.0,max(-geometry.x,0.0)/px);
+        rgb = mix(rgb,bounded,core);
         return half4(half3(rgb*coverage),half(coverage)) + under * half(1.0-coverage);
     }
     half4 main(float2 p) {
@@ -257,15 +293,11 @@ internal val NavigationGlassProgram = """
         float d = geometry.x;
         float aa = max(px * 0.35, 0.65);
         float coverage = 1.0-smoothstep(-aa,aa,d);
-        float shadow = 0.0;
-        if (d > -aa && d < 10.0*px) {
-            float depth = max(surface(p-float2(0.0,1.5*px)).x / px,0.0);
-            shadow = 0.10*exp(-depth/2.5);
-        }
-        half4 color = half4(0.0,0.0,0.0,half(shadow));
+        // The capsule reads from its illuminated contour rather than a dark halo.
+        half4 color = half4(0.0);
         if (coverage > 0.0) {
-            float3 rgb = material(p,geometry,0.0);
-            color = half4(half3(rgb*coverage),half(coverage+shadow*(1.0-coverage)));
+            float3 rgb = material(p,geometry,0.0,1.0);
+            color = half4(half3(rgb*coverage),half(coverage));
         }
         color = lensLayer(p,pillLens,lensOpacity.x,lensPressure.x,color);
         return lensLayer(p,searchLens,lensOpacity.y,lensPressure.y,color);

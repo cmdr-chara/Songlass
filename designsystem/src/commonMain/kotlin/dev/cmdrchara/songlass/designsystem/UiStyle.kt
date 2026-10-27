@@ -80,6 +80,8 @@ data class ShelfItem(
     val circular: Boolean = false,
     /** Creation/import command, distinct from a collection with an icon placeholder. */
     val isAction: Boolean = false,
+    /** Short visible action label when the shelf heading already supplies context. */
+    val compactTitle: String? = null,
 )
 
 /** A localized Home recommendation. Action collections may supply a representative mosaic. */
@@ -235,6 +237,11 @@ interface UiStyle {
 
     @Composable
     fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier)
+
+    /** A small set of ordering choices; every option stays reachable without sideways scrolling. */
+    @Composable
+    fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        SegmentedControl(options, selectedIndex, onSelect, modifier)
 
     /** Prominent action such as "Play" or "Shuffle" on an album. */
     @Composable

@@ -13,25 +13,21 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import androidx.compose.runtime.withFrameNanos
@@ -50,8 +46,8 @@ import kotlin.math.tanh
 /**
  * The touch response of interactive Liquid Glass, kept restrained as the HIG asks ("use Liquid
  * Glass effects sparingly", motion that looks purposeful): on touch the element grows slightly,
- * leans a little toward the finger and lights up softly where it is touched; on release it
- * settles back. The whole element moves, glass and content together. Gestures are only
+ * leans a little toward the finger; on release it settles back. The material renderer owns
+ * lighting so no post-composition wash reduces ink contrast. Glass and content move together. Gestures are only
  * observed, never consumed, so clicks work as before. Disabled with Reduce Motion.
  *
  * @param grow extra scale while pressed (0.04 = 4% bigger).
@@ -67,21 +63,21 @@ internal fun Modifier.liquidPress(
     if (AppTheme.accessibility.reduceMotion) return this
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
-    val body = remember(grow) {
+    val direction = if (LocalLayoutDirection.current == LayoutDirection.Rtl) -1f else 1f
+    val body = remember(grow, reach, density, direction) {
         LiquidBody(
             press = Animatable(0f),
             pull = Animatable(Offset.Zero, Offset.VectorConverter),
             grow = grow,
             reachPx = with(density) { reach.toPx() },
             leanPx = with(density) { LEAN.toPx() },
+            layoutDirection = direction,
         )
     }
-    var touch by remember { mutableStateOf(Offset.Unspecified) }
-    val dark = AppTheme.colors.isDark
     if (link != null) {
         DisposableEffect(link, side, body) {
             link.bodies[side] = body
-            onDispose { link.bodies.remove(side) }
+            onDispose { if (link.bodies[side] === body) link.bodies.remove(side) }
         }
     }
     return onSizeChanged { body.widthPx = it.width.toFloat() }.pointerInput(body) {
@@ -89,9 +85,8 @@ internal fun Modifier.liquidPress(
             val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
             val center = Offset(size.width / 2f, size.height / 2f)
             // Follows the finger closely at first, then saturates at the reach.
-            fun rubber(d: Float) = body.reachPx * tanh(d / (body.reachPx * 4f))
+            fun rubber(d: Float) = if (body.reachPx > 0f) body.reachPx * tanh(d / (body.reachPx * 4f)) else 0f
             fun pullFor(position: Offset) = (position - center).let { Offset(rubber(it.x), rubber(it.y)) }
-            touch = down.position
             scope.launch { body.press.animateTo(1f, spring(dampingRatio = 0.8f, stiffness = 600f)) }
             scope.launch { body.pull.animateTo(pullFor(down.position) * 0.5f, spring(dampingRatio = 0.85f, stiffness = 700f)) }
             // The lean pursues the finger with one spring per axis; restarting animateTo on
@@ -100,35 +95,39 @@ internal fun Modifier.liquidPress(
             val leanY = SpringFollower()
             var goal = Offset.Zero
             var leaning: Job? = null
-            while (true) {
-                val event = awaitPointerEvent(PointerEventPass.Initial)
-                val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                if (!change.pressed) break
-                touch = change.position
-                goal = pullFor(change.position)
-                if (leaning?.isActive != true) {
-                    val start = body.pull.value
-                    val velocity = body.pull.velocity
-                    leanX.snapTo(start.x, velocity.x)
-                    leanY.snapTo(start.y, velocity.y)
-                    leaning = scope.launch {
-                        var last = withFrameNanos { it }
-                        while (true) {
-                            val now = withFrameNanos { it }
-                            val seconds = (now - last) / 1_000_000_000f
-                            val movingX = leanX.step(goal.x, seconds, dampingRatio = 0.9f, stiffness = 900f, threshold = 0.05f)
-                            val movingY = leanY.step(goal.y, seconds, dampingRatio = 0.9f, stiffness = 900f, threshold = 0.05f)
-                            body.pull.snapTo(Offset(leanX.value, leanY.value))
-                            if (!movingX && !movingY) break
-                            last = now
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
+                    goal = pullFor(change.position)
+                    if (leaning?.isActive != true) {
+                        val start = body.pull.value
+                        val velocity = body.pull.velocity
+                        leanX.snapTo(start.x, velocity.x)
+                        leanY.snapTo(start.y, velocity.y)
+                        leaning = scope.launch {
+                            var last = withFrameNanos { it }
+                            while (true) {
+                                val now = withFrameNanos { it }
+                                val seconds = (now - last) / 1_000_000_000f
+                                val movingX = leanX.step(goal.x, seconds, dampingRatio = 0.9f, stiffness = 900f, threshold = 0.05f)
+                                val movingY = leanY.step(goal.y, seconds, dampingRatio = 0.9f, stiffness = 900f, threshold = 0.05f)
+                                body.pull.snapTo(Offset(leanX.value, leanY.value))
+                                if (!movingX && !movingY) break
+                                last = now
+                            }
                         }
                     }
                 }
+            } finally {
+                // A cancelled pointer stream must release both the lens and its follower.
+                // The remembered scope can settle the body when pointerInput restarts.
+                val releaseVelocity = if (leaning != null) Offset(leanX.velocity, leanY.velocity) else body.pull.velocity
+                leaning?.cancel()
+                scope.launch { body.press.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 380f)) }
+                scope.launch { body.pull.animateTo(Offset.Zero, spring(dampingRatio = 0.75f, stiffness = 380f), initialVelocity = releaseVelocity) }
             }
-            val releaseVelocity = if (leaning != null) Offset(leanX.velocity, leanY.velocity) else body.pull.velocity
-            leaning?.cancel()
-            scope.launch { body.press.animateTo(0f, spring(dampingRatio = 0.7f, stiffness = 380f)) }
-            scope.launch { body.pull.animateTo(Offset.Zero, spring(dampingRatio = 0.75f, stiffness = 380f), initialVelocity = releaseVelocity) }
         }
     }.graphicsLayer {
         val scale = body.scale()
@@ -137,20 +136,6 @@ internal fun Modifier.liquidPress(
         scaleY = scale
         translationX = offset.x
         translationY = offset.y
-    }.drawWithContent {
-        drawContent()
-        // Soft light spreading from the touch point, like iOS glass lighting up under a finger.
-        val p = body.press.value
-        if (p > 0.01f && touch.isSpecified) {
-            drawRoundRect(
-                brush = Brush.radialGradient(
-                    listOf(Color.White.copy(alpha = (if (dark) 0.10f else 0.16f) * p), Color.Transparent),
-                    center = touch,
-                    radius = size.height * 1.3f,
-                ),
-                cornerRadius = CornerRadius(size.height / 2f),
-            )
-        }
     }
 }
 
@@ -162,6 +147,7 @@ internal class LiquidBody(
     val grow: Float,
     val reachPx: Float,
     val leanPx: Float,
+    val layoutDirection: Float,
 ) {
     /** Untransformed width, needed to place the end caps of a link bridge. */
     var widthPx by mutableFloatStateOf(0f)
@@ -171,12 +157,14 @@ internal class LiquidBody(
     /** Own lean toward the finger, plus a small lean toward the neighbour while they merge. */
     fun offset(link: LiquidLink?, side: LinkSide): Offset {
         val merge = link?.merge() ?: 0f
-        return pull.value + Offset(side.towardNeighbour * merge * leanPx, 0f)
+        return pull.value + Offset(side.towardNeighbour * layoutDirection * merge * leanPx, 0f)
     }
 
     /** 0..1: how much this element is pressed and leaning toward its neighbour on [side]. */
-    fun reachToward(side: LinkSide): Float =
-        press.value * (0.3f + 0.7f * (pull.value.x * side.towardNeighbour / reachPx).coerceIn(0f, 1f))
+    fun reachToward(side: LinkSide): Float {
+        val reach = if (reachPx > 0f) (pull.value.x * side.towardNeighbour * layoutDirection / reachPx).coerceIn(0f, 1f) else 0f
+        return press.value * (0.3f + 0.7f * reach)
+    }
 }
 
 internal enum class LinkSide(val towardNeighbour: Float) {

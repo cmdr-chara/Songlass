@@ -91,6 +91,10 @@ fun SegmentedControl(
 ) = LocalUiStyle.current.SegmentedControl(options, selectedIndex, onSelect, modifier)
 
 @Composable
+fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) =
+    LocalUiStyle.current.SortOptions(options, selectedIndex, onSelect, modifier)
+
+@Composable
 fun ActionButton(
     text: String,
     onClick: () -> Unit,

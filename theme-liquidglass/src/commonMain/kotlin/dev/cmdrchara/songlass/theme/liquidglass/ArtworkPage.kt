@@ -147,6 +147,9 @@ internal fun LiquidGlassFloatingBackButton(contentDescription: String, onClick: 
 internal fun FloatingCircleButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.9f else 1f,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f), label = "floatingBackPress")
     Box(
         modifier
             .size(44.dp)
@@ -156,6 +159,7 @@ internal fun FloatingCircleButton(icon: ImageVector, contentDescription: String,
         Box(
             Modifier
                 .size(36.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale }
                 .clip(CircleShape)
                 .background(AppTheme.colors.background.copy(alpha = if (pressed) 0.6f else 0.82f)),
             contentAlignment = Alignment.Center,

@@ -50,14 +50,15 @@ import top.yukonga.miuix.kmp.basic.TextFieldDefaults as NativeFieldDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme as NativeMiuixTheme
 
 @Composable
-internal fun MiuixAction(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = false, enabled: Boolean = true) {
+internal fun MiuixAction(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = false, enabled: Boolean = true, maxLines: Int = 1, accessibilityLabel: String? = null) {
     val palette = AppTheme.colors
     val background = if (primary) palette.accent else palette.fill
     val foreground = if (!enabled) palette.tertiaryLabel else if (primary) if (background.luminance() > 0.179f) Color.Black else Color.White else palette.label
     NativeButton(onClick = onClick, modifier = modifier.heightIn(min = 48.dp), cornerRadius = 18.dp, enabled = enabled,
         colors = ButtonDefaults.buttonColors(color = background, contentColor = foreground)) {
         icon?.let { AppIcon(it, null, size = 20.dp, tint = foreground); Spacer(Modifier.width(8.dp)) }
-        AppText(text, AppTheme.typography.headline, color = foreground, maxLines = 1)
+        AppText(text, AppTheme.typography.headline, color = foreground, maxLines = maxLines, textAlign = TextAlign.Center,
+            modifier = if (accessibilityLabel == null) Modifier else Modifier.clearAndSetSemantics { contentDescription = accessibilityLabel })
     }
 }
 
@@ -65,6 +66,20 @@ internal fun MiuixAction(text: String, icon: ImageVector?, onClick: () -> Unit, 
 internal fun MiuixGroup(content: @Composable () -> Unit, modifier: Modifier) {
     NativeCard(modifier.fillMaxWidth(), cornerRadius = 24.dp, insideMargin = PaddingValues(0.dp),
         colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground)) { content() }
+}
+
+/** Native ordering buttons wrap instead of putting choices behind a horizontal gesture. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun MiuixSortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
+    FlowRow(modifier.fillMaxWidth().selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEachIndexed { index, option ->
+            MiuixAction(option, null, { onSelect(index) },
+                Modifier.weight(1f).semantics { selected = index == selectedIndex },
+                primary = index == selectedIndex, maxLines = Int.MAX_VALUE)
+        }
+    }
 }
 
 @Composable

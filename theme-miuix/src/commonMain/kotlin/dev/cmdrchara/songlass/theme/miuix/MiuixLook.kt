@@ -220,6 +220,8 @@ object MiuixLook : GlassLook {
     @Composable
     override fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) = MiuixSegments(options, selectedIndex, onSelect, modifier)
     @Composable
+    override fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) = MiuixSortOptions(options, selectedIndex, onSelect, modifier)
+    @Composable
     override fun BackButton(label: String, onClick: () -> Unit, modifier: Modifier) = MiuixBack(label, onClick, modifier)
     @Composable
     override fun FormField(value: String, onValueChange: (String) -> Unit, label: String, enabled: Boolean, modifier: Modifier) = MiuixField(value, onValueChange, label, enabled, modifier)

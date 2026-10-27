@@ -20,25 +20,8 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Canvas
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.ImageShader
-import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.ShaderBrush
-import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,7 +43,6 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 import dev.cmdrchara.songlass.theme.liquidglass.GlassLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassSource
-import kotlin.random.Random
 
 /** Material 3 Expressive content and semantic system colors, with glass reserved for navigation. */
 @Stable
@@ -178,58 +160,61 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
 
     @OptIn(ExperimentalHazeApi::class)
     @Composable
-    private fun glassSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean, navigationBar: Boolean): Modifier {
+    private fun glassSurface(
+        modifier: Modifier,
+        shape: RoundedCornerShape,
+        interactionSource: InteractionSource?,
+        edges: Boolean,
+        navigationBar: Boolean,
+    ): Modifier {
         val colors = AppTheme.colors
         val palette = palette()
         val accessibility = AppTheme.accessibility
         val source = LocalGlassSource.current
-        // Off keeps the tonal, readable surface of Reduce Transparency, without a blur layer.
+        // Mini player retains its protective tonal material for title and artist legibility.
+        // The navigation bar lets more of the same backdrop through, without a second blur.
+        val outline = if (edges) Modifier.border(0.75.dp, palette.secondaryLabel.copy(alpha = 0.12f), shape) else Modifier
         val blur = LocalBlurStrength.current
         if (accessibility.reduceTransparency || !blur.blurred || source == null) {
-            return if (navigationBar) modifier.clip(shape).background(palette.containerHigh)
-                .border(0.75.dp, palette.secondaryLabel.copy(alpha = 0.12f), shape)
-            else modifier.seaDecor(shape, palette, glow = edges, base = colors.secondaryBackground)
+            return modifier.clip(shape).background(palette.containerHigh).then(outline)
         }
-        val style = remember(shape, palette, edges, navigationBar, blur) {
+        val style = remember(shape, palette, edges, colors.background, navigationBar, blur) {
             GlassStyle.regular.then {
                 shape(shape)
                 backgroundColor(colors.background)
                 optics(
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
-                        // Stronger than the file's look: over busy covers the labels must stay legible.
-                        blurRadius = OpticalSizeValue.Fixed(blur.scale(if (navigationBar) 22.dp else 36.dp)),
-                        refractionDisplacement = if (!edges) 0.dp else if (navigationBar) 6.dp else 14.dp,
-                        refractionStrength = if (!edges) 0f else if (navigationBar) 0.18f else 0.42f,
+                        blurRadius = OpticalSizeValue.Fixed(blur.scale(20.dp)),
+                        refractionDisplacement = if (edges) { if (navigationBar) 10.dp else 6.dp } else 0.dp,
+                        refractionStrength = if (edges) { if (navigationBar) 0.32f else 0.18f } else 0f,
                     ),
                 )
-                // Fill 2: the surface colour (33% in the file, raised for legibility); fill 1 (white,
-                // luminosity) lifts it to pastel.
-                // A tonal backing stabilizes label contrast; the stronger lens remains at the rim.
-                tint(if (navigationBar) palette.containerHigh.copy(alpha = if (palette.dark) 0.80f else 0.86f)
-                    else palette.vivid.copy(alpha = if (palette.dark) 0.55f else 0.5f))
-                whitePoint(if (navigationBar) { if (palette.dark) -0.04f else 0.10f } else { if (palette.dark) -0.05f else 0.4f })
-                chromaMultiplier(if (navigationBar) 1.05f else 1.15f)
+                val tintAlpha = if (navigationBar) {
+                    if (palette.dark) 0.62f else 0.68f
+                } else {
+                    if (palette.dark) 0.80f else 0.86f
+                }
+                tint(palette.containerHigh.copy(alpha = tintAlpha))
+                whitePoint(if (palette.dark) -0.04f else 0.10f)
+                chromaMultiplier(1.05f)
                 contentNormalBlend(0f)
-                // The file's glass has no specular or reflection of its own: light comes from the
-                // inner shadows drawn below.
-                specularIntensity(if (navigationBar) 0.08f else 0f)
-                ambientResponse(if (navigationBar) 0.12f else 0.08f)
+                specularIntensity(if (navigationBar && edges) 0.25f else 0.08f)
+                ambientResponse(0.12f)
                 edgeShadow(Color.Transparent)
-                chromaticAberrationStrength(if (!edges) 0f else if (navigationBar) 0.025f else 0.5f)
+                chromaticAberrationStrength(if (edges) 0.025f else 0f)
                 pressed { lightingIntensity(0.35f) }
             }
         }
-        val glass = modifier
-            .seaGlow(shape, palette, enabled = edges && !navigationBar)
+        return modifier
             .hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
-        return if (edges) glass.seaLight(shape, palette, quiet = navigationBar) else glass
+            .then(outline)
     }
 
     @Composable
     override fun controlSurface(modifier: Modifier, shape: Shape, color: Color, prominent: Boolean): Modifier {
-        // Content controls are clean tonal surfaces, as in Material 3: glass, glow and grain stay
-        // in the navigation layer. The page's main action is the saturated primary.
+        // Content controls are tonal; the backdrop material belongs to navigation only.
+        // The page's main action uses the saturated primary role.
         val fill = if (prominent) palette().primary else color
         return modifier.clip(shape).background(fill)
     }
@@ -332,13 +317,16 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         MaterialActionButton(text, icon, onClick, modifier)
 
     @Composable
+    override fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
+        MaterialSortOptions(options, selectedIndex, onSelect, modifier)
+
+    @Composable
     override fun SettingsPreviewChoice(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier, preview: @Composable () -> Unit) =
         MaterialSettingsPreviewChoice(title, selected, onClick, modifier, preview)
 
     @Composable
     override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = MaterialSettingsGroup(content, modifier)
 
-    // Pills everywhere and generously rounded cards (the file's cards use 24–32 px at 0.6 dp/px).
     // Shared primitives still request legacy sizes; map them to discrete Material roles.
     override fun corner(base: Dp): Dp = when {
         base <= 8.dp -> MaterialShapes.Small
@@ -349,7 +337,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     }
 
     // Material 3 structure: a navigation bar that stays put, bottom sheets, back arrows, ripples
-    // and M3 selection controls. The glass stays the file's.
+    // and M3 selection controls. The glass is a restrained tonal navigation surface.
     @Composable
     override fun navigationBarHeight(): Dp = materialNavigationBarHeight()
 
@@ -450,94 +438,4 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     @Composable
     override fun SegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
         MaterialSegmentedControl(options, selectedIndex, onSelect, modifier)
-}
-
-/** Glass-like surface without backdrop: base fill plus the file's light, glow and grain. */
-internal fun Modifier.seaDecor(shape: Shape, palette: SeaPalette, glow: Boolean, base: Color): Modifier =
-    seaGlow(shape, palette, enabled = glow).clip(shape).background(base).seaLight(shape, palette)
-
-/**
- * Coloured glow underneath (effect 6: `C'` at 70%, y 29, blur 8.9, spread −20, screen): a pale
- * rounded shape, inset and shifted down, softened by stacking a few fading copies. Only controls
- * between 56 dp wide and 96 dp tall glow: grouped surfaces would light up the page, and under a
- * small round icon button the halo reads as a drip.
- */
-private fun Modifier.seaGlow(shape: Shape, palette: SeaPalette, enabled: Boolean): Modifier = drawBehind {
-    // Small round buttons get none: under a 36 dp icon the halo reads as a drip.
-    if (!enabled || size.height > 96.dp.toPx() || size.width < 56.dp.toPx()) return@drawBehind
-    // Proportional to the control, so small round buttons get a small halo, not a drip.
-    val inset = minOf(12.dp.toPx(), size.width * 0.18f)
-    val drop = minOf(12.dp.toPx(), size.height * 0.2f)
-    val steps = 6
-    val spread = minOf(1.2.dp.toPx(), size.height * 0.03f)
-    val radius = size.height / 2f
-    val alpha = if (palette.dark) 0.22f else 0.6f
-    for (i in steps downTo 0) {
-        val grow = i * spread
-        drawRoundRect(
-            color = palette.glow.copy(alpha = alpha / (steps + 1)),
-            topLeft = Offset(inset - grow, drop - grow),
-            size = Size((size.width - inset * 2 + grow * 2).coerceAtLeast(0f), size.height + grow * 2),
-            cornerRadius = CornerRadius(radius + grow),
-        )
-    }
-}
-
-/**
- * Light inside the surface: the soft-light white gradient, light from the top (inner shadow
- * white 25%, y 20, blur 29), a reflection from the bottom (white 17%, y −21, add), a thin lit
- * rim and grain (effects 7–8).
- */
-private fun Modifier.seaLight(shape: Shape, palette: SeaPalette, quiet: Boolean = false): Modifier = drawWithContent {
-    drawContent()
-    val outline = shape.createOutline(size, layoutDirection, this)
-    val path = Path().apply { addOutline(outline) }
-    val dark = palette.dark
-    if (quiet) {
-        drawPath(path, Brush.verticalGradient(listOf(
-            Color.White.copy(alpha = if (dark) 0.20f else 0.52f), palette.secondaryLabel.copy(alpha = 0.07f))),
-            style = Stroke(0.75.dp.toPx()))
-        return@drawWithContent
-    }
-    clipPath(path) {
-        drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = if (dark) 0.06f else 0.15f), 1f to Color.White.copy(alpha = if (dark) 0.03f else 0.11f)))
-        val top = minOf(size.height * 0.6f, 30.dp.toPx())
-        drawRect(
-            Brush.verticalGradient(0f to Color.White.copy(alpha = if (dark) 0.14f else 0.32f), 1f to Color.Transparent, endY = top),
-            size = Size(size.width, top),
-        )
-        val bottom = minOf(size.height * 0.5f, 22.dp.toPx())
-        drawRect(
-            Brush.verticalGradient(0f to Color.Transparent, 1f to Color.White.copy(alpha = if (dark) 0.10f else 0.22f), startY = size.height - bottom, endY = size.height),
-            topLeft = Offset(0f, size.height - bottom),
-            size = Size(size.width, bottom),
-        )
-        drawGrain(if (dark) 0.05f else 0.07f)
-    }
-    drawPath(
-        path,
-        Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.35f else 0.85f), palette.vivid.copy(alpha = 0.18f))),
-        style = Stroke(0.8.dp.toPx()),
-    )
-}
-
-private fun DrawScope.drawGrain(alpha: Float) {
-    drawRect(ShaderBrush(ImageShader(Grain.bitmap, TileMode.Repeated, TileMode.Repeated)), alpha = alpha)
-}
-
-/** Static noise tile (generated once, never per frame), the file's grain and duotone noise. */
-private object Grain {
-    val bitmap: ImageBitmap by lazy {
-        val size = 96
-        val image = ImageBitmap(size, size)
-        val canvas = Canvas(image)
-        val paint = Paint()
-        val random = Random(7)
-        for (y in 0 until size) for (x in 0 until size) {
-            val v = random.nextFloat()
-            paint.color = if (v > 0.5f) Color.White.copy(alpha = (v - 0.5f) * 1.6f) else Color.Black.copy(alpha = (0.5f - v) * 1.6f)
-            canvas.drawRect(x.toFloat(), y.toFloat(), x + 1f, y + 1f, paint)
-        }
-        image
-    }
 }

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,8 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -84,7 +87,7 @@ internal fun MaterialShortcutTile(title: String, artwork: Artwork, circular: Boo
     }
 }
 
-/** Compact category surface: icon and count above a naturally measured, two-line title. */
+/** Categories keep their tonal icon beside the labels only while the current text fits. */
 @Composable
 internal fun MaterialCollectionTile(
     title: String,
@@ -96,24 +99,50 @@ internal fun MaterialCollectionTile(
     modifier: Modifier,
 ) {
     val palette = currentPalette()
-    Column(
+    BoxWithConstraints(
         modifier
-            .heightIn(min = 104.dp)
-            .clip(RoundedCornerShape(MaterialShapes.Large))
+            .heightIn(min = 80.dp)
+            .clip(RoundedCornerShape(MaterialShapes.LargeIncreased))
             .background(palette.container)
             .clickable(remember { MutableInteractionSource() }, indication = MaterialRipple, role = Role.Button, onClick = onClick)
             .padding(12.dp),
+        contentAlignment = Alignment.CenterStart,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        val measurer = rememberTextMeasurer()
+        val textWidth = with(LocalDensity.current) {
+            maxOf(
+                measurer.measure(title, AppTheme.typography.headline, softWrap = false).size.width,
+                if (subtitle.isNotBlank()) measurer.measure(subtitle, AppTheme.typography.footnote, softWrap = false).size.width else 0,
+            ).toDp()
+        }
+        val leading: @Composable () -> Unit = {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(MaterialShapes.Medium)).background(palette.primaryContainer),
                 contentAlignment = Alignment.Center) {
                 AppIcon(icon, contentDescription = null, size = 24.dp, tint = palette.onPrimaryContainer)
             }
-            Spacer(Modifier.width(10.dp))
-            AppText(subtitle, AppTheme.typography.subheadline, color = palette.secondaryLabel,
-                modifier = Modifier.weight(1f), maxLines = 2)
         }
-        Spacer(Modifier.height(8.dp))
-        AppText(title, AppTheme.typography.headline, color = palette.label, maxLines = 2)
+        val labels: @Composable (Modifier) -> Unit = { textModifier ->
+            Column(textModifier) {
+                AppText(title, AppTheme.typography.headline, color = palette.label)
+                if (subtitle.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    AppText(subtitle, AppTheme.typography.footnote, color = palette.secondaryLabel)
+                }
+            }
+        }
+        if (maxWidth - 50.dp >= textWidth) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                leading()
+                Spacer(Modifier.width(10.dp))
+                labels(Modifier.weight(1f))
+            }
+        } else {
+            // Reflow instead of squeezing large type into the space left by the icon.
+            Column(Modifier.fillMaxWidth()) {
+                leading()
+                Spacer(Modifier.height(8.dp))
+                labels(Modifier.fillMaxWidth())
+            }
+        }
     }
 }

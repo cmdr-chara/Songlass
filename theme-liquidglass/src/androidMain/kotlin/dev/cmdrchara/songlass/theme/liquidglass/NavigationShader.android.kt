@@ -10,7 +10,7 @@ internal actual val unifiedNavigationSupported: Boolean = true
 internal actual fun createNavigationShader(): NavigationShader? = runCatching {
     val program = RuntimeShader(NavigationGlassProgram)
     object : NavigationShader {
-        private var blurDensity = -1f
+        private var blurRadiusPx = -1f
         private var blur: RenderEffect? = null
         override fun effect(frame: NavigationOpticsFrame): androidx.compose.ui.graphics.RenderEffect {
             program.setFloatUniform("pill", frame.pill)
@@ -22,9 +22,10 @@ internal actual fun createNavigationShader(): NavigationShader? = runCatching {
             program.setFloatUniform("smoothing", frame.smoothing)
             program.setFloatUniform("px", frame.density)
             program.setFloatUniform("dark", if (frame.dark) 1f else 0f)
-            if (blurDensity != frame.density) {
-                blurDensity = frame.density
-                blur = RenderEffect.createBlurEffect(8f * frame.density, 8f * frame.density, Shader.TileMode.CLAMP)
+            if (blurRadiusPx != frame.blurRadiusPx) {
+                blurRadiusPx = frame.blurRadiusPx
+                val radius = frame.blurRadiusPx
+                blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
             }
             return RenderEffect.createChainEffect(
                 RenderEffect.createRuntimeShaderEffect(program, "backdrop"), requireNotNull(blur),

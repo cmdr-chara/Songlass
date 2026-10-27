@@ -356,7 +356,7 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val link = remember { LiquidLink() }
     val sharedSurface = searchIndex >= 0 && unifiedNavigationSupported &&
-        LocalGlassSource.current != null && !AppTheme.accessibility.reduceTransparency
+        LocalGlassSource.current != null && LocalBlurStrength.current.blurred && !AppTheme.accessibility.reduceTransparency
     val preferredWidth = with(LocalDensity.current) { maxOf(232.dp, 166.dp + 66.sp.toDp()) }
     Box(
         modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = preferredWidth).fillMaxWidth(),
@@ -567,7 +567,31 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                     }
                     .then(if (bubbleShown) LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule) else Modifier),
             )
-            Row(Modifier.fillMaxSize().then(if (sharedSurface) Modifier.navigationInkCutout(sceneBounds, opticalLens.opacity) else Modifier)) {
+            if (sharedSurface) {
+                // Only the decorative icons are split across the lens boundary. Keep their
+                // normal ink outside and the refracted accent ink inside, with matching layout.
+                Row(Modifier.fillMaxSize().clearAndSetSemantics {}
+                    .navigationInkCutout(sceneBounds, opticalLens.opacity)) {
+                    slots.forEach { index ->
+                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)) {
+                            TabLabel(tabs[index], opticalScene = true, drawLabel = false) { false }
+                        }
+                    }
+                }
+                Row(Modifier.fillMaxSize().clearAndSetSemantics {}
+                    .navigationInkScene(sceneBounds, opticalLens.pressure, opticalLens.opacity)) {
+                    slots.forEach { index ->
+                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)) {
+                            TabLabel(tabs[index], opticalScene = true, drawLabel = false) { true }
+                        }
+                    }
+                }
+            }
+            // The interactive row paints the label once, above the optical material. Its
+            // ink remains whole even while the lens edge crosses the middle of a word.
+            Row(Modifier.fillMaxSize()) {
                 slots.forEachIndexed { slot, index ->
                     val tab = tabs[index]
                     val selected = index == selectedTab
@@ -586,19 +610,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
                     ) {
-                        TabLabel(tab, opticalScene = sharedSurface) { !sharedSurface && slot == shownSlot }
-                    }
-                }
-            }
-            if (sharedSurface) {
-                // A paint-only duplicate: no second selectable, pointer handler or accessibility node.
-                Row(Modifier.fillMaxSize().clearAndSetSemantics {}
-                    .navigationInkScene(sceneBounds, opticalLens.pressure, opticalLens.opacity)) {
-                    slots.forEach { index ->
-                        Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically)) {
-                            TabLabel(tabs[index], opticalScene = true) { true }
-                        }
+                        TabLabel(tab, opticalScene = sharedSurface, drawIcon = !sharedSurface) { slot == shownSlot }
                     }
                 }
             }
@@ -616,10 +628,11 @@ private fun LiquidBridge(link: LiquidLink) {
     val merging by remember(link) { derivedStateOf { link.merge() > 0.02f } }
     if (!merging) return
     val density = LocalDensity.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val dark = AppTheme.colors.isDark
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val width = barHeight / 2 + BarSpacing + barHeight + 8.dp
-    val neck by remember(link, density) {
+    val neck by remember(link, density, width, barHeight, rtl) {
         derivedStateOf {
             with(density) {
                 val start = link.bodies[LinkSide.Start] ?: return@derivedStateOf null
@@ -630,13 +643,14 @@ private fun LiquidBridge(link: LiquidLink) {
                 // The pill scales around its own centre, which moves its end cap outwards.
                 val s1 = start.scale()
                 val o1 = start.offset(link, LinkSide.Start)
-                val capX = w - h - BarSpacing.toPx() - r + (start.widthPx / 2f - r) * (s1 - 1f) + o1.x
+                val capX = w - h - BarSpacing.toPx() - r + (start.widthPx / 2f - r) * (s1 - 1f)
                 val s2 = end.scale()
                 val o2 = end.offset(link, LinkSide.End)
+                // Mirror the resting/scaled geometry; body offsets are already physical.
                 metaballNeck(
-                    c1 = Offset(capX, r + o1.y),
+                    c1 = Offset((if (rtl) w - capX else capX) + o1.x, r + o1.y),
                     r1 = r * s1,
-                    c2 = Offset(w - r + o2.x, r + o2.y),
+                    c2 = Offset((if (rtl) r else w - r) + o2.x, r + o2.y),
                     r2 = r * s2,
                     spread = 0.6f * link.merge(),
                     inset = 3.dp.toPx(),
@@ -647,13 +661,15 @@ private fun LiquidBridge(link: LiquidLink) {
     // Keep a fixed capture around the gap: changing its size/position with the path would
     // invalidate Haze's retained blur on every move, even over a stationary page. The slot
     // and vertical gradient stay unchanged; Haze still samples its normal blur margins.
-    val viewport by remember(link, density, width, barHeight) {
+    val viewport by remember(link, density, width, barHeight, rtl) {
         derivedStateOf {
             val bounds = neck?.fill?.getBounds()
             val fullWidth = with(density) { width.roundToPx() }
             val height = with(density) { barHeight.roundToPx() }
-            val left = with(density) { (barHeight / 4).roundToPx() }
-            val right = fullWidth - height / 2
+            val inset = with(density) { (barHeight / 4).roundToPx() }
+            val end = fullWidth - height / 2
+            val left = if (rtl) fullWidth - end else inset
+            val right = if (rtl) fullWidth - inset else end
             // Keep an AA pixel of padding. Unusual geometry always gets the complete slot.
             if (bounds != null && bounds.left >= left + 1 && bounds.right <= right - 1) {
                 IntRect(left, 0, right, height)
@@ -696,15 +712,24 @@ private fun LiquidBridge(link: LiquidLink) {
  * recomposes only this item, never the capsule with its glass modifiers.
  */
 @Composable
-private fun TabLabel(tab: TabItem, opticalScene: Boolean = false, highlighted: () -> Boolean) {
+private fun TabLabel(
+    tab: TabItem,
+    opticalScene: Boolean = false,
+    drawIcon: Boolean = true,
+    drawLabel: Boolean = true,
+    highlighted: () -> Boolean,
+) {
     val selected = highlighted()
     val tint = if (opticalScene) {
         if (selected) AppTheme.colors.accent else AppTheme.colors.label
     } else tabTint(selected)
-    AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
+    if (drawIcon) AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
+    else Spacer(Modifier.size(24.dp))
     AppText(
         text = tab.label,
         style = AppTheme.typography.caption2.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (opticalScene) FontWeight.Normal else if (selected) FontWeight.Medium else FontWeight.Normal),
+        // Keep the real label's measured height, including scaled text, in icon-only layers.
+        modifier = if (drawLabel) Modifier else Modifier.drawWithContent {},
         color = tint,
         maxLines = 1,
     )
@@ -885,7 +910,13 @@ internal fun LiquidGlassIconButton(
                 .fillMaxSize()
                 .then(if (filled) Modifier.padding(6.dp) else Modifier)
                 .graphicsLayer { scaleX = scale; scaleY = scale }
-                .let { if (background.alpha > 0f) LocalGlassLook.current.controlSurface(it, CircleShape, background, prominent = solid) else it },
+                .let {
+                    when {
+                        filled -> LocalGlassLook.current.controlSurface(it, CircleShape, background, prominent = solid)
+                        background.alpha > 0f -> it.clip(CircleShape).background(background)
+                        else -> it
+                    }
+                },
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(

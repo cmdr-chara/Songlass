@@ -3,11 +3,13 @@ package dev.cmdrchara.songlass.theme.miuix
 import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,6 +21,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.*
@@ -57,16 +60,53 @@ internal fun MiuixShortcut(title: String, artwork: Artwork, circular: Boolean, o
 
 @Composable
 internal fun MiuixCollection(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) {
-    NativeCard(modifier.heightIn(min = 112.dp), cornerRadius = 20.dp, insideMargin = PaddingValues(16.dp), onClick = onClick,
-        colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground)) {
-        AppIcon(icon, null, size = 28.dp, tint = AppTheme.colors.accent)
-        Spacer(Modifier.height(12.dp))
-        AppText(title, AppTheme.typography.headline, maxLines = 2)
-        Spacer(Modifier.height(2.dp))
-        AppText(subtitle, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2)
+    val interaction = remember { MutableInteractionSource() }
+    NativeCard(
+        modifier = miuixArtworkTileFeedback(modifier, interaction, RoundedCornerShape(20.dp)),
+        cornerRadius = 20.dp,
+        insideMargin = PaddingValues(0.dp),
+        colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground),
+    ) {
+        BoxWithConstraints(
+            Modifier.fillMaxWidth().heightIn(min = 80.dp)
+                .clickable(interactionSource = interaction, indication = MiuixLook.pressIndication(), role = Role.Button, onClick = onClick)
+                .padding(14.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            val measurer = rememberTextMeasurer()
+            val textWidth = with(LocalDensity.current) {
+                maxOf(
+                    measurer.measure(title, AppTheme.typography.headline, softWrap = false).size.width,
+                    measurer.measure(subtitle, AppTheme.typography.subheadline, softWrap = false).size.width,
+                ).toDp()
+            }
+            // Large text and longer translations keep the whole card width for their labels.
+            if (maxWidth - 40.dp >= textWidth) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    AppIcon(icon, null, size = 28.dp, tint = AppTheme.colors.accent)
+                    MiuixCollectionLabels(title, subtitle, Modifier.weight(1f))
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    AppIcon(icon, null, size = 28.dp, tint = AppTheme.colors.accent)
+                    MiuixCollectionLabels(title, subtitle, Modifier.fillMaxWidth())
+                }
+            }
+        }
     }
 }
 
+@Composable
+private fun MiuixCollectionLabels(title: String, subtitle: String, modifier: Modifier) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        AppText(title, AppTheme.typography.headline, maxLines = 2)
+        if (subtitle.isNotBlank()) {
+            AppText(subtitle, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2)
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MiuixShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp, modifier: Modifier) {
     val collections = items.filterNot { it.isAction }
@@ -79,7 +119,7 @@ internal fun MiuixShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp,
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 val art = item.artwork
                 if (art != null) AlbumArt(art, Modifier.size(56.dp), cornerRadius = if (item.circular) 28.dp else 14.dp)
-                else Box(Modifier.size(56.dp).clip(RoundedCornerShape(14.dp)).background(AppTheme.colors.fill), contentAlignment = Alignment.Center) {
+                else Box(Modifier.size(56.dp).clip(RoundedCornerShape(if (item.circular) 28.dp else 14.dp)).background(AppTheme.colors.fill), contentAlignment = Alignment.Center) {
                     AppIcon(item.icon ?: AppIcons.Library, null, size = 26.dp, tint = AppTheme.colors.accent)
                 }
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -98,8 +138,9 @@ internal fun MiuixShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp,
                     NativeCard(Modifier.width(itemSize).prefetchArtworkOnPress(item.artwork), cornerRadius = 0.dp, insideMargin = PaddingValues(0.dp), onClick = item.onClick,
                         colors = CardDefaults.defaultColors(color = Color.Transparent)) {
                         val art = item.artwork
-                        if (art != null) AlbumArt(art, Modifier.fillMaxWidth().aspectRatio(1f), cornerRadius = 16.dp)
-                        else Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(AppTheme.colors.fill), contentAlignment = Alignment.Center) {
+                        val artworkRadius = if (item.circular) itemSize / 2 else 16.dp
+                        if (art != null) AlbumArt(art, Modifier.fillMaxWidth().aspectRatio(1f), cornerRadius = artworkRadius)
+                        else Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(artworkRadius)).background(AppTheme.colors.fill), contentAlignment = Alignment.Center) {
                             AppIcon(item.icon ?: AppIcons.Library, null, size = 32.dp, tint = AppTheme.colors.accent)
                         }
                         Spacer(Modifier.height(8.dp))
@@ -110,9 +151,11 @@ internal fun MiuixShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp,
             }
         }
         if (actions.isNotEmpty()) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(horizontal = 16.dp)) {
-                items(actions, key = { it.key }) { item ->
-                    MiuixAction(item.title, item.icon, item.onClick, Modifier.heightIn(min = 48.dp))
+            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                actions.forEach { item ->
+                    MiuixAction(item.compactTitle ?: item.title, item.icon, item.onClick, Modifier.weight(1f).heightIn(min = 48.dp),
+                        maxLines = Int.MAX_VALUE, accessibilityLabel = item.title)
                 }
             }
         }
@@ -156,7 +199,12 @@ internal fun MiuixDetails(kind: String, title: String, subtitle: String?, onSubt
 
 @Composable
 internal fun MiuixArtworkHeader(artwork: Artwork, label: String?, modifier: Modifier) {
-    Box(modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(start = 20.dp, end = 20.dp, top = 68.dp, bottom = 20.dp)) {
-        AlbumArt(artwork, Modifier.fillMaxWidth().aspectRatio(1f).semantics { if (label != null) contentDescription = label }, cornerRadius = 28.dp)
+    Box(
+        modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
+            .padding(start = 20.dp, end = 20.dp, top = 56.dp, bottom = 16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        AlbumArt(artwork, Modifier.widthIn(max = 280.dp).fillMaxWidth().aspectRatio(1f)
+            .semantics { if (label != null) contentDescription = label }, cornerRadius = 28.dp)
     }
 }

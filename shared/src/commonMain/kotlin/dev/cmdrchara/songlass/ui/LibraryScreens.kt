@@ -22,6 +22,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import dev.cmdrchara.songlass.core.library.FolderSort
+import dev.cmdrchara.songlass.designsystem.SortOptions
 import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.shared.resources.artwork_online_action
 import dev.cmdrchara.songlass.core.library.MusicLibrary
@@ -201,7 +202,7 @@ fun LibraryScreen(
         if (library.folders.isNotEmpty()) {
             item { SectionTitle(stringResource(Res.string.library_folders)) }
             item {
-                SegmentedControl(
+                SortOptions(
                     options = FolderSort.entries.map { stringResource(it.label) },
                     selectedIndex = folderSort.ordinal,
                     onSelect = { state.settings.setFolderSort(FolderSort.entries[it]) },

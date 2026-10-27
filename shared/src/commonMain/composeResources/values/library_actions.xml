@@ -1,0 +1,5 @@
+<resources>
+    <string name="playlist_action_new">New</string>
+    <string name="playlist_action_smart">Smart</string>
+    <string name="playlist_action_import">Import</string>
+</resources>

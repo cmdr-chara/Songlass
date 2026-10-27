@@ -5,6 +5,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -13,12 +14,14 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -30,6 +33,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.SettingsGroupPosition
@@ -42,7 +47,7 @@ import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 
-/** Material Glass components: a wavy seek bar, pill transport and rows as cards (see [MaterialLook]). */
+/** Material transport distinguishes the primary action by shape as well as tonal emphasis. */
 @Composable
 internal fun MaterialTransportControls(
     isPlaying: Boolean,
@@ -54,17 +59,17 @@ internal fun MaterialTransportControls(
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
         // Reserve both side buttons symmetrically before measuring the prominent control.
-        val gap = minOf(10.dp, ((maxWidth - 144.dp) / 2).coerceAtLeast(0.dp))
-        val buttonsWidth = minOf(292.dp, maxWidth - gap * 2)
-        val sideWidth = (buttonsWidth * (84f / 292f)).coerceAtLeast(48.dp)
+        val gap = minOf(12.dp, ((maxWidth - 144.dp) / 2).coerceAtLeast(0.dp))
+        val buttonsWidth = minOf(232.dp, maxWidth - gap * 2)
+        val sideWidth = (buttonsWidth * (64f / 232f)).coerceAtLeast(48.dp)
         val playWidth = (buttonsWidth - sideWidth * 2).coerceAtLeast(48.dp)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TransportPill(AppIcons.Previous, labels.previous, onPrevious, width = sideWidth, prominent = false, playing = false)
-            TransportPill(
+            TransportButton(AppIcons.Previous, labels.previous, onPrevious, width = sideWidth, prominent = false, playing = false)
+            TransportButton(
                 icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
                 description = if (isPlaying) labels.pause else labels.play,
                 onClick = onPlayPause,
@@ -72,7 +77,7 @@ internal fun MaterialTransportControls(
                 prominent = true,
                 playing = isPlaying,
             )
-            TransportPill(AppIcons.Next, labels.next, onNext, width = sideWidth, prominent = false, playing = false)
+            TransportButton(AppIcons.Next, labels.next, onNext, width = sideWidth, prominent = false, playing = false)
         }
     }
 }
@@ -121,38 +126,47 @@ internal fun currentPalette(): SeaPalette {
 }
 
 /**
- * Pill transport button. The play button is wider and in the vivid surface colour; while music
- * plays it squares off a little, as expressive buttons change shape with their state.
+ * The primary rounded rectangle changes shape with playback and press state. Skip controls
+ * stay circular and quieter. Only the visual surface scales, keeping the hit target stable.
  */
 @Composable
-private fun TransportPill(icon: ImageVector, description: String, onClick: () -> Unit, width: Dp, prominent: Boolean, playing: Boolean) {
+private fun TransportButton(icon: ImageVector, description: String, onClick: () -> Unit, width: Dp, prominent: Boolean, playing: Boolean) {
     val palette = currentPalette()
-    val colors = AppTheme.colors
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(
-        if (pressed && !reduceMotion) 0.93f else 1f,
+        if (pressed && !reduceMotion) 0.96f else 1f,
         if (reduceMotion) snap() else MaterialMotion.press(),
         label = "transportPress",
     )
     val corner by animateDpAsState(
-        if (playing) 26.dp else 36.dp,
+        when {
+            pressed && !reduceMotion -> MaterialShapes.Large
+            playing -> MaterialShapes.LargeIncreased
+            else -> MaterialShapes.ExtraLarge
+        },
         if (reduceMotion) snap() else MaterialMotion.spatial(),
         label = "transportShape",
     )
     val fill = if (prominent) palette.primary else palette.primaryContainer
     val iconTint = if (prominent) palette.onPrimary else palette.onPrimaryContainer
+    val shape = if (prominent) RoundedCornerShape(corner) else CircleShape
     Box(
         Modifier
-            .size(width = width, height = 72.dp)
-            .graphicsLayer { scaleX = scale.coerceAtMost(1f); scaleY = scale.coerceAtMost(1f) }
-            .clip(RoundedCornerShape(corner))
-            .background(fill)
-            .clickable(interaction, indication = MaterialRipple, role = Role.Button, onClickLabel = description, onClick = onClick),
+            .size(width = width, height = if (prominent) 72.dp else width)
+            .clickable(interaction, indication = null, role = Role.Button, onClickLabel = description, onClick = onClick)
+            .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        AppIcon(icon, contentDescription = description, size = if (prominent) 34.dp else 28.dp, tint = iconTint)
+        CompositionLocalProvider(LocalContentColor provides iconTint) {
+            Box(Modifier.fillMaxSize()
+                .graphicsLayer { scaleX = scale.coerceIn(0.9f, 1f); scaleY = scale.coerceIn(0.9f, 1f) }
+                .clip(shape).background(fill).indication(interaction, MaterialRipple),
+                contentAlignment = Alignment.Center) {
+                AppIcon(icon, contentDescription = null, size = if (prominent) 34.dp else 28.dp, tint = iconTint)
+            }
+        }
     }
 }
 

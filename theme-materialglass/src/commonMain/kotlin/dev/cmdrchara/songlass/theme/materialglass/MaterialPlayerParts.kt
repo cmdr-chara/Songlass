@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -157,7 +156,7 @@ internal fun MaterialVolumeSlider(value: Float, onValueChange: (Float) -> Unit, 
     val handleWidth by animateDpAsState(if (held) 2.dp else 4.dp, if (reduceMotion) snap() else MaterialMotion.press(), label = "volumeHandle")
     val icon = rememberVectorPainter(if (value < 0.5f) AppIcons.SpeakerLow else AppIcons.AudioOutput)
     Canvas(
-        modifier.fillMaxWidth().height(44.dp).padding(vertical = 0.dp)
+        modifier.fillMaxWidth().heightIn(min = 48.dp)
             .semantics {
                 contentDescription = label
                 progressBarRangeInfo = ProgressBarRangeInfo(value, 0f..1f)

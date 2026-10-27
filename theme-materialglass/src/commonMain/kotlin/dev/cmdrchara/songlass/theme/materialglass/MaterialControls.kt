@@ -103,6 +103,14 @@ internal object MaterialRipple : IndicationNodeFactory {
     override fun hashCode(): Int = 7
 }
 
+/** Navigation has its own moving bubble; retain focus and hover without a second press highlight. */
+internal object MaterialNavigationIndication : IndicationNodeFactory {
+    override fun create(interactionSource: InteractionSource): DelegatableNode =
+        RippleNode(interactionSource, pressFeedback = false)
+    override fun equals(other: Any?): Boolean = other === this
+    override fun hashCode(): Int = 17
+}
+
 /** Icon feedback stays centered when the touch target is larger than its visual surface. */
 internal object MaterialCenteredRipple : IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): DelegatableNode = RippleNode(interactionSource, centered = true)
@@ -119,6 +127,7 @@ private class RippleNode(
     private val source: InteractionSource,
     private val centered: Boolean = false,
     private val clipShape: Shape? = null,
+    private val pressFeedback: Boolean = true,
 ) : Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
     private val radius = Animatable(0f)
     private val alpha = Animatable(0f)
@@ -140,14 +149,16 @@ private class RippleNode(
             source.interactions.collect { interaction ->
                 when (interaction) {
                     is PressInteraction.Press -> {
-                        activePress = interaction
-                        origin = interaction.pressPosition
-                        rippleJob?.cancel()
-                        val reduceMotion = currentValueOf(LocalUiAccessibility).reduceMotion
-                        rippleJob = launch {
-                            alpha.snapTo(1f)
-                            radius.snapTo(if (reduceMotion) 1f else 0f)
-                            if (!reduceMotion) radius.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+                        if (pressFeedback) {
+                            activePress = interaction
+                            origin = interaction.pressPosition
+                            rippleJob?.cancel()
+                            val reduceMotion = currentValueOf(LocalUiAccessibility).reduceMotion
+                            rippleJob = launch {
+                                alpha.snapTo(1f)
+                                radius.snapTo(if (reduceMotion) 1f else 0f)
+                                if (!reduceMotion) radius.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+                            }
                         }
                     }
                     is PressInteraction.Release -> finishPress(interaction.press)
@@ -237,6 +248,10 @@ private class RippleNode(
 internal fun MaterialBackButton(label: String, onClick: () -> Unit, modifier: Modifier) {
     val palette = currentPalette()
     val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.92f else 1f,
+        if (reduceMotion) snap() else MaterialMotion.press(), label = "materialBackPress")
     Box(
         modifier
             .padding(start = 8.dp, top = 4.dp, bottom = 4.dp)
@@ -246,7 +261,9 @@ internal fun MaterialBackButton(label: String, onClick: () -> Unit, modifier: Mo
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.size(40.dp).clip(CircleShape).background(palette.container).indication(interaction, MaterialCenteredRipple),
+            Modifier.size(40.dp).graphicsLayer { scaleX = scale; scaleY = scale }
+                .clip(CircleShape).background(palette.container)
+                .indication(interaction, MaterialCenteredRipple),
             contentAlignment = Alignment.Center,
         ) {
             AppIcon(AppIcons.ArrowBack, contentDescription = null, size = 24.dp, tint = AppTheme.colors.label)

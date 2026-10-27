@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -70,16 +72,16 @@ internal fun LiquidGlassCollectionDetails(
         }
         AppText(title, AppTheme.typography.title2, textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp), maxLines = 4)
-        if (subtitle != null) AppText(subtitle, AppTheme.typography.body,
+        if (!subtitle.isNullOrBlank()) AppText(subtitle, AppTheme.typography.body,
             color = if (onSubtitleClick != null) colors.accent else colors.secondaryLabel,
             textAlign = TextAlign.Center,
             modifier = Modifier.fillMaxWidth()
                 .then(if (onSubtitleClick != null) Modifier.heightIn(min = 44.dp)
                     .clickable(role = Role.Button, onClick = onSubtitleClick) else Modifier)
                 .padding(vertical = 8.dp))
-        AppText(meta, AppTheme.typography.footnote, color = colors.secondaryLabel,
-            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(bottom = 18.dp))
-        Row(Modifier.fillMaxWidth().padding(bottom = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (meta.isNotBlank()) AppText(meta, AppTheme.typography.footnote, color = colors.secondaryLabel,
+            textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 2.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             LiquidCollectionAction(playLabel, AppIcons.Play, true, onPlay, Modifier.weight(1f))
             LiquidCollectionAction(shuffleLabel, AppIcons.Shuffle, false, onShuffle, Modifier.weight(1f))
         }
@@ -95,13 +97,19 @@ private fun LiquidCollectionAction(text: String, icon: ImageVector, prominent: B
     val scale = pressScale(interaction)
     val surface = if (prominent) colors.accent else colors.fill
     val foreground = if (prominent) colors.background else colors.accent
-    Row(modifier.heightIn(min = 48.dp).graphicsLayer { scaleX = scale; scaleY = scale }
-        .clip(RoundedCornerShape(16.dp)).background(surface.copy(alpha = if (pressed) .7f else surface.alpha))
+    val shape = RoundedCornerShape(16.dp)
+    // Keep the hit target and keyboard focus stationary while only the face responds.
+    Box(modifier.heightIn(min = 48.dp).liquidFocusIndicator(interaction, shape)
         .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
-        .padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        AppIcon(icon, null, size = 19.dp, tint = foreground)
-        Spacer(Modifier.width(8.dp))
-        AppText(text, AppTheme.typography.headline, color = foreground, modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.Center)
+    ) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(shape).background(surface.copy(alpha = if (pressed) .7f else surface.alpha))
+            .padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(icon, null, size = 19.dp, tint = foreground)
+            Spacer(Modifier.width(8.dp))
+            AppText(text, AppTheme.typography.headline, color = foreground, modifier = Modifier.weight(1f, fill = false), textAlign = TextAlign.Center)
+        }
     }
 }
 
@@ -140,6 +148,32 @@ internal fun LiquidGlassFilterChips(options: List<String>, selectedIndex: Int, o
                     color = if (selected) colors.accent else colors.secondaryLabel,
                     maxLines = 1,
                 )
+            }
+        }
+    }
+}
+
+/** Small ordering choices wrap with larger text rather than introducing a horizontal strip. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun LiquidGlassSortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
+    val colors = AppTheme.colors
+    val look = LocalGlassLook.current
+    val shape = RoundedCornerShape(look.corner(16.dp))
+    FlowRow(modifier.fillMaxWidth().selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        options.forEachIndexed { index, option ->
+            val selected = selectedIndex == index
+            val interaction = remember { MutableInteractionSource() }
+            Box(Modifier.weight(1f).heightIn(min = 48.dp)
+                .selectable(selected, interaction, indication = look.pressIndication(), role = Role.RadioButton) { onSelect(index) }
+                .padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                Box(look.controlSurface(Modifier.fillMaxWidth(), shape,
+                    if (selected) colors.accent.copy(alpha = 0.15f) else colors.fill, prominent = false)
+                    .padding(horizontal = 12.dp, vertical = 7.dp), contentAlignment = Alignment.Center) {
+                    AppText(option, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (selected) colors.accent else colors.label)
+                }
             }
         }
     }

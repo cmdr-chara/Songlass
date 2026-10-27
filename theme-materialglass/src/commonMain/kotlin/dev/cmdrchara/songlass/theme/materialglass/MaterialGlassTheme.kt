@@ -24,10 +24,9 @@ import org.jetbrains.compose.resources.Font
 import kotlin.math.abs
 
 /**
- * Material Glass, after the "Google Sea Glass" Figma file (tokens in docs/design/material-glass.md):
- * pastel coloured glass with a glow beneath, light from inside, grain and pill shapes, in Google Sans
- * Flex with full roundness. Android follows the phone's native dynamic color roles; other
- * platforms use the original violet palette. The glass keeps its own restrained optical treatment.
+ * Material Glass uses tonal content, expressive controls and restrained navigation glass in
+ * Google Sans Flex. Android follows the phone's native dynamic color roles; other platforms
+ * use Songlass's violet palette. The older Sea Glass study remains in docs/design/material-glass.md.
  */
 @Composable
 fun MaterialGlassTheme(
@@ -67,8 +66,8 @@ private const val DEFAULT_HUE = 275f
 /**
  * Native Material roles on Android, with a tonal fallback on other platforms: a near-neutral background, cards a step below, a
  * saturated primary for the main action, a soft primary container for secondary actions and
- * strong text. The glass of the navigation layer keeps the Figma file's vivid colour (`C`) and
- * pale glow (`C'`). Only distinct tones keep the layers apart; one pastel everywhere looked washed out.
+ * strong text. Navigation uses the same container roles, with a subtle backdrop treatment.
+ * Distinct tones keep content, controls and navigation visually separated.
  */
 internal class SeaPalette(val hue: Float, val dark: Boolean, private val system: SystemMaterialColors? = null) {
     val usesSystemColors: Boolean get() = system != null

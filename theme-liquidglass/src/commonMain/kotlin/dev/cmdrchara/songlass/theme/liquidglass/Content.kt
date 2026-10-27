@@ -334,6 +334,9 @@ internal fun LiquidGlassSearchField(query: String, onQueryChange: (String) -> Un
 internal fun LiquidGlassBackButton(label: String, onClick: () -> Unit, modifier: Modifier) {
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val iconScale by animateFloatAsState(if (pressed && !reduceMotion) 0.9f else 1f,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.7f, stiffness = 700f), label = "backIconPress")
     val pressedColor by animateColorAsState(
         targetValue = if (pressed) AppTheme.colors.fill else Color.Transparent,
         animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
@@ -350,7 +353,8 @@ internal fun LiquidGlassBackButton(label: String, onClick: () -> Unit, modifier:
             .padding(start = 8.dp, end = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(AppIcons.ChevronLeft, contentDescription = null, size = 26.dp, tint = AppTheme.colors.accent)
+        AppIcon(AppIcons.ChevronLeft, contentDescription = null, size = 26.dp, tint = AppTheme.colors.accent,
+            modifier = Modifier.graphicsLayer { scaleX = iconScale; scaleY = iconScale })
         AppText(label, AppTheme.typography.body, color = AppTheme.colors.accent, maxLines = 1)
     }
 }
