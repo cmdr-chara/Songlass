@@ -110,6 +110,7 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
         SettingsTarget.EqualizerBass -> 7 + outputProfilesOffset
         SettingsTarget.EqualizerTreble -> 8 + outputProfilesOffset
         SettingsTarget.EqualizerBands -> 9 + outputProfilesOffset
+        SettingsTarget.EqualizerLock -> 5 + outputProfilesOffset
         SettingsTarget.EqualizerPresets -> 12 + outputProfilesOffset
         SettingsTarget.HeadphoneCorrection -> 14 + outputProfilesOffset
         else -> null
@@ -215,14 +216,27 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
             item { FeatureHint(stringResource(Res.string.eq_outputs_hint)) }
             item {
                 key(state.tuning.layout) {
-                    BoxWithConstraints(Modifier.fillMaxWidth().padding(start = pageInset, end = pageInset, top = 20.dp)) {
-                        // Dense layouts keep readable labels and touch targets by scrolling horizontally.
-                        val width = if (bands.size > 10) maxOf(maxWidth, (bands.size * 48 + 50).dp) else maxWidth
-                        Box(Modifier.horizontalScroll(rememberScrollState())) {
-                            EqualizerEditor(bands, curve, GraphicEq.MAX_GAIN_DB.toFloat(), state.enabled,
-                                { formatGain(it, separator) }, { band, gain ->
-                                    saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
-                                }, Modifier.width(width))
+                    Column {
+                        SettingsSearchAnchor(SettingsTarget.EqualizerLock, searchFocus) {
+                            SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 12.dp)) {
+                                SettingsToggleRow(
+                                    stringResource(Res.string.eq_lock_title),
+                                    preferences.equalizerLocked,
+                                    { saveChange { settings.setEqualizerLocked(it) } },
+                                    subtitle = stringResource(Res.string.eq_lock_subtitle),
+                                )
+                            }
+                        }
+                        if (preferences.equalizerLocked) Hint(stringResource(Res.string.eq_lock_hint))
+                        BoxWithConstraints(Modifier.fillMaxWidth().padding(start = pageInset, end = pageInset, top = 12.dp)) {
+                            // Dense layouts keep readable labels and touch targets by scrolling horizontally.
+                            val width = if (bands.size > 10) maxOf(maxWidth, (bands.size * 48 + 50).dp) else maxWidth
+                            Box(Modifier.horizontalScroll(rememberScrollState())) {
+                                EqualizerEditor(bands, curve, GraphicEq.MAX_GAIN_DB.toFloat(), state.enabled, preferences.equalizerLocked,
+                                    { formatGain(it, separator) }, { band, gain ->
+                                        saveChange { equalizer.setGain(band, gain.toDouble(), enable = true) }
+                                    }, Modifier.width(width))
+                            }
                         }
                     }
                 }

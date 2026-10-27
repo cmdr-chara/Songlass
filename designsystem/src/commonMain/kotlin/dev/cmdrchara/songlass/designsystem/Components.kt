@@ -280,10 +280,11 @@ fun EqualizerEditor(
     curve: List<Float>,
     maxGainDb: Float,
     enabled: Boolean,
+    locked: Boolean,
     formatGain: (Float) -> String,
     onBandChange: (Int, Float) -> Unit,
     modifier: Modifier = Modifier,
-) = LocalUiStyle.current.EqualizerEditor(bands, curve, maxGainDb, enabled, formatGain, onBandChange, modifier)
+) = LocalUiStyle.current.EqualizerEditor(bands, curve, maxGainDb, enabled, locked, formatGain, onBandChange, modifier)
 
 @Composable
 fun PromptSheet(

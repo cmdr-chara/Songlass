@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="eq_lock_title">Blocca le bande dell’equalizzatore</string>
+    <string name="eq_lock_subtitle">Evita di spostare le bande per sbaglio mentre scorri. Preset e correzioni si applicano comunque.</string>
+    <string name="eq_lock_hint">Bande bloccate: sbloccale per spostarle.</string>
+    <string name="eq_lock_locked">Bloccate</string>
+    <string name="eq_lock_unlocked">Sbloccate</string>
+</resources>

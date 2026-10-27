@@ -8,7 +8,7 @@ enum class SettingsTarget {
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
     ReplayGainProcessing, ReplayGainPreamp, ReplayGainMissingPreamp, ReplayGainLimiter,
-    Balance, StereoExpand, Tempo, Reverb, EqualizerBass, EqualizerTreble, EqualizerBands,
+    Balance, StereoExpand, Tempo, Reverb, EqualizerBass, EqualizerTreble, EqualizerBands, EqualizerLock,
     ResumeBluetooth, BluetoothCommandDelay,
     FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
@@ -184,6 +184,8 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
     SettingsTarget.EqualizerBass -> terms("Bass", "Bassi", "Bass tone", "Tono bassi", aliases = "tone|toni|low shelf|shelf basso|basse frequenze|low frequencies|decibel|db")
     SettingsTarget.EqualizerTreble -> terms("Treble", "Alti", "Treble tone", "Tono alti", aliases = "tone|toni|high shelf|shelf alto|alte frequenze|high frequencies|decibel|db")
     SettingsTarget.EqualizerBands -> terms("Number of EQ bands", "Numero di bande EQ", "Bande configurabili", "Configurable bands", aliases = "graphic|grafico|layout|5|10|15|31|frequencies|frequenze|equalizer|equalizzatore|bande|bands")
+    SettingsTarget.EqualizerLock -> terms("Equalizer lock", "Lock the EQ bands", "Blocco equalizzatore", "Blocca le bande",
+        aliases = "lock|blocco|blocca|sblocca|unlock|accidental|accidentale|involontario|tocchi|touch|scroll|scorrimento|bande|bands|graph|grafico|equalizer|equalizzatore")
     SettingsTarget.Balance -> terms("Balance", "Bilanciamento", aliases = "left|right|sinistra|destra|canali|channels|stereo|pan")
     SettingsTarget.StereoExpand -> terms("Stereo expand", "Espansione stereo", aliases = "width|ampiezza|larghezza|spazialità|mid side|stereo widening")
     SettingsTarget.Tempo -> terms("Playback tempo", "Tempo di riproduzione", "Velocità di riproduzione", aliases = "speed|velocità|tempo|pitch|intonazione|lento|veloce|slow|fast")

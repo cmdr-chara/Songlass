@@ -32,6 +32,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
@@ -59,6 +60,7 @@ internal fun LiquidGlassEqualizerEditor(
     curve: List<Float>,
     maxGainDb: Float,
     enabled: Boolean,
+    locked: Boolean,
     formatGain: (Float) -> String,
     onBandChange: (Int, Float) -> Unit,
     modifier: Modifier,
@@ -87,7 +89,10 @@ internal fun LiquidGlassEqualizerEditor(
         Canvas(
             Modifier
                 .fillMaxSize()
-                .pointerInput(bands.size) {
+                .then(
+                    // Locked: the curve stays readable but stops intercepting touches, so a
+                    // vertical scroll over the graph scrolls the page instead of moving a band.
+                    if (locked) Modifier else Modifier.pointerInput(bands.size) {
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
                         val graph = graphArea(size.width.toFloat(), size.height.toFloat())
@@ -111,7 +116,8 @@ internal fun LiquidGlassEqualizerEditor(
                         }
                         active = null
                     }
-                },
+                    }
+                ),
         ) {
             val graph = graphArea(size.width, size.height)
             fun y(db: Float) = graph.top + graph.height / 2f - db / range * (graph.height / 2f)
@@ -166,8 +172,12 @@ internal fun LiquidGlassEqualizerEditor(
                     Modifier.weight(1f).fillMaxSize().semantics {
                         contentDescription = "${band.label} Hz"
                         stateDescription = formatGain(band.gainDb)
-                        progressBarRangeInfo = ProgressBarRangeInfo(band.gainDb, -maxGainDb..maxGainDb, steps = (maxGainDb * 4).toInt() - 1)
-                        setProgress { value -> currentOnChange(i, value.coerceIn(-maxGainDb, maxGainDb)); true }
+                        if (locked) {
+                            disabled()
+                        } else {
+                            progressBarRangeInfo = ProgressBarRangeInfo(band.gainDb, -maxGainDb..maxGainDb, steps = (maxGainDb * 4).toInt() - 1)
+                            setProgress { value -> currentOnChange(i, value.coerceIn(-maxGainDb, maxGainDb)); true }
+                        }
                     },
                 )
             }

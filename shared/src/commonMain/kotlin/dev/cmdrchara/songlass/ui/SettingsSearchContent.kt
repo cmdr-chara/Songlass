@@ -35,6 +35,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.EqualizerBass -> Res.string.eq_tone_bass
     SettingsTarget.EqualizerTreble -> Res.string.eq_tone_treble
     SettingsTarget.EqualizerBands -> Res.string.eq_band_count
+    SettingsTarget.EqualizerLock -> Res.string.eq_lock_title
     SettingsTarget.Balance -> Res.string.settings_balance
     SettingsTarget.StereoExpand -> Res.string.settings_stereo_expand
     SettingsTarget.Tempo -> Res.string.settings_tempo
@@ -117,6 +118,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> "$sound › ${stringResource(Res.string.settings_transport_fades)}"
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$sound › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands,
+            SettingsTarget.EqualizerLock,
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
             SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout, SettingsTarget.ResumeOverrides -> library
@@ -190,6 +192,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.EqualizerBass -> formatGain(preferences.equalizerTuning.bassDb.toFloat(), stringResource(Res.string.eq_decimal_separator))
         SettingsTarget.EqualizerTreble -> formatGain(preferences.equalizerTuning.trebleDb.toFloat(), stringResource(Res.string.eq_decimal_separator))
         SettingsTarget.EqualizerBands -> stringResource(Res.string.eq_band_count_value, preferences.equalizerTuning.layout.count.toString())
+        SettingsTarget.EqualizerLock -> stringResource(if (preferences.equalizerLocked) Res.string.eq_lock_locked else Res.string.eq_lock_unlocked)
         SettingsTarget.Equalizer -> enabled(eq.enabled)
         SettingsTarget.EqualizerPresets -> stringResource(eq.preset?.label ?: Res.string.eq_custom)
         SettingsTarget.OutputProfiles -> enabled(eq.automaticOutputs)

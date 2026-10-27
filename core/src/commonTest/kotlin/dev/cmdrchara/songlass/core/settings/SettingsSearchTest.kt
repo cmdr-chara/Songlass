@@ -251,4 +251,15 @@ class SettingsSearchTest {
         assertEquals(listOf(SettingsTarget.LongTrackThreshold), index.search("long track threshold", true))
         assertEquals(SettingsTarget.ResumePerTrack, index.search("riprendi ogni brano", true).first())
     }
+
+    @Test
+    fun theEqualizerBandLockIsSearchableInBothLanguages() {
+        assertEquals(SettingsTarget.EqualizerLock, index.search("equalizer lock", true).first())
+        assertEquals(SettingsTarget.EqualizerLock, index.search("lock the eq bands", true).first())
+        assertEquals(SettingsTarget.EqualizerLock, index.search("blocco equalizzatore", true).first())
+        assertEquals(SettingsTarget.EqualizerLock, index.search("blocca le bande", true).first())
+        assertTrue(SettingsTarget.EqualizerLock in index.search("sblocca", true))
+        // The graph is still reachable through its own controls.
+        assertTrue(SettingsTarget.EqualizerBass in index.search("bassi", true))
+    }
 }

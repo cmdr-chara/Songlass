@@ -58,6 +58,7 @@ class AppSettings(
             limiter = store.getString(RG_LIMITER_KEY)?.toBooleanStrictOrNull() ?: true,
         ),
         equalizerTuning = dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.read(store),
+        equalizerLocked = store.getString(EQUALIZER_LOCKED_KEY)?.toBooleanStrictOrNull() ?: true,
         audioEffects = dev.cmdrchara.songlass.core.player.AudioEffectsSettings(
             balancePercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.Balance),
             stereoExpandPercent = readEffect(store, dev.cmdrchara.songlass.core.player.AudioEffect.StereoExpand),
@@ -196,6 +197,14 @@ class AppSettings(
         if (!mutations.canMutate) return
         store.putString(REDUCE_TRANSPARENCY_KEY, reduceTransparency.toString())
         _state.update { it.copy(reduceTransparency = reduceTransparency) }
+    }
+
+    /** Locks or unlocks the graphic equalizer bands; a preset is not affected by the lock. */
+    fun setEqualizerLocked(locked: Boolean) {
+        if (!mutations.canMutate) return
+        if (_state.value.equalizerLocked == locked) return
+        store.putString(EQUALIZER_LOCKED_KEY, locked.toString())
+        _state.update { it.copy(equalizerLocked = locked) }
     }
 
     fun setArtworkStyle(style: ArtworkStyle) {
@@ -494,7 +503,7 @@ class AppSettings(
                 TEXT_SCALE_KEY, BLUR_INTENSITY_KEY, ONLINE_ARTWORK_KEY, ONLINE_ARTWORK_WIFI_KEY)
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
-                dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY) + AudioFocusSettings.keys
+                dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY, EQUALIZER_LOCKED_KEY) + AudioFocusSettings.keys
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY) + HeadphoneSettings.keys
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
@@ -510,6 +519,7 @@ class AppSettings(
                     onlineArtworkEnabled = defaults.onlineArtworkEnabled,
                     onlineArtworkWifiOnly = defaults.onlineArtworkWifiOnly)
                 SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects, equalizerTuning = defaults.equalizerTuning,
+                    equalizerLocked = defaults.equalizerLocked,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, audioFocus = defaults.audioFocus, transportFades = defaults.transportFades)
                 SettingsArea.Player -> current.copy(headphones = defaults.headphones,
@@ -584,7 +594,7 @@ class AppSettings(
         const val APP_ICON_KEY = "settings.app_icon"
         const val TEXT_SCALE_KEY = "settings.text_scale"
         const val BLUR_INTENSITY_KEY = "settings.blur_intensity"
-
+        const val EQUALIZER_LOCKED_KEY = "settings.equalizer_locked"
         /** Multipliers offered by the Appearance page; 1.0 is the reference size. */
         val TEXT_SCALE_CHOICES = listOf(0.85f, 1f, 1.15f, 1.3f, 1.5f)
 

@@ -408,7 +408,9 @@ interface UiStyle {
     /**
      * Graphic equalizer: the response [curve] (dB, log-spaced from 20 Hz to 20 kHz) with a point
      * per band that is dragged up and down within ±[maxGainDb]. [formatGain] writes a gain for
-     * display and accessibility; [enabled] false dims the curve but keeps it editable.
+     * display and accessibility; [enabled] false dims the curve but keeps it editable. When
+     * [locked] the curve still shows the current values but neither touches nor accessibility
+     * actions change a band, so scrolling the page cannot move them by accident.
      */
     @Composable
     fun EqualizerEditor(
@@ -416,6 +418,7 @@ interface UiStyle {
         curve: List<Float>,
         maxGainDb: Float,
         enabled: Boolean,
+        locked: Boolean,
         formatGain: (Float) -> String,
         onBandChange: (Int, Float) -> Unit,
         modifier: Modifier,

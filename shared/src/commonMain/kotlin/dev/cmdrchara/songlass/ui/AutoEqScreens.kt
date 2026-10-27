@@ -125,7 +125,7 @@ fun AutoEqDetailScreen(entry: AutoEqEntry, repository: AutoEqRepository, equaliz
                 }
                 is AutoEqLoad.Ready -> {
                     item { SettingsPageSection(stringResource(Res.string.autoeq_preview)) }
-                    item { EqualizerEditor(emptyList(), preview, range, true, { "$it dB" }, { _, _ -> },
+                    item { EqualizerEditor(emptyList(), preview, range, true, true, { "$it dB" }, { _, _ -> },
                         Modifier.padding(horizontal = pageInset).semantics { contentDescription = description }) }
                     item { FeatureHint(stringResource(Res.string.autoeq_preview_hint)) }
                     if (outputName != null) item {

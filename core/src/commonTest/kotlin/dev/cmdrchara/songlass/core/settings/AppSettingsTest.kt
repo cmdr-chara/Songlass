@@ -535,4 +535,26 @@ class AppSettingsTest {
         for (key in LastFmStorageKeys.ALL) assertEquals(null, store.getString(key), key)
         assertEquals(settings.state.value, AppSettings(store).state.value)
     }
+
+    @Test
+    fun theEqualizerBandsAreLockedByDefaultAndTheSoundPageRestoresTheLock() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        // A fresh install starts locked: scrolling the page cannot move the graph.
+        assertEquals(true, settings.state.value.equalizerLocked)
+        settings.setEqualizerLocked(false)
+        assertEquals(false, settings.state.value.equalizerLocked)
+        assertEquals(false, AppSettings(store).state.value.equalizerLocked)
+
+        settings.resetToDefaults(SettingsArea.Sound)
+        assertEquals(true, settings.state.value.equalizerLocked)
+        assertEquals(null, store.getString(AppSettings.EQUALIZER_LOCKED_KEY))
+
+        // The lock is a Sound-page preference and travels with the settings backup.
+        assertTrue(AppSettings.EQUALIZER_LOCKED_KEY.startsWith("settings."))
+        // A page that does not own it leaves the choice alone.
+        settings.setEqualizerLocked(false)
+        settings.resetToDefaults(SettingsArea.Queue)
+        assertEquals(false, settings.state.value.equalizerLocked)
+    }
 }

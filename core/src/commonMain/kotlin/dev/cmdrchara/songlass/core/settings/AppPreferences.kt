@@ -99,6 +99,12 @@ data class AppPreferences(
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
     val replayGainSettings: dev.cmdrchara.songlass.core.player.ReplayGainSettings = dev.cmdrchara.songlass.core.player.ReplayGainSettings(),
     val equalizerTuning: dev.cmdrchara.songlass.core.equalizer.EqualizerTuning = dev.cmdrchara.songlass.core.equalizer.EqualizerTuning(),
+    /**
+     * Keeps the graphic equalizer bands read-only so scrolling or brushing over the curve cannot
+     * change the sound by accident. Presets, tone controls and headphone corrections still apply;
+     * unlocking is a deliberate one-tap choice, stored and restored with the Sound page.
+     */
+    val equalizerLocked: Boolean = true,
     val audioEffects: dev.cmdrchara.songlass.core.player.AudioEffectsSettings = dev.cmdrchara.songlass.core.player.AudioEffectsSettings(),
     /** Optional overlap at the natural end of a track; zero preserves gapless playback. */
     val crossfadeDurationMs: Long = 0,

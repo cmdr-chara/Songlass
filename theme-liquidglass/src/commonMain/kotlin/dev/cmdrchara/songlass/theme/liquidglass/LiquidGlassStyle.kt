@@ -283,10 +283,11 @@ object LiquidGlassStyle : UiStyle {
         curve: List<Float>,
         maxGainDb: Float,
         enabled: Boolean,
+        locked: Boolean,
         formatGain: (Float) -> String,
         onBandChange: (Int, Float) -> Unit,
         modifier: Modifier,
-    ) = LiquidGlassEqualizerEditor(bands, curve, maxGainDb, enabled, formatGain, onBandChange, modifier)
+    ) = LiquidGlassEqualizerEditor(bands, curve, maxGainDb, enabled, locked, formatGain, onBandChange, modifier)
 
     @Composable
     override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =

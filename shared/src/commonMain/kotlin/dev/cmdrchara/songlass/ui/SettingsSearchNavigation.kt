@@ -95,6 +95,7 @@ internal val SettingsTarget.settingsPane: SettingsPane?
 internal val SettingsTarget.settingsRoute: Route
     get() = when (this) {
         SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands,
+        SettingsTarget.EqualizerLock,
         SettingsTarget.Equalizer, SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles,
         SettingsTarget.HeadphoneCorrection -> Route.Equalizer
         SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,

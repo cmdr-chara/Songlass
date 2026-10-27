@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="eq_lock_title">Lock the equalizer bands</string>
+    <string name="eq_lock_subtitle">Stops accidental band changes while scrolling. Presets and corrections still apply.</string>
+    <string name="eq_lock_hint">Bands are locked: unlock them to drag.</string>
+    <string name="eq_lock_locked">Locked</string>
+    <string name="eq_lock_unlocked">Unlocked</string>
+</resources>
