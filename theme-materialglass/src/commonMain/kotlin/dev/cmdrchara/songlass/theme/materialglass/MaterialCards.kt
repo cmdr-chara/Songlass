@@ -28,7 +28,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.Artwork
@@ -108,13 +107,10 @@ internal fun MaterialCollectionTile(
             .padding(12.dp),
         contentAlignment = Alignment.CenterStart,
     ) {
-        val measurer = rememberTextMeasurer()
-        val textWidth = with(LocalDensity.current) {
-            maxOf(
-                measurer.measure(title, AppTheme.typography.headline, softWrap = false).size.width,
-                if (subtitle.isNotBlank()) measurer.measure(subtitle, AppTheme.typography.footnote, softWrap = false).size.width else 0,
-            ).toDp()
-        }
+        // Every category in the grid has the same width, so the internal layout is chosen from the
+        // width alone: a longer label cannot make one tile taller than its neighbour. Stacked
+        // tiles trade horizontal space for a readable label instead of squeezing it beside the icon.
+        val stacked = maxWidth < 130.dp * LocalDensity.current.fontScale
         val leading: @Composable () -> Unit = {
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(MaterialShapes.Medium)).background(palette.primaryContainer),
                 contentAlignment = Alignment.Center) {
@@ -130,7 +126,7 @@ internal fun MaterialCollectionTile(
                 }
             }
         }
-        if (maxWidth - 50.dp >= textWidth) {
+        if (!stacked) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 leading()
                 Spacer(Modifier.width(10.dp))

@@ -73,15 +73,10 @@ internal fun MiuixCollection(title: String, subtitle: String, icon: ImageVector,
                 .padding(14.dp),
             contentAlignment = Alignment.CenterStart,
         ) {
-            val measurer = rememberTextMeasurer()
-            val textWidth = with(LocalDensity.current) {
-                maxOf(
-                    measurer.measure(title, AppTheme.typography.headline, softWrap = false).size.width,
-                    measurer.measure(subtitle, AppTheme.typography.subheadline, softWrap = false).size.width,
-                ).toDp()
-            }
-            // Large text and longer translations keep the whole card width for their labels.
-            if (maxWidth - 40.dp >= textWidth) {
+            // Same-width tiles pick one layout for the whole grid: no single longer label can make
+            // a card taller than its neighbours (large text moves every card to the stacked form).
+            val stacked = maxWidth < 130.dp * LocalDensity.current.fontScale
+            if (!stacked) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     AppIcon(icon, null, size = 28.dp, tint = AppTheme.colors.accent)
                     MiuixCollectionLabels(title, subtitle, Modifier.weight(1f))
