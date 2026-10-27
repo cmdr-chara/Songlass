@@ -347,6 +347,7 @@ class AppSettingsTest {
         setReplayGain(dev.cmdrchara.songlass.core.player.ReplayGainMode.Album); setResumeOnReconnect(true)
         setCrossfadeDuration(4_000L); setManualCrossfadeDuration(400L); setResumePerTrack(true); setLongTrackThreshold(1_200_000L)
         setAmllEnabled(false); setLrclibEnabled(false); setReduceMotion(true); setReduceTransparency(true)
+        setTextScale(1.15f); setBlurIntensity(BlurIntensity.High)
         setPlayCountRule(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll); setAlbumLayout(AlbumLayout.List)
         setMinimumDuration(30_000L); setFolderExcluded("Music/Voice", true)
         setTrackClickAction(TrackClickAction.AddToQueue); setQueueStart(QueueStart.Immediately); setQueueEnd(QueueEnd.Stop)
@@ -401,8 +402,10 @@ class AppSettingsTest {
             val defaults = AppPreferences()
             when (area) {
                 SettingsArea.Appearance -> assertEquals(
-                    listOf(defaults.interfaceStyle, defaults.appearance, defaults.artworkStyle, defaults.reduceMotion, defaults.reduceTransparency),
-                    listOf(state.interfaceStyle, state.appearance, state.artworkStyle, state.reduceMotion, state.reduceTransparency))
+                    listOf(defaults.interfaceStyle, defaults.appearance, defaults.artworkStyle, defaults.reduceMotion,
+                        defaults.reduceTransparency, defaults.textScale, defaults.blurIntensity),
+                    listOf(state.interfaceStyle, state.appearance, state.artworkStyle, state.reduceMotion,
+                        state.reduceTransparency, state.textScale, state.blurIntensity))
                 SettingsArea.Queue -> assertEquals(defaults.copy(), defaults.copy(
                     trackClickAction = state.trackClickAction, queueStart = state.queueStart, queueEnd = state.queueEnd,
                     queueAddOrder = state.queueAddOrder, queueReplaces = state.queueReplaces,

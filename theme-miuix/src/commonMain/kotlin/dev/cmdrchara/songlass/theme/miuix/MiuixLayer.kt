@@ -19,8 +19,10 @@ import top.yukonga.miuix.kmp.theme.lightColorScheme
 /** Always present so switching style keeps the same screens, scroll positions and player morph. */
 @Composable
 fun MiuixLayer(enabled: Boolean, darkTheme: Boolean, content: @Composable () -> Unit) {
-    // Allocate/capture a backdrop only for the active style and supported rendering path.
-    val backdrop = if (enabled && !AppTheme.accessibility.reduceTransparency && isRuntimeShaderSupported()) rememberLayerBackdrop() else null
+    // Allocate/capture a backdrop only for the active style and supported rendering path; with
+    // background blur off the native surfaces are opaque, so no layer is recorded at all.
+    val backdrop = if (enabled && LocalBlurStrength.current.blurred && !AppTheme.accessibility.reduceTransparency &&
+        isRuntimeShaderSupported()) rememberLayerBackdrop() else null
     val artwork = if (enabled) LocalAmbientArtwork.current else null
     val tint = rememberArtworkTint(artwork, darkTheme)
     val accent = if (artwork == null) if (darkTheme) Color(0xFFB49AFF) else Color(0xFF7146D8) else tint.activeFill

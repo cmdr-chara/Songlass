@@ -2,7 +2,7 @@ package dev.cmdrchara.songlass.core.settings
 
 /** Stable destinations, independent of translated labels and the UI's navigation stack. */
 enum class SettingsTarget {
-    InterfaceStyle, Appearance, ArtworkStyle, ResumeOnReconnect, ReplayGain, Crossfade,
+    InterfaceStyle, Appearance, ArtworkStyle, TextScale, BlurIntensity, ResumeOnReconnect, ReplayGain, Crossfade,
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
@@ -214,6 +214,10 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "animation|animations|animazioni|accessibilità|accessibility")
     SettingsTarget.ReduceTransparency -> terms("Reduce transparency", "Riduci trasparenza",
         aliases = "transparency|trasparenza|blur|sfocatura|glass|vetro|leggibilità|accessibilità|accessibility")
+    SettingsTarget.TextScale -> terms("Text size", "App text size", "Dimensione del testo", "Testo dell’app",
+        aliases = "font|font size|testo|scala|dimensione|carattere|large text|testo grande|ingrandisci|enlarge|dynamic type|accessibilità|accessibility|leggibilità|readability|display")
+    SettingsTarget.BlurIntensity -> terms("Background blur", "Blur intensity", "Sfocatura dello sfondo", "Intensità della sfocatura",
+        aliases = "blur|sfocatura|glass|vetro|background|sfondo|intensità|intensity|effetto vetro|glass effect|trasparenza|transparency|display")
     SettingsTarget.Equalizer -> terms("Equalizer", "Equalizzatore", "EQ",
         aliases = "sound|suono|audio|bands|bande|bass|bassi|treble|alti|graphic|grafico")
     SettingsTarget.EqualizerPresets -> terms("Equalizer presets", "Preimpostazioni equalizzatore", "Preset",

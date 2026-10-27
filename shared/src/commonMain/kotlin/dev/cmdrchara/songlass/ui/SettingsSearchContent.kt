@@ -27,6 +27,8 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.InterfaceStyle -> Res.string.settings_ui_style
     SettingsTarget.Appearance -> Res.string.settings_appearance
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
+    SettingsTarget.TextScale -> Res.string.settings_text_scale
+    SettingsTarget.BlurIntensity -> Res.string.settings_blur_intensity
     SettingsTarget.ResumeOnReconnect -> Res.string.settings_resume_wired
     SettingsTarget.ResumeBluetooth -> Res.string.settings_resume_bluetooth
     SettingsTarget.BluetoothCommandDelay -> Res.string.settings_bluetooth_command_filter
@@ -114,6 +116,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
             SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout -> library
             SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> "$appearance › ${stringResource(Res.string.settings_accessibility)}"
+            SettingsTarget.TextScale, SettingsTarget.BlurIntensity -> "$appearance › ${stringResource(Res.string.settings_text_and_background)}"
             else -> null
         }
         SettingsSearchDocument(target, settingsTargetTitle(target), listOfNotNull(root, section).joinToString(" › "))
@@ -136,6 +139,8 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             AppearanceMode.Dark -> Res.string.settings_appearance_dark
         })
         SettingsTarget.ArtworkStyle -> stringResource(if (preferences.artworkStyle == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
+        SettingsTarget.TextScale -> textScaleLabel(preferences.textScale)
+        SettingsTarget.BlurIntensity -> blurIntensityLabel(preferences.blurIntensity)
         SettingsTarget.ResumeOnReconnect -> enabled(preferences.headphones.resumeWired)
         SettingsTarget.ResumeBluetooth -> enabled(preferences.headphones.resumeBluetooth)
         SettingsTarget.BluetoothCommandDelay -> bluetoothCommandDelayLabel(preferences.headphones.bluetoothCommandDelayMs)

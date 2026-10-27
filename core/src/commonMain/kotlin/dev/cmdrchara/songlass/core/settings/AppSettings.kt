@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlin.math.abs
 
 /** Persistent preferences shared by all interfaces and platforms. */
 class AppSettings(
@@ -42,6 +43,8 @@ class AppSettings(
             "miuix" -> InterfaceStyle.Miuix
             else -> InterfaceStyle.LiquidGlass
         },
+        textScale = readTextScale(store),
+        blurIntensity = BlurIntensity.fromStorageKey(store.getString(BLUR_INTENSITY_KEY)),
         replayGain = when (store.getString(REPLAY_GAIN_KEY)) {
             "track" -> ReplayGainMode.Track
             "album" -> ReplayGainMode.Album
@@ -100,6 +103,12 @@ class AppSettings(
     )
 
     val state: StateFlow<AppPreferences> = _state.asStateFlow()
+
+    /** Stored scales outside the offered choices fall back to 1.0 without rewriting the value. */
+    private fun readTextScale(store: KeyValueStore): Float =
+        store.getString(TEXT_SCALE_KEY)?.toFloatOrNull()
+            ?.let { stored -> TEXT_SCALE_CHOICES.firstOrNull { abs(it - stored) <= TEXT_SCALE_TOLERANCE } }
+            ?: 1f
 
     /** Refreshes the existing observable preferences after a validated backup restore. */
     fun reload() = prepareReload().invoke()
@@ -206,6 +215,22 @@ class AppSettings(
             },
         )
         _state.update { it.copy(interfaceStyle = style) }
+    }
+
+    fun setTextScale(scale: Float) {
+        if (!mutations.canMutate) return
+        val choice = TEXT_SCALE_CHOICES.firstOrNull { abs(it - scale) <= TEXT_SCALE_TOLERANCE }
+        require(choice != null) { "unsupported text scale: $scale" }
+        if (choice == state.value.textScale) return
+        store.putString(TEXT_SCALE_KEY, choice.toString())
+        _state.update { it.copy(textScale = choice) }
+    }
+
+    fun setBlurIntensity(intensity: BlurIntensity) {
+        if (!mutations.canMutate) return
+        if (intensity == state.value.blurIntensity) return
+        store.putString(BLUR_INTENSITY_KEY, intensity.storageKey)
+        _state.update { it.copy(blurIntensity = intensity) }
     }
 
     fun setReplayGain(mode: ReplayGainMode) {
@@ -413,7 +438,8 @@ class AppSettings(
     fun resetToDefaults(area: SettingsArea) {
         if (!mutations.canMutate) return
         val keys = when (area) {
-            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY)
+            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY,
+                TEXT_SCALE_KEY, BLUR_INTENSITY_KEY)
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY) + AudioFocusSettings.keys
@@ -427,7 +453,8 @@ class AppSettings(
             when (area) {
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
                     appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
-                    reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency)
+                    reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency,
+                    textScale = defaults.textScale, blurIntensity = defaults.blurIntensity)
                 SettingsArea.Sound -> current.copy(replayGain = defaults.replayGain, replayGainSettings = defaults.replayGainSettings, audioEffects = defaults.audioEffects, equalizerTuning = defaults.equalizerTuning,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, audioFocus = defaults.audioFocus, transportFades = defaults.transportFades)
@@ -501,6 +528,14 @@ class AppSettings(
         const val SHUFFLE_BIAS_KEY = "settings.shuffle_bias"
         const val KEEP_SHUFFLE_KEY = "settings.keep_shuffle"
         const val APP_ICON_KEY = "settings.app_icon"
+        const val TEXT_SCALE_KEY = "settings.text_scale"
+        const val BLUR_INTENSITY_KEY = "settings.blur_intensity"
+
+        /** Multipliers offered by the Appearance page; 1.0 is the reference size. */
+        val TEXT_SCALE_CHOICES = listOf(0.85f, 1f, 1.15f, 1.3f, 1.5f)
+
+        /** Stored floats are compared with a tolerance so decimal strings survive a round trip. */
+        private const val TEXT_SCALE_TOLERANCE = 0.001f
         const val AUDIO_FOCUS_KEY = "settings.handle_audio_focus"
         const val PAUSE_DISCONNECT_KEY = "settings.pause_on_disconnect"
         const val MULTI_PRESS_KEY = "settings.headset_multi_press"

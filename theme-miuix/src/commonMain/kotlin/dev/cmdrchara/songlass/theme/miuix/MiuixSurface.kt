@@ -11,6 +11,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 import top.yukonga.miuix.kmp.blur.LayerBackdrop
 import top.yukonga.miuix.kmp.blur.colorControls
 import top.yukonga.miuix.kmp.blur.blur
@@ -24,7 +25,9 @@ internal val LocalMiuixBackdrop = staticCompositionLocalOf<LayerBackdrop?> { nul
 internal fun miuixSurface(modifier: Modifier, shape: RoundedCornerShape, selected: Boolean = false): Modifier {
     val colors = AppTheme.colors
     val fill = if (selected) colors.fill else colors.secondaryBackground
-    val backdrop = LocalMiuixBackdrop.current.takeUnless { AppTheme.accessibility.reduceTransparency }
+    // Off takes the plain native surface: no blur layer is created or sampled at all.
+    val blurStrength = LocalBlurStrength.current
+    val backdrop = LocalMiuixBackdrop.current.takeUnless { AppTheme.accessibility.reduceTransparency || !blurStrength.blurred }
     val base = modifier.shadow(if (selected) 2.dp else 10.dp, shape, clip = false).clip(shape)
     if (backdrop == null) {
         return base.background(fill)
@@ -42,7 +45,7 @@ internal fun miuixSurface(modifier: Modifier, shape: RoundedCornerShape, selecte
         backdrop = backdrop,
         shape = { shape },
         effects = {
-            blur((if (selected) 12.dp else 24.dp).toPx())
+            blur(blurStrength.scale(if (selected) 12.dp else 24.dp).toPx())
             colorControls(saturation = if (colors.isDark) 1.08f else 1.12f)
         },
         // Tint belongs after filtering. Chaining it into the backdrop effect produced

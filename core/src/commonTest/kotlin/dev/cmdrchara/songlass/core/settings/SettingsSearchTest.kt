@@ -63,6 +63,28 @@ class SettingsSearchTest {
     private val index = SettingsSearchIndex(documents)
 
     @Test
+    fun textSizeAndBlurIntensityAreSearchableInBothLanguagesWithoutHidingAccessibility() {
+        for (query in listOf("text size", "app text size", "dimensione del testo", "testo grande", "carattere")) {
+            assertEquals(listOf(SettingsTarget.TextScale), index.search(query, true), query)
+        }
+        // "font" also prefixes the Italian "fonti" of other settings: TextScale still ranks first.
+        assertEquals(SettingsTarget.TextScale, index.search("font", true).first())
+        assertEquals(SettingsTarget.TextScale, index.search("dimensione", true).first())
+        assertEquals(SettingsTarget.TextScale, index.search("ingrandisci", true).first())
+        for (query in listOf("background blur", "blur intensity", "blur", "sfocatura", "sfocatura dello sfondo", "intensità della sfocatura")) {
+            assertTrue(SettingsTarget.BlurIntensity in index.search(query, true), query)
+        }
+        assertEquals(SettingsTarget.BlurIntensity, index.search("background blur", true).first())
+        assertEquals(SettingsTarget.BlurIntensity, index.search("blur", true).first())
+        assertEquals(SettingsTarget.BlurIntensity, index.search("sfocatura", true).first())
+        // The new words must not take over the accessibility controls they share synonyms with.
+        assertEquals(listOf(SettingsTarget.ReduceTransparency), index.search("reduce transparency", true))
+        assertEquals(listOf(SettingsTarget.ReduceMotion), index.search("reduce motion", true))
+        assertTrue(SettingsTarget.ReduceTransparency in index.search("vetro", true))
+        assertEquals(setOf(SettingsTarget.ReduceTransparency, SettingsTarget.BlurIntensity), index.search("vetro", true).toSet())
+    }
+
+    @Test
     fun roadmapQueriesFindTheirControlsInBothLanguages() {
         assertEquals(SettingsTarget.CrossfadeDuration, index.search("ms", true).first())
         assertEquals(SettingsTarget.Crossfade, index.search("crossfade", true).first())

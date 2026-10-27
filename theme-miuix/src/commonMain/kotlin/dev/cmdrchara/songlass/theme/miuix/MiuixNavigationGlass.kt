@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 import top.yukonga.miuix.kmp.blur.*
 import top.yukonga.miuix.kmp.blur.highlight.Highlight
 
@@ -34,7 +35,10 @@ internal fun miuixNavigationGlass(
     val colors = AppTheme.colors
     val shadowRadius = with(LocalDensity.current) { 6.dp.toPx() }
     val shadowOffset = with(LocalDensity.current) { 2.dp.toPx() }
-    val backdrop = if (AppTheme.accessibility.reduceTransparency) null else source ?: LocalMiuixBackdrop.current
+    // Off skips the recorded backdrop entirely and uses the plain native surface below.
+    val blurStrength = LocalBlurStrength.current
+    val backdrop = if (AppTheme.accessibility.reduceTransparency || !blurStrength.blurred) null
+        else source ?: LocalMiuixBackdrop.current
     val fill = if (bubble) colors.fill else colors.secondaryBackground
     val panelSheen = remember(colors.isDark) {
         Brush.verticalGradient(listOf(
@@ -65,7 +69,7 @@ internal fun miuixNavigationGlass(
             padding = maxOf(padding, 22.dp.toPx())
             // Music covers contain much stronger edges than the reference's settings pages.
             // Diffuse those edges in the base; preserve sharp glyph refraction inside the lens.
-            if (!bubble) { blur(16.dp.toPx()); colorControls(contrast = 0.90f, saturation = 1.10f) }
+            if (!bubble) { blur(blurStrength.scale(16.dp).toPx()); colorControls(contrast = 0.90f, saturation = 1.10f) }
             // Only the lens bends with pressure. The panels must not read it here: every read
             // re-runs this block, which rebuilds their blur chain on each animation frame.
             val p = if (bubble) pressure().coerceIn(0f, 1f) else 0f

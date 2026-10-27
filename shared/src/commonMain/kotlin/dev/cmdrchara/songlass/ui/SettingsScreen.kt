@@ -344,6 +344,28 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
             LocalGlassLook.current.SettingsAppearanceHint(hint) { SettingsHint(hint) }
         }
     }
+    item { SettingsSection(stringResource(Res.string.settings_text_and_background)) }
+    mark(SettingsTarget.TextScale, SettingsTarget.BlurIntensity)
+    item {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.TextScale, request) {
+                val choices = AppSettings.TEXT_SCALE_CHOICES
+                LocalGlassLook.current.SettingsValueChoice(stringResource(Res.string.settings_text_scale),
+                    choices.map { textScaleLabel(it) }, choices.indexOf(preferences.textScale),
+                    { index -> choices.getOrNull(index)?.let(settings::setTextScale) },
+                    stringResource(Res.string.action_cancel), Modifier)
+            }
+            SettingsSearchAnchor(SettingsTarget.BlurIntensity, request) {
+                val choices = BlurIntensity.entries
+                LocalGlassLook.current.SettingsValueChoice(stringResource(Res.string.settings_blur_intensity),
+                    choices.map { blurIntensityLabel(it) }, choices.indexOf(preferences.blurIntensity),
+                    { index -> choices.getOrNull(index)?.let(settings::setBlurIntensity) },
+                    stringResource(Res.string.action_cancel), Modifier)
+            }
+        }
+    }
+    item { SettingsHint(stringResource(Res.string.settings_text_scale_hint)) }
+    item { SettingsHint(stringResource(Res.string.settings_blur_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
     mark(SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency)
     item {
@@ -980,6 +1002,24 @@ private fun appearanceName(mode: AppearanceMode): String = stringResource(when (
     AppearanceMode.System -> Res.string.settings_appearance_system
     AppearanceMode.Light -> Res.string.settings_appearance_light
     AppearanceMode.Dark -> Res.string.settings_appearance_dark
+})
+
+/** The offered scales are discrete, so thresholds keep labels stable for stored floats. */
+@Composable
+internal fun textScaleLabel(scale: Float): String = stringResource(when {
+    scale < 0.95f -> Res.string.settings_text_scale_small
+    scale < 1.1f -> Res.string.settings_text_scale_default
+    scale < 1.25f -> Res.string.settings_text_scale_large
+    scale < 1.45f -> Res.string.settings_text_scale_larger
+    else -> Res.string.settings_text_scale_largest
+})
+
+@Composable
+internal fun blurIntensityLabel(intensity: BlurIntensity): String = stringResource(when (intensity) {
+    BlurIntensity.Off -> Res.string.settings_blur_off
+    BlurIntensity.Low -> Res.string.settings_blur_low
+    BlurIntensity.Default -> Res.string.settings_blur_default
+    BlurIntensity.High -> Res.string.settings_blur_high
 })
 
 /** Where each searchable control sits in its page's lazy list, recorded while the page is built. */

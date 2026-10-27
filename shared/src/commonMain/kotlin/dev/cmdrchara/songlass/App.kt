@@ -22,7 +22,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Density
+import dev.cmdrchara.songlass.core.settings.AppFontScale
+import dev.cmdrchara.songlass.core.settings.BlurIntensity
+import dev.cmdrchara.songlass.designsystem.theme.BlurStrength
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 import dev.cmdrchara.songlass.core.settings.AppearanceMode
 import dev.cmdrchara.songlass.designsystem.theme.UiAccessibility
 import dev.cmdrchara.songlass.designsystem.NavigationDirection
@@ -100,10 +106,25 @@ fun App(
         ArtworkStyle.FullBleed -> ArtworkPresentation.FullBleed
         ArtworkStyle.Square -> ArtworkPresentation.Square
     }
+    // The app text size scales sp only: density is preserved, so dp targets and layouts keep
+    // their physical size. The platform font scale and the preference are multiplied and clamped
+    // (see AppFontScale), which keeps the largest combinations inside the existing layouts.
+    val density = LocalDensity.current
+    val fontScale = AppFontScale.resolve(density.fontScale, preferences.textScale)
     CompositionLocalProvider(
+        LocalDensity provides Density(density.density, fontScale),
         LocalArtworkImageLoader provides artworkLoader,
         LocalArtworkPresentation provides presentation,
+        LocalBlurStrength provides preferences.blurIntensity.toBlurStrength(),
     ) { AppContent(graph, onRequestLibraryAccess, preferences, state) }
+}
+
+/** Maps the stored preference to the presentation value the three looks read. */
+private fun BlurIntensity.toBlurStrength(): BlurStrength = when (this) {
+    BlurIntensity.Off -> BlurStrength.Off
+    BlurIntensity.Low -> BlurStrength.Low
+    BlurIntensity.Default -> BlurStrength.Default
+    BlurIntensity.High -> BlurStrength.High
 }
 
 @Composable

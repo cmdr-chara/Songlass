@@ -110,6 +110,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 
 private val Capsule = RoundedCornerShape(percent = 50)
 private val BarHorizontalMargin = 16.dp
@@ -134,7 +135,11 @@ internal fun LiquidGlassScaffold(
     val morph = LocalPlayerMorph.current
     val accessibility = AppTheme.accessibility
     val look = LocalGlassLook.current
-    val hazeState = if (accessibility.reduceTransparency || !look.usesHazeBackdrop) null else rememberHazeState()
+    // No source is recorded at all when the blur is off: every glass surface then uses its opaque,
+    // readable fallback, and the scaffold does not pay for a backdrop nobody samples.
+    val hazeState = if (accessibility.reduceTransparency || !LocalBlurStrength.current.blurred || !look.usesHazeBackdrop) {
+        null
+    } else rememberHazeState()
     val density = LocalDensity.current
     val navigationBarInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     var expandedBarsHeightPx by remember { mutableIntStateOf(0) }

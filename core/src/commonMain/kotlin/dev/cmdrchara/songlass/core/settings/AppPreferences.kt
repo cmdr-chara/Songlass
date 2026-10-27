@@ -35,6 +35,41 @@ enum class InterfaceStyle {
 /** The preferences one settings page restores together with "Restore defaults". */
 enum class SettingsArea { Appearance, Sound, Player, Queue, Library }
 
+/**
+ * Strength of the blurred backdrop behind glass navigation surfaces. Every style scales its own
+ * radii with it; [Off] uses the same opaque, readable fallback as Reduce Transparency instead of a
+ * zero-radius blur, which would leave sharp text under a translucent bar.
+ */
+enum class BlurIntensity(val storageKey: String) {
+    Off("off"),
+    Low("low"),
+
+    /** The reference rendering: existing installations keep exactly the same optics. */
+    Default("default"),
+    High("high");
+
+    companion object {
+        fun fromStorageKey(key: String?): BlurIntensity = entries.firstOrNull { it.storageKey == key } ?: Default
+    }
+}
+
+/**
+ * Resolves the font scale the app applies on top of the platform one. Both values multiply, then
+ * the result is clamped to [MIN]..[MAX]: below the smallest size the platform offers text becomes
+ * unreadable, while above twice the default the fixed-size chrome (44 dp targets, seek bars) no
+ * longer fits. Density is never changed, so every dp keeps its physical size.
+ */
+object AppFontScale {
+    const val MIN = 0.85f
+    const val MAX = 2f
+
+    fun resolve(systemFontScale: Float, preferenceScale: Float): Float {
+        val system = if (systemFontScale.isFinite() && systemFontScale > 0f) systemFontScale else 1f
+        val preference = if (preferenceScale.isFinite() && preferenceScale > 0f) preferenceScale else 1f
+        return (system * preference).coerceIn(MIN, MAX)
+    }
+}
+
 /** A fixed legacy icon, an explicit finish, or a finish that follows the interface. */
 enum class AppIconChoice(val storageKey: String) {
     /** Kept as the default so existing installations retain their chosen identity. */
@@ -56,6 +91,10 @@ data class AppPreferences(
     val reduceTransparency: Boolean = false,
     val artworkStyle: ArtworkStyle = ArtworkStyle.FullBleed,
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
+    /** App text size multiplier, one of [AppSettings.TEXT_SCALE_CHOICES]; 1.0 preserves the current size. */
+    val textScale: Float = 1f,
+    /** Strength of the blurred backdrop; the default reproduces the current rendering exactly. */
+    val blurIntensity: BlurIntensity = BlurIntensity.Default,
     /** Off by default: changing loudness on its own would surprise. */
     val replayGain: ReplayGainMode = ReplayGainMode.Off,
     val replayGainSettings: dev.cmdrchara.songlass.core.player.ReplayGainSettings = dev.cmdrchara.songlass.core.player.ReplayGainSettings(),

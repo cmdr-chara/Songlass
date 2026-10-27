@@ -21,6 +21,7 @@ import dev.chrisbanes.haze.glass.GlassStyle
 import dev.chrisbanes.haze.glass.OpticalSizeValue
 import dev.chrisbanes.haze.glass.hazeGlass
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 
 /**
  * The content layer that glass elements refract. Set by the scaffold; `null` outside it,
@@ -62,10 +63,13 @@ internal fun Modifier.appleGlass(
     val colors = AppTheme.colors
     val accessibility = AppTheme.accessibility
     val source = LocalGlassSource.current
-    if (accessibility.reduceTransparency || source == null) {
+    // Off removes the blur layer instead of keeping a zero-radius lens: the opaque page surface is
+    // the readable baseline, exactly like Reduce Transparency.
+    val blur = LocalBlurStrength.current
+    if (accessibility.reduceTransparency || !blur.blurred || source == null) {
         return clip(shape).background(colors.secondaryBackground)
     }
-    val style = remember(shape, colors, accessibility.reduceMotion, edges, navigationBar) {
+    val style = remember(shape, colors, accessibility.reduceMotion, edges, navigationBar, blur) {
         GlassStyle.regular.then {
             shape(shape)
             backgroundColor(colors.background)
@@ -76,7 +80,7 @@ internal fun Modifier.appleGlass(
             optics(
                 GlassDefaults.optics.copy(
                     depth = OpticalSizeValue.Fixed(1f),
-                    blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 24.dp else 16.dp),
+                    blurRadius = OpticalSizeValue.Fixed(blur.scale(if (navigationBar) 24.dp else 16.dp)),
                     refractionDisplacement = if (navigationBar) 10.dp else 24.dp,
                     refractionStrength = if (navigationBar) 0.38f else GlassDefaults.optics.refractionStrength,
                 ),
@@ -111,7 +115,7 @@ internal fun Modifier.appleGlass(
                 optics(
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
-                        blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 24.dp else 16.dp),
+                        blurRadius = OpticalSizeValue.Fixed(blur.scale(if (navigationBar) 24.dp else 16.dp)),
                         refractionStrength = 0f,
                         refractionDisplacement = 0.dp,
                     ),
@@ -159,19 +163,20 @@ internal fun liquidNavigationRim(isDark: Boolean): Brush = Brush.verticalGradien
 internal fun Modifier.navigationLens(shape: RoundedCornerShape): Modifier {
     val colors = AppTheme.colors
     val source = LocalGlassSource.current
-    if (AppTheme.accessibility.reduceTransparency || source == null) {
+    val blur = LocalBlurStrength.current
+    if (AppTheme.accessibility.reduceTransparency || !blur.blurred || source == null) {
         return clip(shape).background(
             androidx.compose.ui.graphics.lerp(colors.secondaryBackground, colors.label, 0.10f),
         ).border(0.75.dp, colors.label.copy(alpha = 0.14f), shape)
     }
     // A fixed optical recipe: movement transforms the lens, never animates its blur.
-    val style = remember(shape, colors) {
+    val style = remember(shape, colors, blur) {
         GlassStyle.regular.then {
             shape(shape)
             backgroundColor(colors.background)
             optics(GlassDefaults.optics.copy(
                 depth = OpticalSizeValue.Fixed(1f),
-                blurRadius = OpticalSizeValue.Fixed(12.dp),
+                blurRadius = OpticalSizeValue.Fixed(blur.scale(12.dp)),
                 refractionDisplacement = 26.dp,
                 refractionStrength = 0.64f,
             ))

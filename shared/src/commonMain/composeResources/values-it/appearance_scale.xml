@@ -1,0 +1,17 @@
+<resources>
+    <!-- Aspetto: dimensione del testo e sfocatura dello sfondo (funzione 11). -->
+    <string name="settings_text_and_background">Testo e sfondo</string>
+    <string name="settings_text_scale">Dimensione del testo</string>
+    <string name="settings_text_scale_small">Piccolo · 85%</string>
+    <string name="settings_text_scale_default">Predefinito · 100%</string>
+    <string name="settings_text_scale_large">Grande · 115%</string>
+    <string name="settings_text_scale_larger">Più grande · 130%</string>
+    <string name="settings_text_scale_largest">Massimo · 150%</string>
+    <string name="settings_text_scale_hint">Si somma alla dimensione del testo di sistema, fino al doppio del normale. Spaziature e controlli mantengono la loro dimensione.</string>
+    <string name="settings_blur_intensity">Sfocatura dello sfondo</string>
+    <string name="settings_blur_off">Nessuna</string>
+    <string name="settings_blur_low">Bassa</string>
+    <string name="settings_blur_default">Predefinita</string>
+    <string name="settings_blur_high">Alta</string>
+    <string name="settings_blur_hint">Intensità della sfocatura dietro le barre di navigazione. Con «Riduci trasparenza» attiva le barre restano piene.</string>
+</resources>

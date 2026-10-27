@@ -57,6 +57,7 @@ import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 import dev.cmdrchara.songlass.theme.liquidglass.GlassLook
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassSource
 import kotlin.random.Random
@@ -182,12 +183,14 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         val palette = palette()
         val accessibility = AppTheme.accessibility
         val source = LocalGlassSource.current
-        if (accessibility.reduceTransparency || source == null) {
+        // Off keeps the tonal, readable surface of Reduce Transparency, without a blur layer.
+        val blur = LocalBlurStrength.current
+        if (accessibility.reduceTransparency || !blur.blurred || source == null) {
             return if (navigationBar) modifier.clip(shape).background(palette.containerHigh)
                 .border(0.75.dp, palette.secondaryLabel.copy(alpha = 0.12f), shape)
             else modifier.seaDecor(shape, palette, glow = edges, base = colors.secondaryBackground)
         }
-        val style = remember(shape, palette, edges, navigationBar) {
+        val style = remember(shape, palette, edges, navigationBar, blur) {
             GlassStyle.regular.then {
                 shape(shape)
                 backgroundColor(colors.background)
@@ -195,7 +198,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
                     GlassDefaults.optics.copy(
                         depth = OpticalSizeValue.Fixed(1f),
                         // Stronger than the file's look: over busy covers the labels must stay legible.
-                        blurRadius = OpticalSizeValue.Fixed(if (navigationBar) 22.dp else 36.dp),
+                        blurRadius = OpticalSizeValue.Fixed(blur.scale(if (navigationBar) 22.dp else 36.dp)),
                         refractionDisplacement = if (!edges) 0.dp else if (navigationBar) 6.dp else 14.dp,
                         refractionStrength = if (!edges) 0f else if (navigationBar) 0.18f else 0.42f,
                     ),
