@@ -39,8 +39,8 @@ class HomeShortcutsTest {
     @Test
     fun withoutChoicesTheFeedIsTheOriginalOne() {
         val recent = history(listOf(gym, albumA))
-        val original = HomeFeed.build(library, recent, listOf("b1"), now)
-        assertEquals(original, HomeFeed.build(library, recent, listOf("b1"), now, selectedShortcuts = emptyList()))
+        val original = homeFeed(library, recent, listOf("b1"), now)
+        assertEquals(original, homeFeed(library, recent, listOf("b1"), now, selectedShortcuts = emptyList()))
         assertEquals(
             listOf(gym, albumA, PlayContext.Favorites, PlayContext.Playlist("Music/Chill")),
             shortcutContexts(original),
@@ -50,13 +50,13 @@ class HomeShortcutsTest {
     @Test
     fun withoutChoicesAShortcutAloneIsStillHidden() {
         val single = MusicLibrary(listOf(track("z", album = null).copy(folder = "Music")))
-        assertTrue(HomeFeed.build(single, HistorySnapshot(), emptyList(), now).shortcuts.isEmpty())
+        assertTrue(homeFeed(single, HistorySnapshot(), emptyList(), now).shortcuts.isEmpty())
     }
 
     @Test
     fun chosenShortcutsComeFirstAndAreNotRepeatedByTheAutomaticOnes() {
         val recent = history(listOf(gym, albumA, PlayContext.Favorites))
-        val feed = HomeFeed.build(library, recent, listOf("b1"), now, selectedShortcuts = listOf(albumA, gym))
+        val feed = homeFeed(library, recent, listOf("b1"), now, selectedShortcuts = listOf(albumA, gym))
         assertEquals(
             listOf(albumA, gym, PlayContext.Favorites, PlayContext.Playlist("Music/Chill")),
             shortcutContexts(feed),
@@ -67,7 +67,7 @@ class HomeShortcutsTest {
     @Test
     fun aChosenShortcutOverridesWhatRecentPlaybackWouldHaveRanked() {
         val recent = history(listOf(gym, albumA))
-        val feed = HomeFeed.build(library, recent, emptyList(), now, selectedShortcuts = listOf(PlayContext.Artist("X3")))
+        val feed = homeFeed(library, recent, emptyList(), now, selectedShortcuts = listOf(PlayContext.Artist("X3")))
         assertEquals(PlayContext.Artist("X3"), shortcutContexts(feed).first())
         assertEquals(listOf(gym, albumA), shortcutContexts(feed).drop(1).take(2))
     }
@@ -75,13 +75,13 @@ class HomeShortcutsTest {
     @Test
     fun aSingleChosenShortcutIsShown() {
         val single = MusicLibrary(listOf(track("z", album = null).copy(folder = "Music")))
-        val feed = HomeFeed.build(single, HistorySnapshot(), emptyList(), now, selectedShortcuts = listOf(PlayContext.Playlist("Music")))
+        val feed = homeFeed(single, HistorySnapshot(), emptyList(), now, selectedShortcuts = listOf(PlayContext.Playlist("Music")))
         assertEquals(listOf<PlayContext?>(PlayContext.Playlist("Music")), shortcutContexts(feed))
     }
 
     @Test
     fun unavailableChoicesAreSkipped() {
-        val feed = HomeFeed.build(
+        val feed = homeFeed(
             library, HistorySnapshot(), emptyList(), now,
             selectedShortcuts = listOf(
                 PlayContext.Album("Gone", "Nobody"),
@@ -102,22 +102,22 @@ class HomeShortcutsTest {
     fun aChoiceIsAvailableAgainWhenTheLibraryComesBack() {
         val choices = listOf(PlayContext.Album("Album B", "B"))
         val filtered = MusicLibrary(tracks.filter { it.folder != "Music/Gym" })
-        assertTrue(HomeFeed.build(filtered, HistorySnapshot(), emptyList(), now, selectedShortcuts = choices)
+        assertTrue(homeFeed(filtered, HistorySnapshot(), emptyList(), now, selectedShortcuts = choices)
             .shortcuts.none { it is HomeItem.AlbumItem })
-        val restored = HomeFeed.build(library, HistorySnapshot(), emptyList(), now, selectedShortcuts = choices)
+        val restored = homeFeed(library, HistorySnapshot(), emptyList(), now, selectedShortcuts = choices)
         assertIs<HomeItem.AlbumItem>(restored.shortcuts.first())
     }
 
     @Test
     fun theGridNeverHasMoreThanSixEvenWithEightChoices() {
         val choices = (1..8).map { PlayContext.Artist("X$it") }
-        val feed = HomeFeed.build(library, HistorySnapshot(), emptyList(), now, selectedShortcuts = choices)
+        val feed = homeFeed(library, HistorySnapshot(), emptyList(), now, selectedShortcuts = choices)
         assertEquals(choices.take(6), shortcutContexts(feed))
     }
 
     @Test
     fun repeatedChoicesAppearOnce() {
-        val feed = HomeFeed.build(library, HistorySnapshot(), emptyList(), now, selectedShortcuts = listOf(gym, gym, albumA, gym))
+        val feed = homeFeed(library, HistorySnapshot(), emptyList(), now, selectedShortcuts = listOf(gym, gym, albumA, gym))
         assertEquals(listOf(gym, albumA), shortcutContexts(feed).take(2))
         assertEquals(1, shortcutContexts(feed).count { it == gym })
     }

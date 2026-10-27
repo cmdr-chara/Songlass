@@ -4,7 +4,7 @@ package dev.cmdrchara.songlass.core.settings
 enum class SettingsTarget {
     InterfaceStyle, Appearance, ArtworkStyle, TextScale, BlurIntensity, ResumeOnReconnect, ReplayGain, Crossfade,
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
-    EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, ExcludedFolders,
+    EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, MinimumRating, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
     TrackClickAction, QueueStart, QueueAddOrder, QueueReplaces, QueueEnd, ShuffleBias, KeepShuffle, AppIcon,
     ReplayGainProcessing, ReplayGainPreamp, ReplayGainMissingPreamp, ReplayGainLimiter,
@@ -236,6 +236,8 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "headphones|cuffie|autoeq|profile|profilo|import|importazione|correction|correzione|parametric|parametrico")
     SettingsTarget.MinimumDuration -> terms("Minimum duration", "Durata minima",
         aliases = "library|libreria|track|brano|tracks|brani|filter|filtro|seconds|secondi|short|brevi")
+    SettingsTarget.MinimumRating -> terms("Minimum rating", "Valutazione minima", "Minimum stars", "Stelle minime",
+        aliases = "library|libreria|rating|ratings|valutazione|valutazioni|stars|stelle|star|stella|filter|filtro|rating filter|filtro valutazione|5 stelle|5 stars")
     SettingsTarget.ExcludedFolders -> terms("Excluded folders", "Cartelle escluse",
         aliases = "library|libreria|directory|cartelle|hide|nascondi|exclude|esclusioni|esclusione|filter|filtro")
     SettingsTarget.PlayCountRule -> terms("Count a play after", "Play count rule", "Conta un ascolto dopo", "Regola conteggio ascolti",

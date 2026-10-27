@@ -34,7 +34,7 @@ class HomeFeedTest {
 
     @Test
     fun emptyHistoryShowsNoHistorySections() {
-        val feed = HomeFeed.build(library, HistorySnapshot(), emptyList(), now)
+        val feed = homeFeed(library, HistorySnapshot(), emptyList(), now)
         assertTrue(feed.recentlyPlayed.isEmpty())
         assertTrue(feed.mostPlayed.isEmpty())
         assertNull(feed.changeOfPace)
@@ -43,7 +43,7 @@ class HomeFeedTest {
 
     @Test
     fun recentlyAddedIsNewestFirstWithAlbumsGrouped() {
-        val feed = HomeFeed.build(library, HistorySnapshot(), emptyList(), now)
+        val feed = homeFeed(library, HistorySnapshot(), emptyList(), now)
         val added = feed.recentlyAdded
         assertEquals("s1", (added[0] as HomeItem.TrackItem).track.id)
         assertEquals("Album B", (added[1] as HomeItem.AlbumItem).album.title)
@@ -67,7 +67,7 @@ class HomeFeedTest {
                 .sortedByDescending { it.dateAddedMs }
                 .map { song -> indexed.albumOf(song)?.let(HomeItem::AlbumItem) ?: HomeItem.TrackItem(song) }
                 .distinct().take(HomeFeed.ROW_SIZE)
-            assertEquals(reference, HomeFeed.build(indexed, HistorySnapshot(), emptyList(), now).recentlyAdded)
+            assertEquals(reference, homeFeed(indexed, HistorySnapshot(), emptyList(), now).recentlyAdded)
         }
     }
 
@@ -80,7 +80,7 @@ class HomeFeedTest {
                 track("pair-$i-b", artist = "Artist $i", album = "Shared title"))
                 .map { it.copy(dateAddedMs = 100L - i) }
         }
-        val result = HomeFeed.build(MusicLibrary(tracks), HistorySnapshot(), emptyList(), now).recentlyAdded
+        val result = homeFeed(MusicLibrary(tracks), HistorySnapshot(), emptyList(), now).recentlyAdded
         assertEquals(HomeFeed.ROW_SIZE, result.size)
         assertEquals(listOf("A") + (0 until 11).map { "Artist $it" }, result.map { (it as HomeItem.AlbumItem).album.artist })
     }
@@ -93,7 +93,7 @@ class HomeFeedTest {
             PlayContext.Album("Album A", "A"),
             PlayContext.Favorites,
         )
-        val feed = HomeFeed.build(library, history(listOf("a1"), contexts), favoriteIds = listOf("b1"), nowMs = now)
+        val feed = homeFeed(library, history(listOf("a1"), contexts), favoriteIds = listOf("b1"), nowMs = now)
         assertEquals(3, feed.recentlyPlayed.size)
         assertIs<HomeItem.PlaylistItem>(feed.recentlyPlayed[0])
         assertIs<HomeItem.AlbumItem>(feed.recentlyPlayed[1])
@@ -102,14 +102,14 @@ class HomeFeedTest {
 
     @Test
     fun mostPlayedIsByCount() {
-        val feed = HomeFeed.build(library, history(listOf("b1", "a1", "b1", "b1", "a1", "s1")), emptyList(), now)
+        val feed = homeFeed(library, history(listOf("b1", "a1", "b1", "b1", "a1", "s1")), emptyList(), now)
         assertEquals(listOf("b1", "a1", "s1"), feed.mostPlayed.map { it.id })
     }
 
     @Test
     fun dominantArtistLeadsToAChangeOfPaceWithoutThatArtist() {
         val plays = List(6) { if (it % 2 == 0) "a1" else "a2" }
-        val pace = HomeFeed.build(library, history(plays), emptyList(), now).changeOfPace!!
+        val pace = homeFeed(library, history(plays), emptyList(), now).changeOfPace!!
         assertEquals(ChangeOfPaceReason.MostlyOneArtist("A"), pace.reason)
         assertTrue(pace.tracks.none { it.groupingArtist == "A" })
         assertEquals(HomeFeed.SHELF_SIZE, pace.tracks.size)
@@ -117,7 +117,7 @@ class HomeFeedTest {
 
     @Test
     fun withoutADominantArtistNeverPlayedSongsAreTheReason() {
-        val pace = HomeFeed.build(library, history(listOf("a1", "b1", "s1")), emptyList(), now).changeOfPace!!
+        val pace = homeFeed(library, history(listOf("a1", "b1", "s1")), emptyList(), now).changeOfPace!!
         assertEquals(ChangeOfPaceReason.NeverPlayed(library.tracks.size - 3), pace.reason)
         assertTrue(pace.tracks.none { it.id in setOf("a1", "b1", "s1") })
     }
@@ -125,10 +125,10 @@ class HomeFeedTest {
     @Test
     fun changeOfPaceIsStableWithinADayAndVariesAcrossDays() {
         val h = history(listOf("a1", "b1", "s1"))
-        val morning = HomeFeed.build(library, h, emptyList(), now + 1000).changeOfPace!!.tracks
-        val evening = HomeFeed.build(library, h, emptyList(), now + day - 1000).changeOfPace!!.tracks
+        val morning = homeFeed(library, h, emptyList(), now + 1000).changeOfPace!!.tracks
+        val evening = homeFeed(library, h, emptyList(), now + day - 1000).changeOfPace!!.tracks
         assertEquals(morning, evening)
-        val days = (0 until 7).map { HomeFeed.build(library, h, emptyList(), now + it * day).changeOfPace!!.tracks }.toSet()
+        val days = (0 until 7).map { homeFeed(library, h, emptyList(), now + it * day).changeOfPace!!.tracks }.toSet()
         assertTrue(days.size > 1)
     }
 
@@ -136,7 +136,7 @@ class HomeFeedTest {
     fun rediscoverSkipsRecentlyPlayedAlbums() {
         val played = history(listOf("a1"))
         repeat(10) { offset ->
-            val pick = HomeFeed.build(library, played, emptyList(), now + offset * day).rediscover
+            val pick = homeFeed(library, played, emptyList(), now + offset * day).rediscover
             assertEquals("Album B", pick?.album?.title)
             assertNull(pick?.idleDays)
         }
@@ -145,7 +145,7 @@ class HomeFeedTest {
     @Test
     fun rediscoverTellsHowLongTheAlbumWasIdle() {
         val old = HistorySnapshot(lastPlayedMs = mapOf("a1" to now - 45 * day, "b1" to now - 90 * day, "b2" to now - 40 * day))
-        val pick = HomeFeed.build(library, old, emptyList(), now).rediscover!!
+        val pick = homeFeed(library, old, emptyList(), now).rediscover!!
         val expected = if (pick.album.title == "Album A") 45 else 40
         assertEquals(expected, pick.idleDays)
     }
@@ -153,7 +153,7 @@ class HomeFeedTest {
     @Test
     fun shortcutsStartWithRecentContextsThenFavoritesAndPlaylists() {
         val contexts = listOf(PlayContext.Playlist("Music/Gym"), PlayContext.Album("Album A", "A"))
-        val feed = HomeFeed.build(library, history(listOf("a1"), contexts), favoriteIds = listOf("b1"), nowMs = now)
+        val feed = homeFeed(library, history(listOf("a1"), contexts), favoriteIds = listOf("b1"), nowMs = now)
         assertIs<HomeItem.PlaylistItem>(feed.shortcuts[0])
         assertIs<HomeItem.AlbumItem>(feed.shortcuts[1])
         assertIs<HomeItem.FavoritesItem>(feed.shortcuts[2])
@@ -164,12 +164,12 @@ class HomeFeedTest {
     @Test
     fun shortcutsNeedAtLeastTwoItems() {
         val single = MusicLibrary(listOf(track("z", album = null).copy(folder = "Music")))
-        assertTrue(HomeFeed.build(single, HistorySnapshot(), emptyList(), now).shortcuts.isEmpty())
+        assertTrue(homeFeed(single, HistorySnapshot(), emptyList(), now).shortcuts.isEmpty())
     }
 
     @Test
     fun favoritesAreNewestFirst() {
-        val feed = HomeFeed.build(library, HistorySnapshot(), listOf("a1", "b2"), now)
+        val feed = homeFeed(library, HistorySnapshot(), listOf("a1", "b2"), now)
         assertEquals(listOf("b2", "a1"), feed.favorites.map { it.id })
     }
 }

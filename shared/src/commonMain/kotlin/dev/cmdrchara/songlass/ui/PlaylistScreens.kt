@@ -314,6 +314,7 @@ internal fun UserPlaylistRow(state: AppState, onImport: (() -> Unit)?) {
     val smart by state.smartPlaylists.playlists.collectAsState()
     val history by state.history.state.collectAsState()
     val favorites by state.favorites.ids.collectAsState()
+    val ratings by state.ratings.values.collectAsState()
     val now = rememberPlaylistTime()
     val smartLabel = stringResource(dev.cmdrchara.songlass.shared.resources.Res.string.smart_new)
     val newLabel = stringResource(Res.string.playlist_new)
@@ -326,7 +327,7 @@ internal fun UserPlaylistRow(state: AppState, onImport: (() -> Unit)?) {
         add(ShelfItem("smart-new", smartLabel, null, null, { state.open(Route.SmartPlaylistEditor()) }, icon = AppIcons.ChartBars, isAction = true, compactTitle = compactSmart))
         if (onImport != null) add(ShelfItem("import", importLabel, null, null, onImport, icon = AppIcons.ImportFile, isAction = true, compactTitle = compactImport))
         smart.forEach { playlist ->
-            val tracks = playlist.rules.resolve(state.library, history, favorites.toSet(), now)
+            val tracks = playlist.rules.resolve(state.library, history, favorites.toSet(), now, ratings)
             add(ShelfItem(playlist.id, playlist.name, pluralStringResource(Res.plurals.songs_count, tracks.size, tracks.size),
                 tracks.firstOrNull()?.artwork(), { state.open(Route.SmartPlaylistDetail(playlist.id)) }, icon = if (tracks.isEmpty()) AppIcons.ChartBars else null))
         }

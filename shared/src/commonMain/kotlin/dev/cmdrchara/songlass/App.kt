@@ -433,10 +433,11 @@ private fun Route?.pageArtwork(state: AppState): Artwork? = when (this) {
         val playlists by state.smartPlaylists.playlists.collectAsState()
         val history by state.history.state.collectAsState()
         val favorites by state.favorites.ids.collectAsState()
+        val ratings by state.ratings.values.collectAsState()
         val now = dev.cmdrchara.songlass.ui.rememberPlaylistTime()
         // Playback position ticks must not repeatedly sort the smart playlist for its tint.
-        remember(id, playlists, state.library, history, favorites, now) {
-            playlists.firstOrNull { it.id == id }?.rules?.resolve(state.library, history, favorites.toSet(), now)
+        remember(id, playlists, state.library, history, favorites, ratings, now) {
+            playlists.firstOrNull { it.id == id }?.rules?.resolve(state.library, history, favorites.toSet(), now, ratings)
                 ?.firstOrNull()?.artwork()
         }
     }

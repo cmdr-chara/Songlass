@@ -81,6 +81,8 @@ data class HomeFeed(
             history: HistorySnapshot,
             favoriteIds: List<String>,
             nowMs: Long,
+            /** Current votes by track id, for a smart playlist with a minimum rating. */
+            ratings: Map<String, Int>,
             /** Shortcuts the user chose (see [HomeCustomization]); they come before the automatic ones. */
             selectedShortcuts: List<PlayContext> = emptyList(),
             userPlaylists: List<UserPlaylist> = emptyList(),
@@ -89,7 +91,7 @@ data class HomeFeed(
             val day = nowMs / DAY_MS
             val byId = library.tracks.associateBy { it.id }
             val favorites = favoriteIds.asReversed().mapNotNull { byId[it] }
-            val savedPlaylists = HomeShortcuts.savedPlaylists(library, userPlaylists, smartPlaylists, history, favoriteIds.toSet(), nowMs)
+            val savedPlaylists = HomeShortcuts.savedPlaylists(library, userPlaylists, smartPlaylists, history, favoriteIds.toSet(), nowMs, ratings)
 
             fun lastPlayedOf(tracks: List<Track>): Long? = tracks.mapNotNull { history.lastPlayedMs[it.id] }.maxOrNull()
             val stale = library.albums.filter { album ->

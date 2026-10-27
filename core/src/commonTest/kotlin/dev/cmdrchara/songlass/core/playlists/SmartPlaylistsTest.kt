@@ -35,21 +35,21 @@ class SmartPlaylistsTest {
     @Test fun andRulesRespectUnknownDatesMultipleArtistsAndFolderBoundaries() {
         val library = MusicLibrary(tracks)
         val rules = SmartRules(favoritesOnly = true, addedWithinDays = 7, folder = "Music/Chill", sort = SmartSort.MostPlayed)
-        assertEquals(listOf("a", "b"), rules.resolve(library, history, setOf("a", "b", "c", "d", "e"), now).map { it.id })
-        assertEquals(listOf("b"), rules.copy(artist = "two").resolve(library, history, setOf("a", "b"), now).map { it.id })
-        assertEquals(emptyList(), rules.copy(playStatus = SmartPlayStatus.Never).resolve(library, history, setOf("a", "b"), now))
+        assertEquals(listOf("a", "b"), rules.resolve(library, history, setOf("a", "b", "c", "d", "e"), now, emptyMap()).map { it.id })
+        assertEquals(listOf("b"), rules.copy(artist = "two").resolve(library, history, setOf("a", "b"), now, emptyMap()).map { it.id })
+        assertEquals(emptyList(), rules.copy(playStatus = SmartPlayStatus.Never).resolve(library, history, setOf("a", "b"), now, emptyMap()))
         val duet = tracks[0].copy(artists = listOf("One", "Guest"))
-        assertEquals(listOf(duet), SmartRules(artist = "guest").resolve(MusicLibrary(listOf(duet)), history, emptySet(), now))
+        assertEquals(listOf(duet), SmartRules(artist = "guest").resolve(MusicLibrary(listOf(duet)), history, emptySet(), now, emptyMap()))
     }
 
     @Test fun membershipChangesWithLibraryFavoritesAndListeningHistory() {
         val rules = SmartRules(favoritesOnly = true, playStatus = SmartPlayStatus.Never)
         val library = MusicLibrary(tracks)
-        assertEquals(listOf("d"), rules.resolve(library, history, setOf("a", "d"), now).map { it.id })
-        assertEquals(emptyList(), rules.resolve(library, history.copy(playCounts = history.playCounts + ("d" to 1)), setOf("d"), now))
-        assertEquals(emptyList(), rules.resolve(MusicLibrary(tracks.filterNot { it.id == "d" }), history, setOf("d"), now))
+        assertEquals(listOf("d"), rules.resolve(library, history, setOf("a", "d"), now, emptyMap()).map { it.id })
+        assertEquals(emptyList(), rules.resolve(library, history.copy(playCounts = history.playCounts + ("d" to 1)), setOf("d"), now, emptyMap()))
+        assertEquals(emptyList(), rules.resolve(MusicLibrary(tracks.filterNot { it.id == "d" }), history, setOf("d"), now, emptyMap()))
         assertEquals(listOf("b"), SmartRules(sort = SmartSort.Newest, addedWithinDays = 7, limit = 1, playStatus = SmartPlayStatus.Never)
-            .resolve(library, HistorySnapshot(playCounts = mapOf("a" to 1)), emptySet(), now).map { it.id })
+            .resolve(library, HistorySnapshot(playCounts = mapOf("a" to 1)), emptySet(), now, emptyMap()).map { it.id })
     }
 
     @Test fun rulesPersistAndDeletingDoesNotAffectOtherPlaylists() {

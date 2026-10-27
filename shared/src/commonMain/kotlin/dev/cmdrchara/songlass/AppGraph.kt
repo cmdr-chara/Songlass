@@ -167,7 +167,13 @@ class AppGraph(
 
     private val _allTracks = MutableStateFlow<List<Track>>(emptyList())
     val allTracks: StateFlow<List<Track>> = _allTracks.asStateFlow()
-    private val libraryIndex = LibraryIndex(allTracks, { settings.state.value.libraryFilter })
+
+    /** Votes the visible library reads when a minimum rating is set; see [LibraryIndex]. */
+    private val libraryIndex = LibraryIndex(
+        allTracks,
+        { settings.state.value.libraryFilter },
+        { ratings.values.value },
+    )
     val library: StateFlow<MusicLibrary> = libraryIndex.state
 
     init {
@@ -188,10 +194,16 @@ class AppGraph(
             } }
         }
         scope.launch {
-            combine(allTracks, settings.state.map { it.libraryFilter }.distinctUntilChanged()) { _, _ ->
+            combine(
+                allTracks,
+                settings.state.map { it.libraryFilter }.distinctUntilChanged(),
+                ratings.values,
+            ) { _, _, _ ->
                 Unit
             }.collect {
-                // Also finish updates if the screen that requested a refresh was closed.
+                // Also finish updates if the screen that requested a refresh was closed. A vote
+                // only rebuilds the library while the filter shows a minimum rating; otherwise
+                // the index sees unchanged inputs and returns without publishing.
                 libraryIndex.refresh()
             }
         }

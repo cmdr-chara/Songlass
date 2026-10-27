@@ -11,6 +11,7 @@ import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.library.LibraryFilter
 import dev.cmdrchara.songlass.core.library.LibraryFolderOption
+import dev.cmdrchara.songlass.core.library.Ratings
 import dev.cmdrchara.songlass.core.settings.SettingsTarget
 import dev.cmdrchara.songlass.core.settings.AlbumLayout
 import dev.cmdrchara.songlass.designsystem.*
@@ -31,6 +32,7 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
     val listState = rememberLazyListState()
     val targetIndex = when (searchFocus?.target) {
         SettingsTarget.MinimumDuration -> 3
+        SettingsTarget.MinimumRating -> 3
         SettingsTarget.ExcludedFolders -> 4
         SettingsTarget.PlayCountRule -> 8
         SettingsTarget.AlbumLayout -> 11
@@ -48,6 +50,11 @@ fun LibrarySettingsScreen(graph: AppGraph, onBack: () -> Unit, onPickDuration: (
         if (duration == 0L) stringResource(Res.string.library_all_durations)
         else stringResource(Res.string.library_duration_seconds, (duration / 1000).toInt())
     }
+    val ratingLabels = (0..Ratings.MAX_STARS).map { stars ->
+        if (stars == 0) stringResource(Res.string.min_rating_any)
+        else pluralStringResource(Res.plurals.min_rating_stars, stars, stars)
+    }
+    var ratingPicker by remember { mutableStateOf(false) }
 LocalGlassLook.current.SettingsPage {
         LazyColumn(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal), state = listState, contentPadding = contentPadding) {
         item { LocalGlassLook.current.SettingsPageTitle(stringResource(Res.string.library_settings),
@@ -72,6 +79,15 @@ LocalGlassLook.current.SettingsPage {
                         leading = { AppIcon(AppIcons.Clock, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                         trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
                         onClick = onPickDuration,
+                    )
+                }
+                SettingsSearchAnchor(SettingsTarget.MinimumRating, searchFocus) {
+                    ListRow(
+                        title = stringResource(Res.string.min_rating_title),
+                        subtitle = ratingLabels[filter.minimumRating.coerceIn(0, Ratings.MAX_STARS)],
+                        leading = { AppIcon(AppIcons.StarFilled, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
+                        trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
+                        onClick = { ratingPicker = true },
                     )
                 }
             }
@@ -134,6 +150,38 @@ LocalGlassLook.current.SettingsPage {
         item(key = "restore-defaults") { RestoreDefaultsButton(dev.cmdrchara.songlass.core.settings.SettingsArea.Library, onRestoreDefaults) }
     }
     }
+    // Drawn by the look in its own window, so it stays above the bottom bar without a global host.
+    MinimumRatingMenu(
+        visible = ratingPicker,
+        selected = filter.minimumRating,
+        labels = ratingLabels,
+        onSelect = graph.settings::setMinimumRating,
+        onDismiss = { ratingPicker = false },
+    )
+}
+
+/** Page-local picker for the star threshold; the current value stays readable in the row. */
+@Composable
+private fun MinimumRatingMenu(
+    visible: Boolean,
+    selected: Int,
+    labels: List<String>,
+    onSelect: (Int) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    ActionSheet(
+        visible = visible,
+        title = stringResource(Res.string.min_rating_title),
+        subtitle = stringResource(Res.string.min_rating_hint),
+        actions = labels.mapIndexed { stars, label ->
+            SheetAction(label, if (stars == selected) AppIcons.Checkmark else null) {
+                onSelect(stars)
+                onDismiss()
+            }
+        },
+        cancelLabel = stringResource(Res.string.action_cancel),
+        onDismiss = onDismiss,
+    )
 }
 
 @Composable

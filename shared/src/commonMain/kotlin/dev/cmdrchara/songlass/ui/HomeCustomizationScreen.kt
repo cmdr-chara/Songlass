@@ -40,9 +40,10 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
     val smart by state.smartPlaylists.playlists.collectAsState()
     val history by state.history.state.collectAsState()
     val favorites by state.favorites.ids.collectAsState()
+    val ratings by state.ratings.values.collectAsState()
     val now = rememberPlaylistTime()
-    val saved = remember(library, personal, smart, history, favorites, now) {
-        HomeShortcuts.savedPlaylists(library, personal, smart, history, favorites.toSet(), now)
+    val saved = remember(library, personal, smart, history, favorites, ratings, now) {
+        HomeShortcuts.savedPlaylists(library, personal, smart, history, favorites.toSet(), now, ratings)
     }
     var pane by rememberSaveable { mutableStateOf("overview") }
     val overviewListState = rememberLazyListState()

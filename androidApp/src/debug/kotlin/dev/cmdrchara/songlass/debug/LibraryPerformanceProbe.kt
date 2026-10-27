@@ -25,7 +25,7 @@ internal object LibraryPerformanceProbe {
             val library = MusicLibrary(tracks)
             fun build() { sink = MusicLibrary(tracks) }
             fun lookup() { sink = tracks.map(library::albumOf) }
-            fun home() { sink = HomeFeed.build(library, history, emptyList(), now) }
+            fun home() { sink = HomeFeed.build(library, history, emptyList(), now, emptyMap()) }
             fun samples(block: () -> Unit): List<Double> {
                 repeat(30) { block() }
                 return List(30) { measureNanoTime(block).toDouble() / 1_000_000 }
@@ -36,7 +36,7 @@ internal object LibraryPerformanceProbe {
             // Covers ordering, metadata and memberships, not just collection counts.
             val signature = listOf(library.tracks, library.albums, library.artists,
                 library.playlists, library.folders, tracks.map(library::albumOf),
-                HomeFeed.build(library, history, emptyList(), now)).toString()
+                HomeFeed.build(library, history, emptyList(), now, emptyMap())).toString()
             val fingerprint = MessageDigest.getInstance("SHA-256")
                 .digest(signature.toByteArray()).joinToString("") { "%02x".format(it) }
             Log.i("LibraryPerf", JSONObject().apply {

@@ -10,6 +10,15 @@ data class LibraryFolderOption(val path: String, val trackCount: Int, val childr
 data class LibraryFilter(
     val excludedFolders: Set<String> = emptySet(),
     val minimumDurationMs: Long = 0,
+    /**
+     * Smallest star rating a track needs to stay visible: 0 shows every track, 1..5 keep the
+     * tracks rated at least that many stars. A rating is not a tag: [includes] cannot read it, so
+     * the vote part of the filter is applied where the ratings are known (see [LibraryIndex] and
+     * `SmartRules.resolve`). Values outside 0..5 are not produced by the settings; a positive
+     * out-of-range value matches no track, so a corrupt value hides the library instead of
+     * pretending the filter is off.
+     */
+    val minimumRating: Int = 0,
 ) {
     fun includes(track: Track): Boolean {
         // An unknown duration is not evidence that a file is short.

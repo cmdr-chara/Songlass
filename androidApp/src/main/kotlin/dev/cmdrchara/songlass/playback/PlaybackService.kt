@@ -340,6 +340,8 @@ internal fun browseTree(context: android.content.Context, graph: AppGraph): Brow
             smartPlaylists = graph.smartPlaylists.playlists.value,
             history = graph.history.state.value,
             nowMs = kotlin.time.Clock.System.now().toEpochMilliseconds(),
+            // Smart playlists can include a minimum rating: the car sees the same votes as the app.
+            ratings = graph.ratings.values.value,
             recent = graph.history.state.value.recentContexts.map { it.context },
             labels = BrowseLabels(
                 home = getString(R.string.browse_home),

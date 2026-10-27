@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="min_rating_title">Minimum rating</string>
+    <string name="min_rating_any">Any</string>
+    <string name="min_rating_hint">Hide tracks rated below this value.</string>
+    <string name="min_rating_choose">Choose how many stars.</string>
+    <plurals name="min_rating_stars">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+</resources>

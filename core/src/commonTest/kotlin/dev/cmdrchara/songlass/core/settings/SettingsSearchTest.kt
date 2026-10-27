@@ -21,6 +21,20 @@ class SettingsSearchTest {
     }
 
     @Test
+    fun minimumRatingIsSearchableInBothLanguagesWithoutHijackingTheLibraryFilters() {
+        for (query in listOf("valutazione minima", "minimum rating", "rating filter", "stelle minime", "minimum stars")) {
+            assertEquals(listOf(SettingsTarget.MinimumRating), index.search(query, true), query)
+        }
+        assertEquals(SettingsTarget.MinimumRating, index.search("stelle", true).first())
+        assertEquals(SettingsTarget.MinimumRating, index.search("stars", true).first())
+        assertEquals(SettingsTarget.MinimumRating, index.search("5 stelle", true).first())
+        assertEquals(SettingsTarget.MinimumRating, index.search("5 stars", true).first())
+        // The duration filter keeps its own exact queries and does not become a star control.
+        assertEquals(listOf(SettingsTarget.MinimumDuration), index.search("durata minima", true))
+        assertEquals(listOf(SettingsTarget.MinimumDuration), index.search("minimum duration", true))
+    }
+
+    @Test
     fun longTrackSettingsHaveBilingualSearchDestinations() {
         val documents = SettingsTarget.entries.map { SettingsSearchDocument(it, "Control ${it.name}", "Settings") }
         val index = SettingsSearchIndex(documents)

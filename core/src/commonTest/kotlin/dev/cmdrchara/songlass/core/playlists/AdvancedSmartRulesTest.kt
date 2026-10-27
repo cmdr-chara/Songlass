@@ -19,7 +19,8 @@ class AdvancedSmartRulesTest {
         track("d", "Unknown", artist = "Guest").copy(durationMs = 0),
     )
     private val library = MusicLibrary(tracks)
-    private fun ids(rules: SmartRules, favorites: Set<String> = emptySet()) = rules.resolve(library, HistorySnapshot(), favorites, now).map { it.id }
+    private fun ids(rules: SmartRules, favorites: Set<String> = emptySet(), votes: Map<String, Int> = emptyMap()) =
+        rules.resolve(library, HistorySnapshot(), favorites, now, votes).map { it.id }
 
     @Test fun anyIncludesOnlyEnabledRulesAndExclusionsAlwaysWin() {
         val any = SmartRules(favoritesOnly = true, genre = "rock", match = SmartMatch.Any)
@@ -43,7 +44,7 @@ class AdvancedSmartRulesTest {
 
     @Test fun exclusionsUseMultiArtistCreditsAndFolderSegments() {
         val duet = tracks[0].copy(artists = listOf("One", "Guest"))
-        assertTrue(SmartRules(excludeArtist = "guest").resolve(MusicLibrary(listOf(duet)), HistorySnapshot(), emptySet(), now).isEmpty())
+        assertTrue(SmartRules(excludeArtist = "guest").resolve(MusicLibrary(listOf(duet)), HistorySnapshot(), emptySet(), now, emptyMap()).isEmpty())
         assertEquals(listOf("c", "d"), ids(SmartRules(excludeFolder = "Music/Live")))
         assertEquals(listOf("a", "b", "c", "d"), ids(SmartRules(excludeGenre = "ambient")))
         assertEquals(listOf("b", "d"), ids(SmartRules(excludeGenre = "rock")))
@@ -59,6 +60,64 @@ class AdvancedSmartRulesTest {
         assertEquals(SmartRules(yearFrom = 1990, durationToSeconds = 180), SmartRuleInput(yearFrom = " 1990 ", durationToSeconds = "180").applyTo(SmartRules()))
         assertTrue(ids(SmartRules(yearFrom = 2001, yearTo = 1990)).isEmpty())
         assertFailsWith<IllegalArgumentException> { SmartPlaylists(InMemoryKeyValueStore()) { now }.save(null, "Invalid", SmartRules(yearTo = 0)) }
+    }
+
+    @Test fun aMinimumRatingNarrowsInclusionsAndCombinesWithAllOrAny() {
+        // Only "a" and "b" are rated; "c" and "d" count as unrated (zero stars).
+        val votes = mapOf("a" to 5, "b" to 2)
+        assertEquals(listOf("a"), ids(SmartRules(minimumRating = 3), votes = votes))
+        assertEquals(listOf("a", "b"), ids(SmartRules(minimumRating = 1), votes = votes))
+        assertEquals(listOf("a"), ids(SmartRules(minimumRating = 5), votes = votes))
+        assertEquals(emptyList(), ids(SmartRules(minimumRating = 1)))
+        // All: the rating is one more inclusion, so the other rule must match too.
+        assertEquals(listOf("a"), ids(SmartRules(minimumRating = 4, genre = "rock"), votes = votes))
+        assertEquals(emptyList(), ids(SmartRules(minimumRating = 4, genre = "pop"), votes = votes))
+        // Any: either rule is enough, and an unrated but matching song still qualifies.
+        assertEquals(listOf("a", "b"), ids(SmartRules(match = SmartMatch.Any, minimumRating = 4, genre = "pop"), votes = votes))
+        // An exclusion always vetoes, whatever the rating.
+        assertEquals(listOf("b"), ids(SmartRules(minimumRating = 1, excludeGenre = "rock"), votes = votes))
+        // Rules without a minimum rating keep ignoring the votes.
+        assertEquals(tracks.map { it.id }, ids(SmartRules(), votes = votes))
+    }
+
+    @Test fun anOutOfRangeMinimumRatingInvalidatesTheWholeRule() {
+        for (stars in listOf(0, -1, 6)) {
+            val rules = SmartRules(minimumRating = stars)
+            assertFalse(rules.isValid)
+            assertTrue(rules.resolve(library, HistorySnapshot(), emptySet(), now, mapOf("a" to 5)).isEmpty())
+            assertFailsWith<IllegalArgumentException> { SmartPlaylists(InMemoryKeyValueStore()) { now }.save(null, "Bad", rules) }
+            assertFailsWith<IllegalArgumentException> { SmartRulesCodec.encode(rules) }
+        }
+    }
+
+    @Test fun aMinimumRatingIsWrittenAsV3WhileTheOlderLayoutsStayTheSame() {
+        val basic = SmartRules(artist = "One")
+        val advanced = SmartRules(genre = "Rock", match = SmartMatch.Any)
+        val rated = SmartRules(minimumRating = 4)
+        assertTrue(SmartRulesCodec.encode(basic).startsWith("v1:"))
+        assertTrue(SmartRulesCodec.encode(advanced).startsWith("v2:"))
+        val encoded = SmartRulesCodec.encode(rated)
+        assertTrue(encoded.startsWith("v3:"))
+        assertEquals(rated, SmartRulesCodec.decode(encoded))
+
+        val full = SmartRules(genre = "Rock", match = SmartMatch.Any, yearFrom = 1990, yearTo = 2010,
+            durationFromSeconds = 120, durationToSeconds = 240, excludeArtist = "Guest", excludeFolder = "Music/Live",
+            excludeGenre = "Pop", limit = 2, minimumRating = 3)
+        val fullText = SmartRulesCodec.encode(full)
+        assertTrue(fullText.startsWith("v3:"))
+        assertEquals(full, SmartRulesCodec.decode(fullText))
+        val store = InMemoryKeyValueStore()
+        val id = SmartPlaylists(store) { now }.save(null, "Rated", full)
+        assertEquals(full, SmartPlaylists(store) { now + 1 }.get(id)?.rules)
+
+        // Truncated, overlong and mislabelled records are rejected, not silently widened.
+        assertNull(SmartRulesCodec.decode(encoded.dropLast(1)))
+        assertNull(SmartRulesCodec.decode(encoded + "ignored"))
+        assertNull(SmartRulesCodec.decode(fullText.replaceFirst("v3:", "v2:")))
+        // The rating field itself must be a whole 1..5 value.
+        for (bad in listOf("1:0", "1:6", "0:")) {
+            assertNull(SmartRulesCodec.decode(encoded.dropLast(3) + bad))
+        }
     }
 
     @Test fun bothPreviousFormatsRemainReadableAndBasicRulesStillWriteV1() {

@@ -64,6 +64,11 @@ class BrowseTree(
     private val smartPlaylists: List<dev.cmdrchara.songlass.core.playlists.SmartPlaylist> = emptyList(),
     private val history: dev.cmdrchara.songlass.core.history.HistorySnapshot = dev.cmdrchara.songlass.core.history.HistorySnapshot(),
     private val nowMs: Long = 0L,
+    /**
+     * Current votes by track id. A caller that has none leaves it empty: a smart playlist with a
+     * minimum rating then matches no song, rather than showing songs the user has not rated.
+     */
+    private val ratings: Map<String, Int> = emptyMap(),
 ) {
     fun children(parentId: String): List<BrowseNode>? = when (parentId) {
         ROOT -> listOf(
@@ -162,7 +167,7 @@ class BrowseTree(
         is PlayContext.Facet -> library.facet(context)?.tracks
         is PlayContext.Playlist -> library.folder(context.id)?.allTracks
         is PlayContext.UserPlaylist -> userPlaylists.firstOrNull { it.id == context.id }?.tracksIn(library)
-        is PlayContext.SmartPlaylist -> smartPlaylists.firstOrNull { it.id == context.id }?.rules?.resolve(library, history, favorites.map { it.id }.toSet(), nowMs)
+        is PlayContext.SmartPlaylist -> smartPlaylists.firstOrNull { it.id == context.id }?.rules?.resolve(library, history, favorites.map { it.id }.toSet(), nowMs, ratings)
         PlayContext.Favorites -> favorites
     }.orEmpty()
 

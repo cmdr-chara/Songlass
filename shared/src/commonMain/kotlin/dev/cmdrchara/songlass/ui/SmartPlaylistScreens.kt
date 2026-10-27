@@ -14,6 +14,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.core.history.PlayContext
+import dev.cmdrchara.songlass.core.library.Ratings
 import dev.cmdrchara.songlass.core.playlists.*
 import dev.cmdrchara.songlass.designsystem.*
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
@@ -45,9 +46,12 @@ fun SmartPlaylistScreen(id: String, state: AppState, currentTrackId: String?, ba
     }
     val history by state.history.state.collectAsState()
     val favorites by state.favorites.ids.collectAsState()
+    val ratings by state.ratings.values.collectAsState()
     val now = rememberPlaylistTime()
     val library = state.library
-    val tracks = remember(playlist, library, history, favorites, now) { playlist.rules.resolve(library, history, favorites.toSet(), now) }
+    val tracks = remember(playlist, library, history, favorites, ratings, now) {
+        playlist.rules.resolve(library, history, favorites.toSet(), now, ratings)
+    }
     val exporter = rememberSmartPlaylistExportAction(state, playlist, tracks, rememberPlaylistExporter()) {
         // Use the witnesses that built this visible list, not newer values sampled by a stale
         // click before collectAsState has delivered the next history/favorites generation.
@@ -117,8 +121,11 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
     var menu by remember { mutableStateOf<String?>(null) }
     val history by state.history.state.collectAsState()
     val favorites by state.favorites.ids.collectAsState()
+    val ratings by state.ratings.values.collectAsState()
     val now = rememberPlaylistTime()
-    val tracks = remember(rules, state.library, history, favorites, now) { rules.resolve(state.library, history, favorites.toSet(), now) }
+    val tracks = remember(rules, state.library, history, favorites, ratings, now) {
+        rules.resolve(state.library, history, favorites.toSet(), now, ratings)
+    }
     val title = stringResource(if (id == null) Res.string.smart_new else Res.string.smart_edit)
     fun edit(key: String) {
         val currentRules = form.edit.rules
@@ -129,6 +136,7 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
             "genre" -> currentRules.genre
             "year" -> currentRules.yearFrom?.toString().orEmpty()
             "duration" -> currentRules.durationFromSeconds?.toString().orEmpty()
+            "minRating" -> currentRules.minimumRating?.toString().orEmpty()
             "excludeArtist" -> currentRules.excludeArtist
             "excludeFolder" -> currentRules.excludeFolder
             "excludeGenre" -> currentRules.excludeGenre
@@ -262,6 +270,13 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
                             SettingsChoiceRow(statusLabel(status), draft == status.name, { form = form.copy(value = status.name) })
                         }
                     } }
+                } else if (selectedKey == "minRating") {
+                    item { SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                        for (stars in 1..Ratings.MAX_STARS) {
+                            SettingsChoiceRow(pluralStringResource(Res.plurals.min_rating_stars, stars, stars),
+                                draft == stars.toString(), { form = form.copy(value = stars.toString()); invalid = false })
+                        }
+                    } }
                 } else {
                     if (compact) item { GlassPlaylistFormGroup(Modifier.padding(horizontal = 20.dp)) {
                         GlassPlaylistFormField(draft, { form = form.copy(value = it); invalid = false }, inputLabel(selectedKey, false), numeric = selectedKey in listOf("year", "duration", "days", "limit"))
@@ -272,7 +287,7 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
                     }
                     if (selectedKey == "year" || selectedKey == "duration") item { FeatureHint(stringResource(Res.string.smart_metadata_hint)) }
                 }
-                if (invalid) item { FeatureHint(stringResource(Res.string.smart_range_invalid)) }
+                if (invalid) item { FeatureHint(stringResource(if (selectedKey == "minRating") Res.string.min_rating_choose else Res.string.smart_range_invalid)) }
                 if (compact && selectedKey in (rules.inclusionKeys() + rules.exclusionKeys())) item {
                     GlassPlaylistFormGroup(Modifier.padding(horizontal = 20.dp, vertical = 24.dp)) {
                         GlassPlaylistFormRemove(stringResource(Res.string.smart_builder_remove, conditionLabel(selectedKey))) {
@@ -313,7 +328,7 @@ fun SmartPlaylistEditorScreen(id: String?, state: AppState, backLabel: String, c
         }
     }
     val choices = when (menu) {
-        "include" -> listOf("favorites", "status", "days", "artist", "folder", "genre", "year", "duration").filterNot { it in rules.inclusionKeys() }
+        "include" -> listOf("favorites", "status", "days", "artist", "folder", "genre", "year", "duration", "minRating").filterNot { it in rules.inclusionKeys() }
         "exclude" -> listOf("excludeArtist", "excludeFolder", "excludeGenre").filterNot { it in rules.exclusionKeys() }
         else -> emptyList()
     }
@@ -339,6 +354,7 @@ private fun SmartRules.inclusionKeys(): List<String> = buildList {
     if (genre.isNotBlank()) add("genre")
     if (yearFrom != null || yearTo != null) add("year")
     if (durationFromSeconds != null || durationToSeconds != null) add("duration")
+    if (minimumRating != null) add("minRating")
 }
 private fun SmartRules.exclusionKeys() = buildList {
     if (excludeArtist.isNotBlank()) add("excludeArtist")
@@ -354,6 +370,7 @@ private fun SmartRules.withoutCondition(key: String) = when (key) {
     "genre" -> copy(genre = "")
     "year" -> copy(yearFrom = null, yearTo = null)
     "duration" -> copy(durationFromSeconds = null, durationToSeconds = null)
+    "minRating" -> copy(minimumRating = null)
     "excludeArtist" -> copy(excludeArtist = "")
     "excludeFolder" -> copy(excludeFolder = "")
     "excludeGenre" -> copy(excludeGenre = "")
@@ -375,6 +392,7 @@ private fun SmartRules.applyDraft(key: String, value: String, upper: String): Sm
         "excludeFolder" -> copy(excludeFolder = value)
         "excludeGenre" -> copy(excludeGenre = value)
         "status" -> copy(playStatus = SmartPlayStatus.entries.first { it.name == value })
+        "minRating" -> value.toIntOrNull()?.takeIf { it in 1..Ratings.MAX_STARS }?.let { copy(minimumRating = it) }
         else -> this
     }
 }
@@ -396,6 +414,7 @@ private fun conditionLabel(key: String): String = stringResource(when (key) {
     "genre", "excludeGenre" -> Res.string.smart_builder_genre
     "year" -> Res.string.smart_year
     "duration" -> Res.string.smart_duration
+    "minRating" -> Res.string.min_rating_title
     else -> Res.string.smart_builder_limit
 })
 
@@ -412,6 +431,7 @@ private fun conditionValue(key: String, rules: SmartRules): String = when (key) 
     "excludeGenre" -> rules.excludeGenre
     "year" -> rangeLabel(rules.yearFrom, rules.yearTo)
     "duration" -> rangeLabel(rules.durationFromSeconds, rules.durationToSeconds) + " " + stringResource(Res.string.smart_builder_seconds)
+    "minRating" -> rules.minimumRating?.let { pluralStringResource(Res.plurals.min_rating_stars, it, it) }.orEmpty()
     else -> ""
 }
 @Composable

@@ -77,6 +77,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.OutputProfiles -> Res.string.eq_outputs_auto
     SettingsTarget.HeadphoneCorrection -> Res.string.eq_headphones
     SettingsTarget.MinimumDuration -> Res.string.library_minimum_duration
+    SettingsTarget.MinimumRating -> Res.string.min_rating_title
     SettingsTarget.ExcludedFolders -> Res.string.library_excluded_folders
     SettingsTarget.PlayCountRule -> Res.string.library_counting_title
     SettingsTarget.AlbumLayout -> Res.string.library_album_layout
@@ -120,7 +121,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands,
             SettingsTarget.EqualizerLock,
             SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
-            SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
+            SettingsTarget.MinimumDuration, SettingsTarget.MinimumRating, SettingsTarget.ExcludedFolders,
             SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout, SettingsTarget.ResumeOverrides -> library
             SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> "$appearance › ${stringResource(Res.string.settings_accessibility)}"
             SettingsTarget.TextScale, SettingsTarget.BlurIntensity -> "$appearance › ${stringResource(Res.string.settings_text_and_background)}"
@@ -199,6 +200,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.HeadphoneCorrection -> eq.profile?.name ?: stringResource(Res.string.eq_headphones_none)
         SettingsTarget.MinimumDuration -> if (preferences.libraryFilter.minimumDurationMs == 0L) stringResource(Res.string.library_all_durations)
             else stringResource(Res.string.library_duration_seconds, (preferences.libraryFilter.minimumDurationMs / 1_000).toInt())
+        SettingsTarget.MinimumRating -> if (preferences.libraryFilter.minimumRating == 0) stringResource(Res.string.min_rating_any)
+            else pluralStringResource(Res.plurals.min_rating_stars, preferences.libraryFilter.minimumRating,
+                preferences.libraryFilter.minimumRating)
         SettingsTarget.ExcludedFolders -> pluralStringResource(Res.plurals.settings_search_excluded_count,
             preferences.libraryFilter.excludedFolders.size, preferences.libraryFilter.excludedFolders.size)
         SettingsTarget.PlayCountRule -> playCountRuleLabel(preferences.playCountRule)

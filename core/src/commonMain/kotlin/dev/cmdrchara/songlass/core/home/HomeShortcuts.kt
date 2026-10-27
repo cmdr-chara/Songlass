@@ -28,7 +28,10 @@ object HomeShortcuts {
     /** Matches the size of the shortcut grid. */
     const val MAX = HomeFeed.SHORTCUTS
 
-    /** Resolve saved playlist membership against the visible library, never against stale queues. */
+    /**
+     * Resolve saved playlist membership against the visible library, never against stale queues.
+     * [ratings] is the current vote snapshot, needed by a smart playlist with a minimum rating.
+     */
     fun savedPlaylists(
         library: MusicLibrary,
         userPlaylists: List<UserPlaylist>,
@@ -36,8 +39,9 @@ object HomeShortcuts {
         history: HistorySnapshot,
         favorites: Set<String>,
         nowMs: Long,
+        ratings: Map<String, Int>,
     ): List<HomeItem> = userPlaylists.map { HomeItem.UserPlaylistItem(it, it.tracksIn(library)) } +
-        smartPlaylists.map { HomeItem.SmartPlaylistItem(it, it.rules.resolve(library, history, favorites, nowMs)) }
+        smartPlaylists.map { HomeItem.SmartPlaylistItem(it, it.rules.resolve(library, history, favorites, nowMs, ratings)) }
 
     /** The identity of [item], or null for a single song (not a valid shortcut). */
     fun contextOf(item: HomeItem): PlayContext? = when (item) {

@@ -98,7 +98,7 @@ internal val SettingsTarget.settingsRoute: Route
         SettingsTarget.EqualizerLock,
         SettingsTarget.Equalizer, SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles,
         SettingsTarget.HeadphoneCorrection -> Route.Equalizer
-        SettingsTarget.MinimumDuration, SettingsTarget.ExcludedFolders,
+        SettingsTarget.MinimumDuration, SettingsTarget.MinimumRating, SettingsTarget.ExcludedFolders,
         SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout, SettingsTarget.ResumeOverrides -> Route.LibrarySettings
         SettingsTarget.HomeCustomization -> Route.HomeCustomization
         SettingsTarget.Backup -> Route.Backup

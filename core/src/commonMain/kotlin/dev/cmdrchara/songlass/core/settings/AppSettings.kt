@@ -6,6 +6,7 @@ import dev.cmdrchara.songlass.core.player.AudioFocusSettings
 import dev.cmdrchara.songlass.core.player.FocusDucking
 
 import dev.cmdrchara.songlass.core.library.LibraryFilter
+import dev.cmdrchara.songlass.core.library.Ratings
 import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.storage.getStringList
 import dev.cmdrchara.songlass.core.storage.putStringList
@@ -106,6 +107,8 @@ class AppSettings(
                 .filter { it.isNotBlank() }.toSet(),
             minimumDurationMs = store.getString(MIN_DURATION_KEY)?.toLongOrNull()
                 ?.takeIf { it in LibraryFilter.durationChoicesMs } ?: 0,
+            minimumRating = store.getString(MIN_RATING_KEY)?.toIntOrNull()
+                ?.takeIf { it in 0..Ratings.MAX_STARS } ?: 0,
         ),
     )
 
@@ -492,6 +495,17 @@ class AppSettings(
     }
 
     /**
+     * Hides the library tracks rated below [stars]: zero means any rating, so a level neither
+     * filters nor is written as a rating of its own. The rating itself lives in [Ratings].
+     */
+    fun setMinimumRating(stars: Int) {
+        if (!mutations.canMutate) return
+        require(stars in 0..Ratings.MAX_STARS)
+        store.putString(MIN_RATING_KEY, stars.toString())
+        _state.update { it.copy(libraryFilter = it.libraryFilter.copy(minimumRating = stars)) }
+    }
+
+    /**
      * Removes the stored values of one settings page, so every default stays "absent" as for a fresh
      * install. Only that page's preferences change; saved EQ curves/corrections, playlists and history stay.
      * Sound also resets global tone controls/layout, without erasing any saved graphic curve.
@@ -506,7 +520,7 @@ class AppSettings(
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY, EQUALIZER_LOCKED_KEY) + AudioFocusSettings.keys
             SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY) + HeadphoneSettings.keys
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
-            SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
+            SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, MIN_RATING_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
         }
         store.updateStrings(removing = keys, writing = emptyMap())
         val defaults = readPreferences()
@@ -563,6 +577,7 @@ class AppSettings(
         private const val LONG_THRESHOLD_KEY = "settings.long_track_threshold_ms"
         const val EXCLUDED_FOLDERS_KEY = "library.excluded_folders"
         const val MIN_DURATION_KEY = "library.minimum_duration_ms"
+        const val MIN_RATING_KEY = "library.minimum_rating"
         const val APPEARANCE_KEY = "settings.appearance"
         const val REDUCE_MOTION_KEY = "settings.reduce_motion"
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"

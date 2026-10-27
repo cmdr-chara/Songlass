@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="min_rating_title">Valutazione minima</string>
+    <string name="min_rating_any">Qualsiasi</string>
+    <string name="min_rating_hint">Nasconde i brani valutati meno di così.</string>
+    <string name="min_rating_choose">Scegli quante stelle.</string>
+    <plurals name="min_rating_stars">
+        <item quantity="one">%1$d stella</item>
+        <item quantity="other">%1$d stelle</item>
+    </plurals>
+</resources>

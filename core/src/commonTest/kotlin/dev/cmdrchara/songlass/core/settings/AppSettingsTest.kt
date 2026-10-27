@@ -343,6 +343,33 @@ class AppSettingsTest {
         assertEquals(dev.cmdrchara.songlass.core.library.FolderSort.MostPlayed, AppSettings(store).state.value.folderSort)
     }
 
+    @Test
+    fun minimumRatingIsAnyByDefaultPersistsAndIsRestoredWithTheLibraryPage() {
+        val store = InMemoryKeyValueStore()
+        val settings = AppSettings(store)
+        // A fresh install means "any rating", and an unreadable value keeps that meaning.
+        assertEquals(0, settings.state.value.libraryFilter.minimumRating)
+        store.putString(AppSettings.MIN_RATING_KEY, "seven")
+        settings.reload()
+        assertEquals(0, settings.state.value.libraryFilter.minimumRating)
+        assertEquals("seven", store.getString(AppSettings.MIN_RATING_KEY))
+
+        settings.setMinimumRating(4)
+        assertEquals(4, settings.state.value.libraryFilter.minimumRating)
+        assertEquals("4", store.getString(AppSettings.MIN_RATING_KEY))
+        assertEquals(4, AppSettings(store).state.value.libraryFilter.minimumRating)
+        kotlin.test.assertFailsWith<IllegalArgumentException> { settings.setMinimumRating(6) }
+        kotlin.test.assertFailsWith<IllegalArgumentException> { settings.setMinimumRating(-1) }
+        assertEquals(4, settings.state.value.libraryFilter.minimumRating)
+
+        // The Library page restores it to "any" and drops the stored value.
+        settings.resetToDefaults(SettingsArea.Library)
+        assertEquals(0, settings.state.value.libraryFilter.minimumRating)
+        assertEquals(null, store.getString(AppSettings.MIN_RATING_KEY))
+        assertEquals(settings.state.value, AppSettings(store).state.value)
+        assertTrue(AppSettings.MIN_RATING_KEY.startsWith("library."), "travels in the .songlass backup")
+    }
+
     private fun changedSettings(store: InMemoryKeyValueStore) = AppSettings(store).apply {
         setInterfaceStyle(InterfaceStyle.Miuix); setAppearance(AppearanceMode.Dark); setArtworkStyle(ArtworkStyle.Square)
         setReplayGain(dev.cmdrchara.songlass.core.player.ReplayGainMode.Album); setResumeOnReconnect(true)
@@ -351,6 +378,7 @@ class AppSettingsTest {
         setTextScale(1.15f); setBlurIntensity(BlurIntensity.High)
         setPlayCountRule(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll); setAlbumLayout(AlbumLayout.List)
         setMinimumDuration(30_000L); setFolderExcluded("Music/Voice", true)
+        setMinimumRating(5)
         setTrackClickAction(TrackClickAction.AddToQueue); setQueueStart(QueueStart.Immediately); setQueueEnd(QueueEnd.Stop)
         setQueueAddOrder(QueueAddOrder.Shuffled); setQueueReplaces(true); setShuffleBias(ShuffleBias.LeastPlayed)
         setKeepShuffleOnSelection(true)

@@ -31,10 +31,17 @@ data class SmartRules(
     val excludeArtist: String = "",
     val excludeFolder: String = "",
     val excludeGenre: String = "",
+    /**
+     * Smallest star rating a track needs, or null when the rule does not look at ratings. Like
+     * every other inclusion it combines with [match] and never overrides an exclusion; a value
+     * outside 1..5 makes the whole rule invalid instead of being read as "no constraint".
+     */
+    val minimumRating: Int? = null,
 ) {
     val isValid: Boolean get() =
         (addedWithinDays == null || addedWithinDays in 1..3650) &&
         (limit == null || limit in 1..10000) &&
+        (minimumRating == null || minimumRating in 1..5) &&
         validRange(yearFrom, yearTo, 1..9999) &&
         validRange(durationFromSeconds, durationToSeconds, 0..MAX_DURATION_SECONDS)
 
@@ -42,10 +49,22 @@ data class SmartRules(
         genre = genre.trim(), excludeArtist = excludeArtist.trim(),
         excludeFolder = excludeFolder.trim().trim('/'), excludeGenre = excludeGenre.trim())
 
-    fun resolve(library: MusicLibrary, history: HistorySnapshot, favorites: Set<String>, nowMs: Long): List<Track> {
+    /**
+     * The tracks of [library] that match these rules. [ratings] is the current vote snapshot of
+     * the whole collection, by application track id: membership is resolved against the visible
+     * library, never against a stale queue or a stored list.
+     */
+    fun resolve(
+        library: MusicLibrary,
+        history: HistorySnapshot,
+        favorites: Set<String>,
+        nowMs: Long,
+        ratings: Map<String, Int>,
+    ): List<Track> {
         if (!isValid) return emptyList()
         val rules = normalized()
         val cutoff = addedWithinDays?.let { nowMs - it * 86_400_000L }
+        val minStars = minimumRating
         fun inFolder(track: Track, path: String): Boolean =
             track.folder?.let { it == path || it.startsWith("$path/") } == true
         fun artistMatches(track: Track, query: String): Boolean = track.artistNames.any { it.contains(query, ignoreCase = true) }
@@ -68,6 +87,8 @@ data class SmartRules(
                 if (durationFromSeconds != null || durationToSeconds != null) add(track.durationMs > 0 &&
                     (durationFromSeconds == null || track.durationMs >= durationFromSeconds * 1000L) &&
                     (durationToSeconds == null || track.durationMs <= durationToSeconds * 1000L))
+                // An unrated track counts as 0 stars, so it can never meet a positive minimum.
+                if (minStars != null) add((ratings[track.id] ?: 0) >= minStars)
             }
             checks.isEmpty() || if (match == SmartMatch.All) checks.all { it } else checks.any { it }
         }

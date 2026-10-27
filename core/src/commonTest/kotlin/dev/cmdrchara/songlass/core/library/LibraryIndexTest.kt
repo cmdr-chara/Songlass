@@ -20,7 +20,7 @@ class LibraryIndexTest {
     @Test
     fun refreshReturnsAReadyFilteredSnapshotAndReusesItForEqualInputs() = runTest {
         val tracks = MutableStateFlow(listOf(track("z", title = "Zulu"), track("a", title = "Alpha"), track("short", durationMs = 100)))
-        val index = LibraryIndex(tracks, { LibraryFilter(minimumDurationMs = 1_000) }, StandardTestDispatcher(testScheduler))
+        val index = LibraryIndex(tracks, { LibraryFilter(minimumDurationMs = 1_000) }, dispatcher = StandardTestDispatcher(testScheduler))
         index.refresh()
         val first = index.state.value
         assertEquals(listOf("a", "z"), first.tracks.map { it.id })
@@ -41,7 +41,7 @@ class LibraryIndexTest {
             val latest = listOf(track("keep", folder = "Music/Keep"), track("hidden", folder = "Music/Hide"))
             val tracks = MutableStateFlow(if (replaceTracks) listOf(track("obsolete")) else latest)
             var filter = LibraryFilter()
-            val index = LibraryIndex(tracks, { filter }, StandardTestDispatcher(testScheduler))
+            val index = LibraryIndex(tracks, { filter }, dispatcher = StandardTestDispatcher(testScheduler))
             val emitted = mutableListOf<MusicLibrary>()
             val observer = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { index.state.collect { emitted += it } }
             val job = launch(start = CoroutineStart.UNDISPATCHED) { index.refresh() }
@@ -57,7 +57,7 @@ class LibraryIndexTest {
     @Test
     fun concurrentRefreshesShareOnePublishedSnapshot() = runTest {
         val tracks = MutableStateFlow(listOf(track("one")))
-        val index = LibraryIndex(tracks, { LibraryFilter() }, StandardTestDispatcher(testScheduler))
+        val index = LibraryIndex(tracks, { LibraryFilter() }, dispatcher = StandardTestDispatcher(testScheduler))
         val emitted = mutableListOf<MusicLibrary>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { index.state.collect { emitted += it } }
         val results = mutableListOf<MusicLibrary>()
@@ -69,9 +69,78 @@ class LibraryIndexTest {
     }
 
     @Test
+    fun aMinimumRatingKeepsOnlyTracksRatedAtLeastThatManyStars() = runTest {
+        val tracks = MutableStateFlow(listOf(track("a", title = "Alpha"), track("b", title = "Bravo"), track("c", title = "Charlie")))
+        var filter = LibraryFilter()
+        // "c" has no vote: an unrated track counts as zero stars, not as "any rating".
+        val votes = mapOf("a" to 5, "b" to 3)
+        val index = LibraryIndex(tracks, { filter }, { votes }, dispatcher = StandardTestDispatcher(testScheduler))
+        index.refresh()
+        assertEquals(listOf("a", "b", "c"), index.state.value.tracks.map { it.id })
+        filter = LibraryFilter(minimumRating = 3)
+        index.refresh()
+        assertEquals(listOf("a", "b"), index.state.value.tracks.map { it.id })
+        filter = LibraryFilter(minimumRating = 4)
+        index.refresh()
+        assertEquals(listOf("a"), index.state.value.tracks.map { it.id })
+        filter = LibraryFilter(minimumRating = 5)
+        index.refresh()
+        assertEquals(listOf("a"), index.state.value.tracks.map { it.id })
+        filter = LibraryFilter(minimumRating = 1)
+        index.refresh()
+        assertEquals(listOf("a", "b"), index.state.value.tracks.map { it.id })
+    }
+
+    @Test
+    fun aVoteChangeRebuildsTheLibraryOnlyWhileTheFilterUsesTheVotes() = runTest {
+        val tracks = MutableStateFlow(listOf(track("a", title = "Alpha"), track("b", title = "Bravo")))
+        var votes = mapOf("a" to 5)
+        var filter = LibraryFilter(minimumRating = 3)
+        val index = LibraryIndex(tracks, { filter }, { votes }, dispatcher = StandardTestDispatcher(testScheduler))
+        index.refresh()
+        val first = index.state.value
+        assertEquals(listOf("a"), first.tracks.map { it.id })
+        // The same votes in a new map are the same input: no new snapshot.
+        votes = mapOf("a" to 5)
+        index.refresh()
+        assertSame(first, index.state.value)
+        // A new vote joins the visible library, and lowering it takes the track out again.
+        votes = mapOf("a" to 5, "b" to 4)
+        index.refresh()
+        assertNotSame(first, index.state.value)
+        assertEquals(listOf("a", "b"), index.state.value.tracks.map { it.id })
+        votes = mapOf("a" to 5, "b" to 2)
+        index.refresh()
+        assertEquals(listOf("a"), index.state.value.tracks.map { it.id })
+        // Without a minimum rating the view does not read the votes: voting must not republish.
+        filter = LibraryFilter()
+        index.refresh()
+        val unfiltered = index.state.value
+        assertEquals(listOf("a", "b"), unfiltered.tracks.map { it.id })
+        votes = mapOf("a" to 1, "b" to 2)
+        index.refresh()
+        assertSame(unfiltered, index.state.value)
+    }
+
+    @Test
+    fun aVoteChangeDuringDispatchIsNotPublishedAsAnObsoleteLibrary() = runTest {
+        val tracks = MutableStateFlow(listOf(track("a", title = "Alpha"), track("b", title = "Bravo")))
+        var votes = mapOf("a" to 5)
+        val index = LibraryIndex(tracks, { LibraryFilter(minimumRating = 3) }, { votes }, dispatcher = StandardTestDispatcher(testScheduler))
+        val emitted = mutableListOf<MusicLibrary>()
+        val observer = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { index.state.collect { emitted += it } }
+        val job = launch(start = CoroutineStart.UNDISPATCHED) { index.refresh() }
+        votes = mapOf("a" to 5, "b" to 5)
+        advanceUntilIdle()
+        job.join()
+        assertEquals(listOf(emptyList(), listOf("a", "b")), emitted.map { library -> library.tracks.map { it.id } })
+        observer.cancel()
+    }
+
+    @Test
     fun cancellationKeepsThePreviousSnapshotAndDoesNotBlockLaterRefreshes() = runTest {
         val tracks = MutableStateFlow(listOf(track("one")))
-        val index = LibraryIndex(tracks, { LibraryFilter() }, StandardTestDispatcher(testScheduler))
+        val index = LibraryIndex(tracks, { LibraryFilter() }, dispatcher = StandardTestDispatcher(testScheduler))
         val initial = index.state.value
         val job = launch(start = CoroutineStart.UNDISPATCHED) { index.refresh() }
         job.cancel()

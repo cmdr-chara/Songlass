@@ -20,7 +20,7 @@ class PlaylistShortcutsTest {
     private val userContext = PlayContext.UserPlaylist(personal.id)
     private val smartContext = PlayContext.SmartPlaylist(smart.id)
     private fun saved(user: UserPlaylist = personal, intelligent: SmartPlaylist = smart, lib: MusicLibrary = library, favorites: Set<String> = emptySet()) =
-        HomeShortcuts.savedPlaylists(lib, listOf(user), listOf(intelligent), HistorySnapshot(), favorites, 100)
+        HomeShortcuts.savedPlaylists(lib, listOf(user), listOf(intelligent), HistorySnapshot(), favorites, 100, emptyMap())
 
     @Test fun identitiesAreDistinctAndPickerFindsBothPlaylistTypes() {
         val entries = saved()
@@ -34,9 +34,17 @@ class PlaylistShortcutsTest {
         assertEquals(listOf("b", "a"), (entries[0] as HomeItem.UserPlaylistItem).tracks.map { it.id })
     }
 
+    @Test fun aRatedSmartPlaylistOnTheHomeResolvesWithTheCurrentVotes() {
+        val intelligent = SmartPlaylist("rated", "Four stars", SmartRules(minimumRating = 4))
+        val feed = HomeFeed.build(library, HistorySnapshot(), emptyList(), 100, mapOf("b" to 5, "a" to 2),
+            selectedShortcuts = listOf(PlayContext.SmartPlaylist("rated")), smartPlaylists = listOf(intelligent))
+        val item = feed.shortcuts.filterIsInstance<HomeItem.SmartPlaylistItem>().single()
+        assertEquals(listOf("b"), item.tracks.map { it.id })
+    }
+
     @Test fun chosenPlaylistsStayFirstAndRecentContextsDoNotDuplicateThem() {
         val history = HistorySnapshot(recentContexts = listOf(RecentContext(smartContext, 90), RecentContext(userContext, 80)))
-        val feed = HomeFeed.build(library, history, emptyList(), 100, listOf(userContext, smartContext, userContext), listOf(personal), listOf(smart))
+        val feed = homeFeed(library, history, emptyList(), 100, listOf(userContext, smartContext, userContext), listOf(personal), listOf(smart))
         val contexts = feed.shortcuts.map(HomeShortcuts::contextOf)
         assertEquals(listOf(userContext, smartContext), contexts.take(2))
         assertEquals(1, contexts.count { it == userContext })
@@ -60,10 +68,10 @@ class PlaylistShortcutsTest {
         assertTrue((empty[1] as HomeItem.SmartPlaylistItem).tracks.isEmpty())
         val store = InMemoryKeyValueStore();val customization = HomeCustomization(store)
         customization.addShortcut(userContext);customization.addShortcut(smartContext)
-        val feed = HomeFeed.build(library, HistorySnapshot(), emptyList(), 100, customization.state.value.shortcuts)
+        val feed = homeFeed(library, HistorySnapshot(), emptyList(), 100, customization.state.value.shortcuts)
         assertTrue(feed.shortcuts.none { it is HomeItem.UserPlaylistItem || it is HomeItem.SmartPlaylistItem })
         assertEquals(listOf(userContext, smartContext), HomeCustomization(store).state.value.shortcuts)
-        val back = HomeFeed.build(library, HistorySnapshot(), emptyList(), 100, customization.state.value.shortcuts, listOf(personal), listOf(smart))
+        val back = homeFeed(library, HistorySnapshot(), emptyList(), 100, customization.state.value.shortcuts, listOf(personal), listOf(smart))
         assertEquals(listOf(userContext, smartContext), back.shortcuts.take(2).map(HomeShortcuts::contextOf))
     }
 }

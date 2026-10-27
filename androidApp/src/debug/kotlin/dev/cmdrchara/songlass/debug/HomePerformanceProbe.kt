@@ -21,6 +21,7 @@ internal object HomePerformanceProbe {
         val graph = app.graph
         val history = graph.history.state.value
         val favorites = graph.favorites.ids.value
+        val ratings = graph.ratings.values.value
         val shortcuts = graph.homeCustomization.state.value.shortcuts
         val personal = graph.userPlaylists.playlists.value
         val smart = graph.smartPlaylists.playlists.value
@@ -36,7 +37,7 @@ internal object HomePerformanceProbe {
                 .map { track -> library.albumOf(track)?.let(HomeItem::AlbumItem) ?: HomeItem.TrackItem(track) }
                 .distinctBy { if (it is HomeItem.AlbumItem) it.album.title to it.album.artist else it }
                 .take(HomeFeed.ROW_SIZE).toList()
-            fun home() = HomeFeed.build(library, history, favorites, now, shortcuts, personal, smart)
+            fun home() = HomeFeed.build(library, history, favorites, now, ratings, shortcuts, personal, smart)
             fun samples(block: () -> Any): List<Double> {
                 repeat(30) { sink = block() }
                 return List(40) { measureNanoTime { sink = block() }.toDouble() / 1_000_000 }

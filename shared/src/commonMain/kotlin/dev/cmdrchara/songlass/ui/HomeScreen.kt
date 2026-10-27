@@ -108,9 +108,10 @@ fun HomeScreen(
     val layout by state.homeCustomization.state.collectAsState()
     val personal by state.userPlaylists.playlists.collectAsState()
     val smart by state.smartPlaylists.playlists.collectAsState()
+    val ratings by state.ratings.values.collectAsState()
     val now = rememberPlaylistTime()
-    val feed = remember(library, history, favoriteIds, now, layout.shortcuts, personal, smart) {
-        HomeFeed.build(library, history, favoriteIds, now, layout.shortcuts, personal, smart)
+    val feed = remember(library, history, favoriteIds, ratings, now, layout.shortcuts, personal, smart) {
+        HomeFeed.build(library, history, favoriteIds, now, ratings, layout.shortcuts, personal, smart)
     }
     val showOnThisDay = layout.isVisible(HomeSection.OnThisDay)
     val anniversaries = remember(library, history, now, showOnThisDay) {

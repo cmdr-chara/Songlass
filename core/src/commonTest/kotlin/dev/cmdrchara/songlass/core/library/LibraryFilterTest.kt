@@ -16,6 +16,13 @@ class LibraryFilterTest {
     @Test fun durationIncludesBoundaryAndUnknown() {
         assertEquals(listOf(b, c), LibraryFilter(minimumDurationMs = 30_000).apply(listOf(a, b, c)))
     }
+    @Test fun theVoteThresholdIsNotAppliedByIncludesBecauseATrackCannotKnowItsRating() {
+        val filter = LibraryFilter(minimumRating = 4)
+        // The vote part is applied where the ratings are known (LibraryIndex, smart playlists):
+        // a plain track list has no votes, so nothing can be excluded by rating here.
+        assertEquals(listOf(a, b, c), filter.apply(listOf(a, b, c)))
+        assertTrue(filter.includes(a))
+    }
     @Test fun foldersIncludeAncestorsOnce() {
         assertEquals(listOf("Music", "Music/Voice", "Music/Voice/Child", "Music/Voiceover"), LibraryFilter.foldersIn(listOf(a, b, c)))
     }

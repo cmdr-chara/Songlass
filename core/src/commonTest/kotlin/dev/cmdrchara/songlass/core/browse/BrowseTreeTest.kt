@@ -6,6 +6,7 @@ import dev.cmdrchara.songlass.core.playlists.UserPlaylist
 import dev.cmdrchara.songlass.core.track
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -42,6 +43,24 @@ class BrowseTreeTest {
         val resumed = tree.resume("b1")!!
         assertEquals(context, resumed.context)
         assertEquals(1, resumed.startIndex)
+    }
+
+    @Test
+    fun aSmartPlaylistWithAMinimumRatingUsesTheVotesTheTreeWasGiven() {
+        val context = PlayContext.SmartPlaylist("rated")
+        val smart = dev.cmdrchara.songlass.core.playlists.SmartPlaylist("rated", "Four stars",
+            dev.cmdrchara.songlass.core.playlists.SmartRules(minimumRating = 4))
+        val rated = BrowseTree(library, emptyList(), emptyList(), listOf(context), labels,
+            smartPlaylists = listOf(smart), ratings = mapOf("a2" to 5, "b1" to 2))
+        assertEquals(listOf("a2"), rated.tracksOf(context).map { it.id })
+        val played = rated.children(BrowseTree.PLAYLISTS)!!.first { it.title == "Four stars" }
+        assertEquals(listOf("a2"), rated.resolvePlay(played.id)!!.tracks.map { it.id })
+        // A caller without the votes shows no song instead of songs the user has not rated.
+        val blind = BrowseTree(library, emptyList(), emptyList(), listOf(context), labels, smartPlaylists = listOf(smart))
+        assertTrue(blind.tracksOf(context).isEmpty())
+        val node = blind.children(BrowseTree.PLAYLISTS)!!.first { it.title == "Four stars" }
+        assertFalse(node.playable)
+        assertNull(blind.resolvePlay(node.id))
     }
 
     @Test

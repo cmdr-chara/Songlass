@@ -1,6 +1,13 @@
 package dev.cmdrchara.songlass.core.playlists
 
-/** Reads both legacy layouts; v2 is written only when a rule needs the new fields. */
+/**
+ * Reads every older layout; the newest one is written only when a rule needs its fields.
+ *
+ * - `v1`: the seven basic fields.
+ * - `v2`: the basic fields plus nine advanced ones (All/Any, genre, years, durations, exclusions).
+ * - `v3`: the sixteen v2 fields plus the minimum rating, written only when that rule is set, so a
+ *   playlist saved before the feature keeps its exact v1/v2 bytes.
+ */
 object SmartRulesCodec {
     fun encode(rules: SmartRules): String {
         require(rules.isValid)
@@ -11,20 +18,30 @@ object SmartRulesCodec {
             rules.yearTo?.toString().orEmpty(), rules.durationFromSeconds?.toString().orEmpty(),
             rules.durationToSeconds?.toString().orEmpty(), rules.excludeArtist, rules.excludeFolder, rules.excludeGenre)
         val needsV2 = rules.match != SmartMatch.All || advanced.drop(1).any { it.isNotEmpty() }
-        val values = if (needsV2) basic + advanced else basic
-        return (if (needsV2) "v2:" else "v1:") + values.joinToString("") { "${it.length}:$it" }
+        val minimumRating = rules.minimumRating
+        val values = when {
+            minimumRating != null -> basic + advanced + minimumRating.toString()
+            needsV2 -> basic + advanced
+            else -> basic
+        }
+        val prefix = if (minimumRating != null) "v3:" else if (needsV2) "v2:" else "v1:"
+        return prefix + values.joinToString("") { "${it.length}:$it" }
     }
 
     fun decode(text: String?): SmartRules? {
         text ?: return null
-        val v2 = text.startsWith("v2:")
+        val v3 = text.startsWith("v3:")
+        val v2 = v3 || text.startsWith("v2:")
         val values = when {
-            text.startsWith("v1:") || v2 -> fields(text, if (v2) 16 else 7)
+            text.startsWith("v1:") || v2 -> fields(text, if (v3) 17 else if (v2) 16 else 7)
             else -> text.split('\u001F').takeIf { it.size == 7 }
         } ?: return null
         fun number(index: Int): Int? = values[index].takeIf { it.isNotEmpty() }?.toIntOrNull()
         val numeric = if (v2) listOf(2, 6, 9, 10, 11, 12) else listOf(2, 6)
         if (numeric.any { values[it].isNotEmpty() && number(it) == null }) return null
+        // A v3 record always carries the threshold: a missing or non-numeric one is corrupt data,
+        // not a rule that happens not to filter by rating.
+        if (v3 && number(16) == null) return null
         val rules = SmartRules(
             favoritesOnly = values[0].toBooleanStrictOrNull() ?: return null,
             playStatus = SmartPlayStatus.entries.firstOrNull { it.name == values[1] } ?: return null,
@@ -35,6 +52,7 @@ object SmartRulesCodec {
             yearTo = if (v2) number(10) else null, durationFromSeconds = if (v2) number(11) else null,
             durationToSeconds = if (v2) number(12) else null, excludeArtist = if (v2) values[13] else "",
             excludeFolder = if (v2) values[14] else "", excludeGenre = if (v2) values[15] else "",
+            minimumRating = if (v3) number(16) else null,
         )
         return rules.takeIf { it.isValid }
     }
