@@ -93,6 +93,9 @@ sealed interface Route {
     data object LibrarySettings : Route
     data object ListeningStatistics : Route
 
+    /** The user's rated tracks grouped by stars; a Library sub-page. */
+    data object Ratings : Route
+
     /** Last.fm account, credentials and pending scrobbles; a sub-page of Settings. */
     data object LastFm : Route
     data class AlbumDetail(val album: Album) : Route
@@ -615,6 +618,10 @@ class AppState(graph: AppGraph) {
         closeMenu()
         closeNowPlaying()
         open(Route.Bookmarks(track))
+    }
+
+    fun openRatings() {
+        open(Route.Ratings)
     }
 
     fun openTagEditor(track: Track) {

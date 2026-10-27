@@ -88,6 +88,7 @@ import dev.cmdrchara.songlass.core.settings.InterfaceStyle
 import dev.cmdrchara.songlass.designsystem.theme.LocalAmbientArtwork
 import dev.cmdrchara.songlass.theme.materialglass.MaterialGlassLayer
 import dev.cmdrchara.songlass.ui.LibraryCategoryScreen
+import dev.cmdrchara.songlass.ui.RatingsScreen
 import dev.cmdrchara.songlass.ui.Route
 import dev.cmdrchara.songlass.ui.SearchScreen
 import dev.cmdrchara.songlass.ui.Tab
@@ -342,6 +343,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                                 searchFocus = state.settingsFocusFor(Route.LastFm),
                             )
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
+                            Route.Ratings -> RatingsScreen(state, currentId, backLabel, padding)
                             Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(
                                 graph, state::goBack, state::openLibraryDurationPicker, state::askRestoreDefaults, padding,
                                 backLabel, state.settingsFocusFor(Route.LibrarySettings),

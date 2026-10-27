@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ratings_library_title">Valutazioni</string>
+    <string name="ratings_library_empty">Nessun brano valutato</string>
+    <string name="ratings_library_empty_hint">Valuta i brani dal menu del brano.</string>
+    <plurals name="ratings_library_group">
+        <item quantity="one">%1$d stella</item>
+        <item quantity="other">%1$d stelle</item>
+    </plurals>
+    <plurals name="ratings_library_count">
+        <item quantity="one">%1$d brano</item>
+        <item quantity="other">%1$d brani</item>
+    </plurals>
+</resources>

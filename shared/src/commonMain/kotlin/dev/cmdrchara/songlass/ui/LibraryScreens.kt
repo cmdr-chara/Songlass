@@ -26,6 +26,7 @@ import dev.cmdrchara.songlass.designsystem.SortOptions
 import dev.cmdrchara.songlass.shared.resources.library_playlists
 import dev.cmdrchara.songlass.shared.resources.artwork_online_action
 import dev.cmdrchara.songlass.core.library.MusicLibrary
+import dev.cmdrchara.songlass.core.library.ratedTracks
 import dev.cmdrchara.songlass.core.library.LibraryFilter
 import dev.cmdrchara.songlass.core.library.AlphabeticalIndex
 import dev.cmdrchara.songlass.core.settings.AlbumLayout
@@ -120,6 +121,7 @@ import dev.cmdrchara.songlass.shared.resources.library_songs
 import dev.cmdrchara.songlass.shared.resources.songs_count
 import dev.cmdrchara.songlass.shared.resources.tab_library
 import dev.cmdrchara.songlass.shared.resources.settings_title
+import dev.cmdrchara.songlass.shared.resources.ratings_library_title
 import dev.cmdrchara.songlass.shared.resources.bookmark_open
 import dev.cmdrchara.songlass.shared.resources.bookmark_library_hint
 import dev.cmdrchara.songlass.shared.resources.library_metadata
@@ -195,6 +197,19 @@ fun LibraryScreen(
             item { PinnedRow(pinned, state) }
         }
         item { CategoryGrid(library, favoriteTracks, state) }
+        item {
+            val storedRatings by state.ratings.values.collectAsState()
+            val ratedCount = remember(storedRatings, library) { state.ratings.ratedTracks(library).size }
+            ListRow(stringResource(Res.string.ratings_library_title),
+                leading = { AppIcon(AppIcons.StarFilled, null, size = 24.dp, tint = AppTheme.colors.accent) },
+                trailing = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        AppText(ratedCount.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel)
+                        Spacer(Modifier.width(12.dp))
+                        AppIcon(AppIcons.ChevronRight, null, size = 14.dp, tint = AppTheme.colors.tertiaryLabel)
+                    }
+                }, onClick = { state.openRatings() })
+        }
         item { SectionTitle(stringResource(Res.string.library_metadata)) }
         item { LibraryFacetCategories(state) }
         item { SectionTitle(stringResource(Res.string.library_playlists)) }
@@ -465,7 +480,7 @@ fun LibraryCategoryScreen(
 
 /** Play and Shuffle share a row only while both labels fit the current typography. */
 @Composable
-private fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: AppState) {
+internal fun PlayShuffleRow(tracks: List<Track>, context: PlayContext?, state: AppState) {
     val playLabel = stringResource(Res.string.action_play)
     val shuffleLabel = stringResource(Res.string.action_shuffle)
     val measurer = rememberTextMeasurer()

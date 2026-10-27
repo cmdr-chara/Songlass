@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ratings_library_title">Ratings</string>
+    <string name="ratings_library_empty">No rated tracks</string>
+    <string name="ratings_library_empty_hint">Rate tracks from the track menu.</string>
+    <plurals name="ratings_library_group">
+        <item quantity="one">%1$d star</item>
+        <item quantity="other">%1$d stars</item>
+    </plurals>
+    <plurals name="ratings_library_count">
+        <item quantity="one">%1$d track</item>
+        <item quantity="other">%1$d tracks</item>
+    </plurals>
+</resources>

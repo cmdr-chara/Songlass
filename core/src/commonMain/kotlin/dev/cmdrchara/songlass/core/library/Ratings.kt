@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.library
 
+import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore
 import dev.cmdrchara.songlass.core.storage.KeyValueStore
 import dev.cmdrchara.songlass.core.storage.RestoreMutationGate
@@ -69,6 +70,46 @@ class Ratings(
 
         /** Inside the backup's `library.` namespace; see `BackupKeys`. */
         const val KEY = "library.ratings"
+    }
+}
+
+/**
+ * One star level of the library's ratings section: the rated tracks of a library snapshot that
+ * still have [stars] whole stars, in library order.
+ */
+data class RatingGroup(val stars: Int, val tracks: List<Track>)
+
+/**
+ * Rated tracks still present in [library], from the highest star level down: the concatenation of
+ * [groupsIn], so both readings always agree.
+ *
+ * A rating whose track left the snapshot is retained but not shown; see [Ratings].
+ */
+fun Ratings.ratedTracks(library: MusicLibrary): List<Track> = groupsIn(library).flatMap { it.tracks }
+
+/**
+ * Groups the ratings by whole stars, highest first; a level with no track is omitted.
+ *
+ * Read-only: it resolves the publication in [Ratings.values] against [library]'s current snapshot
+ * and never writes to the store. Ratings are matched by application id only, so a row left behind
+ * by a file that is gone is not shown, and a value outside 1..[Ratings.MAX_STARS] (never produced
+ * by the current writer, but possible in an old or hand-edited store) counts as no rating. Inside a
+ * group the order is the library's, not the order the tracks were rated in; an id repeated in the
+ * snapshot is listed once, at its first row, like the library's own facet indexes.
+ */
+fun Ratings.groupsIn(library: MusicLibrary): List<RatingGroup> {
+    val stored = values.value
+    if (stored.isEmpty()) return emptyList()
+    // One bucket per level, indexed from the highest: 5 stars at 0, 1 star at MAX_STARS - 1.
+    val buckets = List(Ratings.MAX_STARS) { mutableListOf<Track>() }
+    val placed = HashSet<String>()
+    for (track in library.tracks) {
+        val stars = stored[track.id] ?: continue
+        if (stars !in 1..Ratings.MAX_STARS || !placed.add(track.id)) continue
+        buckets[Ratings.MAX_STARS - stars] += track
+    }
+    return buckets.mapIndexedNotNull { index, tracks ->
+        if (tracks.isEmpty()) null else RatingGroup(Ratings.MAX_STARS - index, tracks.toList())
     }
 }
 
