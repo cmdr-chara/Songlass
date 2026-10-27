@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rating_title">Rating</string>
+    <string name="rating_current">Current rating: %1$s of 5</string>
+    <string name="rating_none">No rating</string>
+    <string name="rating_of_five">%1$s of 5</string>
+    <string name="rating_set">Set rating</string>
+    <string name="rating_stars_1">1 star</string>
+    <string name="rating_stars_2">2 stars</string>
+    <string name="rating_stars_3">3 stars</string>
+    <string name="rating_stars_4">4 stars</string>
+    <string name="rating_stars_5">5 stars</string>
+    <string name="category_next">Next category</string>
+    <string name="category_previous">Previous category</string>
+    <string name="category_next_named">Next category: %1$s</string>
+    <string name="category_previous_named">Previous category: %1$s</string>
+</resources>

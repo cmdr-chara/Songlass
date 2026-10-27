@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="rating_title">Valutazione</string>
+    <string name="rating_current">Valutazione attuale: %1$s di 5</string>
+    <string name="rating_none">Nessuna valutazione</string>
+    <string name="rating_of_five">%1$s di 5</string>
+    <string name="rating_set">Imposta valutazione</string>
+    <string name="rating_stars_1">1 stella</string>
+    <string name="rating_stars_2">2 stelle</string>
+    <string name="rating_stars_3">3 stelle</string>
+    <string name="rating_stars_4">4 stelle</string>
+    <string name="rating_stars_5">5 stelle</string>
+    <string name="category_next">Categoria successiva</string>
+    <string name="category_previous">Categoria precedente</string>
+    <string name="category_next_named">Categoria successiva: %1$s</string>
+    <string name="category_previous_named">Categoria precedente: %1$s</string>
+</resources>

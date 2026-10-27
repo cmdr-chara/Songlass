@@ -1,9 +1,11 @@
 package dev.cmdrchara.songlass.ui
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -11,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -21,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.cmdrchara.songlass.core.library.Ratings
 import dev.cmdrchara.songlass.core.playback.SleepTimerState
 import dev.cmdrchara.songlass.core.model.Track
 import dev.cmdrchara.songlass.core.player.AudioFormatInfo
@@ -37,6 +41,7 @@ import dev.cmdrchara.songlass.designsystem.ScreenTransition
 import dev.cmdrchara.songlass.designsystem.SeekBar
 import dev.cmdrchara.songlass.designsystem.TransportControls
 import dev.cmdrchara.songlass.designsystem.VolumeSlider
+import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
@@ -58,6 +63,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val isLongTrack = durationForControls >= preferences.longTrackThresholdMs && durationForControls > 0L
     val secondary = LocalContentColor.current.copy(alpha = 0.72f)
     val isFavorite = track.id in favoriteIds
+    val storedRatings by state.ratings.values.collectAsState()
+    val rating = storedRatings[track.id] ?: 0
     val quality = audioQualityLabel(player.audioFormat)
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
@@ -124,6 +131,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                         AppText(if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
                                             else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 2)
                                     }
+                                    RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
                                     IconButton(
                                         icon = if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
                                         contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
@@ -250,6 +258,42 @@ private fun PlayerContentLayout(viewportHeight: Dp, minimumPageHeight: Dp, conte
         layout(constraints.maxWidth, height) {
             page.placeRelative(0, 0)
             controls.placeRelative(0, page.height)
+        }
+    }
+}
+
+/**
+ * Compact star row for the player: it shows the stored rating and opens the same "Rating" page
+ * as the track menu. The whole indicator is one button with a readable label and value; its
+ * minimum target stays above 44 dp without changing the title row's height.
+ */
+@Composable
+private fun RatingIndicator(rating: Int, onClick: () -> Unit) {
+    val label = stringResource(Res.string.rating_title)
+    val value = if (rating > 0) stringResource(Res.string.rating_of_five, rating.toString())
+        else stringResource(Res.string.rating_none)
+    val actionLabel = stringResource(Res.string.rating_set)
+    Row(
+        Modifier
+            .widthIn(min = 48.dp)
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClickLabel = actionLabel, onClick = onClick)
+            .semantics(mergeDescendants = true) {
+                contentDescription = label
+                stateDescription = value
+            }
+            .padding(horizontal = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        for (star in 1..Ratings.MAX_STARS) {
+            AppIcon(
+                icon = if (star <= rating) AppIcons.StarFilled else AppIcons.Star,
+                contentDescription = null,
+                size = 12.dp,
+                tint = if (star <= rating) AppTheme.colors.accent else AppTheme.colors.tertiaryLabel,
+            )
         }
     }
 }

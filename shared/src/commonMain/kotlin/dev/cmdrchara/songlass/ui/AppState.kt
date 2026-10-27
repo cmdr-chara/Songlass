@@ -7,12 +7,15 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.referentialEqualityPolicy
 import androidx.compose.runtime.setValue
+import dev.cmdrchara.songlass.core.browse.CategoryTarget
+import dev.cmdrchara.songlass.core.browse.neighborCategory
 import dev.cmdrchara.songlass.core.library.Album
 import dev.cmdrchara.songlass.core.library.Artist
 import dev.cmdrchara.songlass.core.history.ListeningHistory
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Folder
 import dev.cmdrchara.songlass.core.library.Playlist
+import dev.cmdrchara.songlass.core.library.Ratings
 import dev.cmdrchara.songlass.core.library.LibraryFacetKind
 import dev.cmdrchara.songlass.core.library.AlphabetSection
 import dev.cmdrchara.songlass.core.history.PlayContext
@@ -34,7 +37,10 @@ enum class Tab { Home, Library, Search }
 
 enum class PlayerPage { Artwork, Queue, Lyrics }
 
-enum class TrackMenuPage { Main, More, Artists, UseAs }
+enum class TrackMenuPage { Main, More, Artists, UseAs, Rating }
+
+/** Collections the open track menu could switch to; each is null when there is no neighbour. */
+data class CategoryTargets(val previous: CategoryTarget? = null, val next: CategoryTarget? = null)
 
 /** Identity, rather than structural equality, binds asynchronous results to this confirmation. */
 class DefaultSoundRequest(val track: Track, val target: DefaultSoundTarget)
@@ -107,6 +113,7 @@ class AppState(graph: AppGraph) {
     val controller: PlaybackController = graph.controller
     val trackMarkers = graph.trackMarkers
     val favorites: Favorites = graph.favorites
+    val ratings: Ratings = graph.ratings
     val pins = graph.pins
     val searchHistory = graph.searchHistory
     val settings = graph.settings
@@ -243,6 +250,13 @@ class AppState(graph: AppGraph) {
 
     var trackMenuPage by mutableStateOf(TrackMenuPage.Main)
         private set
+
+    /** Adjacent collections captured when the menu opened, so the rows stay stable while shown. */
+    var categoryTargets by mutableStateOf(CategoryTargets())
+        private set
+
+    /** The last track heard inside each collection, for the category commands' start position. */
+    private val categoryResume = mutableMapOf<String, String>()
     var defaultSoundRequest by mutableStateOf<DefaultSoundRequest?>(null, referentialEqualityPolicy())
         private set
     var defaultSoundApplying by mutableStateOf(false)
@@ -263,6 +277,8 @@ class AppState(graph: AppGraph) {
             TrackMenuPage.Main -> closeMenu()
             TrackMenuPage.More -> trackMenuPage = TrackMenuPage.Main
             TrackMenuPage.Artists, TrackMenuPage.UseAs -> trackMenuPage = TrackMenuPage.More
+            // Rating opens from the main page (or straight from the player indicator).
+            TrackMenuPage.Rating -> trackMenuPage = TrackMenuPage.Main
         }
     }
     fun askDefaultSound(track: Track, target: DefaultSoundTarget) {
@@ -422,10 +438,44 @@ class AppState(graph: AppGraph) {
     var menuPlaylistId by mutableStateOf<String?>(null)
         private set
 
-    fun openMenu(track: Track, fromPlaylist: String? = null) {
-        trackMenuPage = TrackMenuPage.Main
+    fun openMenu(track: Track, fromPlaylist: String? = null, page: TrackMenuPage = TrackMenuPage.Main) {
+        trackMenuPage = page
         menuTrack = track
         menuPlaylistId = fromPlaylist
+        categoryTargets = CategoryTargets(previous = categoryNeighbor(forward = false), next = categoryNeighbor(forward = true))
+    }
+
+    /** The adjacent collection of the current playback source, or null at a boundary. */
+    fun categoryNeighbor(forward: Boolean): CategoryTarget? {
+        val source = controller.context ?: return null
+        return neighborCategory(
+            context = source,
+            library = library,
+            userPlaylists = userPlaylists.playlists.value,
+            folderSort = settings.state.value.folderSort,
+            playCounts = history.state.value.playCounts,
+            forward = forward,
+        )?.takeIf { it.tracks.isNotEmpty() }
+    }
+
+    /**
+     * Replaces the queue with the adjacent collection, resuming the last track heard there (or
+     * its first one). The repeat mode is kept and shuffle follows the "keep shuffle on
+     * selection" preference, exactly as any other selection. Does nothing without a neighbour.
+     */
+    fun switchCategory(forward: Boolean) {
+        if (!restoreMutations.canMutate) return
+        val target = categoryNeighbor(forward) ?: return
+        rememberCategoryPosition()
+        controller.playTracks(target.tracks, target.startIndex(categoryResume[target.context.key]), target.context)
+    }
+
+    private fun rememberCategoryPosition() {
+        val source = controller.context ?: return
+        val entry = controller.queue.value.current ?: return
+        // A temporary addition is not part of the collection it interrupts.
+        if (entry.isTemporary) return
+        categoryResume[source.key] = entry.track.id
     }
 
     /** Tracks waiting for the user to pick a playlist ("Add to a playlist"). */
@@ -571,6 +621,7 @@ class AppState(graph: AppGraph) {
         menuTrack = null
         menuPlaylistId = null
         trackMenuPage = TrackMenuPage.Main
+        categoryTargets = CategoryTargets()
     }
 
     /** Leaves Now Playing if needed and opens the album of [track] in the current tab. */

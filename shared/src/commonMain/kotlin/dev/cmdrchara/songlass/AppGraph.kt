@@ -23,6 +23,7 @@ import dev.cmdrchara.songlass.core.lyrics.LyricsRepository
 import dev.cmdrchara.songlass.core.lyrics.LyricsSource
 import dev.cmdrchara.songlass.core.library.Favorites
 import dev.cmdrchara.songlass.core.library.Pins
+import dev.cmdrchara.songlass.core.library.Ratings
 import dev.cmdrchara.songlass.core.playlists.UserPlaylists
 import dev.cmdrchara.songlass.core.library.MusicLibrary
 import dev.cmdrchara.songlass.core.library.LibraryIndex
@@ -95,6 +96,7 @@ class AppGraph(
     val sleepTimer = SleepTimer(controller, scope, clock = { Clock.System.now().toEpochMilliseconds() })
     val favorites = Favorites(store, restoreMutations)
     val pins = Pins(store, restoreMutations)
+    val ratings = Ratings(store, restoreMutations)
     val searchHistory = dev.cmdrchara.songlass.core.search.SearchHistory(store, restoreMutations)
     val smartPlaylists = dev.cmdrchara.songlass.core.playlists.SmartPlaylists(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
     val userPlaylists = UserPlaylists(store, restoreMutations) { Clock.System.now().toEpochMilliseconds() }
@@ -348,6 +350,7 @@ class AppGraph(
                                         homeCustomization.prepareReload(staged.store),
                                         favorites.prepareReload(staged.store),
                                         pins.prepareReload(staged.store),
+                                        ratings.prepareReload(staged.store),
                                         history.prepareReload(staged.store),
                                         userPlaylists.prepareReload(staged.store),
                                         smartPlaylists.prepareReload(staged.store),
