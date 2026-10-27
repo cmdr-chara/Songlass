@@ -217,7 +217,8 @@ class ITunesArtworkLiveShapeTest {
     fun aRealResponseShapeIsParsedAndItsArtworkUrlRewritten() {
         val candidates = ITunesArtwork.parseCandidates(LIVE_SHAPE_RESPONSE, "The Beatles", "Abbey Road")
         assertEquals(2, candidates.size)
-        val first = candidates.first()
+        // Equal scores are ordered by provider id, so select by id instead of by position.
+        val first = candidates.first { it.providerId == "1474815798" }
         assertEquals(
             "https://is1-ssl.mzstatic.com/image/thumb/Music211/v4/48/53/43/485343e3-dd6a-0034-faec-f4b6403f8108/13UMGIM63890.rgb.jpg/600x600bb.jpg",
             first.imageUrl,
