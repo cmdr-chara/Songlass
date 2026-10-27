@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.playback
 
+import android.app.PendingIntent
 import android.content.Intent
 import android.os.Bundle
 import android.os.Looper
@@ -20,6 +21,7 @@ import com.google.common.util.concurrent.MoreExecutors
 import com.google.common.util.concurrent.SettableFuture
 import dev.cmdrchara.songlass.AppGraph
 import dev.cmdrchara.songlass.LibrarySnapshotUnavailableException
+import dev.cmdrchara.songlass.MainActivity
 import dev.cmdrchara.songlass.core.playback.PlaybackController
 import dev.cmdrchara.songlass.R
 import dev.cmdrchara.songlass.SonglassApplication
@@ -64,8 +66,13 @@ class PlaybackService : MediaLibraryService() {
         val audio = graph.player as Media3AudioPlayer
         forwardingPlayer = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio,
             ignoreTransport = { graph.ignoreBluetoothController(session?.controllerForCurrentRequest?.packageName) })
+        // The notification uses the app's own status icon and an artist-album secondary line;
+        // artwork, transport actions and the system progress bar stay Media3's defaults.
+        setMediaNotificationProvider(SonglassMediaNotificationProvider(this))
         session = MediaLibrarySession.Builder(this, forwardingPlayer, LibraryCallback())
             .setBitmapLoader(EmbeddedArtworkBitmapLoader(this))
+            // Without it neither the notification nor the lock-screen card opens the app.
+            .setSessionActivity(sessionActivity())
             .build()
         // With crossfade the track that starts becomes the current one on the other ExoPlayer: the
         // session (notification, lock screen, Android Auto) moves to it at that moment.
@@ -91,6 +98,14 @@ class PlaybackService : MediaLibraryService() {
     }
 
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? = session
+
+    /** Tapping the media notification or its lock-screen card brings the app back to the front. */
+    private fun sessionActivity(): PendingIntent = PendingIntent.getActivity(
+        this,
+        0,
+        Intent(this, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+    )
 
     override fun onDestroy() {
         // The player belongs to the application graph, so only the session is released here.
