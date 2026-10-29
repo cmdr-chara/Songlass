@@ -103,6 +103,8 @@ class VisualAuditActivity : ComponentActivity() {
             check(graph.controller.queue.value.current?.track?.id == selected.id) { "QA current identity missing after selection" }
             graph.controller.pause()
             check(graph.controller.queue.value.current?.track?.id == selected.id) { "QA current identity changed before ready" }
+            // Let the mini-player register its measured artwork anchor before opening its sheet.
+            repeat(3) { withFrameNanos { } }
         }
         // Every supported metadata kind has an explicit route; no genre collection is invented.
         val facetKind = LibraryFacetKind.entries.firstOrNull { id == "facet-list-${it.storageKey}" || id == "facet-${it.storageKey}" }
@@ -138,6 +140,9 @@ class VisualAuditActivity : ComponentActivity() {
             "smart" -> state.open(Route.SmartPlaylistDetail(smart()))
             "smart-new" -> state.open(Route.SmartPlaylistEditor())
             "smart-edit" -> state.open(Route.SmartPlaylistEditor(smart()))
+            "ratings" -> state.openRatings()
+            "lastfm" -> state.open(Route.LastFm)
+            "online-artwork" -> state.open(Route.OnlineArtwork(library.albums.first()))
             "bookmarks" -> { val t = track(); if (graph.trackMarkers.bookmarksFor(t).none { it.title == "QA Visual Marker" }) graph.trackMarkers.add(t, 1_000, "QA Visual Marker"); state.openBookmarks() }
             "tag" -> state.openTagEditor(track())
             "eq" -> state.open(Route.Equalizer)
@@ -160,8 +165,8 @@ class VisualAuditActivity : ComponentActivity() {
                 state.openNowPlaying(); state.showSongInfo()
                 state.showAudioInformationPage(when (id) { "audio-file" -> AudioInformationPage.File; "audio-processing" -> AudioInformationPage.Processing; "audio-output" -> AudioInformationPage.Output; else -> AudioInformationPage.Overview })
             }
-            "menu", "menu-more", "menu-artists", "menu-use-as" -> {
-                state.openMenu(track()); state.showTrackMenuPage(when (id) { "menu-more" -> TrackMenuPage.More; "menu-artists" -> TrackMenuPage.Artists; "menu-use-as" -> TrackMenuPage.UseAs; else -> TrackMenuPage.Main })
+            "menu", "menu-more", "menu-artists", "menu-use-as", "menu-rating" -> {
+                state.openMenu(track()); state.showTrackMenuPage(when (id) { "menu-more" -> TrackMenuPage.More; "menu-artists" -> TrackMenuPage.Artists; "menu-use-as" -> TrackMenuPage.UseAs; "menu-rating" -> TrackMenuPage.Rating; else -> TrackMenuPage.Main })
             }
             "sound-ringtone", "sound-alarm" -> state.askDefaultSound(track(), if (id == "sound-ringtone") DefaultSoundTarget.Ringtone else DefaultSoundTarget.Alarm)
             "timer" -> state.openSleepMenu()

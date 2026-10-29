@@ -214,8 +214,8 @@ internal val NavigationGlassProgram = """
         float depth = max(-geometry.x, 0.0) / px;
         float band = 1.0 - smoothstep(0.0, mix(10.0, 13.0, lifted), depth);
         float2 ray = normal * (mix(3.8, 9.0, lifted) * px * band * band);
-        half4 sample = backdrop.eval(p - ray);
-        float3 rgb = float3(sample.rgb) / max(float(sample.a), 0.001);
+        half4 backdropColor = backdrop.eval(p - ray);
+        float3 rgb = float3(backdropColor.rgb) / max(float(backdropColor.a), 0.001);
         if (lifted > 0.01 && band > 0.01) {
             float2 fringe = normal * (0.65 * px * lifted * band);
             half4 red = backdrop.eval(p - ray + fringe);

@@ -160,15 +160,13 @@ internal fun MiuixShelf(items: List<ShelfItem>, style: ShelfStyle, itemSize: Dp,
 @Composable
 internal fun MiuixDetails(kind: String, title: String, subtitle: String?, onSubtitleClick: (() -> Unit)?, meta: String, playLabel: String, shuffleLabel: String, onPlay: () -> Unit, onShuffle: () -> Unit, action: @Composable () -> Unit, modifier: Modifier) {
     Column(modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        MiuixTag(kind, Modifier)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                AppText(title, AppTheme.typography.title1, maxLines = 3)
-                subtitle?.let { AppText(it, AppTheme.typography.body, color = AppTheme.colors.accent, maxLines = 2,
-                    modifier = if (onSubtitleClick != null) Modifier.clickable(onClick = onSubtitleClick).padding(vertical = 4.dp) else Modifier) }
-            }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.weight(1f)) { MiuixTag(kind, Modifier) }
             action()
         }
+        AppText(title, AppTheme.typography.title1, maxLines = 3)
+        subtitle?.let { AppText(it, AppTheme.typography.body, color = AppTheme.colors.accent, maxLines = 2,
+            modifier = if (onSubtitleClick != null) Modifier.clickable(onClick = onSubtitleClick).padding(vertical = 4.dp) else Modifier) }
         AppText(meta, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val measurer = rememberTextMeasurer()
@@ -194,12 +192,12 @@ internal fun MiuixDetails(kind: String, title: String, subtitle: String?, onSubt
 
 @Composable
 internal fun MiuixArtworkHeader(artwork: Artwork, label: String?, modifier: Modifier) {
-    Box(
+    BoxWithConstraints(
         modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars)
-            .padding(start = 20.dp, end = 20.dp, top = 56.dp, bottom = 16.dp),
+            .padding(start = 20.dp, end = 20.dp, top = 52.dp, bottom = 12.dp),
         contentAlignment = Alignment.Center,
     ) {
-        AlbumArt(artwork, Modifier.widthIn(max = 280.dp).fillMaxWidth().aspectRatio(1f)
+        AlbumArt(artwork, Modifier.size(minOf(maxWidth, MiuixLook.collectionArtworkHeight()))
             .semantics { if (label != null) contentDescription = label }, cornerRadius = 28.dp)
     }
 }

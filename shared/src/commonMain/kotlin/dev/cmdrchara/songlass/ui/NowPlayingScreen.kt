@@ -125,18 +125,23 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                     onLongClickLabel = expandArtworkLabel,
                                     onLongClick = { state.updateArtworkExpansion(true) },
                                 ).semantics { contentDescription = artworkLabel }) else Spacer(Modifier.weight(1f))
-                                Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Column(Modifier.weight(1f)) {
-                                        AppText(track.title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold), maxLines = 2)
-                                        AppText(if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
-                                            else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 2)
+                                BoxWithConstraints(Modifier.padding(bottom = 8.dp)) {
+                                    val ratingBelowTitle = maxWidth < 320.dp * LocalDensity.current.fontScale
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Column(Modifier.weight(1f)) {
+                                            AppText(track.title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold), maxLines = 2)
+                                            AppText(if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
+                                                else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 2)
+                                            if (ratingBelowTitle) RatingIndicator(rating = rating,
+                                                onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
+                                        }
+                                        if (!ratingBelowTitle) RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
+                                        IconButton(
+                                            icon = if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
+                                            contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
+                                            onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
+                                        )
                                     }
-                                    RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
-                                    IconButton(
-                                        icon = if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
-                                        contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
-                                        onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
-                                    )
                                 }
                             }
                         }

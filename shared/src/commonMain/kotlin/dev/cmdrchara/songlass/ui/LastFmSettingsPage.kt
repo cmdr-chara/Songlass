@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -130,7 +131,7 @@ fun LastFmSettingsPage(
             if (searchFocus?.target == SettingsTarget.LastFm) 1 else null,
         )
         LazyColumn(
-            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(reveal),
+            Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).imePadding().then(reveal),
             state = listState,
             contentPadding = contentPadding,
         ) {

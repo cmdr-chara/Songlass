@@ -23,6 +23,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
@@ -92,7 +94,8 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
     val colors = AppTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val largeText = LocalDensity.current.fontScale > 1.3f
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp)
         .background(if (pressed) colors.fill else Color.Transparent)
         .liquidFocusIndicator(interaction)
@@ -100,21 +103,29 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
         .padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         LiquidSettingsCategoryIcon(icon, Modifier)
         Spacer(Modifier.width(12.dp))
-        Row(Modifier.weight(1f).heightIn(min = 52.dp).drawBehind {
+        BoxWithConstraints(Modifier.weight(1f).heightIn(min = 52.dp).drawBehind {
             val stroke = .5.dp.toPx()
             drawLine(colors.separator.copy(alpha = .6f), Offset(0f, size.height - stroke / 2), Offset(size.width, size.height - stroke / 2), stroke)
-        }.padding(end = 16.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (summaryIsValue && largeText) Column(Modifier.weight(1f)) {
-                AppText(title, AppTheme.typography.body, color = colors.label)
-                AppText(summary, AppTheme.typography.subheadline, color = colors.secondaryLabel)
-            } else {
-                AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f), color = colors.label)
-                // Measured before the weighted title, so a short value ("Liquid Glass · Sistema") is never cut at half width.
-                if (summaryIsValue) AppText(summary, AppTheme.typography.subheadline,
-                    modifier = Modifier.widthIn(max = 200.dp), color = colors.secondaryLabel, maxLines = 1, textAlign = TextAlign.End)
+        }.padding(end = 16.dp, top = 12.dp, bottom = 12.dp)) {
+            val inlineWidth = if (summaryIsValue) {
+                measurer.measure(AnnotatedString(title), AppTheme.typography.body, softWrap = false).size.width +
+                    measurer.measure(AnnotatedString(summary), AppTheme.typography.subheadline, softWrap = false).size.width +
+                    with(density) { (13.dp + 16.dp).roundToPx() }
+            } else 0
+            val stackValue = summaryIsValue && (density.fontScale > 1.3f || inlineWidth > constraints.maxWidth)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (stackValue) Column(Modifier.weight(1f)) {
+                    AppText(title, AppTheme.typography.body, color = colors.label)
+                    AppText(summary, AppTheme.typography.subheadline, color = colors.secondaryLabel)
+                } else {
+                    AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f), color = colors.label)
+                    // The measured pair fits; preserve the trailing value without squeezing the title.
+                    if (summaryIsValue) AppText(summary, AppTheme.typography.subheadline,
+                        modifier = Modifier.widthIn(max = 200.dp), color = colors.secondaryLabel, maxLines = 1, textAlign = TextAlign.End)
+                }
+                AppIcon(AppIcons.ChevronRight, null, size = 13.dp, tint = colors.tertiaryLabel)
             }
-            AppIcon(AppIcons.ChevronRight, null, size = 13.dp, tint = colors.tertiaryLabel)
         }
     }
 }

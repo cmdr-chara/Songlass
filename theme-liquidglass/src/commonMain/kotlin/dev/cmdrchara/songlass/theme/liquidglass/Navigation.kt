@@ -4,7 +4,10 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.animation.core.Animatable
@@ -40,6 +43,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -143,6 +147,8 @@ internal fun LiquidGlassScaffold(
     val density = LocalDensity.current
     val navigationBarInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     var expandedBarsHeightPx by remember { mutableIntStateOf(0) }
+    var navigationHeightPx by remember { mutableIntStateOf(0) }
+    val footerColor = look.navigationContentFadeColor()
     var minimizeRequested by remember { mutableStateOf(false) }
     LaunchedEffect(accessibility.reduceMotion) {
         if (accessibility.reduceMotion) minimizeRequested = false
@@ -199,7 +205,21 @@ internal fun LiquidGlassScaffold(
                 .then(if (accessibility.reduceMotion) Modifier else Modifier.nestedScroll(scrollConnection))
                 .then(look.contentSource(Modifier))
                 .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier)
-                .background(colors.background),
+                .background(colors.background)
+                .drawWithCache {
+                    val fadeHeight = (navigationHeightPx + 8.dp.toPx()).coerceAtMost(size.height)
+                    val top = size.height - fadeHeight
+                    val fade = Brush.verticalGradient(
+                        0f to footerColor.copy(alpha = 0f),
+                        0.35f to footerColor.copy(alpha = 0.90f),
+                        1f to footerColor,
+                        startY = top, endY = size.height,
+                    )
+                    onDrawWithContent {
+                        drawContent()
+                        if (navigationHeightPx > 0) drawRect(fade, Offset(0f, top), Size(size.width, fadeHeight))
+                    }
+                },
         ) {
             Box(
                 Modifier.fillMaxSize().graphicsLayer {
@@ -229,6 +249,7 @@ internal fun LiquidGlassScaffold(
                         if (!accessibility.reduceMotion) translationY = (1f - e) * barsRise
                     }
                     .fillMaxWidth()
+                    .onSizeChanged { navigationHeightPx = it.height }
                     .windowInsetsPadding(WindowInsets.navigationBars)
                     .padding(horizontal = BarHorizontalMargin)
                     .padding(bottom = BarSpacing),
@@ -307,43 +328,49 @@ private fun NavigationLayer(
 ) {
     val searchIndex = tabs.indexOfFirst { it.isSearch }
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    AnimatedContent(
-        targetState = minimized,
-        transitionSpec = {
-            if (reduceMotion) {
-                fadeIn(tween(0)) togetherWith fadeOut(tween(0)) using null
-            } else {
-                fadeIn(tween(LiquidGlassMotion.FadeMillis, delayMillis = 60)) togetherWith
-                    fadeOut(tween(LiquidGlassMotion.FeedbackMillis)) using SizeTransform(clip = false) { _, _ ->
-                        tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)
-                    }
-            }
-        },
-        contentAlignment = Alignment.BottomCenter,
-        label = "tabBarMinimize",
-    ) { isMinimized ->
-        if (isMinimized) {
-            Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = MinimizedHeight),
-                horizontalArrangement = Arrangement.spacedBy(BarSpacing),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                val current = tabs[selectedTab]
-                GlassCircleButton(current.icon, current.label, selected = true, size = MinimizedHeight, onClick = onExpand)
-                Box(Modifier.weight(1f)) { accessory?.invoke() }
-                if (searchIndex >= 0 && searchIndex != selectedTab) {
-                    GlassCircleButton(AppIcons.Search, tabs[searchIndex].label, selected = false, size = MinimizedHeight) {
-                        onTabSelected(searchIndex)
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        // Keep a useful title column after the cover, spacing and both 44 dp controls.
+        val minimumAccessoryWidth = MinimizedHeight + 10.dp + 44.dp * 2 + 80.dp * LocalDensity.current.fontScale
+        val circleCount = if (searchIndex >= 0 && searchIndex != selectedTab) 2 else 1
+        val accessoryWidth = maxWidth - (MinimizedHeight + BarSpacing) * circleCount
+        AnimatedContent(
+            targetState = minimized && accessoryWidth >= minimumAccessoryWidth,
+            transitionSpec = {
+                if (reduceMotion) {
+                    fadeIn(tween(0)) togetherWith fadeOut(tween(0)) using null
+                } else {
+                    fadeIn(tween(LiquidGlassMotion.FadeMillis, delayMillis = 60)) togetherWith
+                        fadeOut(tween(LiquidGlassMotion.FeedbackMillis)) using SizeTransform(clip = false) { _, _ ->
+                            tween(LiquidGlassMotion.NavigationMillis, easing = LiquidGlassMotion.Emphasized)
+                        }
+                }
+            },
+            contentAlignment = Alignment.BottomCenter,
+            label = "tabBarMinimize",
+        ) { isMinimized ->
+            if (isMinimized) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = MinimizedHeight),
+                    horizontalArrangement = Arrangement.spacedBy(BarSpacing),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    val current = tabs[selectedTab]
+                    GlassCircleButton(current.icon, current.label, selected = true, size = MinimizedHeight, onClick = onExpand)
+                    Box(Modifier.weight(1f)) { accessory?.invoke() }
+                    if (searchIndex >= 0 && searchIndex != selectedTab) {
+                        GlassCircleButton(AppIcons.Search, tabs[searchIndex].label, selected = false, size = MinimizedHeight) {
+                            onTabSelected(searchIndex)
+                        }
                     }
                 }
-            }
-        } else {
-            Column(
-                modifier = Modifier.onSizeChanged { onExpandedHeightChanged(it.height) },
-                verticalArrangement = Arrangement.spacedBy(BarSpacing),
-            ) {
-                accessory?.invoke()
-                LocalGlassLook.current.NavigationBar(tabs, selectedTab, onTabSelected, Modifier)
+            } else {
+                Column(
+                    modifier = Modifier.onSizeChanged { onExpandedHeightChanged(it.height) },
+                    verticalArrangement = Arrangement.spacedBy(BarSpacing),
+                ) {
+                    accessory?.invoke()
+                    LocalGlassLook.current.NavigationBar(tabs, selectedTab, onTabSelected, Modifier)
+                }
             }
         }
     }
