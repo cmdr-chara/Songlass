@@ -91,6 +91,11 @@ data class AppPreferences(
     val reduceTransparency: Boolean = false,
     val artworkStyle: ArtworkStyle = ArtworkStyle.FullBleed,
     val interfaceStyle: InterfaceStyle = InterfaceStyle.LiquidGlass,
+    /**
+     * Liquid Glass: keep Search inside the tab bar instead of its own circle. Off by default so
+     * the separate-search layout stays the reference; Material and Miuix always show it in the bar.
+     */
+    val searchInNavigationBar: Boolean = false,
     /** App text size multiplier, one of [AppSettings.TEXT_SCALE_CHOICES]; 1.0 preserves the current size. */
     val textScale: Float = 1f,
     /** Strength of the blurred backdrop; the default reproduces the current rendering exactly. */

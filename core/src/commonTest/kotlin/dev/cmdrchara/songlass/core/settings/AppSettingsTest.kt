@@ -319,6 +319,16 @@ class AppSettingsTest {
     }
 
     @Test
+    fun searchInNavigationBarIsOffByDefaultAndPersists() {
+        val store = InMemoryKeyValueStore()
+        assertEquals(false, AppSettings(store).state.value.searchInNavigationBar)
+        AppSettings(store).setSearchInNavigationBar(true)
+        assertEquals(true, AppSettings(store).state.value.searchInNavigationBar)
+        store.putString(AppSettings.SEARCH_IN_NAV_KEY, "not a boolean")
+        assertEquals(false, AppSettings(store).state.value.searchInNavigationBar)
+    }
+
+    @Test
     fun resumeOnReconnectDefaultsToOffAndPersists() {
         val store = dev.cmdrchara.songlass.core.storage.InMemoryKeyValueStore()
         kotlin.test.assertFalse(AppSettings(store).state.value.resumeOnReconnect)
@@ -375,7 +385,7 @@ class AppSettingsTest {
         setReplayGain(dev.cmdrchara.songlass.core.player.ReplayGainMode.Album); setResumeOnReconnect(true)
         setCrossfadeDuration(4_000L); setManualCrossfadeDuration(400L); setResumePerTrack(true); setLongTrackThreshold(1_200_000L)
         setAmllEnabled(false); setLrclibEnabled(false); setReduceMotion(true); setReduceTransparency(true)
-        setTextScale(1.15f); setBlurIntensity(BlurIntensity.High)
+        setTextScale(1.15f); setBlurIntensity(BlurIntensity.High); setSearchInNavigationBar(true)
         setPlayCountRule(dev.cmdrchara.songlass.core.history.PlayCountRule.NearlyAll); setAlbumLayout(AlbumLayout.List)
         setMinimumDuration(30_000L); setFolderExcluded("Music/Voice", true)
         setMinimumRating(5)
@@ -431,10 +441,10 @@ class AppSettingsTest {
             val defaults = AppPreferences()
             when (area) {
                 SettingsArea.Appearance -> assertEquals(
-                    listOf(defaults.interfaceStyle, defaults.appearance, defaults.artworkStyle, defaults.reduceMotion,
-                        defaults.reduceTransparency, defaults.textScale, defaults.blurIntensity),
-                    listOf(state.interfaceStyle, state.appearance, state.artworkStyle, state.reduceMotion,
-                        state.reduceTransparency, state.textScale, state.blurIntensity))
+                    listOf(defaults.interfaceStyle, defaults.searchInNavigationBar, defaults.appearance, defaults.artworkStyle,
+                        defaults.reduceMotion, defaults.reduceTransparency, defaults.textScale, defaults.blurIntensity),
+                    listOf(state.interfaceStyle, state.searchInNavigationBar, state.appearance, state.artworkStyle,
+                        state.reduceMotion, state.reduceTransparency, state.textScale, state.blurIntensity))
                 SettingsArea.Queue -> assertEquals(defaults.copy(), defaults.copy(
                     trackClickAction = state.trackClickAction, queueStart = state.queueStart, queueEnd = state.queueEnd,
                     queueAddOrder = state.queueAddOrder, queueReplaces = state.queueReplaces,

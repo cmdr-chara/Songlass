@@ -14,4 +14,7 @@
     <string name="settings_blur_default">Predefinita</string>
     <string name="settings_blur_high">Alta</string>
     <string name="settings_blur_hint">Intensità della sfocatura dietro le barre di navigazione. Con «Riduci trasparenza» attiva le barre restano piene.</string>
+    <string name="settings_navigation">Navigazione</string>
+    <string name="settings_search_in_bar">Cerca nella barra di navigazione</string>
+    <string name="settings_search_in_bar_hint">Liquid Glass: una sola barra con Cerca come scheda, invece del cerchio separato. Material e Miuix funzionano già così.</string>
 </resources>

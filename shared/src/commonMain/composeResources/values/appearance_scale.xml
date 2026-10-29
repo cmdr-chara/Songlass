@@ -14,4 +14,7 @@
     <string name="settings_blur_default">Default</string>
     <string name="settings_blur_high">High</string>
     <string name="settings_blur_hint">Strength of the blur behind navigation bars. With Reduce Transparency on, bars stay solid.</string>
+    <string name="settings_navigation">Navigation</string>
+    <string name="settings_search_in_bar">Search in the navigation bar</string>
+    <string name="settings_search_in_bar_hint">Liquid Glass: one bar with Search as a tab, instead of a separate search circle. Material and Miuix already work this way.</string>
 </resources>

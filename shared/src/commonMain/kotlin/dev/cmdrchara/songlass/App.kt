@@ -234,7 +234,10 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
             }
         }
 
-        CompositionLocalProvider(LocalNavigationTint provides routeArtwork?.let { routeTint }) {
+        CompositionLocalProvider(
+            LocalNavigationTint provides routeArtwork?.let { routeTint },
+            dev.cmdrchara.songlass.designsystem.theme.LocalSearchInNavigationBar provides preferences.searchInNavigationBar,
+        ) {
         Box(Modifier.fillMaxSize().restoreInputBarrier(graph.restoreMutations)
             .then(if (restoration.restoring) Modifier.clearAndSetSemantics {} else Modifier)) {
             Box(Modifier.fillMaxSize().then(if (nowPlayingVisible || state.hasOverlay) Modifier.clearAndSetSemantics {} else Modifier)) {

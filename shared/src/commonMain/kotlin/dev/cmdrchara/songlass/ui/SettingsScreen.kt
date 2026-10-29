@@ -379,6 +379,17 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
     }
     item { SettingsHint(stringResource(Res.string.settings_text_scale_hint)) }
     item { SettingsHint(stringResource(Res.string.settings_blur_hint)) }
+    item { SettingsSection(stringResource(Res.string.settings_navigation)) }
+    mark(SettingsTarget.SearchInNavigationBar)
+    item {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.SearchInNavigationBar, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_search_in_bar), preferences.searchInNavigationBar,
+                    settings::setSearchInNavigationBar,
+                    subtitle = stringResource(Res.string.settings_search_in_bar_hint))
+            }
+        }
+    }
     item { SettingsSection(stringResource(Res.string.settings_accessibility)) }
     mark(SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency)
     item {

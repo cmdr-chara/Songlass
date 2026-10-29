@@ -76,6 +76,7 @@ class SettingsFocusRequest(val target: SettingsTarget, val id: Int) {
 internal val SettingsTarget.settingsPane: SettingsPane?
     get() = when (this) {
         SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon,
+        SettingsTarget.SearchInNavigationBar,
         SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency, SettingsTarget.TextScale,
         SettingsTarget.BlurIntensity, SettingsTarget.OnlineArtworkEnabled, SettingsTarget.OnlineArtworkWifiOnly -> SettingsPane.Appearance
         SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb,

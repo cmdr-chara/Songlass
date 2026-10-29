@@ -113,6 +113,7 @@ import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
+import dev.cmdrchara.songlass.designsystem.theme.LocalSearchInNavigationBar
 import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
 import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
 
@@ -379,10 +380,12 @@ private fun NavigationLayer(
 /** iOS 26 tab bar: the tab pill and, beside it, the search circle, merging when pressed together. */
 @Composable
 internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) {
+    val searchInBar = LocalSearchInNavigationBar.current
     val searchIndex = tabs.indexOfFirst { it.isSearch }
+    val separateSearch = searchIndex >= 0 && !searchInBar
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val link = remember { LiquidLink() }
-    val sharedSurface = searchIndex >= 0 && unifiedNavigationSupported &&
+    val sharedSurface = separateSearch && unifiedNavigationSupported &&
         LocalGlassSource.current != null && LocalBlurStrength.current.blurred && !AppTheme.accessibility.reduceTransparency
     val preferredWidth = with(LocalDensity.current) { maxOf(232.dp, 166.dp + 66.sp.toDp()) }
     Box(
@@ -391,10 +394,10 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
     ) {
         if (sharedSurface) {
             Box(Modifier.matchParentSize().unifiedNavigationGlass(link))
-        } else if (searchIndex >= 0) LiquidBridge(link)
+        } else if (separateSearch) LiquidBridge(link)
         Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
-            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link, sharedSurface)
-            if (searchIndex >= 0) {
+            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link, sharedSurface, includeSearch = searchInBar)
+            if (separateSearch) {
                 val search = tabs[searchIndex]
                 GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = barHeight, link = link, sharedSurface = sharedSurface) {
                     onTabSelected(searchIndex)
@@ -410,8 +413,8 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
  * tab it is dropped on. Taps still select directly.
  */
 @Composable
-private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null, sharedSurface: Boolean = false) {
-    val slots = remember(tabs) { tabs.indices.filterNot { tabs[it].isSearch } }
+private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null, sharedSurface: Boolean = false, includeSearch: Boolean = false) {
+    val slots = remember(tabs, includeSearch) { if (includeSearch) tabs.indices.toList() else tabs.indices.filterNot { tabs[it].isSearch } }
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val selectedSlot = slots.indexOf(selectedTab)
     val reduceMotion = AppTheme.accessibility.reduceMotion
