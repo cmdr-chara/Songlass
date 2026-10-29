@@ -103,13 +103,18 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
         .padding(start = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         LiquidSettingsCategoryIcon(icon, Modifier)
         Spacer(Modifier.width(12.dp))
+        // Box places children at the top by default: the row content must be centred in the
+        // 52 dp row, otherwise the text sits above the vertically centred category icon.
         BoxWithConstraints(Modifier.weight(1f).heightIn(min = 52.dp).drawBehind {
             val stroke = .5.dp.toPx()
             drawLine(colors.separator.copy(alpha = .6f), Offset(0f, size.height - stroke / 2), Offset(size.width, size.height - stroke / 2), stroke)
-        }.padding(end = 16.dp, top = 12.dp, bottom = 12.dp)) {
+        }.padding(end = 16.dp, top = 12.dp, bottom = 12.dp), contentAlignment = Alignment.Center) {
+            // The value shares the title's style, as in iOS Settings: one size keeps the two
+            // cap heights identical, so a shared baseline also centres them optically.
+            val valueStyle = AppTheme.typography.body
             val inlineWidth = if (summaryIsValue) {
                 measurer.measure(AnnotatedString(title), AppTheme.typography.body, softWrap = false).size.width +
-                    measurer.measure(AnnotatedString(summary), AppTheme.typography.subheadline, softWrap = false).size.width +
+                    measurer.measure(AnnotatedString(summary), valueStyle, softWrap = false).size.width +
                     with(density) { (13.dp + 16.dp).roundToPx() }
             } else 0
             val stackValue = summaryIsValue && (density.fontScale > 1.3f || inlineWidth > constraints.maxWidth)
@@ -119,10 +124,12 @@ internal fun LiquidSettingsDestination(title: String, summary: String, icon: Ima
                     AppText(title, AppTheme.typography.body, color = colors.label)
                     AppText(summary, AppTheme.typography.subheadline, color = colors.secondaryLabel)
                 } else {
-                    AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f), color = colors.label)
+                    // Share one baseline: centring two different text styles leaves the smaller
+                    // trailing value visibly lower than the title on the Settings overview.
+                    AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f).alignByBaseline(), color = colors.label)
                     // The measured pair fits; preserve the trailing value without squeezing the title.
-                    if (summaryIsValue) AppText(summary, AppTheme.typography.subheadline,
-                        modifier = Modifier.widthIn(max = 200.dp), color = colors.secondaryLabel, maxLines = 1, textAlign = TextAlign.End)
+                    if (summaryIsValue) AppText(summary, valueStyle,
+                        modifier = Modifier.widthIn(max = 200.dp).alignByBaseline(), color = colors.secondaryLabel, maxLines = 1, textAlign = TextAlign.End)
                 }
                 AppIcon(AppIcons.ChevronRight, null, size = 13.dp, tint = colors.tertiaryLabel)
             }

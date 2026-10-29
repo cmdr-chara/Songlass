@@ -134,9 +134,10 @@ private fun LiquidAppearanceOptionRow(
                 AppText(value, AppTheme.typography.subheadline, color = if (accentValue) colors.accent else colors.secondaryLabel)
             } else Row(Modifier.weight(1f).clearAndSetSemantics { }, verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                AppText(title, AppTheme.typography.body, color = colors.label, modifier = Modifier.weight(1f))
-                AppText(value, AppTheme.typography.subheadline, color = if (accentValue) colors.accent else colors.secondaryLabel,
-                    modifier = Modifier.widthIn(max = 200.dp), textAlign = TextAlign.End)
+                AppText(title, AppTheme.typography.body, color = colors.label,
+                    modifier = Modifier.weight(1f).alignByBaseline())
+                AppText(value, AppTheme.typography.body, color = if (accentValue) colors.accent else colors.secondaryLabel,
+                    modifier = Modifier.widthIn(max = 200.dp).alignByBaseline(), textAlign = TextAlign.End)
             }
             AppIcon(AppIcons.ChevronRight, null, size = 12.dp, tint = colors.tertiaryLabel,
                 modifier = Modifier.graphicsLayer { scaleX = if (rtl) -1f else 1f })

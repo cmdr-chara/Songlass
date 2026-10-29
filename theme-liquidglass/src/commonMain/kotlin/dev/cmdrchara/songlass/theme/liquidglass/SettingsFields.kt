@@ -64,9 +64,10 @@ internal fun LiquidSettingsValueChoice(title: String, labels: List<String>, sele
                 AppText(title, AppTheme.typography.body, color = colors.label)
                 AppText(value, AppTheme.typography.subheadline, color = colors.secondaryLabel)
             } else {
-                AppText(title, AppTheme.typography.body, color = colors.label, modifier = Modifier.weight(1f).clearAndSetSemantics { })
-                AppText(value, AppTheme.typography.subheadline, color = colors.secondaryLabel,
-                    modifier = Modifier.widthIn(max = 160.dp).clearAndSetSemantics { }, textAlign = TextAlign.End)
+                AppText(title, AppTheme.typography.body, color = colors.label,
+                    modifier = Modifier.weight(1f).alignByBaseline().clearAndSetSemantics { })
+                AppText(value, AppTheme.typography.body, color = colors.secondaryLabel,
+                    modifier = Modifier.widthIn(max = 160.dp).alignByBaseline().clearAndSetSemantics { }, textAlign = TextAlign.End)
             }
             AppIcon(AppIcons.ChevronRight, null, size = 12.dp, tint = colors.tertiaryLabel,
                 modifier = Modifier.graphicsLayer { scaleX = if (rtl) -1f else 1f })
