@@ -16,4 +16,8 @@ DerivedData/
 *.xcuserstate
 iosApp/Pods/
 
+# Sandbox build homes and emulator state (see .sandbox/gradle.sh)
+.sandbox/
+.gradle-home/
+
 .DS_Store
