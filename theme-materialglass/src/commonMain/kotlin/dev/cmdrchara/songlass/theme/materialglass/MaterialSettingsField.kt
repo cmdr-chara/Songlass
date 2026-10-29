@@ -85,11 +85,11 @@ internal fun MaterialActionButton(text: String, icon: ImageVector?, onClick: () 
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.98f else 1f,
         if (reduceMotion) snap() else MaterialMotion.press(), label = "materialActionPress")
-    Row(modifier.heightIn(min = 56.dp)
+    Row(modifier.heightIn(min = 48.dp)
         .graphicsLayer { scaleX = scale.coerceAtMost(1f); scaleY = scale.coerceAtMost(1f) }
         .clip(RoundedCornerShape(20.dp)).background(palette.secondaryContainer)
         .clickable(interaction, MaterialRipple, role = Role.Button, onClick = onClick)
-        .padding(horizontal = 16.dp, vertical = 12.dp),
+        .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically) {
         icon?.let { AppIcon(it, null, size = 20.dp, tint = palette.onSecondaryContainer) }

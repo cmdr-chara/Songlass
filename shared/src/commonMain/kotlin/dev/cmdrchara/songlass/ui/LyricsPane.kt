@@ -169,7 +169,7 @@ internal fun LyricsPane(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically) {
             if (!sharing) {
-                ActionButton(stringResource(Res.string.lyrics_identity_recover), { recovering = true }, Modifier.weight(1f), icon = AppIcons.Folder)
+                ActionButton(stringResource(Res.string.lyrics_identity_recover), { recovering = true }, Modifier, icon = AppIcons.Folder)
                 if (importFile != null) IconButton(AppIcons.ImportFile, stringResource(Res.string.lyrics_import), onClick = { importFile(track) })
             }
         }

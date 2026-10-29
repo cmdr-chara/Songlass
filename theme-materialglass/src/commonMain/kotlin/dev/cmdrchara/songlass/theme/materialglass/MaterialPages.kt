@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -19,8 +20,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,6 +31,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -210,26 +210,26 @@ internal fun MaterialTag(text: String, modifier: Modifier) {
     }
 }
 
-/** Sorting stays compact at normal text size and wraps instead of hiding a choice offscreen. */
-@OptIn(ExperimentalLayoutApi::class)
+/** One line, one chip height: a long label scrolls the row instead of growing just that chip. */
 @Composable
 internal fun MaterialSortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
     val palette = currentPalette()
     val shape = RoundedCornerShape(MaterialShapes.Medium)
-    FlowRow(modifier.fillMaxWidth().selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    val scroll = rememberScrollState()
+    Row(modifier.fillMaxWidth().horizontalScroll(scroll).selectableGroup(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         options.forEachIndexed { index, option ->
             val selected = selectedIndex == index
             val interaction = remember { MutableInteractionSource() }
-            Box(Modifier.weight(1f).heightIn(min = 48.dp).widthIn(min = 48.dp)
+            Box(Modifier.heightIn(min = 48.dp)
                 .selectable(selected, interaction, indication = null, role = Role.RadioButton) { onSelect(index) }
-                .padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.fillMaxWidth().clip(shape).background(if (selected) palette.primaryContainer else palette.container)
-                    .indication(interaction, MaterialRipple).padding(horizontal = 12.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center) {
+                .padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.heightIn(min = 40.dp).clip(shape)
+                    .background(if (selected) palette.primaryContainer else palette.container)
+                    .indication(interaction, MaterialRipple)
+                    .padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                     AppText(option, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (selected) palette.onPrimaryContainer else palette.label,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        color = if (selected) palette.onPrimaryContainer else palette.label, maxLines = 1)
                 }
             }
         }

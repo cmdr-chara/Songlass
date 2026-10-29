@@ -58,10 +58,11 @@ internal fun MaterialTransportControls(
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        // Reserve both side buttons symmetrically before measuring the prominent control.
-        val gap = minOf(12.dp, ((maxWidth - 144.dp) / 2).coerceAtLeast(0.dp))
-        val buttonsWidth = minOf(232.dp, maxWidth - gap * 2)
-        val sideWidth = (buttonsWidth * (64f / 232f)).coerceAtLeast(48.dp)
+        // Reserve both side buttons symmetrically before measuring the prominent control. The row
+        // stays compact so a 60 dp transport leaves the page readable on a short window.
+        val gap = minOf(10.dp, ((maxWidth - 128.dp) / 2).coerceAtLeast(0.dp))
+        val buttonsWidth = minOf(200.dp, maxWidth - gap * 2)
+        val sideWidth = (buttonsWidth * (54f / 200f)).coerceAtLeast(48.dp)
         val playWidth = (buttonsWidth - sideWidth * 2).coerceAtLeast(48.dp)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -154,7 +155,7 @@ private fun TransportButton(icon: ImageVector, description: String, onClick: () 
     val shape = if (prominent) RoundedCornerShape(corner) else CircleShape
     Box(
         Modifier
-            .size(width = width, height = if (prominent) 72.dp else width)
+            .size(width = width, height = if (prominent) 60.dp else width)
             .clickable(interaction, indication = null, role = Role.Button, onClickLabel = description, onClick = onClick)
             .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
@@ -164,7 +165,7 @@ private fun TransportButton(icon: ImageVector, description: String, onClick: () 
                 .graphicsLayer { scaleX = scale.coerceIn(0.9f, 1f); scaleY = scale.coerceIn(0.9f, 1f) }
                 .clip(shape).background(fill).indication(interaction, MaterialRipple),
                 contentAlignment = Alignment.Center) {
-                AppIcon(icon, contentDescription = null, size = if (prominent) 34.dp else 28.dp, tint = iconTint)
+                AppIcon(icon, contentDescription = null, size = if (prominent) 30.dp else 24.dp, tint = iconTint)
             }
         }
     }

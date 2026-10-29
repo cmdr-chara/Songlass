@@ -160,7 +160,7 @@ fun QueuePane(
                     )
                     if (reviewing == null && canOfferSave) ActionButton(
                         stringResource(Res.string.queue_save_upcoming), ::beginSave,
-                        Modifier.fillMaxWidth(), icon = AppIcons.Library,
+                        Modifier, icon = AppIcons.Library,
                     )
                     else if (reviewing == null && upcoming.summary.availableCount > 0) AppText(
                         stringResource(Res.string.queue_save_library_wait), AppTheme.typography.footnote,
@@ -219,7 +219,7 @@ fun QueuePane(
                     ActionButton(stringResource(Res.string.queue_choose_songs), {
                         state.closeNowPlaying()
                         state.open(Route.LibraryPage(LibraryCategory.Songs))
-                    }, Modifier.fillMaxWidth(), icon = AppIcons.Library)
+                    }, Modifier, icon = AppIcons.Library)
                 }
             }
             upcoming.sections.forEachIndexed { sectionIndex, section ->

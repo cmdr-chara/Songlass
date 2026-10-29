@@ -315,17 +315,17 @@ internal fun LiquidGlassTransportControls(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LiquidGlassIconButton(AppIcons.Previous, labels.previous, onPrevious, false, Modifier, iconSize = 42.dp, hitSize = 72.dp)
+        LiquidGlassIconButton(AppIcons.Previous, labels.previous, onPrevious, false, Modifier, iconSize = 38.dp, hitSize = 64.dp)
         LiquidGlassIconButton(
             icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
             contentDescription = if (isPlaying) labels.pause else labels.play,
             onClick = onPlayPause,
             selected = false,
             modifier = Modifier,
-            iconSize = 52.dp,
-            hitSize = 88.dp,
+            iconSize = 46.dp,
+            hitSize = 80.dp,
         )
-        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, false, Modifier, iconSize = 42.dp, hitSize = 72.dp)
+        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, false, Modifier, iconSize = 38.dp, hitSize = 64.dp)
     }
 }
 

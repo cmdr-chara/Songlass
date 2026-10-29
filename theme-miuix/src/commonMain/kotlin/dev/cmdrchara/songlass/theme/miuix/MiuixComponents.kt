@@ -68,7 +68,7 @@ internal fun MiuixGroup(content: @Composable () -> Unit, modifier: Modifier) {
         colors = CardDefaults.defaultColors(color = AppTheme.colors.secondaryBackground)) { content() }
 }
 
-/** Native ordering buttons wrap instead of putting choices behind a horizontal gesture. */
+/** Native ordering capsules keep one line and one height; a long label never resizes its row. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MiuixSortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) {
@@ -76,8 +76,8 @@ internal fun MiuixSortOptions(options: List<String>, selectedIndex: Int, onSelec
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEachIndexed { index, option ->
             MiuixAction(option, null, { onSelect(index) },
-                Modifier.weight(1f).semantics { selected = index == selectedIndex },
-                primary = index == selectedIndex, maxLines = Int.MAX_VALUE)
+                Modifier.semantics { selected = index == selectedIndex },
+                primary = index == selectedIndex, maxLines = 1)
         }
     }
 }
@@ -183,12 +183,12 @@ private fun time(ms: Long): String = (ms.coerceAtLeast(0) / 60_000).toString() +
 @Composable
 internal fun MiuixTransport(playing: Boolean, labels: PlaybackLabels, previous: () -> Unit, playPause: () -> Unit, next: () -> Unit, modifier: Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        MiuixIconAction(AppIcons.Previous, labels.previous, previous, false, false, Modifier.size(64.dp))
-        NativeButton(playPause, Modifier.size(width = 96.dp, height = 72.dp).semantics { contentDescription = if (playing) labels.pause else labels.play }, cornerRadius = 26.dp,
+        MiuixIconAction(AppIcons.Previous, labels.previous, previous, false, false, Modifier.size(56.dp))
+        NativeButton(playPause, Modifier.size(width = 88.dp, height = 60.dp).semantics { contentDescription = if (playing) labels.pause else labels.play }, cornerRadius = 24.dp,
             colors = ButtonDefaults.buttonColors(color = AppTheme.colors.accent, contentColor = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)) {
-            AppIcon(if (playing) AppIcons.Pause else AppIcons.Play, null, size = 32.dp, tint = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)
+            AppIcon(if (playing) AppIcons.Pause else AppIcons.Play, null, size = 28.dp, tint = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)
         }
-        MiuixIconAction(AppIcons.Next, labels.next, next, false, false, Modifier.size(64.dp))
+        MiuixIconAction(AppIcons.Next, labels.next, next, false, false, Modifier.size(56.dp))
     }
 }
 
