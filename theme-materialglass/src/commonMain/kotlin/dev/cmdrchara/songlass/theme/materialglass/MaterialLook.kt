@@ -1,5 +1,8 @@
 package dev.cmdrchara.songlass.theme.materialglass
 
+import dev.cmdrchara.songlass.theme.liquidglass.CollectionArtworkViewport
+import dev.cmdrchara.songlass.theme.liquidglass.collectionArtworkHeightBudget
+import dev.cmdrchara.songlass.theme.liquidglass.SettingsAdjustmentContent
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.border
@@ -134,7 +137,7 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     @Composable
     override fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) {
         if (base.usesSystemColors) {
-            androidx.compose.foundation.layout.Box(modifier.background(AppTheme.colors.background)) { content() }
+            CollectionArtworkViewport(modifier.background(AppTheme.colors.background), content)
         } else super.ArtworkTintedPage(artwork, modifier, content)
     }
 
@@ -418,6 +421,16 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     @Composable
     override fun CollectionTile(title: String, subtitle: String, icon: ImageVector, artworks: List<Artwork>, circular: Boolean, onClick: () -> Unit, modifier: Modifier) =
         MaterialCollectionTile(title, subtitle, icon, artworks, circular, onClick, modifier)
+
+    @Composable
+    override fun collectionArtworkHeight(): Dp = collectionArtworkHeightBudget()
+
+    @Composable
+    override fun SettingsAdjustment(title: String, value: String, hint: String?, enabled: Boolean,
+        lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
+        onReset: (() -> Unit)?, modifier: Modifier, slider: @Composable (Modifier) -> Unit) =
+        SettingsAdjustmentContent(title, value, hint, enabled, lessLabel, moreLabel, resetLabel,
+            onLess, onMore, onReset, modifier, AppTheme.typography.headline, slider)
 
     @Composable
     override fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =

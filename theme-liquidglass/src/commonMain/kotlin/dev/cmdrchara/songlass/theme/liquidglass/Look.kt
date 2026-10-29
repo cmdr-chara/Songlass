@@ -33,6 +33,7 @@ import dev.cmdrchara.songlass.designsystem.ShelfStyle
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
+import dev.cmdrchara.songlass.designsystem.theme.LocalNavigationTint
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 
 /** A parent shelf can own the page inset instead of applying it again inside each row. */
@@ -107,6 +108,13 @@ interface GlassLook {
 
     @Composable
     fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) = LiquidGlassArtworkTintedPage(artwork, modifier, content)
+
+    @Composable
+    fun collectionArtworkHeight(): Dp = collectionArtworkHeightBudget()
+
+    @Composable
+    fun navigationContentFadeColor(): Color =
+        if (tintsNavigation) LocalNavigationTint.current?.background ?: AppTheme.colors.background else AppTheme.colors.background
 
     @Composable
     fun ArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier) = LiquidGlassArtworkHeader(artwork, contentDescription, modifier)
@@ -228,6 +236,14 @@ interface GlassLook {
 
     @Composable
     fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) = LiquidGlassActionButton(text, icon, onClick, modifier)
+
+    /** Compact continuous adjustments retain the same actions and slider semantics. */
+    @Composable
+    fun SettingsAdjustment(title: String, value: String, hint: String?, enabled: Boolean,
+        lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
+        onReset: (() -> Unit)?, modifier: Modifier, slider: @Composable (Modifier) -> Unit) =
+        SettingsAdjustmentContent(title, value, hint, enabled, lessLabel, moreLabel, resetLabel,
+            onLess, onMore, onReset, modifier, AppTheme.typography.body, slider)
 
     /** The grouped preferences page has a different content plane from media browsing. */
     val usesInsetSettingsForm: Boolean get() = true

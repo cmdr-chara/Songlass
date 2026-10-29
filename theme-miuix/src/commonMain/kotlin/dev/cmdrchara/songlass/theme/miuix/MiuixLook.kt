@@ -1,5 +1,8 @@
 package dev.cmdrchara.songlass.theme.miuix
 
+import dev.cmdrchara.songlass.theme.liquidglass.CollectionArtworkViewport
+import dev.cmdrchara.songlass.theme.liquidglass.collectionArtworkHeightBudget
+import dev.cmdrchara.songlass.theme.liquidglass.SettingsAdjustmentContent
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -88,7 +91,7 @@ object MiuixLook : GlassLook {
         MiuixPrompt(visible, title, initialText, placeholder, confirmLabel, cancelLabel, onConfirm, onDismiss)
     @Composable
     override fun ArtworkTintedPage(artwork: Artwork, modifier: Modifier, content: @Composable () -> Unit) {
-        androidx.compose.foundation.layout.Box(modifier.background(AppTheme.colors.background)) { content() }
+        CollectionArtworkViewport(modifier.background(AppTheme.colors.background), content)
     }
     @Composable
     override fun ArtworkHeader(artwork: Artwork, contentDescription: String?, modifier: Modifier) = MiuixArtworkHeader(artwork, contentDescription, modifier)
@@ -229,6 +232,16 @@ object MiuixLook : GlassLook {
     override fun SearchField(query: String, onQueryChange: (String) -> Unit, placeholder: String, clearLabel: String, modifier: Modifier) = MiuixSearch(query, onQueryChange, placeholder, clearLabel, modifier)
     @Composable
     override fun IconButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit, selected: Boolean, filled: Boolean, modifier: Modifier) = MiuixIconAction(icon, contentDescription, onClick, selected, filled, modifier)
+    @Composable
+    override fun collectionArtworkHeight(): Dp = collectionArtworkHeightBudget()
+
+    @Composable
+    override fun SettingsAdjustment(title: String, value: String, hint: String?, enabled: Boolean,
+        lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
+        onReset: (() -> Unit)?, modifier: Modifier, slider: @Composable (Modifier) -> Unit) =
+        SettingsAdjustmentContent(title, value, hint, enabled, lessLabel, moreLabel, resetLabel,
+            onLess, onMore, onReset, modifier, AppTheme.typography.body, slider)
+
     @Composable
     override fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) = MiuixVolume(value, onValueChange, label, modifier)
 

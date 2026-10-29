@@ -877,24 +877,20 @@ private fun AudioEffectControl(target: SettingsTarget, effect: AudioEffect, valu
     val title = settingsTargetTitle(target)
     val readout = audioEffectValue(effect, value)
     SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppText(title, AppTheme.typography.body)
-            AppText(readout, AppTheme.typography.body, color = AppTheme.colors.accent)
-            AppText(stringResource(when (effect) {
+        LocalGlassLook.current.SettingsAdjustment(
+            title, readout, stringResource(when (effect) {
                 AudioEffect.Balance -> Res.string.settings_balance_hint
                 AudioEffect.StereoExpand -> Res.string.settings_stereo_expand_hint
                 AudioEffect.Tempo -> Res.string.settings_tempo_hint
                 AudioEffect.Reverb -> Res.string.settings_reverb_hint
-            }), AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-            if (enabled) {
-                LocalGlassLook.current.ValueSlider(effect.sliderPosition(value), { onChange(effect.fromSlider(it)) }, title,
-                    Modifier.fillMaxWidth().semantics { stateDescription = readout })
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(stringResource(Res.string.settings_effect_less), { onChange((value - 5).coerceAtLeast(effect.minimum)) }, Modifier.weight(1f))
-                    ActionButton(stringResource(Res.string.settings_effect_reset), { onChange(effect.default) }, Modifier.weight(1.5f))
-                    ActionButton(stringResource(Res.string.settings_effect_more), { onChange((value + 5).coerceAtMost(effect.maximum)) }, Modifier.weight(1f))
-                }
-            }
+            }), enabled,
+            stringResource(Res.string.settings_effect_less), stringResource(Res.string.settings_effect_more),
+            stringResource(Res.string.settings_effect_reset),
+            { onChange((value - 5).coerceAtLeast(effect.minimum)) },
+            { onChange((value + 5).coerceAtMost(effect.maximum)) }, { onChange(effect.default) }, Modifier,
+        ) { modifier ->
+            LocalGlassLook.current.ValueSlider(effect.sliderPosition(value), { onChange(effect.fromSlider(it)) }, title,
+                modifier.semantics { stateDescription = readout })
         }
     }
 }
@@ -911,18 +907,14 @@ internal fun audioEffectValue(effect: AudioEffect, value: Int): String = when {
 private fun ReplayGainPreampControl(title: String, db: Int, enabled: Boolean, onChange: (Int) -> Unit) {
     val value = stringResource(Res.string.settings_rg_db, db)
     SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            AppText(title, AppTheme.typography.body)
-            AppText(value, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel)
-            if (enabled) {
-                LocalGlassLook.current.VolumeSlider((db + 20) / 40f,
-                    { onChange(ReplayGainSettings.preampFromSlider(it)) }, title,
-                    Modifier.fillMaxWidth().semantics { stateDescription = value })
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(stringResource(Res.string.settings_rg_less), { onChange((db - 1).coerceAtLeast(-20)) }, Modifier.weight(1f))
-                    ActionButton(stringResource(Res.string.settings_rg_more), { onChange((db + 1).coerceAtMost(20)) }, Modifier.weight(1f))
-                }
-            }
+        LocalGlassLook.current.SettingsAdjustment(
+            title, value, null, enabled,
+            stringResource(Res.string.settings_rg_less), stringResource(Res.string.settings_rg_more), null,
+            { onChange((db - 1).coerceAtLeast(-20)) }, { onChange((db + 1).coerceAtMost(20)) }, null, Modifier,
+        ) { modifier ->
+            LocalGlassLook.current.VolumeSlider((db + 20) / 40f,
+                { onChange(ReplayGainSettings.preampFromSlider(it)) }, title,
+                modifier.semantics { stateDescription = value })
         }
     }
 }
