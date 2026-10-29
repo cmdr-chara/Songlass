@@ -1,0 +1,4 @@
+"audio_services_reset" = "Il servizio audio di sistema è stato riavviato. Seleziona un brano per continuare.";
+"audio_invalid_url" = "La posizione di questo file audio non è valida.";
+"audio_session_unavailable" = "La riproduzione audio non è disponibile al momento. Riprova.";
+"audio_unavailable" = "Non è possibile riprodurre questo file audio.";

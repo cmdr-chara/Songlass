@@ -2,7 +2,9 @@
 
 package dev.cmdrchara.songlass
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.window.ComposeUIViewController
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkImageLoader
 import kotlinx.coroutines.MainScope
 import platform.UIKit.supportsAlternateIcons
 import platform.UIKit.UIApplication
@@ -16,22 +18,31 @@ import platform.UIKit.UIViewController
 import platform.UIKit.addChildViewController
 import platform.UIKit.didMoveToParentViewController
 
-// iOS still uses the demo library and silent player until AVFoundation playback is added.
+private val appScope = MainScope()
 private val launcherIcons = IosLauncherIcons()
+private val musicSource by lazy { IosMusicSource(appScope) }
+private var systemNowPlaying: IosNowPlaying? = null
 private val graph by lazy {
-    AppGraph.demo(
-        MainScope(),
-        UserDefaultsStore(),
+    AppGraph(
+        IosAudioPlayer(appScope), musicSource, UserDefaultsStore(), appScope,
         device = dev.cmdrchara.songlass.core.onboarding.DeviceInfo.Apple,
         applyLauncherIcon = if (UIApplication.sharedApplication.supportsAlternateIcons) launcherIcons::select else null,
-    )
+    ).also {
+        musicSource.onLibraryChanged = it::requestLibraryRefresh
+        systemNowPlaying = IosNowPlaying(it, musicSource, appScope)
+    }
 }
+private val artworkImages by lazy { IosArtworkImages(musicSource, graph.artworkAvailability) }
 
 fun MainViewController(): UIViewController = SonglassViewController()
 
 /** Owns status-bar appearance without changing the system appearance observed by Compose. */
 internal class SonglassViewController : UIViewController(nibName = null, bundle = null) {
-    private val composeController = ComposeUIViewController { App(graph) }
+    private val composeController = ComposeUIViewController {
+        CompositionLocalProvider(LocalArtworkImageLoader provides artworkImages) {
+            App(graph, onRequestLibraryAccess = musicSource::requestAccess)
+        }
+    }
     private var lightStatusBarIcons = false
 
     override fun viewDidLoad() {
