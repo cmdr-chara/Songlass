@@ -68,7 +68,7 @@ class PlaybackService : MediaLibraryService() {
             ignoreTransport = { graph.ignoreBluetoothController(session?.controllerForCurrentRequest?.packageName) })
         // The notification uses the app's own status icon and an artist-album secondary line;
         // artwork, transport actions and the system progress bar stay Media3's defaults.
-        setMediaNotificationProvider(SonglassMediaNotificationProvider(this))
+        setMediaNotificationProvider(XiaomiMediaNotificationProvider(this))
         session = MediaLibrarySession.Builder(this, forwardingPlayer, LibraryCallback())
             .setBitmapLoader(EmbeddedArtworkBitmapLoader(this))
             // Without it neither the notification nor the lock-screen card opens the app.
