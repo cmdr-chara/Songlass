@@ -26,6 +26,9 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Density
 import dev.cmdrchara.songlass.core.settings.AppFontScale
+import dev.cmdrchara.songlass.theme.liquidglass.LiquidFinish
+import dev.cmdrchara.songlass.theme.liquidglass.LocalLiquidFinish
+import dev.cmdrchara.songlass.core.settings.LiquidMaterial
 import dev.cmdrchara.songlass.core.settings.BlurIntensity
 import dev.cmdrchara.songlass.designsystem.theme.BlurStrength
 import dev.cmdrchara.songlass.designsystem.theme.LocalBlurStrength
@@ -131,6 +134,7 @@ fun App(
         LocalOnlineArtwork provides onlineArtwork,
         LocalArtworkPresentation provides presentation,
         LocalBlurStrength provides preferences.blurIntensity.toBlurStrength(),
+        LocalLiquidFinish provides if (preferences.liquidMaterial == LiquidMaterial.Metal) LiquidFinish.Metal else LiquidFinish.Glass,
     ) { AppContent(graph, onRequestLibraryAccess, preferences, state) }
 }
 

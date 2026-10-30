@@ -1,0 +1,7 @@
+<resources>
+    <string name="settings_liquid_finish">Finitura Liquid Glass</string>
+    <string name="settings_liquid_metal">Liquid Metal</string>
+    <string name="settings_liquid_finish_hint">Barre di navigazione e controlli flottanti.</string>
+    <string name="settings_liquid_glass_detail">Vetro traslucido</string>
+    <string name="settings_liquid_metal_detail">Riflessi metallici</string>
+</resources>

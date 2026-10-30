@@ -12,7 +12,8 @@ internal actual fun createNavigationShader(): NavigationShader? = runCatching {
     object : NavigationShader {
         private var blurRadiusPx = -1f
         private var blur: RenderEffect? = null
-        override fun effect(frame: NavigationOpticsFrame): androidx.compose.ui.graphics.RenderEffect {
+
+        private fun updateUniforms(frame: NavigationOpticsFrame) {
             program.setFloatUniform("pill", frame.pill)
             program.setFloatUniform("search", frame.search)
             program.setFloatUniform("pillLens", frame.pillLens)
@@ -22,13 +23,20 @@ internal actual fun createNavigationShader(): NavigationShader? = runCatching {
             program.setFloatUniform("smoothing", frame.smoothing)
             program.setFloatUniform("px", frame.density)
             program.setFloatUniform("dark", if (frame.dark) 1f else 0f)
+            program.setFloatUniform("metal", if (frame.metal) 1f else 0f)
+            program.setFloatUniform("phase", frame.phase)
+        }
+
+        override fun effect(frame: NavigationOpticsFrame): androidx.compose.ui.graphics.RenderEffect {
+            updateUniforms(frame)
+            val material = RenderEffect.createRuntimeShaderEffect(program, "backdrop")
             if (blurRadiusPx != frame.blurRadiusPx) {
                 blurRadiusPx = frame.blurRadiusPx
                 val radius = frame.blurRadiusPx
                 blur = RenderEffect.createBlurEffect(radius, radius, Shader.TileMode.CLAMP)
             }
             return RenderEffect.createChainEffect(
-                RenderEffect.createRuntimeShaderEffect(program, "backdrop"), requireNotNull(blur),
+                material, requireNotNull(blur),
             ).asComposeRenderEffect()
         }
     }

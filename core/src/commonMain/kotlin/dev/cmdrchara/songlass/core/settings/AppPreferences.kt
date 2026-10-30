@@ -9,6 +9,14 @@ import dev.cmdrchara.songlass.core.history.PlayCountRule
 import dev.cmdrchara.songlass.core.player.ReplayGainMode
 
 enum class AppearanceMode { System, Light, Dark }
+/** Finish of Liquid Glass navigation surfaces; other interface styles keep their materials. */
+enum class LiquidMaterial(val storageKey: String) {
+    Glass("glass"), Metal("metal");
+    companion object {
+        fun fromStorageKey(key: String?): LiquidMaterial = entries.firstOrNull { it.storageKey == key } ?: Glass
+    }
+}
+
 enum class AlbumLayout { Grid, List }
 
 /** How covers are shown in Now Playing and on album/playlist pages. */
@@ -96,6 +104,7 @@ data class AppPreferences(
      * the separate-search layout stays the reference; Material and Miuix always show it in the bar.
      */
     val searchInNavigationBar: Boolean = false,
+    val liquidMaterial: LiquidMaterial = LiquidMaterial.Glass,
     /** App text size multiplier, one of [AppSettings.TEXT_SCALE_CHOICES]; 1.0 preserves the current size. */
     val textScale: Float = 1f,
     /** Strength of the blurred backdrop; the default reproduces the current rendering exactly. */

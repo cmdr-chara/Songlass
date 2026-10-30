@@ -11,7 +11,6 @@ import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.offset
@@ -39,6 +38,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +68,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -142,7 +143,7 @@ internal fun LiquidGlassScaffold(
     val look = LocalGlassLook.current
     // No source is recorded at all when the blur is off: every glass surface then uses its opaque,
     // readable fallback, and the scaffold does not pay for a backdrop nobody samples.
-    val hazeState = if (accessibility.reduceTransparency || !LocalBlurStrength.current.blurred || !look.usesHazeBackdrop) {
+    val hazeState = if (accessibility.reduceTransparency || !LocalBlurStrength.current.blurred || !look.requiresHazeBackdrop()) {
         null
     } else rememberHazeState()
     val density = LocalDensity.current
@@ -238,7 +239,9 @@ internal fun LiquidGlassScaffold(
             }
         }
         val navigationTint = if (look.tintsNavigation) LocalNavigationTint.current else null
-        CompositionLocalProvider(LocalGlassSource provides hazeState) {
+        // Fully covered chrome must not request frames behind the expanded player.
+        val metalVisible by remember(morph) { derivedStateOf { morph.recede < 0.999f } }
+        CompositionLocalProvider(LocalGlassSource provides hazeState, LocalMetalMotionVisible provides metalVisible) {
             NavigationTintScope(navigationTint) {
             Box(
                 modifier = Modifier
@@ -385,21 +388,27 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
     val separateSearch = searchIndex >= 0 && !searchInBar
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val link = remember { LiquidLink() }
-    val sharedSurface = separateSearch && unifiedNavigationSupported &&
-        LocalGlassSource.current != null && LocalBlurStrength.current.blurred && !AppTheme.accessibility.reduceTransparency
+    // One preview owner for the pill and separate Search, on every rendering backend.
+    val tabTouching = remember { mutableStateOf(false) }
+    // Moving Search changes the silhouette, never the optical material or selection lens.
+    val sharedSurface = unifiedNavigationSupported && !AppTheme.accessibility.reduceTransparency &&
+        LocalGlassSource.current != null && LocalBlurStrength.current.blurred
     val preferredWidth = with(LocalDensity.current) { maxOf(232.dp, 166.dp + 66.sp.toDp()) }
     Box(
         modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally).widthIn(max = preferredWidth).fillMaxWidth(),
         contentAlignment = Alignment.CenterEnd,
     ) {
         if (sharedSurface) {
-            Box(Modifier.matchParentSize().unifiedNavigationGlass(link))
+            Box(Modifier.matchParentSize().unifiedNavigationGlass(link, separateSearch))
         } else if (separateSearch) LiquidBridge(link)
         Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(BarSpacing), verticalAlignment = Alignment.CenterVertically) {
-            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link, sharedSurface, includeSearch = searchInBar)
+            TabPill(tabs, selectedTab, onTabSelected, Modifier.weight(1f), link, sharedSurface,
+                includeSearch = searchInBar, touchingState = tabTouching)
             if (separateSearch) {
                 val search = tabs[searchIndex]
-                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex, size = barHeight, link = link, sharedSurface = sharedSurface) {
+                GlassCircleButton(search.icon, search.label, selected = selectedTab == searchIndex,
+                    size = barHeight, link = link, sharedSurface = sharedSurface,
+                    highlighted = selectedTab == searchIndex && !tabTouching.value) {
                     onTabSelected(searchIndex)
                 }
             }
@@ -413,18 +422,23 @@ internal fun LiquidNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSel
  * tab it is dropped on. Taps still select directly.
  */
 @Composable
-private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null, sharedSurface: Boolean = false, includeSearch: Boolean = false) {
+private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier, link: LiquidLink? = null, sharedSurface: Boolean = false, includeSearch: Boolean = false, touchingState: MutableState<Boolean>) {
     val slots = remember(tabs, includeSearch) { if (includeSearch) tabs.indices.toList() else tabs.indices.filterNot { tabs[it].isSearch } }
     val barHeight = LocalGlassLook.current.navigationBarHeight()
     val selectedSlot = slots.indexOf(selectedTab)
     val reduceMotion = AppTheme.accessibility.reduceMotion
+    // Both finishes use the same Glass refraction of the foreground.
+    val refractedInk = sharedSurface
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     var slotWidth by remember { mutableFloatStateOf(0f) }
     var placed by remember { mutableStateOf(false) }
     var dragging by remember { mutableStateOf(false) }
-    var touching by remember { mutableStateOf(false) }
+    var touching by touchingState
+    DisposableEffect(touchingState) {
+        onDispose { touchingState.value = false }
+    }
     val gestureVersion = remember { intArrayOf(0) }
     val bubbleX = remember { Animatable(0f) }
     // 0 at rest, 1 while the bubble is held and lifted off the bar.
@@ -493,6 +507,8 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
     val sceneBounds: () -> Rect? = {
         if (slotWidth <= 0f) null else opticalLens.bounds().translate(Offset(-with(density) { inset.toPx() }, -with(density) { inset.toPx() }))
     }
+    val genericInkProtection = if (metalFinishSelected()) false else LocalMetalInkProtection.current
+    CompositionLocalProvider(LocalMetalInkProtection provides genericInkProtection) {
     Box(
         modifier = modifier
             .height(barHeight)
@@ -578,7 +594,7 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
             },
     ) {
         // Separate siblings: the bar never clips or filters the lens that lifts above it.
-        if (!sharedSurface) Box(Modifier.matchParentSize().navigationBarGlass(Capsule))
+        if (!sharedSurface) Box(Modifier.matchParentSize().then(navigationContainerSurface(Capsule)))
         Box(Modifier.fillMaxSize().padding(inset).onSizeChanged {
             slotWidth = it.width / slots.size.coerceAtLeast(1).toFloat()
         }) {
@@ -595,9 +611,9 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                         scaleY = 1f + 0.16f * l
                         translationY = -2.dp.toPx() * l
                     }
-                    .then(if (bubbleShown) LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule) else Modifier),
+                    .then(if (bubbleShown) fallbackNavigationSelectionSurface() else Modifier),
             )
-            if (sharedSurface) {
+            if (refractedInk) {
                 // Only the decorative icons are split across the lens boundary. Keep their
                 // normal ink outside and the refracted accent ink inside, with matching layout.
                 Row(Modifier.fillMaxSize().clearAndSetSemantics {}
@@ -640,11 +656,12 @@ private fun TabPill(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) 
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(1.dp, Alignment.CenterVertically),
                     ) {
-                        TabLabel(tab, opticalScene = sharedSurface, drawIcon = !sharedSurface) { slot == shownSlot }
+                        TabLabel(tab, opticalScene = sharedSurface, drawIcon = !refractedInk) { slot == shownSlot }
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -724,7 +741,7 @@ private fun LiquidBridge(link: LiquidLink) {
                 clip = true
                 shape = GenericShape { _, _ -> if (fill != null) addPath(fill, shift) }
             }
-            .navigationBarGlass(RoundedCornerShape(0), edges = false)
+            .then(navigationContainerSurface(RoundedCornerShape(0), edges = false))
             .drawWithContent {
                 drawContent()
                 val n = neck ?: return@drawWithContent
@@ -753,16 +770,38 @@ private fun TabLabel(
     val tint = if (opticalScene) {
         if (selected) AppTheme.colors.accent else AppTheme.colors.label
     } else tabTint(selected)
-    if (drawIcon) AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
-    else Spacer(Modifier.size(24.dp))
-    AppText(
-        text = tab.label,
-        style = AppTheme.typography.caption2.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (opticalScene) FontWeight.Normal else if (selected) FontWeight.Medium else FontWeight.Normal),
-        // Keep the real label's measured height, including scaled text, in icon-only layers.
-        modifier = if (drawLabel) Modifier else Modifier.drawWithContent {},
-        color = tint,
-        maxLines = 1,
-    )
+    @Composable fun ink() {
+        if (drawIcon) AppIcon(tab.icon, contentDescription = null, size = 24.dp, tint = tint)
+        else Spacer(Modifier.size(24.dp))
+        AppText(
+            text = tab.label,
+            style = AppTheme.typography.caption2.copy(fontSize = 11.sp, lineHeight = 14.sp, fontWeight = if (opticalScene) FontWeight.Normal else if (selected) FontWeight.Medium else FontWeight.Normal),
+            // Keep the real label's measured height, including scaled text, in icon-only layers.
+            modifier = if (drawLabel) Modifier else Modifier.drawWithContent {},
+            color = tint,
+            maxLines = 1,
+        )
+    }
+    ink()
+}
+
+@Composable
+private fun metalFinishSelected(): Boolean =
+    LocalGlassLook.current === LiquidLook && LocalLiquidFinish.current == LiquidFinish.Metal
+
+/** Original Glass surface; Metal adds only its transparent rim. */
+@Composable
+private fun navigationContainerSurface(
+    shape: RoundedCornerShape,
+    interaction: InteractionSource? = null,
+    edges: Boolean = true,
+): Modifier = Modifier.navigationBarGlass(shape,interaction,edges)
+
+/** Platforms without the unified shader use the same active-ring treatment. */
+@Composable
+private fun fallbackNavigationSelectionSurface(): Modifier {
+    val glass = LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule)
+    return if (metalFinishSelected()) Modifier.liquidMetalRim(Capsule).then(glass) else glass
 }
 
 /** The search icon, in its own scope for the same reason as [TabLabel]. */
@@ -783,10 +822,10 @@ private fun tabTint(selected: Boolean): Color {
 }
 
 @Composable
-private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, link: LiquidLink? = null, sharedSurface: Boolean = false, onClick: () -> Unit) {
+private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolean, size: Dp, link: LiquidLink? = null, sharedSurface: Boolean = false, highlighted: Boolean = selected, onClick: () -> Unit) {
     val interaction = remember { MutableInteractionSource() }
     val selectionAlphaState = animateFloatAsState(
-        if (selected) 1f else 0f,
+        if (highlighted) 1f else 0f,
         if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "circleSelection",
     )
@@ -805,11 +844,13 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
             if (link?.lenses?.get(LinkSide.End) === opticalLens) link.lenses.remove(LinkSide.End)
         }
     }
+    val genericInkProtection = if (metalFinishSelected()) false else LocalMetalInkProtection.current
+    CompositionLocalProvider(LocalMetalInkProtection provides genericInkProtection) {
     Box(
         modifier = Modifier
             .size(size)
             .liquidPress(grow = 0.05f, reach = 3.dp, link = link, side = LinkSide.End)
-            .then(if (sharedSurface) Modifier else Modifier.navigationBarGlass(Capsule, interaction))
+            .then(if (sharedSurface) Modifier else navigationContainerSurface(Capsule, interaction))
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .semantics {
                 role = Role.Tab
@@ -821,10 +862,11 @@ private fun GlassCircleButton(icon: ImageVector, label: String, selected: Boolea
         if (lensShown && !sharedSurface) {
             Box(
                 Modifier.matchParentSize().padding(4.dp).graphicsLayer { alpha = selectionAlpha }
-                    .then(LocalGlassLook.current.navigationSelectionSurface(Modifier, Capsule)),
+                    .then(fallbackNavigationSelectionSurface()),
             )
         }
-        TabIcon(icon, selected)
+        TabIcon(icon, highlighted)
+    }
     }
 }
 
@@ -844,6 +886,9 @@ internal fun LiquidGlassMiniPlayer(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val swipe = rememberTrackSwipe()
+    // This accessory knows its actual foreground bounds; do not also matte its whole center.
+    val genericInkProtection = if (metalFinishSelected()) false else LocalMetalInkProtection.current
+    CompositionLocalProvider(LocalMetalInkProtection provides genericInkProtection) {
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -870,8 +915,11 @@ internal fun LiquidGlassMiniPlayer(
             }
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                @Composable fun metadata() {
+                    AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                    AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                }
+                metadata()
             }
         }
         LiquidGlassIconButton(
@@ -882,6 +930,7 @@ internal fun LiquidGlassMiniPlayer(
             modifier = Modifier,
         )
         LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, selected = false, modifier = Modifier)
+    }
     }
 }
 
@@ -952,6 +1001,7 @@ internal fun LiquidGlassIconButton(
             AppIcon(
                 icon = icon,
                 contentDescription = contentDescription,
+                modifier = Modifier,
                 size = if (filled) iconSize * 0.75f else iconSize,
                 tint = tint,
             )

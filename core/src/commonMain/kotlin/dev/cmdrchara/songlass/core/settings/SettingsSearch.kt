@@ -2,7 +2,7 @@ package dev.cmdrchara.songlass.core.settings
 
 /** Stable destinations, independent of translated labels and the UI's navigation stack. */
 enum class SettingsTarget {
-    InterfaceStyle, Appearance, ArtworkStyle, TextScale, BlurIntensity, SearchInNavigationBar, ResumeOnReconnect, ReplayGain, Crossfade,
+    InterfaceStyle, LiquidMaterial, Appearance, ArtworkStyle, TextScale, BlurIntensity, SearchInNavigationBar, ResumeOnReconnect, ReplayGain, Crossfade,
     CrossfadeDuration, ManualCrossfadeDuration, AmllLyrics, ReduceMotion, ReduceTransparency, Equalizer,
     EqualizerPresets, OutputProfiles, HeadphoneCorrection, MinimumDuration, MinimumRating, ExcludedFolders,
     HomeCustomization, Backup, About, ResumePerTrack, LongTrackThreshold, PlayCountRule, AlbumLayout, SleepTimer,
@@ -139,6 +139,8 @@ private fun terms(vararg labels: String, aliases: String) = SearchTerms(labels.t
 private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
     SettingsTarget.InterfaceStyle -> terms("Interface style", "UI style", "Stile interfaccia",
         aliases = "theme|tema|themes|temi|liquid glass|material glass|miuix|hyperos|skin")
+    SettingsTarget.LiquidMaterial -> terms("Liquid Glass finish", "Finitura Liquid Glass", "Liquid Metal",
+        aliases = "metal|metallo|chrome|cromo|finitura|finish|riflessi|reflections|liquid metal")
     SettingsTarget.Appearance -> terms("Appearance", "Aspetto", "Color scheme",
         aliases = "dark mode|modalità scura|light mode|modalità chiara|automatic|automatico|system|sistema|colori|colours|colors")
     SettingsTarget.ArtworkStyle -> terms("Artwork style", "Cover layout", "Stile copertina",

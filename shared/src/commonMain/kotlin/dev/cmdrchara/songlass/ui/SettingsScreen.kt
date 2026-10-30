@@ -357,6 +357,20 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
             LocalGlassLook.current.SettingsAppearanceHint(hint) { SettingsHint(hint) }
         }
     }
+    mark(SettingsTarget.LiquidMaterial)
+    item {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.LiquidMaterial, request) {
+                val finishes = LiquidMaterial.entries
+                LocalGlassLook.current.SettingsLiquidFinish(stringResource(Res.string.settings_liquid_finish),
+                    finishes.map { liquidMaterialLabel(it) },
+                    listOf(stringResource(Res.string.settings_liquid_glass_detail), stringResource(Res.string.settings_liquid_metal_detail)),
+                    finishes.indexOf(preferences.liquidMaterial),
+                    { index -> finishes.getOrNull(index)?.let(settings::setLiquidMaterial) },
+                    stringResource(Res.string.action_cancel), Modifier)
+            }
+        }
+    }
     item { SettingsSection(stringResource(Res.string.settings_text_and_background)) }
     mark(SettingsTarget.TextScale, SettingsTarget.BlurIntensity)
     item {
@@ -377,8 +391,6 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
             }
         }
     }
-    item { SettingsHint(stringResource(Res.string.settings_text_scale_hint)) }
-    item { SettingsHint(stringResource(Res.string.settings_blur_hint)) }
     item { SettingsSection(stringResource(Res.string.settings_navigation)) }
     mark(SettingsTarget.SearchInNavigationBar)
     item {
@@ -407,6 +419,12 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
         }
     }
 }
+
+@Composable
+internal fun liquidMaterialLabel(material: LiquidMaterial): String = stringResource(when (material) {
+    LiquidMaterial.Glass -> Res.string.settings_liquid_glass
+    LiquidMaterial.Metal -> Res.string.settings_liquid_metal
+})
 
 @Composable
 internal fun appIconName(icon: AppIconChoice): String = when (icon) {

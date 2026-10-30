@@ -59,6 +59,7 @@ internal fun Modifier.appleGlass(
     interactionSource: InteractionSource?,
     edges: Boolean,
     navigationBar: Boolean = false,
+    forceGlass: Boolean = false,
 ): Modifier {
     val colors = AppTheme.colors
     val accessibility = AppTheme.accessibility
@@ -66,6 +67,9 @@ internal fun Modifier.appleGlass(
     // Off removes the blur layer instead of keeping a zero-radius lens: the opaque page surface is
     // the readable baseline, exactly like Reduce Transparency.
     val blur = LocalBlurStrength.current
+    if (!forceGlass && LocalLiquidFinish.current == LiquidFinish.Metal) {
+        return liquidMetal(shape, interactionSource, edges, navigationBar)
+    }
     if (accessibility.reduceTransparency || !blur.blurred || source == null) {
         return clip(shape).background(colors.secondaryBackground)
     }
@@ -81,29 +85,29 @@ internal fun Modifier.appleGlass(
                 GlassDefaults.optics.copy(
                     depth = OpticalSizeValue.Fixed(1f),
                     blurRadius = OpticalSizeValue.Fixed(blur.scale(20.dp)),
-                    refractionDisplacement = if (navigationBar) 10.dp else 12.dp,
-                    refractionStrength = if (navigationBar) 0.38f else 0.42f,
+                    refractionDisplacement = if (navigationBar) 10.dp else 9.dp,
+                    refractionStrength = if (navigationBar) 0.38f else 0.36f,
                 ),
             )
             // Apple's glass lets colors through: less milky white than Haze's defaults
             // (whitePoint 0.55 light / -0.22 dark). Dark glass is smoked, not black, so the
             // shape still reads over a black page. Chroma stays near neutral, otherwise glass
             // over a tinted page turns into a darker, more saturated slab than the page itself.
-            whitePoint(if (navigationBar) { if (colors.isDark) -0.02f else 0.20f } else { if (colors.isDark) -0.12f else 0.25f })
+            whitePoint(if (navigationBar) { if (colors.isDark) -0.02f else 0.20f } else { if (colors.isDark) -0.06f else 0.16f })
             chromaMultiplier(1.04f)
             // Legibility over busy, colourful content (covers scrolling under the bars): pull the
             // material toward the page colour, enough that labels stay readable even over a dark
             // cover in light mode; colour still shows through.
-            tint(colors.background.copy(alpha = if (navigationBar) { if (colors.isDark) 0.52f else 0.66f } else { if (colors.isDark) 0.4f else 0.72f }))
+            tint(colors.background.copy(alpha = if (navigationBar) { if (colors.isDark) 0.52f else 0.66f } else { if (colors.isDark) 0.44f else 0.60f }))
             // Light the glass from its own shape only. Haze derives part of the normals from the
             // content underneath by default, which scatters highlights over text and covers.
             contentNormalBlend(0f)
             // A crisp rim highlight and a gentle Fresnel lift at the edges, not a broad glare.
-            specularIntensity(if (navigationBar) 0.24f else if (colors.isDark) 0.55f else 0.5f)
-            specularExponent(24f)
+            specularIntensity(if (navigationBar) 0.24f else 0.30f)
+            specularExponent(32f)
             ambientResponse(if (colors.isDark) 0.16f else 0.15f)
             fresnelExponent(2.2f)
-            chromaticAberrationStrength(0.035f)
+            chromaticAberrationStrength(0.018f)
             // Press motion comes from liquidPress (whole element); the material only brightens a little.
             pressed {
                 lightingIntensity(0.4f)
@@ -132,21 +136,21 @@ internal fun Modifier.appleGlass(
     val rimBrush = remember(colors.isDark, navigationBar) {
         if (navigationBar) liquidNavigationRim(colors.isDark)
         else Brush.verticalGradient(listOf(
-            Color.White.copy(alpha = if (colors.isDark) 0.28f else 0.6f),
-            Color.White.copy(alpha = if (colors.isDark) 0.06f else 0.15f),
+            Color.White.copy(alpha = if (colors.isDark) 0.23f else 0.38f),
+            Color.White.copy(alpha = if (colors.isDark) 0.04f else 0.08f),
         ))
     }
     val sheen = remember(colors.isDark, navigationBar) {
         Brush.verticalGradient(
             0f to Color.White.copy(alpha = if (navigationBar) {
                 if (colors.isDark) 0.05f else 0.10f
-            } else if (colors.isDark) 0.09f else 0.22f),
+            } else if (colors.isDark) 0.035f else 0.07f),
             0.55f to Color.Transparent,
         )
     }
     val glass = hazeGlass(input = HazeInput.Sources(source), style = style, interactionSource = interactionSource)
         .background(sheen, shape)
-    return if (edges) glass.border(if (navigationBar) 0.65.dp else 0.75.dp, rimBrush, shape) else glass
+    return if (edges) glass.border(if (navigationBar) 0.65.dp else 0.5.dp, rimBrush, shape) else glass
 }
 
 /** Original navigation lighting shared by the capsule and its connecting waist. */

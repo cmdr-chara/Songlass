@@ -25,6 +25,7 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 internal fun settingsTargetTitle(target: SettingsTarget): String = stringResource(when (target) {
     SettingsTarget.InterfaceStyle -> Res.string.settings_ui_style
+    SettingsTarget.LiquidMaterial -> Res.string.settings_liquid_finish
     SettingsTarget.Appearance -> Res.string.settings_appearance
     SettingsTarget.ArtworkStyle -> Res.string.settings_artwork
     SettingsTarget.TextScale -> Res.string.settings_text_scale
@@ -106,7 +107,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
     return SettingsTarget.entries.map { target ->
         val section = when (target) {
             SettingsTarget.InterfaceStyle, SettingsTarget.Appearance, SettingsTarget.ArtworkStyle, SettingsTarget.AppIcon,
-            SettingsTarget.SearchInNavigationBar,
+            SettingsTarget.SearchInNavigationBar, SettingsTarget.LiquidMaterial,
             SettingsTarget.OnlineArtworkEnabled, SettingsTarget.OnlineArtworkWifiOnly -> appearance
             SettingsTarget.Balance, SettingsTarget.StereoExpand, SettingsTarget.Tempo, SettingsTarget.Reverb,
             SettingsTarget.ReplayGainProcessing, SettingsTarget.ReplayGainPreamp, SettingsTarget.ReplayGainMissingPreamp, SettingsTarget.ReplayGainLimiter,
@@ -152,6 +153,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.ArtworkStyle -> stringResource(if (preferences.artworkStyle == ArtworkStyle.FullBleed) Res.string.settings_artwork_full else Res.string.settings_artwork_square)
         SettingsTarget.TextScale -> textScaleLabel(preferences.textScale)
         SettingsTarget.BlurIntensity -> blurIntensityLabel(preferences.blurIntensity)
+        SettingsTarget.LiquidMaterial -> liquidMaterialLabel(preferences.liquidMaterial)
         SettingsTarget.SearchInNavigationBar -> enabled(preferences.searchInNavigationBar)
         SettingsTarget.ResumeOnReconnect -> enabled(preferences.headphones.resumeWired)
         SettingsTarget.ResumeBluetooth -> enabled(preferences.headphones.resumeBluetooth)

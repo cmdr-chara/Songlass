@@ -84,6 +84,6 @@ fun LiquidGlassTheme(
         LocalUiAccessibility provides accessibility,
         LocalUiStyle provides LiquidGlassStyle,
         LocalPlayerMorph provides playerMorph,
-        content = content,
+        content = { ProvideLiquidMetalMotion(content) },
     )
 }

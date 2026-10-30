@@ -69,6 +69,10 @@ interface GlassLook {
 
     /** Styles own the backdrop source and whether the background recedes under the player. */
     val usesHazeBackdrop: Boolean get() = true
+
+    /** Dynamic materials can opt out without changing another look's capture policy. */
+    @Composable
+    fun requiresHazeBackdrop(): Boolean = usesHazeBackdrop
     val recedesUnderPlayer: Boolean get() = true
     val tintsNavigation: Boolean get() = true
     /** False when collection artwork is inset below a status bar on the theme canvas. */
@@ -286,6 +290,12 @@ interface GlassLook {
     fun SettingsValueChoice(title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
         LiquidSettingsValueChoice(title, labels, selectedIndex, onSelect, closeLabel, modifier)
 
+    /** The preference remains discoverable in every style, using that look's own choice control. */
+    @Composable
+    fun SettingsLiquidFinish(title: String, labels: List<String>, descriptions: List<String>, selectedIndex: Int,
+        onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        SettingsValueChoice(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+
     @Composable
     fun SettingsDurationField(value: String, onValueChange: (String) -> Unit, label: String, onSubmit: () -> Unit, modifier: Modifier) =
         GlassFormField(value, onValueChange, label, true, false, modifier,
@@ -439,6 +449,11 @@ interface GlassLook {
 
 /** Apple's iOS 26 Liquid Glass. */
 object LiquidLook : GlassLook {
+    @Composable
+    override fun SettingsLiquidFinish(title: String, labels: List<String>, descriptions: List<String>, selectedIndex: Int,
+        onSelect: (Int) -> Unit, closeLabel: String, modifier: Modifier) =
+        LiquidMaterialOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+
     @Composable
     override fun navigationSurface(modifier: Modifier, shape: RoundedCornerShape, interactionSource: InteractionSource?, edges: Boolean): Modifier =
         modifier.appleGlass(shape, interactionSource, edges)

@@ -83,3 +83,20 @@ https://github.com/jspecify/jspecify/tree/v1.0.0
 The original license and notice texts retain their upstream language,
 copyright years and wording. This inventory does not imply endorsement
 of Songlass by any upstream project or author.
+
+Liquid material study — Liquid Glass contributors, Copyright 2026
+Apache License 2.0
+Songlass's mobile chrome is an independent adaptation informed by the first-party
+studio-reflection model in cmdr-chara/Liquid, revision a938ee71. The comparison
+shaders and their assets are not included.
+https://github.com/cmdr-chara/Liquid
+
+Paper Shaders — Paper Design contributors
+Apache License 2.0; full text in paper-shaders-LICENSE.txt.
+Metallic rim shaders for the navbar and floating controls adapted from liquid-metal.ts
+and shader-utils.ts at revision 1923e9f536ea079e2a95d23291cbfacfd69d37f6.
+Modified for AGSL/SkSL, shape=none, periodic animation and transparent ring-only
+composition over the original Glass material. No reference images or logos
+are included in the app.
+https://github.com/paper-design/shaders
+https://shaders.paper.design/liquid-metal

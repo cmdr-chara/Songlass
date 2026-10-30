@@ -45,6 +45,7 @@ class AppSettings(
             "miuix" -> InterfaceStyle.Miuix
             else -> InterfaceStyle.LiquidGlass
         },
+        liquidMaterial = LiquidMaterial.fromStorageKey(store.getString(LIQUID_MATERIAL_KEY)),
         searchInNavigationBar = store.getString(SEARCH_IN_NAV_KEY)?.toBooleanStrictOrNull() ?: false,
         textScale = readTextScale(store),
         blurIntensity = BlurIntensity.fromStorageKey(store.getString(BLUR_INTENSITY_KEY)),
@@ -234,6 +235,12 @@ class AppSettings(
             },
         )
         _state.update { it.copy(interfaceStyle = style) }
+    }
+
+    fun setLiquidMaterial(material: LiquidMaterial) {
+        if (!mutations.canMutate || _state.value.liquidMaterial == material) return
+        store.putString(LIQUID_MATERIAL_KEY, material.storageKey)
+        _state.update { it.copy(liquidMaterial = material) }
     }
 
     fun setSearchInNavigationBar(enabled: Boolean) {
@@ -520,7 +527,7 @@ class AppSettings(
     fun resetToDefaults(area: SettingsArea) {
         if (!mutations.canMutate) return
         val keys = when (area) {
-            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, SEARCH_IN_NAV_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY,
+            SettingsArea.Appearance -> setOf(INTERFACE_STYLE_KEY, LIQUID_MATERIAL_KEY, SEARCH_IN_NAV_KEY, APPEARANCE_KEY, ARTWORK_STYLE_KEY, APP_ICON_KEY, REDUCE_MOTION_KEY, REDUCE_TRANSPARENCY_KEY,
                 TEXT_SCALE_KEY, BLUR_INTENSITY_KEY, ONLINE_ARTWORK_KEY, ONLINE_ARTWORK_WIFI_KEY)
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
@@ -534,7 +541,7 @@ class AppSettings(
         _state.update { current ->
             when (area) {
                 SettingsArea.Appearance -> current.copy(interfaceStyle = defaults.interfaceStyle,
-                    searchInNavigationBar = defaults.searchInNavigationBar,
+                    searchInNavigationBar = defaults.searchInNavigationBar, liquidMaterial = defaults.liquidMaterial,
                     appearance = defaults.appearance, artworkStyle = defaults.artworkStyle, appIcon = defaults.appIcon,
                     reduceMotion = defaults.reduceMotion, reduceTransparency = defaults.reduceTransparency,
                     textScale = defaults.textScale, blurIntensity = defaults.blurIntensity,
@@ -591,6 +598,7 @@ class AppSettings(
         const val REDUCE_TRANSPARENCY_KEY = "settings.reduce_transparency"
         const val ARTWORK_STYLE_KEY = "settings.artwork_style"
         const val INTERFACE_STYLE_KEY = "settings.interface_style"
+        const val LIQUID_MATERIAL_KEY = "settings.liquid_material"
         const val SEARCH_IN_NAV_KEY = "settings.search_in_navigation_bar"
         const val RG_PROCESSING_KEY = "settings.replay_gain_processing"
         const val RG_PREAMP_KEY = "settings.replay_gain_preamp_db"
