@@ -20,7 +20,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -162,33 +164,71 @@ internal fun MiuixVolume(value: Float, onValueChange: (Float) -> Unit, label: St
 @Composable
 internal fun MiuixSeek(positionMs: Long, durationMs: Long, quality: String?, onSeek: (Long) -> Unit, modifier: Modifier) {
     val duration = durationMs.coerceAtLeast(0)
+    val currentOnSeek by rememberUpdatedState(onSeek)
     var dragging by remember { mutableStateOf<Float?>(null) }
+    LaunchedEffect(duration) { dragging = null }
     val fraction = dragging ?: if (duration == 0L) 0f else (positionMs.toDouble() / duration).toFloat().coerceIn(0f, 1f)
-    Column(modifier) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            AppText(time((fraction * duration).toLong()), AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel)
-            quality?.let {
-                AppText(it, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel,
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
-                    textAlign = TextAlign.Center, maxLines = 1)
+    val shownPosition = (fraction.toDouble() * duration).toLong().coerceIn(0L, duration)
+    val timeStyle = AppTheme.typography.caption1.copy(fontFeatureSettings = "tnum")
+    val secondary = AppTheme.colors.secondaryLabel
+    val density = LocalDensity.current
+    val textMeasurer = rememberTextMeasurer()
+    val qualityText = quality?.takeIf { it.isNotBlank() }
+    val elapsedText = time(shownPosition)
+    val remainingText = "−" + time(duration - shownPosition)
+    val textWidths = remember(elapsedText, remainingText, qualityText, timeStyle, textMeasurer, density) {
+        val time = maxOf(textMeasurer.measure(elapsedText, timeStyle).size.width,
+            textMeasurer.measure(remainingText, timeStyle).size.width)
+        val qualityWidth = textMeasurer.measure(qualityText.orEmpty(), timeStyle).size.width
+        with(density) { maxOf(48.dp, time.toDp()) to qualityWidth.toDp() }
+    }
+    Column(modifier.fillMaxWidth()) {
+        NativeSlider(fraction, { value ->
+            if (duration > 0L && value.isFinite()) dragging = value.coerceIn(0f, 1f)
+        }, Modifier.fillMaxWidth().heightIn(min = 44.dp),
+            enabled = duration > 0, onValueChangeFinished = {
+                dragging?.let { value ->
+                    if (duration > 0L) currentOnSeek((value.toDouble() * duration).toLong().coerceIn(0L, duration))
+                }
+                dragging = null
+            }, height = 10.dp)
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val timeWidth = textWidths.first.coerceAtMost(maxWidth / 2)
+            val stacked = qualityText != null &&
+                (density.fontScale > 1.3f || timeWidth * 2 + textWidths.second + 16.dp > maxWidth)
+            Column {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AppText(elapsedText, timeStyle, Modifier.width(timeWidth), color = secondary, maxLines = 1)
+                    if (qualityText == null || stacked) Spacer(Modifier.weight(1f))
+                    else AppText(qualityText, timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
+                        color = secondary, textAlign = TextAlign.Center, maxLines = 1)
+                    AppText(remainingText, timeStyle, Modifier.width(timeWidth),
+                        color = secondary, textAlign = TextAlign.End, maxLines = 1)
+                }
+                if (stacked) AppText(qualityText.orEmpty(), timeStyle, Modifier.fillMaxWidth().padding(top = 4.dp),
+                    color = secondary, textAlign = TextAlign.Center)
             }
-            AppText("−" + time((duration - fraction * duration).toLong().coerceAtLeast(0)), AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel)
         }
-        NativeSlider(fraction, { dragging = it }, Modifier.fillMaxWidth().heightIn(min = 44.dp),
-            enabled = duration > 0, onValueChangeFinished = { dragging?.let { onSeek((it.toDouble() * duration).toLong()) }; dragging = null }, height = 10.dp)
     }
 }
 private fun time(ms: Long): String = (ms.coerceAtLeast(0) / 60_000).toString() + ":" + ((ms.coerceAtLeast(0) / 1000) % 60).toString().padStart(2, '0')
 
 @Composable
 internal fun MiuixTransport(playing: Boolean, labels: PlaybackLabels, previous: () -> Unit, playPause: () -> Unit, next: () -> Unit, modifier: Modifier) {
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-        MiuixIconAction(AppIcons.Previous, labels.previous, previous, false, false, Modifier.size(56.dp))
-        NativeButton(playPause, Modifier.size(width = 88.dp, height = 60.dp).semantics { contentDescription = if (playing) labels.pause else labels.play }, cornerRadius = 24.dp,
-            colors = ButtonDefaults.buttonColors(color = AppTheme.colors.accent, contentColor = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)) {
-            AppIcon(if (playing) AppIcons.Pause else AppIcons.Play, null, size = 28.dp, tint = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val clusterWidth = minOf(196.dp, maxWidth)
+        val gap = ((clusterWidth - 176.dp) / 2).coerceIn(0.dp, 4.dp)
+        val buttonsWidth = clusterWidth - gap * 2
+        val sideWidth = (buttonsWidth * (52f / 188f)).coerceAtLeast(48.dp)
+        val playWidth = (buttonsWidth - sideWidth * 2).coerceAtLeast(48.dp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+            MiuixIconAction(AppIcons.Previous, labels.previous, previous, false, false, Modifier.size(sideWidth))
+            NativeButton(playPause, Modifier.size(width = playWidth, height = 60.dp).semantics { contentDescription = if (playing) labels.pause else labels.play }, cornerRadius = 24.dp,
+                colors = ButtonDefaults.buttonColors(color = AppTheme.colors.accent, contentColor = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)) {
+                AppIcon(if (playing) AppIcons.Pause else AppIcons.Play, null, size = 28.dp, tint = if (AppTheme.colors.accent.luminance() > 0.179f) Color.Black else Color.White)
+            }
+            MiuixIconAction(AppIcons.Next, labels.next, next, false, false, Modifier.size(sideWidth))
         }
-        MiuixIconAction(AppIcons.Next, labels.next, next, false, false, Modifier.size(56.dp))
     }
 }
 

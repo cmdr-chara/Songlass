@@ -58,11 +58,12 @@ internal fun MaterialTransportControls(
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        // Reserve both side buttons symmetrically before measuring the prominent control. The row
-        // stays compact so a 60 dp transport leaves the page readable on a short window.
-        val gap = minOf(10.dp, ((maxWidth - 128.dp) / 2).coerceAtLeast(0.dp))
-        val buttonsWidth = minOf(200.dp, maxWidth - gap * 2)
-        val sideWidth = (buttonsWidth * (54f / 200f)).coerceAtLeast(48.dp)
+        // A close, bounded group keeps the expressive primary shape connected to the skip controls.
+        // Symmetric 48 dp minimums leave the center dominant even in a 180 dp slot.
+        val clusterWidth = minOf(212.dp, maxWidth)
+        val gap = minOf(4.dp, ((clusterWidth - 144.dp) / 2).coerceAtLeast(0.dp))
+        val buttonsWidth = clusterWidth - gap * 2
+        val sideWidth = (buttonsWidth * (54f / 204f)).coerceAtLeast(48.dp)
         val playWidth = (buttonsWidth - sideWidth * 2).coerceAtLeast(48.dp)
         Row(
             modifier = Modifier.fillMaxWidth(),

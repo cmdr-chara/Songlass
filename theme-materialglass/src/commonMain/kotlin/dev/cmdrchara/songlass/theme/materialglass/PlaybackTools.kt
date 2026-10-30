@@ -15,7 +15,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -24,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
+import dev.cmdrchara.songlass.designsystem.PlayerUtilityContent
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -131,13 +131,12 @@ internal fun MaterialPlayerUtilities(actions: List<PlayerUtilityAction>, modifie
             topEnd = if (index == rowSize - 1) 22.dp else 6.dp, bottomEnd = if (index == rowSize - 1) 22.dp else 6.dp,
         )
         val foreground = if (action.selected) palette.onPrimaryContainer else palette.secondaryLabel
-        Row(Modifier.weight(if (action.badge != null) 1.8f else 1f).heightIn(min = 48.dp).clip(shape)
+        Box(Modifier.weight(action.layoutWeight).heightIn(min = 48.dp).clip(shape)
             .background(if (action.selected) palette.primaryContainer else palette.containerHigh)
             .clickable(remember { MutableInteractionSource() }, look.pressIndication(), role = Role.Button, onClick = action.onClick)
-            .semantics { selected = action.selected; contentDescription = action.accessibilityLabel }.padding(horizontal = 4.dp),
-            horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(action.icon, null, size = 22.dp, tint = foreground)
-            action.badge?.let { AppText(it, AppTheme.typography.caption1, color = foreground, modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics {}, maxLines = 1) }
+            .semantics { selected = action.selected; contentDescription = action.accessibilityLabel }.padding(horizontal = 4.dp, vertical = 8.dp),
+            contentAlignment = Alignment.Center) {
+            PlayerUtilityContent(action, iconTint = foreground)
         }
     }
 }

@@ -16,6 +16,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -76,10 +77,12 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.onClick
@@ -89,6 +92,7 @@ import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
@@ -105,7 +109,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
-/** Compact source-quality row over a thin progress rail, with a full 44 dp seek target. */
+/** Thin progress rail above balanced timestamps and source quality, with a full 44 dp seek target. */
 @Composable
 internal fun LiquidGlassSeekBar(
     positionMs: Long,
@@ -128,36 +132,24 @@ internal fun LiquidGlassSeekBar(
         return true
     }
 
-    val timeStyle = AppTheme.typography.footnote.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)
+    val timeStyle = AppTheme.typography.footnote.copy(
+        fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+        fontFeatureSettings = "tnum",
+    )
     val secondary = content.copy(alpha = 0.72f)
     val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
+    val quality = qualityLabel?.takeIf { it.isNotBlank() }
     val elapsedText = formatDuration(shownPosition)
     val remainingText = "-" + formatDuration(duration - shownPosition)
-    val textWidths = remember(elapsedText, remainingText, qualityLabel, timeStyle, textMeasurer, density) {
-        // Reserve the wider actual timestamp on both sides, including proportional digits.
+    val textWidths = remember(elapsedText, remainingText, quality, timeStyle, textMeasurer, density) {
+        // Equal timestamp columns keep the quality centered as the preview changes.
         val time = maxOf(textMeasurer.measure(elapsedText, timeStyle).size.width,
             textMeasurer.measure(remainingText, timeStyle).size.width)
-        val quality = textMeasurer.measure(qualityLabel.orEmpty(), timeStyle).size.width
-        with(density) { maxOf(48.dp, time.toDp()) to quality.toDp() }
+        val qualityWidth = textMeasurer.measure(quality.orEmpty(), timeStyle).size.width
+        with(density) { maxOf(48.dp, time.toDp()) to qualityWidth.toDp() }
     }
     Column(modifier.fillMaxWidth()) {
-        BoxWithConstraints(Modifier.fillMaxWidth()) {
-            val timeWidth = textWidths.first.coerceAtMost(maxWidth / 2)
-            val stacked = qualityLabel != null && timeWidth * 2 + textWidths.second + 16.dp > maxWidth
-            Column {
-                if (stacked) AppText(qualityLabel.orEmpty(), timeStyle, Modifier.fillMaxWidth().padding(bottom = 4.dp),
-                    color = secondary, textAlign = TextAlign.Center)
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    AppText(elapsedText, timeStyle, Modifier.width(timeWidth), color = secondary)
-                    if (stacked) Spacer(Modifier.weight(1f))
-                    else AppText(qualityLabel.orEmpty(), timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
-                        color = secondary, textAlign = TextAlign.Center, maxLines = 1)
-                    AppText(remainingText, timeStyle, Modifier.width(timeWidth),
-                        color = secondary, textAlign = TextAlign.End)
-                }
-            }
-        }
         Canvas(
             modifier = Modifier.fillMaxWidth().height(44.dp)
                 .semantics {
@@ -194,6 +186,23 @@ internal fun LiquidGlassSeekBar(
             val thumbHeight = if (dragFraction != null) 24.dp.toPx() else 18.dp.toPx()
             val x = (size.width * fraction).coerceIn(thumbWidth / 2f, maxOf(thumbWidth / 2f, size.width - thumbWidth / 2f))
             drawRoundRect(content, Offset(x - thumbWidth / 2f, y - thumbHeight / 2f), Size(thumbWidth, thumbHeight), CornerRadius(thumbWidth / 2f))
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val timeWidth = textWidths.first.coerceAtMost(maxWidth / 2)
+            val stacked = quality != null &&
+                (density.fontScale > 1.3f || timeWidth * 2 + textWidths.second + 16.dp > maxWidth)
+            Column {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AppText(elapsedText, timeStyle, Modifier.width(timeWidth), color = secondary, maxLines = 1)
+                    if (quality == null || stacked) Spacer(Modifier.weight(1f))
+                    else AppText(quality, timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
+                        color = secondary, textAlign = TextAlign.Center, maxLines = 1)
+                    AppText(remainingText, timeStyle, Modifier.width(timeWidth),
+                        color = secondary, textAlign = TextAlign.End, maxLines = 1)
+                }
+                if (stacked) AppText(quality.orEmpty(), timeStyle, Modifier.fillMaxWidth().padding(top = 4.dp),
+                    color = secondary, textAlign = TextAlign.Center)
+            }
         }
     }
 }
@@ -310,22 +319,52 @@ internal fun LiquidGlassTransportControls(
     onNext: () -> Unit,
     modifier: Modifier,
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly,
-        verticalAlignment = Alignment.CenterVertically,
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val gap = ((maxWidth - 172.dp) / 2).coerceIn(0.dp, 12.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LiquidTransportButton(AppIcons.Previous, labels.previous, onPrevious, 30.dp, 52.dp)
+            LiquidTransportButton(
+                icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
+                description = if (isPlaying) labels.pause else labels.play,
+                onClick = onPlayPause,
+                iconSize = 40.dp,
+                hitSize = 68.dp,
+            )
+            LiquidTransportButton(AppIcons.Next, labels.next, onNext, 30.dp, 52.dp)
+        }
+    }
+}
+
+/** Quiet ink feedback moves only the drawing, leaving each transport target stable. */
+@Composable
+private fun LiquidTransportButton(icon: ImageVector, description: String, onClick: () -> Unit, iconSize: Dp, hitSize: Dp) {
+    val content = LocalContentColor.current
+    val reduceMotion = AppTheme.accessibility.reduceMotion
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        if (pressed && !reduceMotion) 0.96f else 1f,
+        if (reduceMotion) snap() else spring(dampingRatio = 1f, stiffness = 700f),
+        label = "playerTransportPress",
+    )
+    Box(
+        Modifier.size(hitSize)
+            .liquidFocusIndicator(interaction, CircleShape)
+            .clickable(interaction, indication = null, role = Role.Button, onClickLabel = description, onClick = onClick)
+            .semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
     ) {
-        LiquidGlassIconButton(AppIcons.Previous, labels.previous, onPrevious, false, Modifier, iconSize = 38.dp, hitSize = 64.dp)
-        LiquidGlassIconButton(
-            icon = if (isPlaying) AppIcons.Pause else AppIcons.Play,
-            contentDescription = if (isPlaying) labels.pause else labels.play,
-            onClick = onPlayPause,
-            selected = false,
-            modifier = Modifier,
-            iconSize = 46.dp,
-            hitSize = 80.dp,
-        )
-        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, false, Modifier, iconSize = 38.dp, hitSize = 64.dp)
+        Box(
+            Modifier.fillMaxSize().graphicsLayer { scaleX = scale; scaleY = scale }
+                .clip(CircleShape).background(content.copy(alpha = if (pressed) 0.08f else 0f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            AppIcon(icon, null, size = iconSize, tint = content)
+        }
     }
 }
 

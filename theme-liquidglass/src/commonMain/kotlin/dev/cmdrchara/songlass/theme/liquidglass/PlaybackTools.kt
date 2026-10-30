@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -23,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
+import dev.cmdrchara.songlass.designsystem.PlayerUtilityContent
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -115,12 +115,11 @@ internal fun LiquidPlaybackTools(visible: Boolean, title: String, subtitle: Stri
 internal fun LiquidPlayerUtilities(actions: List<PlayerUtilityAction>, modifier: Modifier) {
     val colors = AppTheme.colors
     PlayerUtilityRows(actions, spacing = 4.dp, modifier = modifier) { action, _, _ ->
-        Row(Modifier.weight(if (action.badge != null) 1.8f else 1f).heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
+        Box(Modifier.weight(action.layoutWeight).heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
             .background(if (action.selected) colors.fill else Color.Transparent)
             .clickable(role = Role.Button, onClick = action.onClick).semantics { selected = action.selected; contentDescription = action.accessibilityLabel }
-            .padding(horizontal = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(action.icon, null, size = 24.dp, tint = if (action.selected) colors.accent else colors.label)
-            action.badge?.let { AppText(it, AppTheme.typography.caption1, color = colors.accent, modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics {}, maxLines = 1) }
+            .padding(horizontal = 4.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
+            PlayerUtilityContent(action, iconTint = if (action.selected) colors.accent else colors.label, badgeTint = colors.accent)
         }
     }
 }

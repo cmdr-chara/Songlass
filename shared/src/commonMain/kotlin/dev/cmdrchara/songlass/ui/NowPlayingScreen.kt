@@ -18,6 +18,8 @@ import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
@@ -65,13 +67,13 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val isFavorite = track.id in favoriteIds
     val storedRatings by state.ratings.values.collectAsState()
     val rating = storedRatings[track.id] ?: 0
-    val quality = audioQualityLabel(player.audioFormat)
+    val quality = remember(player.audioFormat) { audioQualityLabel(player.audioFormat) }
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 28.dp)) {
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
         val viewportHeight = maxHeight
         val minimumPageHeight = 240.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
-        val seekGap = if (maxHeight > 600.dp) 8.dp else 4.dp
+        val controlGap = if (maxHeight > 600.dp) 12.dp else 8.dp
         val scroll = rememberScrollState()
         val needsScroll = scroll.maxValue > 0
         Box(Modifier.fillMaxSize().verticalScroll(scroll)) {
@@ -125,22 +127,47 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                     onLongClickLabel = expandArtworkLabel,
                                     onLongClick = { state.updateArtworkExpansion(true) },
                                 ).semantics { contentDescription = artworkLabel }) else Spacer(Modifier.weight(1f))
-                                BoxWithConstraints(Modifier.padding(bottom = 8.dp)) {
-                                    val ratingBelowTitle = maxWidth < 320.dp * LocalDensity.current.fontScale
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Column(Modifier.weight(1f)) {
-                                            AppText(track.title, AppTheme.typography.title3.copy(fontWeight = FontWeight.Bold), maxLines = 2)
-                                            AppText(if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
-                                                else artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 2)
-                                            if (ratingBelowTitle) RatingIndicator(rating = rating,
-                                                onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
-                                        }
-                                        if (!ratingBelowTitle) RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
+                                Column(
+                                    Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        AppText(
+                                            track.title,
+                                            AppTheme.typography.title1.copy(fontWeight = FontWeight.Bold),
+                                            modifier = Modifier.weight(1f).semantics { heading() },
+                                            maxLines = 2,
+                                        )
                                         IconButton(
                                             icon = if (isFavorite) AppIcons.StarFilled else AppIcons.Star,
                                             contentDescription = stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
-                                            onClick = { state.favorites.toggle(track.id) }, selected = isFavorite, filled = true,
+                                            onClick = { state.favorites.toggle(track.id) },
+                                            selected = isFavorite,
+                                            filled = isFavorite,
                                         )
+                                    }
+                                    Row(
+                                        Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        val artist = artistName(track.artist)
+                                        val album = track.album?.takeIf(String::isNotBlank)?.takeUnless {
+                                            it.equals(track.title, ignoreCase = true) || it.equals(artist, ignoreCase = true)
+                                        }
+                                        AppText(
+                                            if (queue.current?.isAvailable == false) stringResource(Res.string.queue_file_unavailable)
+                                            else listOfNotNull(artist, album).joinToString(" · "),
+                                            AppTheme.typography.subheadline,
+                                            modifier = Modifier.weight(1f),
+                                            color = secondary,
+                                            maxLines = 2,
+                                        )
+                                        RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
                                     }
                                 }
                             }
@@ -175,25 +202,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             selected = queue.repeatMode != RepeatMode.Off, filled = queue.repeatMode != RepeatMode.Off,
                         )
                     }
-                    if (compact) {
-                        // Lyrics need the room: all playback controls on one line.
-                        Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            shuffle()
-                            IconButton(AppIcons.Previous, labels.previous, controller::skipToPrevious)
-                            IconButton(if (player.isPlaying) AppIcons.Pause else AppIcons.Play, if (player.isPlaying) labels.pause else labels.play, controller::togglePlayPause)
-                            IconButton(AppIcons.Next, labels.next, controller::skipToNext)
-                            repeat()
-                        }
-                    } else {
-                        Box(Modifier.fillMaxWidth().padding(vertical = 4.dp), contentAlignment = Alignment.Center) {
-                            TransportControls(player.isPlaying, labels, controller::skipToPrevious, controller::togglePlayPause, controller::skipToNext)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            shuffle()
-                            repeat()
-                        }
-                        Spacer(Modifier.height(seekGap))
-                    }
+                    // Keep the timeline beside the track context, before the transport controls.
+                    SeekBar(player.positionMs, durationForControls, controller::seekTo, qualityLabel = quality, isPlaying = player.isPlaying)
                     if (isLongTrack) {
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -205,7 +215,42 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                 Modifier.weight(1f).semantics { contentDescription = forwardLabel })
                         }
                     }
-                    SeekBar(player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, controller::seekTo, qualityLabel = quality, isPlaying = player.isPlaying)
+                    Spacer(Modifier.height(controlGap))
+                    if (compact) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            shuffle()
+                            IconButton(AppIcons.Previous, labels.previous, controller::skipToPrevious)
+                            IconButton(if (player.isPlaying) AppIcons.Pause else AppIcons.Play, if (player.isPlaying) labels.pause else labels.play, controller::togglePlayPause)
+                            IconButton(AppIcons.Next, labels.next, controller::skipToNext)
+                            repeat()
+                        }
+                    } else {
+                        BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            val inlineTransport = maxWidth >= 312.dp && LocalDensity.current.fontScale <= 1.3f
+                            if (inlineTransport) {
+                                Row(
+                                    Modifier.widthIn(max = 416.dp).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    shuffle()
+                                    TransportControls(player.isPlaying, labels, controller::skipToPrevious,
+                                        controller::togglePlayPause, controller::skipToNext, Modifier.weight(1f))
+                                    repeat()
+                                }
+                            } else {
+                                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TransportControls(player.isPlaying, labels, controller::skipToPrevious,
+                                        controller::togglePlayPause, controller::skipToNext, Modifier.fillMaxWidth())
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        shuffle()
+                                        repeat()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                     val minutesLeft = sleepMinutesLeft(sleepTimer)
                     val timerLabel = when {
                         minutesLeft != null -> stringResource(Res.string.player_timer_minutes, minutesLeft)
@@ -267,11 +312,7 @@ private fun PlayerContentLayout(viewportHeight: Dp, minimumPageHeight: Dp, conte
     }
 }
 
-/**
- * Compact star row for the player: it shows the stored rating and opens the same "Rating" page
- * as the track menu. The whole indicator is one button with a readable label and value; its
- * minimum target stays above 44 dp without changing the title row's height.
- */
+/** A compact score opens the existing rating page, independently of the Favourite action. */
 @Composable
 private fun RatingIndicator(rating: Int, onClick: () -> Unit) {
     val label = stringResource(Res.string.rating_title)
@@ -289,16 +330,20 @@ private fun RatingIndicator(rating: Int, onClick: () -> Unit) {
                 stateDescription = value
             }
             .padding(horizontal = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        for (star in 1..Ratings.MAX_STARS) {
-            AppIcon(
-                icon = if (star <= rating) AppIcons.StarFilled else AppIcons.Star,
-                contentDescription = null,
-                size = 12.dp,
-                tint = if (star <= rating) AppTheme.colors.accent else AppTheme.colors.tertiaryLabel,
-            )
-        }
+        AppIcon(
+            icon = if (rating > 0) AppIcons.StarFilled else AppIcons.Star,
+            contentDescription = null,
+            size = 14.dp,
+            tint = if (rating > 0) AppTheme.colors.accent else AppTheme.colors.secondaryLabel,
+        )
+        AppText(
+            "${if (rating > 0) rating.toString() else "–"}/${Ratings.MAX_STARS}",
+            AppTheme.typography.footnote.copy(fontFeatureSettings = "tnum", fontWeight = FontWeight.Medium),
+            modifier = Modifier.clearAndSetSemantics {},
+            maxLines = 1,
+        )
     }
 }

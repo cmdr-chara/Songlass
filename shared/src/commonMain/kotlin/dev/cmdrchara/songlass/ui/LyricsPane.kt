@@ -103,7 +103,7 @@ internal fun LyricsPane(
     }
     Column(modifier.padding(top = 16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            AlbumArt(track.artwork(), Modifier.size(44.dp), cornerRadius = 6.dp)
+            AlbumArt(rememberTrackArtwork(track), Modifier.size(44.dp), cornerRadius = 6.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 AppText(track.title, AppTheme.typography.headline, maxLines = 1)

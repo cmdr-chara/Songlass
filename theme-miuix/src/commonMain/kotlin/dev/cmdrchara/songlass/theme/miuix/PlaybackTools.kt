@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -20,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.PlaybackToolGroup
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityRows
+import dev.cmdrchara.songlass.designsystem.PlayerUtilityContent
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -102,16 +102,13 @@ internal fun MiuixPlaybackTools(visible: Boolean, title: String, subtitle: Strin
 internal fun MiuixPlayerUtilities(actions: List<PlayerUtilityAction>, modifier: Modifier) {
     val colors = AppTheme.colors
     PlayerUtilityRows(actions, spacing = 8.dp, modifier = modifier) { action, _, _ ->
-        Button(onClick = action.onClick, modifier = Modifier.weight(if (action.badge != null) 1.8f else 1f).heightIn(min = 48.dp).semantics { selected = action.selected; contentDescription = action.accessibilityLabel },
+        Button(onClick = action.onClick, modifier = Modifier.weight(action.layoutWeight).heightIn(min = 48.dp).semantics { selected = action.selected; contentDescription = action.accessibilityLabel },
             insideMargin = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
             cornerRadius = 16.dp, colors = ButtonDefaults.buttonColors(
                 color = if (action.selected) colors.accent.copy(alpha = 0.16f) else colors.fill,
                 contentColor = if (action.selected) colors.accent else colors.label,
             )) {
-            Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                AppIcon(action.icon, null, size = 22.dp, tint = if (action.selected) colors.accent else colors.label)
-                action.badge?.let { AppText(it, AppTheme.typography.caption1, color = colors.accent, modifier = Modifier.padding(start = 4.dp).clearAndSetSemantics {}, maxLines = 1) }
-            }
+            PlayerUtilityContent(action, iconTint = if (action.selected) colors.accent else colors.label, badgeTint = colors.accent)
         }
     }
 }

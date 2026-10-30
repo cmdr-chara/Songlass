@@ -12,12 +12,14 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -34,12 +36,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
@@ -84,27 +88,31 @@ internal fun WavySeekBar(
         if (reduceMotion) snap() else spring(dampingRatio = 0.8f, stiffness = 200f),
         label = "waveAmplitude",
     )
-    val phase by rememberInfiniteTransition(label = "wave").animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(tween(WAVE_PERIOD_MS, easing = LinearEasing), RepeatMode.Restart),
-        label = "wavePhase",
-    )
+    val phase = if (waving) {
+        val animatedPhase by rememberInfiniteTransition(label = "wave").animateFloat(
+            initialValue = 0f,
+            targetValue = (2 * PI).toFloat(),
+            animationSpec = infiniteRepeatable(tween(WAVE_PERIOD_MS, easing = LinearEasing), RepeatMode.Restart),
+            label = "wavePhase",
+        )
+        animatedPhase
+    } else 0f
+
+    val timeStyle = AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium, fontFeatureSettings = "tnum")
+    val secondary = content.copy(alpha = 0.72f)
+    val textMeasurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val quality = qualityLabel?.takeIf { it.isNotBlank() }
+    val elapsedText = formatDuration(shownPosition)
+    val remainingText = "-" + formatDuration(duration - shownPosition)
+    val textWidths = remember(elapsedText, remainingText, quality, timeStyle, textMeasurer, density) {
+        val time = maxOf(textMeasurer.measure(elapsedText, timeStyle).size.width,
+            textMeasurer.measure(remainingText, timeStyle).size.width)
+        val qualityWidth = textMeasurer.measure(quality.orEmpty(), timeStyle).size.width
+        with(density) { maxOf(48.dp, time.toDp()) to qualityWidth.toDp() }
+    }
 
     Column(modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            val timeStyle = AppTheme.typography.footnote.copy(fontWeight = FontWeight.Medium)
-            val secondary = content.copy(alpha = 0.72f)
-            AppText(formatDuration(shownPosition), timeStyle, Modifier.widthIn(min = 48.dp), color = secondary)
-            AppText(
-                qualityLabel.orEmpty(), timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
-                color = secondary, textAlign = TextAlign.Center, maxLines = 1,
-            )
-            AppText(
-                "-" + formatDuration(duration - shownPosition), timeStyle, Modifier.widthIn(min = 48.dp),
-                color = secondary, textAlign = TextAlign.End,
-            )
-        }
         Canvas(
             modifier = Modifier.fillMaxWidth().height(44.dp)
                 .semantics {
@@ -158,6 +166,23 @@ internal fun WavySeekBar(
                 drawPath(wave, content.copy(alpha = 0.92f), style = Stroke(stroke, cap = StrokeCap.Round))
             }
             drawRoundRect(content, Offset(x - thumbWidth / 2f, y - thumbHeight / 2f), Size(thumbWidth, thumbHeight), CornerRadius(thumbWidth / 2f))
+        }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val timeWidth = textWidths.first.coerceAtMost(maxWidth / 2)
+            val stacked = quality != null &&
+                (density.fontScale > 1.3f || timeWidth * 2 + textWidths.second + 16.dp > maxWidth)
+            Column {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    AppText(elapsedText, timeStyle, Modifier.width(timeWidth), color = secondary, maxLines = 1)
+                    if (quality == null || stacked) Spacer(Modifier.weight(1f))
+                    else AppText(quality, timeStyle, Modifier.weight(1f).padding(horizontal = 8.dp),
+                        color = secondary, textAlign = TextAlign.Center, maxLines = 1)
+                    AppText(remainingText, timeStyle, Modifier.width(timeWidth),
+                        color = secondary, textAlign = TextAlign.End, maxLines = 1)
+                }
+                if (stacked) AppText(quality.orEmpty(), timeStyle, Modifier.fillMaxWidth().padding(top = 4.dp),
+                    color = secondary, textAlign = TextAlign.Center)
+            }
         }
     }
 }
