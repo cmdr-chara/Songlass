@@ -184,7 +184,7 @@
     <string name="eq_title">Equalizzatore</string>
     <string name="eq_on">Attivo</string>
     <string name="eq_off">Disattivato</string>
-    <string name="eq_hint">Trascina i punti per modellare il suono. Il volume si abbassa da solo quanto serve per i rinforzi, così niente distorce.</string>
+    <string name="eq_hint">Trascina i punti per regolare il suono. Il volume si riduce per compensare i rinforzi.</string>
     <string name="eq_presets">Preimpostazioni</string>
     <string name="eq_preset_flat">Neutro</string>
     <string name="eq_preset_more_bass">Più bassi</string>
@@ -270,7 +270,7 @@
     <string name="smart_dynamic">Si aggiorna automaticamente</string>
     <string name="smart_empty">Nessun brano corrisponde ancora. Modifica le regole o aggiungi musica alla libreria.</string>
     <string name="smart_delete_question">Eliminare questa playlist intelligente?</string>
-    <string name="smart_rules_hint">I brani devono rispettare tutte le regole attive. Lascia vuoto un campo per ignorarlo. La musica esclusa resta nascosta.</string>
+    <string name="smart_rules_hint">I brani devono rispettare tutte le regole attive. I campi vuoti non filtrano; i brani esclusi restano nascosti.</string>
     <string name="smart_favorites">Solo preferiti</string>
     <string name="smart_play_status">Cronologia degli ascolti</string>
     <string name="smart_any">Qualsiasi brano</string>
@@ -292,7 +292,7 @@
     <string name="eq_outputs_bound">Suono salvato per questa uscita</string>
     <string name="eq_outputs_manual">Suono manuale</string>
     <string name="eq_outputs_remove">Rimuovi il suono salvato per questa uscita</string>
-    <string name="eq_outputs_hint">Collega e seleziona cuffie o auto, regola il suono e salvalo per quella uscita. Attiva il cambio automatico per richiamarlo. Le altre uscite mantengono il suono manuale.</string>
+    <string name="eq_outputs_hint">Salva le regolazioni per l’uscita selezionata. Attiva il cambio automatico per richiamarle; le altre uscite usano le impostazioni manuali.</string>
     <string name="tags_edit">Modifica tag e copertina</string>
     <string name="tags_hint">Salva modifica il file audio selezionato.</string>
     <string name="tags_loading">Lettura dei tag del file…</string>
@@ -335,9 +335,9 @@
     <string name="autoeq_retry">Riprova</string>
     <string name="autoeq_preview">Anteprima della correzione</string>
     <string name="autoeq_curve_description">Curva di correzione delle cuffie %1$s, da 20 Hz a 20 kHz</string>
-    <string name="autoeq_preview_hint">20 Hz – 20 kHz · L’anteprima non cambia il suono. Applica aggiunge la correzione alle tue bande EQ, con protezione automatica dal clipping.</string>
+    <string name="autoeq_preview_hint">20 Hz – 20 kHz · L’anteprima non modifica il suono. Applica aggiunge la correzione alle bande EQ e compensa i rinforzi.</string>
     <string name="autoeq_bind">Usa automaticamente con %1$s</string>
-    <string name="autoeq_bind_hint">Richiama questa correzione quando è selezionata questa uscita. Il tuo EQ manuale resta disponibile per le altre uscite.</string>
+    <string name="autoeq_bind_hint">Richiama questa correzione per l’uscita selezionata; sulle altre resta l’EQ manuale.</string>
     <string name="autoeq_apply">Applica correzione</string>
     <string name="autoeq_attribution">Risultati consigliati di AutoEQ di Jaakko Pasanen (MIT). Scegli modello e variante ANC/cuscinetti esatti. La correzione è un punto di partenza: vestibilità e gusti variano.</string>
     <string name="about_autoeq_title">Profili cuffie AutoEQ</string>

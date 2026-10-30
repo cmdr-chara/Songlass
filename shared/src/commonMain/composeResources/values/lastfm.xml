@@ -24,7 +24,7 @@
     <string name="lastfm_api_save">Save key</string>
     <string name="lastfm_api_state">API account</string>
     <string name="lastfm_api_configured">Key and secret configured</string>
-    <string name="lastfm_api_hint">Songlass ships without a Last.fm API key. Create your own API account at last.fm/api and paste the key and secret here: they stay on this device and are never part of a backup.</string>
+    <string name="lastfm_api_hint">Create credentials at last.fm/api. The key and secret stay on this device and are excluded from backups.</string>
     <string name="lastfm_api_missing">No API key configured, so scrobbling cannot run. Enter the key and secret of a Last.fm API account.</string>
 
     <string name="lastfm_section_pending">Pending listens</string>
@@ -40,7 +40,7 @@
     <string name="lastfm_error_response">Last.fm returned an unusable response. The listens stay queued and are retried later.</string>
 
     <string name="lastfm_section_privacy">Privacy</string>
-    <string name="lastfm_privacy_hint">Only the artist, title, album, duration and time of the listen leave the device. Never file paths, file names, audio or the rest of your library.</string>
+    <string name="lastfm_privacy_hint">Sends only the artist, title, album, duration and time of each listen.</string>
     <string name="lastfm_privacy_storage">The session key is kept in this app’s private preferences, protected by the operating system but not encrypted by Songlass.</string>
 
     <string name="lastfm_forget">Disconnect and forget</string>

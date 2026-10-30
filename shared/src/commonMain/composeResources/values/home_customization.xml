@@ -21,7 +21,7 @@
     <string name="homecfg_section_playlists">Your playlists</string>
 
     <string name="homecfg_shortcuts_title">Shortcuts</string>
-    <string name="homecfg_shortcuts_hint">Choose up to %1$d albums, artists, folders, personal or smart playlists, or your favorites. They come first in the grid.</string>
+    <string name="homecfg_shortcuts_hint">Pin up to %1$d albums, artists, folders, playlists or favourites at the top of the grid.</string>
     <string name="homecfg_shortcuts_empty">No shortcuts chosen: the grid fills in automatically from what you played recently.</string>
     <string name="homecfg_shortcut_unavailable">Not in the visible library right now</string>
     <string name="homecfg_shortcut_position">Shortcut %1$d of %2$d</string>

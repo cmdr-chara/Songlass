@@ -22,14 +22,13 @@ import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_wifi_hint
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_stored
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_clear
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_clear_hint
-import dev.cmdrchara.songlass.shared.resources.artwork_online_privacy
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /**
  * Appearance page, "Online covers": the opt-in that has to be on before anything leaves the
- * device, the rule that downloads wait for Wi-Fi, and the data-use note in plain words.
+ * device and the rule that downloads wait for Wi-Fi.
  *
  * Shown only where the platform can actually reach a provider (the caller decides), so the switch
  * never promises a feature that cannot run. Resetting the Appearance page clears both values.
@@ -79,13 +78,5 @@ internal fun SettingsItems.onlineArtworkSettings(
                 onClick = { scope.launch { controller.downloaded.clear() } },
             )
         }
-    }
-    item {
-        AppText(
-            stringResource(Res.string.artwork_online_privacy),
-            AppTheme.typography.footnote,
-            color = AppTheme.colors.secondaryLabel,
-            modifier = Modifier.padding(horizontal = pageInset + 4.dp, vertical = 8.dp),
-        )
     }
 }

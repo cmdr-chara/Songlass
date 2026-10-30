@@ -9,7 +9,7 @@
     <string name="settings_audio_focus">Yield to calls and other apps</string>
     <string name="settings_audio_focus_hint">Allow other apps to pause or lower playback.</string>
     <string name="settings_pause_disconnect">Pause when disconnected</string>
-    <string name="settings_pause_disconnect_hint">Stops if headphones are unplugged or Bluetooth drops, so the speaker never starts by surprise.</string>
+    <string name="settings_pause_disconnect_hint">Pauses when headphones disconnect or Bluetooth drops.</string>
     <string name="settings_headset_connection">Connection</string>
     <string name="settings_headset_buttons">Buttons</string>
     <string name="settings_headset_multi">Multiple presses</string>

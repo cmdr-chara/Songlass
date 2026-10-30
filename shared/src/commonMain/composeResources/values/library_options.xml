@@ -3,7 +3,7 @@
     <string name="library_counting_default">30 seconds or half a short song</string>
     <string name="library_counting_half">50% of the song</string>
     <string name="library_counting_nearly_all">90% of the song</string>
-    <string name="library_counting_hint">Only listening time counts: pauses, buffering and seeking don’t. Applies from the next song; unknown duration uses 30 seconds.</string>
+    <string name="library_counting_hint">Counts listening time from the next song, excluding pauses, buffering and seeking. Unknown duration uses 30 seconds.</string>
     <string name="stats_counting_current">Future plays: %1$s.</string>
     <string name="stats_history_details">Periods keep up to two years or 50,000 dated plays. All Time includes earlier totals. Only visible songs count; artist credits may overlap.</string>
     <string name="playlist_insert_title">Add songs to playlist</string>
@@ -22,7 +22,7 @@
     <string name="library_album_artists">Album artists</string>
     <string name="library_years">Years</string>
     <string name="library_composers">Composers</string>
-    <string name="library_metadata_hint">Collections use the tags of visible songs. Missing years, album artists and composers are not inferred from other fields.</string>
+    <string name="library_metadata_hint">Collections use visible tracks’ tags, without inferring missing years, album artists or composers.</string>
     <string name="library_metadata_empty">No matching metadata in the visible library.</string>
     <string name="library_layout_list">List</string>
     <string name="library_layout_grid">Grid</string>

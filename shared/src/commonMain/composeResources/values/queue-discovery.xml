@@ -22,7 +22,7 @@
     <string name="queue_choose_songs">Choose more songs</string>
     <string name="queue_save_upcoming">Save upcoming songs</string>
     <string name="queue_save_name">Name playlist</string>
-    <string name="queue_save_selection_hint">The selected songs keep their upcoming order, even if playback moves on. Each song is saved once.</string>
+    <string name="queue_save_selection_hint">Saves selected tracks in queue order, once per track, even while playback continues.</string>
     <plurals name="queue_save_song_count">
         <item quantity="one">%1$d song selected</item>
         <item quantity="other">%1$d songs selected</item>

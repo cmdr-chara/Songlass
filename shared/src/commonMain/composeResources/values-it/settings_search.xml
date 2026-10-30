@@ -1,7 +1,7 @@
 <resources>
     <string name="settings_search_placeholder">Cerca nelle impostazioni</string>
     <string name="settings_search_empty">Nessuna impostazione trovata</string>
-    <string name="settings_search_empty_hint">Prova un nome diverso o una ricerca più breve. Sono mostrate solo le impostazioni disponibili su questo dispositivo.</string>
+    <string name="settings_search_empty_hint">Prova un altro nome o una ricerca più breve.</string>
     <string name="settings_search_results">Risultati della ricerca</string>
     <string name="settings_search_current">Attuale: %1$s</string>
     <string name="settings_search_located">Impostazione trovata: %1$s</string>

@@ -3,7 +3,7 @@
     <string name="library_counting_default">30 secondi o metà di un brano breve</string>
     <string name="library_counting_half">Il 50% del brano</string>
     <string name="library_counting_nearly_all">Il 90% del brano</string>
-    <string name="library_counting_hint">Conta solo il tempo in ascolto: pause, caricamenti e salti non contano. Vale dal prossimo brano; durata sconosciuta = 30 secondi.</string>
+    <string name="library_counting_hint">Conta il tempo di ascolto dal prossimo brano, escludendo pause, caricamenti e salti. Durata sconosciuta: 30 secondi.</string>
     <string name="stats_counting_current">Ascolti futuri: %1$s.</string>
     <string name="stats_history_details">I periodi conservano fino a due anni o 50.000 ascolti con data. Sempre include i totali precedenti. Contano i brani visibili; i crediti degli artisti possono sovrapporsi.</string>
     <string name="playlist_insert_title">Aggiungi brani alla playlist</string>
@@ -22,7 +22,7 @@
     <string name="library_album_artists">Artisti dell’album</string>
     <string name="library_years">Anni</string>
     <string name="library_composers">Compositori</string>
-    <string name="library_metadata_hint">Le raccolte usano i tag dei brani visibili. Anni, artisti dell’album e compositori mancanti non vengono dedotti da altri campi.</string>
+    <string name="library_metadata_hint">Le raccolte usano i tag dei brani visibili, senza dedurre anni, artisti album o compositori mancanti.</string>
     <string name="library_metadata_empty">Nessun metadato corrispondente nella libreria visibile.</string>
     <string name="library_layout_list">Elenco</string>
     <string name="library_layout_grid">Griglia</string>

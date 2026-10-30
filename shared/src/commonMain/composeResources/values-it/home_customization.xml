@@ -21,7 +21,7 @@
     <string name="homecfg_section_playlists">Le tue playlist</string>
 
     <string name="homecfg_shortcuts_title">Scorciatoie</string>
-    <string name="homecfg_shortcuts_hint">Scegli fino a %1$d album, artisti, cartelle, playlist personali o intelligenti, oppure i preferiti. Vengono prima nella griglia.</string>
+    <string name="homecfg_shortcuts_hint">Fissa fino a %1$d album, artisti, cartelle, playlist o preferiti in cima alla griglia.</string>
     <string name="homecfg_shortcuts_empty">Nessuna scorciatoia scelta: la griglia si completa da sola in base a ciò che hai ascoltato di recente.</string>
     <string name="homecfg_shortcut_unavailable">Al momento non è nella libreria visibile</string>
     <string name="homecfg_shortcut_position">Scorciatoia %1$d di %2$d</string>

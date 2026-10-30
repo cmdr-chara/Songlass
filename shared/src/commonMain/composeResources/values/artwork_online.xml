@@ -2,9 +2,9 @@
 <resources>
     <!-- Settings -->
     <string name="settings_online_artwork">Online covers</string>
-    <string name="settings_online_artwork_hint">Looks for an album cover using only the artist and album name. Nothing is downloaded until you choose a cover, and nothing is ever written into the music files.</string>
+    <string name="settings_online_artwork_hint">Find album covers. Download only the ones you choose.</string>
     <string name="settings_online_artwork_wifi">Download on Wi-Fi only</string>
-    <string name="settings_online_artwork_wifi_hint">On mobile data the app waits instead of downloading. If the phone cannot report the connection, Wi-Fi only is assumed.</string>
+    <string name="settings_online_artwork_wifi_hint">Waits for Wi-Fi when using mobile data.</string>
 
     <!-- Album page entry point -->
     <string name="settings_online_artwork_stored">%1$s covers stored on this device</string>
@@ -15,9 +15,9 @@
 
     <!-- Picker page -->
     <string name="artwork_online_title">Online cover</string>
-    <string name="artwork_online_privacy">Only the artist and album name are sent to the iTunes Search API. Files, folders, song titles and paths never leave the device.</string>
-    <string name="artwork_online_provider">Provider: iTunes Search API</string>
-    <string name="artwork_online_disabled">Online covers are off. Turn them on in Settings, Appearance, to search for a cover.</string>
+    <string name="artwork_online_privacy">Searches send only the artist and album name.</string>
+    <string name="artwork_online_provider">iTunes</string>
+    <string name="artwork_online_disabled">Enable Online covers in Settings → Appearance.</string>
     <string name="artwork_online_open_settings">Open settings</string>
     <string name="artwork_online_waiting_wifi">Waiting for Wi-Fi: downloads are limited to unmetered networks.</string>
     <string name="artwork_online_searching">Searching…</string>

@@ -1,7 +1,7 @@
 <resources>
     <string name="settings_search_placeholder">Search settings</string>
     <string name="settings_search_empty">No matching settings</string>
-    <string name="settings_search_empty_hint">Try a different name or a shorter search. Only settings available on this device are shown.</string>
+    <string name="settings_search_empty_hint">Try another name or a shorter search.</string>
     <string name="settings_search_results">Search results</string>
     <string name="settings_search_current">Current: %1$s</string>
     <string name="settings_search_located">Located setting: %1$s</string>

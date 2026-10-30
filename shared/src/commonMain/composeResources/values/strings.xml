@@ -184,7 +184,7 @@
     <string name="eq_title">Equalizer</string>
     <string name="eq_on">On</string>
     <string name="eq_off">Off</string>
-    <string name="eq_hint">Drag the points to shape the sound. The volume is lowered automatically as much as the boosts need, so nothing distorts.</string>
+    <string name="eq_hint">Drag the points to adjust the sound. Gain is reduced to compensate for boosts.</string>
     <string name="eq_presets">Presets</string>
     <string name="eq_preset_flat">Flat</string>
     <string name="eq_preset_more_bass">More Bass</string>
@@ -270,7 +270,7 @@
     <string name="smart_dynamic">Updates automatically</string>
     <string name="smart_empty">No songs match these rules yet. Edit the rules or add music to your library.</string>
     <string name="smart_delete_question">Delete this smart playlist?</string>
-    <string name="smart_rules_hint">Songs must match every enabled rule. Leave a field empty to ignore it. Excluded music stays hidden.</string>
+    <string name="smart_rules_hint">Tracks must match every active rule. Empty fields do not filter; excluded music stays hidden.</string>
     <string name="smart_favorites">Favorites only</string>
     <string name="smart_play_status">Listening history</string>
     <string name="smart_any">Any song</string>
@@ -292,7 +292,7 @@
     <string name="eq_outputs_bound">Using saved sound for this output</string>
     <string name="eq_outputs_manual">Using manual sound</string>
     <string name="eq_outputs_remove">Remove saved output sound</string>
-    <string name="eq_outputs_hint">Connect and select your headphones or car, shape the sound, then save it for that output. Enable automatic switching to recall it. Other outputs keep your manual sound.</string>
+    <string name="eq_outputs_hint">Save settings for the selected output. Enable automatic switching to recall them; other outputs keep the manual settings.</string>
     <string name="tags_edit">Edit tags and cover</string>
     <string name="tags_hint">Save changes the selected audio file.</string>
     <string name="tags_loading">Reading file tags…</string>
@@ -335,9 +335,9 @@
     <string name="autoeq_retry">Try again</string>
     <string name="autoeq_preview">Correction preview</string>
     <string name="autoeq_curve_description">Headphone correction curve for %1$s, from 20 Hz to 20 kHz</string>
-    <string name="autoeq_preview_hint">20 Hz – 20 kHz · This preview does not change the sound. Apply adds the correction to your existing EQ bands, with automatic clipping protection.</string>
+    <string name="autoeq_preview_hint">20 Hz – 20 kHz · The preview does not change audio. Apply adds the correction to your EQ bands and compensates for boosts.</string>
     <string name="autoeq_bind">Use automatically with %1$s</string>
-    <string name="autoeq_bind_hint">Recalls this correction when this output is selected. Your manual EQ stays available for other outputs.</string>
+    <string name="autoeq_bind_hint">Recall this correction for the selected output. Other outputs keep the manual EQ.</string>
     <string name="autoeq_apply">Apply correction</string>
     <string name="autoeq_attribution">Recommended results from AutoEQ by Jaakko Pasanen (MIT). Choose the exact model and ANC/pad variant. Corrections are a starting point; fit and taste vary.</string>
     <string name="about_autoeq_title">AutoEQ headphone profiles</string>

@@ -7,14 +7,14 @@
     <string name="settings_text_scale_large">Large · 115%</string>
     <string name="settings_text_scale_larger">Larger · 130%</string>
     <string name="settings_text_scale_largest">Largest · 150%</string>
-    <string name="settings_text_scale_hint">Uses the system text size too, up to twice the normal size. Spacing and controls keep their size.</string>
+    <string name="settings_text_scale_hint">Combines with the system text size, up to 200%.</string>
     <string name="settings_blur_intensity">Background blur</string>
     <string name="settings_blur_off">Off</string>
     <string name="settings_blur_low">Low</string>
     <string name="settings_blur_default">Default</string>
     <string name="settings_blur_high">High</string>
-    <string name="settings_blur_hint">Strength of the blur behind navigation bars. With Reduce Transparency on, bars stay solid.</string>
+    <string name="settings_blur_hint">Blurs the background of transparent bars.</string>
     <string name="settings_navigation">Navigation</string>
     <string name="settings_search_in_bar">Search in the navigation bar</string>
-    <string name="settings_search_in_bar_hint">Liquid Glass: one bar with Search as a tab, instead of a separate search circle. Material and Miuix already work this way.</string>
+    <string name="settings_search_in_bar_hint">Move Search into the navigation bar.</string>
 </resources>

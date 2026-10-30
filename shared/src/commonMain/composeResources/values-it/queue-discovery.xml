@@ -22,7 +22,7 @@
     <string name="queue_choose_songs">Scegli altri brani</string>
     <string name="queue_save_upcoming">Salva i brani in coda</string>
     <string name="queue_save_name">Scegli il nome della playlist</string>
-    <string name="queue_save_selection_hint">I brani selezionati mantengono il loro ordine in coda, anche se la riproduzione prosegue. Ogni brano viene salvato una sola volta.</string>
+    <string name="queue_save_selection_hint">Salva i brani selezionati in ordine di coda, una sola volta per brano, anche durante la riproduzione.</string>
     <plurals name="queue_save_song_count">
         <item quantity="one">%1$d brano selezionato</item>
         <item quantity="other">%1$d brani selezionati</item>

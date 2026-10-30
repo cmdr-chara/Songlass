@@ -24,7 +24,7 @@
     <string name="lastfm_api_save">Salva chiave</string>
     <string name="lastfm_api_state">Account API</string>
     <string name="lastfm_api_configured">Chiave e segreto configurati</string>
-    <string name="lastfm_api_hint">Songlass non include una chiave API Last.fm. Crea un tuo account API su last.fm/api e incolla qui chiave e segreto: restano su questo dispositivo e non fanno parte del backup.</string>
+    <string name="lastfm_api_hint">Crea le credenziali su last.fm/api. Chiave e segreto restano sul dispositivo e sono esclusi dal backup.</string>
     <string name="lastfm_api_missing">Nessuna chiave API configurata: lo scrobbling non può funzionare. Inserisci la chiave e il segreto di un account API Last.fm.</string>
 
     <string name="lastfm_section_pending">Ascolti in attesa</string>
@@ -40,7 +40,7 @@
     <string name="lastfm_error_response">Last.fm ha restituito una risposta inutilizzabile. Gli ascolti restano in coda e verranno ritentati.</string>
 
     <string name="lastfm_section_privacy">Privacy</string>
-    <string name="lastfm_privacy_hint">Lasciano il dispositivo solo artista, titolo, album, durata e ora dell’ascolto. Mai percorsi, nomi di file, audio o il resto della libreria.</string>
+    <string name="lastfm_privacy_hint">Invia solo artista, titolo, album, durata e ora degli ascolti.</string>
     <string name="lastfm_privacy_storage">La chiave di sessione è conservata nelle preferenze private dell’app, protette dal sistema operativo ma non cifrate da Songlass.</string>
 
     <string name="lastfm_forget">Scollega e dimentica</string>

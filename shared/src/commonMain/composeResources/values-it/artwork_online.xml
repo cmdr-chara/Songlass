@@ -2,9 +2,9 @@
 <resources>
     <!-- Impostazioni -->
     <string name="settings_online_artwork">Copertine online</string>
-    <string name="settings_online_artwork_hint">Cerca la copertina di un album usando solo artista e nome dell\'album. Nulla viene scaricato finché non scegli una copertina, e nulla viene mai scritto nei file musicali.</string>
+    <string name="settings_online_artwork_hint">Cerca copertine per gli album. Scarica solo quelle che scegli.</string>
     <string name="settings_online_artwork_wifi">Scarica solo in Wi-Fi</string>
-    <string name="settings_online_artwork_wifi_hint">Con i dati mobili l\'app attende invece di scaricare. Se il telefono non può indicare il tipo di connessione, si assume il Wi-Fi.</string>
+    <string name="settings_online_artwork_wifi_hint">Rimanda i download quando usi i dati mobili.</string>
 
     <!-- Pagina album -->
     <string name="settings_online_artwork_stored">%1$s copertine salvate su questo dispositivo</string>
@@ -15,9 +15,9 @@
 
     <!-- Pagina di scelta -->
     <string name="artwork_online_title">Copertina online</string>
-    <string name="artwork_online_privacy">All\'iTunes Search API vengono inviati solo artista e nome dell\'album. File, cartelle, titoli dei brani e percorsi non lasciano il dispositivo.</string>
-    <string name="artwork_online_provider">Provider: iTunes Search API</string>
-    <string name="artwork_online_disabled">Le copertine online sono disattivate. Attivale in Impostazioni, Aspetto, per cercare una copertina.</string>
+    <string name="artwork_online_privacy">La ricerca invia solo artista e album.</string>
+    <string name="artwork_online_provider">iTunes</string>
+    <string name="artwork_online_disabled">Attiva Copertine online in Impostazioni → Aspetto.</string>
     <string name="artwork_online_open_settings">Apri impostazioni</string>
     <string name="artwork_online_waiting_wifi">In attesa del Wi-Fi: i download sono limitati alle reti non a consumo.</string>
     <string name="artwork_online_searching">Ricerca in corso…</string>

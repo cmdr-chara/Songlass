@@ -9,7 +9,7 @@
     <string name="settings_audio_focus">Cedi a chiamate e altre app</string>
     <string name="settings_audio_focus_hint">Consenti alle altre app di interrompere o abbassare la musica.</string>
     <string name="settings_pause_disconnect">Pausa allo scollegamento</string>
-    <string name="settings_pause_disconnect_hint">Si ferma se scolleghi le cuffie o cade il Bluetooth, così l’altoparlante non parte a sorpresa.</string>
+    <string name="settings_pause_disconnect_hint">Mette in pausa se scolleghi le cuffie o cade il Bluetooth.</string>
     <string name="settings_headset_connection">Collegamento</string>
     <string name="settings_headset_buttons">Tasti</string>
     <string name="settings_headset_multi">Pressioni multiple</string>
