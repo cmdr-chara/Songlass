@@ -1361,6 +1361,9 @@ class Media3AudioPlayer(
         val pausing = transport.pendingAction == TransportAction.Pause
         val error: PlaybackException? = player.playerError
         val infoReady = currentTrackIsReady()
+        val sampledPosition = if (editing) positionAfterEdit else
+            (transport.pendingAction as? TransportAction.Seek)?.positionMs ?: player.currentPosition.coerceAtLeast(0)
+        val sampledAt = monotonicTimeMs
         _state.value = PlayerState(
             status = when {
                 stopping -> PlayerStatus.Idle
@@ -1377,8 +1380,7 @@ class Media3AudioPlayer(
                 editing -> resumeAfterEdit
                 else -> manualPreparing != null || player.playWhenReady
             },
-            positionMs = if (editing) positionAfterEdit else
-                (transport.pendingAction as? TransportAction.Seek)?.positionMs ?: player.currentPosition.coerceAtLeast(0),
+            positionMs = sampledPosition,
             durationMs = if (editing) loadedTrack?.durationMs?.coerceAtLeast(0) ?: 0 else player.duration.takeIf { it > 0 } ?: 0,
             errorMessage = if (editing) null else error?.message,
             audioFormat = currentSourceFormat(),
@@ -1388,6 +1390,9 @@ class Media3AudioPlayer(
             replayGainApplication = if (infoReady) currentReplayGainApplication() else null,
             outputRoute = outputRoute,
             playbackSpeed = player.playbackParameters.speed,
+            positionSampledAtMs = sampledAt,
+            positionAdvancing = player.isPlaying && !editing && !stopping && !pausing &&
+                transport.pendingAction == null && !transport.awaitingSeek,
         )
     }
 

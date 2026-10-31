@@ -138,9 +138,9 @@ internal fun AppearancePreference(
     }
     OverlayBottomSheet(
         show = expanded,
-        title = title,
+        title = null,
         onDismissRequest = { expanded = false },
-        endAction = { MiuixIconAction(AppIcons.Close, closeLabel, { expanded = false }, false, false, Modifier) },
+        endAction = { MiuixSheetHeading(title, closeLabel) { expanded = false } },
     ) {
         val scroll = rememberScrollState()
         LaunchedEffect(expanded) { if (expanded) scroll.scrollTo(0) }

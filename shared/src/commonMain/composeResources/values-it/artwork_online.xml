@@ -7,7 +7,7 @@
     <string name="settings_online_artwork_wifi_hint">Rimanda i download quando usi i dati mobili.</string>
 
     <!-- Pagina album -->
-    <string name="settings_online_artwork_stored">%1$s copertine salvate su questo dispositivo</string>
+    <string name="settings_online_artwork_stored">Copertine salvate: %1$s</string>
     <string name="settings_online_artwork_clear">Rimuovi tutte</string>
     <string name="settings_online_artwork_clear_hint">Libera lo spazio usato dalle copertine scaricate.</string>
     <string name="artwork_online_action">Cerca copertina online</string>
@@ -33,11 +33,11 @@
     <string name="artwork_online_download_failed">Impossibile scaricare la copertina.</string>
     <string name="artwork_online_downloads_unavailable">Questa build non può scaricare immagini.</string>
     <string name="artwork_online_current">Copertina attuale</string>
-    <string name="artwork_online_local">Dai file dell\'album</string>
+    <string name="artwork_online_local">Dai file dell’album</string>
     <string name="artwork_online_remove">Rimuovi copertina scaricata</string>
-    <string name="artwork_online_remove_hint">Elimina la copertina salvata su questo dispositivo. L\'album torna alla copertina dei suoi file.</string>
+    <string name="artwork_online_remove_hint">Elimina la copertina salvata su questo dispositivo. L’album torna alla copertina dei suoi file.</string>
     <string name="artwork_online_removed">Copertina scaricata rimossa.</string>
     <string name="artwork_online_applied">Copertina scaricata applicata.</string>
-    <string name="artwork_online_no_album">Questo album non ha un nome: non c\'è nulla da cercare.</string>
+    <string name="artwork_online_no_album">Questo album non ha un nome: non c’è nulla da cercare.</string>
     <string name="artwork_online_preview">Anteprima di %1$s</string>
 </resources>

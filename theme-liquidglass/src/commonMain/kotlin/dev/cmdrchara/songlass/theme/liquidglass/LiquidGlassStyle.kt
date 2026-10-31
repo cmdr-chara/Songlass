@@ -76,7 +76,8 @@ object LiquidGlassStyle : UiStyle {
         highlighted: Boolean,
         onClick: (() -> Unit)?,
         modifier: Modifier,
-    ) = LocalGlassLook.current.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+        fullText: Boolean,
+    ) = LocalGlassLook.current.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, fullText)
 
     @Composable
     override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) =
@@ -105,8 +106,8 @@ object LiquidGlassStyle : UiStyle {
         LocalGlassLook.current.SortOptions(options, selectedIndex, onSelect, modifier)
 
     @Composable
-    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
-        LocalGlassLook.current.ActionButton(text, icon, onClick, modifier)
+    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) =
+        LocalGlassLook.current.ActionButton(text, icon, onClick, modifier, enabled)
 
     @Composable
     override fun artworkTileFeedback(modifier: Modifier, interactionSource: InteractionSource, shape: Shape): Modifier =

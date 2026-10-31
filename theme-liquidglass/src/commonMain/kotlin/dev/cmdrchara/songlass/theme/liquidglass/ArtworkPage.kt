@@ -84,6 +84,26 @@ private fun collectionViewport(): DpSize {
 @Composable
 fun collectionArtworkHeightBudget(): Dp = (collectionViewport().height * 0.28f).coerceIn(136.dp, 260.dp)
 
+private val CollectionArtworkFadeStops = arrayOf(
+    0f to 0f,
+    0.4f to 0f,
+    0.55f to 0.18f,
+    0.7f to 0.5f,
+    0.82f to 0.8f,
+    0.93f to 0.97f,
+    1f to 1f,
+)
+
+/** The same opacity used by the header brush, at a measured position within that header. */
+fun collectionArtworkFadeAlpha(fraction: Float): Float {
+    val position = fraction.coerceIn(0f, 1f)
+    val upper = CollectionArtworkFadeStops.indexOfFirst { position <= it.first }
+    if (upper <= 0) return CollectionArtworkFadeStops.first().second
+    val (start, startAlpha) = CollectionArtworkFadeStops[upper - 1]
+    val (end, endAlpha) = CollectionArtworkFadeStops[upper]
+    return startAlpha + (endAlpha - startAlpha) * ((position - start) / (end - start))
+}
+
 /**
  * The cover fills the width and fades into the page in its lower part, so title and actions
  * read as part of the artwork. The gradient uses the page background (the artwork's tint).
@@ -114,13 +134,14 @@ internal fun LiquidGlassArtworkHeader(artwork: Artwork, contentDescription: Stri
             .clipToBounds()
             .drawWithCache {
                 val fade = Brush.verticalGradient(
-                    0f to Color.Transparent,
-                    0.4f to Color.Transparent,
-                    0.55f to background.copy(alpha = 0.18f),
-                    0.7f to background.copy(alpha = 0.5f),
-                    0.82f to background.copy(alpha = 0.8f),
-                    0.93f to background.copy(alpha = 0.97f),
-                    1f to background,
+                    *Array(CollectionArtworkFadeStops.size) { index ->
+                        val (position, alpha) = CollectionArtworkFadeStops[index]
+                        position to when (alpha) {
+                            0f -> Color.Transparent
+                            1f -> background
+                            else -> background.copy(alpha = alpha)
+                        }
+                    },
                     endY = (size.height - 1f).coerceAtLeast(1f),
                 )
                 onDrawWithContent {

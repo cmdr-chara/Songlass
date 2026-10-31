@@ -1,8 +1,6 @@
 package dev.cmdrchara.songlass.theme.liquidglass
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.clickable
@@ -12,12 +10,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.withFrameNanos
-import androidx.compose.runtime.mutableLongStateOf
 import dev.cmdrchara.songlass.designsystem.LyricWordTiming
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -65,37 +59,10 @@ internal fun LiquidGlassLyricLine(
     val presentation = LocalGlassLook.current.lyricsPresentation
     val tint = if (AppTheme.colors.isDark) Color.White else Color(0xFF19191D)
     val wordTimed = words.isNotEmpty()
-    val sweeping = active && (wordTimed || progress != null) && !reduceMotion
-    // Read only during drawing. Re-anchor every sample/seek; never predict the next word.
-    var wordPosition by remember(text) { mutableLongStateOf(positionMs) }
-    LaunchedEffect(positionMs, isPlaying, sweeping, wordTimed) {
-        wordPosition = positionMs
-        if (wordTimed && sweeping && isPlaying && words.any { it.progressAt(positionMs) < 1f }) {
-            val anchor = withFrameNanos { it }
-            while (true) withFrameNanos { now ->
-                val elapsed = ((now - anchor) / 1_000_000L).coerceIn(0, 300)
-                wordPosition = if (positionMs > Long.MAX_VALUE - elapsed) Long.MAX_VALUE else positionMs + elapsed
-            }
-        }
-    }
-    val targetProgress = progress?.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 0f
-    val sweep = remember(text) { Animatable(targetProgress) }
-    var previousProgress by remember(text) { mutableFloatStateOf(targetProgress) }
-    LaunchedEffect(targetProgress, sweeping, isPlaying) {
-        val delta = targetProgress - previousProgress
-        previousProgress = targetProgress
-        // Each sample is already the current playback position. Start there and
-        // predict the next 250 ms instead of spending a tick catching up to it.
-        if (wordTimed || !sweeping || !isPlaying || targetProgress <= 0f || delta <= 0f || delta > 0.2f) {
-            sweep.snapTo(targetProgress)
-        } else {
-            // Small sampling jitter must not pull an ordinary forward sweep backwards.
-            val start = maxOf(targetProgress, sweep.value)
-            val predicted = maxOf(start, (targetProgress + delta).coerceAtMost(1f))
-            sweep.snapTo(start)
-            sweep.animateTo(predicted, tween(250, easing = LinearEasing))
-        }
-    }
+    // Only real word/syllable intervals may drive a karaoke sweep. A line-only LRC
+    // cannot describe the duration of individual words.
+    val sweeping = active && wordTimed && !reduceMotion
+    val playbackPosition = dev.cmdrchara.songlass.designsystem.LocalLyricsPlaybackPosition.current
     val baseColor by animateColorAsState(
         targetValue = tint.copy(alpha = if (subdued && (!active || sweeping)) 0.48f else 1f),
         animationSpec = if (reduceMotion) snap() else tween(LiquidGlassMotion.FadeMillis),
@@ -109,6 +76,8 @@ internal fun LiquidGlassLyricLine(
                 .distinctBy { it.bounds }
         }
     }
+    val wordWidths = remember(wordGlyphs) { wordGlyphs.map { run -> run.sumOf { it.bounds.width.toDouble() }.toFloat() } }
+    val mask = remember(layout, words) { Path() }
     Box(
         modifier.fillMaxWidth().heightIn(min = 44.dp)
             .semantics { selected = active }
@@ -128,7 +97,7 @@ internal fun LiquidGlassLyricLine(
                 drawContent()
                 val measured = layout
                 if (sweeping && measured != null && glyphs.isNotEmpty()) {
-                    val mask = Path()
+                    mask.reset()
                     fun reveal(glyph: SweepGlyph, fraction: Float) {
                         if (fraction <= 0f) return
                         val box = glyph.bounds
@@ -139,13 +108,14 @@ internal fun LiquidGlassLyricLine(
                         })
                     }
                     if (wordTimed) {
+                        val position = playbackPosition?.invoke() ?: positionMs
                         wordGlyphs.forEachIndexed { wordIndex, range ->
-                            val consumed = words[wordIndex].progressAt(wordPosition) * range.size
-                            range.forEachIndexed { index, glyph -> reveal(glyph, (consumed - index).coerceIn(0f, 1f)) }
+                            var remaining = words[wordIndex].progressAt(position) * wordWidths[wordIndex]
+                            range.forEach { glyph ->
+                                reveal(glyph, (remaining / glyph.bounds.width.coerceAtLeast(0.001f)).coerceIn(0f, 1f))
+                                remaining -= glyph.bounds.width
+                            }
                         }
-                    } else {
-                        val consumed = sweep.value * glyphs.size
-                        glyphs.forEachIndexed { index, glyph -> reveal(glyph, (consumed - index).coerceIn(0f, 1f)) }
                     }
                     // Drawing from the same layout keeps wrapping and glyph positions exact,
                     // and adds no second text node for screen readers to announce.

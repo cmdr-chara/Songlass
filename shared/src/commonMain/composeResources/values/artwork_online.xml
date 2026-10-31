@@ -7,7 +7,7 @@
     <string name="settings_online_artwork_wifi_hint">Waits for Wi-Fi when using mobile data.</string>
 
     <!-- Album page entry point -->
-    <string name="settings_online_artwork_stored">%1$s covers stored on this device</string>
+    <string name="settings_online_artwork_stored">Saved covers: %1$s</string>
     <string name="settings_online_artwork_clear">Remove all</string>
     <string name="settings_online_artwork_clear_hint">Frees the space used by downloaded covers.</string>
     <string name="artwork_online_action">Find cover online</string>

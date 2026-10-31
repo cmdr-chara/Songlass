@@ -49,6 +49,7 @@ fun MiniPlayer(
     modifier: Modifier = Modifier,
 ) = LocalUiStyle.current.MiniPlayer(state, labels, onClick, onPlayPause, onNext, onPrevious, modifier)
 
+/** Set [fullText] when guidance or an action needs its complete wording to remain visible. */
 @Composable
 fun ListRow(
     title: String,
@@ -57,8 +58,9 @@ fun ListRow(
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
     highlighted: Boolean = false,
+    fullText: Boolean = false,
     onClick: (() -> Unit)? = null,
-) = LocalUiStyle.current.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+) = LocalUiStyle.current.ListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, fullText)
 
 @Composable
 fun SettingsGroup(modifier: Modifier = Modifier, content: @Composable () -> Unit) =
@@ -100,7 +102,8 @@ fun ActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
-) = LocalUiStyle.current.ActionButton(text, icon, onClick, modifier)
+    enabled: Boolean = true,
+) = LocalUiStyle.current.ActionButton(text, icon, onClick, modifier, enabled)
 
 @Composable
 fun IconButton(

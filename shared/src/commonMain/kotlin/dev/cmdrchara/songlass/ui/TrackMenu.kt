@@ -47,6 +47,8 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
             add(SheetAction(stringResource(if (isFavorite) Res.string.action_unfavorite else Res.string.action_favorite),
                 if (isFavorite) AppIcons.StarFilled else AppIcons.Star) { state.favorites.toggle(track.id) })
             add(navigate(stringResource(Res.string.rating_title), if (rating > 0) AppIcons.StarFilled else AppIcons.Star, TrackMenuPage.Rating))
+            if (LocalOnlineArtwork.current != null) add(SheetAction(
+                stringResource(Res.string.feedback_find_cover), AppIcons.Search) { state.openArtworkSearch(track) })
             // Category commands only appear when the adjacent collection exists: no dead rows.
             categories.next?.let { target ->
                 val label = target.title?.let { stringResource(Res.string.category_next_named, it) }
@@ -113,7 +115,7 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
                 else stringResource(Res.string.rating_none)
             else -> track.title
         },
-        artwork = track.artwork().takeIf { page == TrackMenuPage.Main },
+        artwork = rememberTrackArtwork(track).takeIf { page == TrackMenuPage.Main },
         cancelLabel = stringResource(Res.string.action_cancel),
         onDismiss = state::closeMenu,
         actions = actions,

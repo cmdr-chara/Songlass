@@ -226,7 +226,9 @@ internal class IosAudioPlayer(private val scope: CoroutineScope) : AudioPlayer {
         }
         values.value = PlayerState(status, wanted,
             if (seeking == null && seconds.isFinite()) (seconds * 1000).toLong().coerceAtLeast(0) else state.value.positionMs,
-            if (duration.isFinite() && duration > 0) (duration * 1000).toLong() else track?.durationMs ?: 0)
+            if (duration.isFinite() && duration > 0) (duration * 1000).toLong() else track?.durationMs ?: 0,
+            positionSampledAtMs = monotonicTimeMs,
+            positionAdvancing = status == PlayerStatus.Ready && native.rate > 0f)
     }
 
     private fun fail(message: String) {

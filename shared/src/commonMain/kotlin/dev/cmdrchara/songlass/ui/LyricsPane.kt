@@ -22,6 +22,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,6 +61,7 @@ import dev.cmdrchara.songlass.designsystem.AlbumArt
 import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.LyricLine
+import dev.cmdrchara.songlass.designsystem.LocalLyricsPlaybackPosition
 import dev.cmdrchara.songlass.designsystem.LyricWordTiming
 import dev.cmdrchara.songlass.designsystem.LyricsViewport
 import dev.cmdrchara.songlass.designsystem.SettingsGroup
@@ -80,6 +87,7 @@ internal fun LyricsPane(
     repository: LyricsRepository,
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    playbackPosition: (() -> Long)? = null,
 ) {
     val repositoryRevision by repository.changes.collectAsState()
     var result by remember(track, repositoryRevision) { mutableStateOf<LyricsResult?>(null) }
@@ -115,7 +123,7 @@ internal fun LyricsPane(
         }
         if (lyrics != null && !lyrics.instrumental) {
             androidx.compose.runtime.key(track, lyrics) {
-                LyricsLines(lyrics, positionMs, durationMs, isPlaying, onSeek, Modifier.weight(1f).fillMaxWidth())
+                LyricsLines(lyrics, positionMs, durationMs, isPlaying, onSeek, Modifier.weight(1f).fillMaxWidth(), playbackPosition)
             }
         } else {
             Column(
@@ -177,13 +185,24 @@ internal fun LyricsPane(
 }
 
 @Composable
-private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier) {
+private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier, playbackPosition: (() -> Long)?) {
+    val latestPosition by rememberUpdatedState(positionMs)
+    val latestClock by rememberUpdatedState(playbackPosition)
+    var framePosition by remember(lyrics) { mutableLongStateOf(positionMs) }
+    val drawClock = remember(lyrics) { { framePosition } }
+    SideEffect { framePosition = playbackPosition?.invoke() ?: positionMs }
+    LaunchedEffect(isPlaying, playbackPosition != null) {
+        framePosition = latestClock?.invoke() ?: latestPosition
+        if (isPlaying && playbackPosition != null) {
+            while (true) withFrameNanos { framePosition = latestClock?.invoke() ?: latestPosition }
+        }
+    }
     val listState = rememberLazyListState()
-    val active = lyrics.activeLineAt(positionMs)
+    val active by remember(lyrics) { derivedStateOf { lyrics.activeLineAt(framePosition) } }
     var following by remember { mutableStateOf(true) }
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    // Prepare the next phrase before its timestamp; emphasis still follows the actual lyrics clock.
-    val scrollTarget = if (isPlaying && !reduceMotion) lyrics.scrollLineAt(positionMs, durationMs) else active
+    // Scroll and emphasis use the same sampled native clock; never anticipate a phrase.
+    val scrollTarget = active
     // A user's drag pauses following; it never fights them while they read another verse.
     LaunchedEffect(listState) {
         listState.interactionSource.interactions.collect { interaction ->
@@ -205,6 +224,7 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
     Box(modifier) {
         val breakLabel = stringResource(Res.string.lyrics_break)
         val seekLabel = stringResource(Res.string.lyrics_seek)
+        CompositionLocalProvider(LocalLyricsPlaybackPosition provides drawClock) {
         LyricsViewport(Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
@@ -226,6 +246,7 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
                     )
                 }
             }
+        }
         }
         if (!following && lyrics.isSynced) {
             ActionButton(
@@ -333,6 +354,7 @@ private fun LyricsRecoveryDialog(
                         } finally { working = false }
                     }
                 }, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(8.dp))
                 ActionButton(stringResource(Res.string.lyrics_identity_back), { preview = null }, Modifier.fillMaxWidth())
             } else if (!loading && notice != null) {
                 ActionButton(stringResource(Res.string.lyrics_retry), { notice = null; revision++ }, Modifier.fillMaxWidth())

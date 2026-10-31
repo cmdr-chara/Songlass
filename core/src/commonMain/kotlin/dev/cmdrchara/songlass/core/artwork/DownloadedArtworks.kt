@@ -2,6 +2,7 @@ package dev.cmdrchara.songlass.core.artwork
 
 import dev.cmdrchara.songlass.core.net.arrayOrNull
 import dev.cmdrchara.songlass.core.net.asJsonObjectOrNull
+import dev.cmdrchara.songlass.core.net.booleanOrNull
 import dev.cmdrchara.songlass.core.net.intOrNull
 import dev.cmdrchara.songlass.core.net.longOrNull
 import dev.cmdrchara.songlass.core.net.parseJsonOrNull
@@ -9,6 +10,10 @@ import dev.cmdrchara.songlass.core.net.stringOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonArray
@@ -57,6 +62,8 @@ data class DownloadedArtwork(
     val fileName: String,
     val sizeBytes: Long,
     val savedAtMs: Long,
+    /** Automatic matches yield to an embedded/folder image or an explicit user choice. */
+    val automatic: Boolean = false,
 ) {
     val key: String get() = subject.key
 }
@@ -64,8 +71,9 @@ data class DownloadedArtwork(
 /**
  * Downloaded covers in the app's private storage.
  *
- * A cover is stored only after the user confirms a candidate: the cache is the record of choices,
- * not a speculation. Entries are keyed by [ArtworkSubject], so a rescan, a rename of the folder or
+ * Explicit choices and conservative automatic matches are distinguished in the index.
+ * Automatic entries yield to local images and explicit choices, and cannot evict explicit entries.
+ * Entries are keyed by [ArtworkSubject], so a rescan, a rename of the folder or
  * a new MediaStore row keeps the cover attached to the album. An index file in the same directory
  * stores the mapping between key and hashed file name; it is re-read on start and repaired when a
  * file has disappeared. The cache is bounded in bytes and in entries, evicting the oldest cover
@@ -93,17 +101,28 @@ class DownloadedArtworks(
     /** Bumps on every change, so image caches can drop a cover the user removed. */
     val revision: StateFlow<Long> = _revision.asStateFlow()
 
+    private val _loaded = MutableStateFlow(false)
+    val loaded: StateFlow<Boolean> = _loaded.asStateFlow()
+
+    /** Automatic discovery may not evict confirmed user choices to make room. */
+    val hasAutomaticCapacity: Boolean get() {
+        val explicit = _state.value.values.filterNot { it.automatic }
+        return explicit.size < maxEntries && explicit.sumOf { it.sizeBytes } < maxBytes
+    }
+
     fun get(key: String): DownloadedArtwork? = _state.value[key]
 
     /** Reads the index and prunes entries whose file is gone; safe to call again on each start. */
     suspend fun load(): Unit = mutex.withLock {
         val listed = runCatching { files.list() }.getOrNull().orEmpty().associateBy { it.name }
         val stored = readIndex()
+        currentCoroutineContext().ensureActive()
         val present = stored
             .filter { listed[it.fileName] != null }
             .associateBy { it.key }
         publish(present)
         if (present.size != stored.size) writeIndex(present)
+        _loaded.value = true
     }
 
     /** Stores [bytes] as the cover of [subject]; null when the file could not be written. */
@@ -116,6 +135,44 @@ class DownloadedArtworks(
         publish(next)
         writeIndex(next)
         record
+    }
+
+    /** Atomic missing-only save: a manual selection made during lookup is never overwritten. */
+    suspend fun saveAutomaticIfAbsent(
+        subject: ArtworkSubject,
+        bytes: ByteArray,
+        canSave: () -> Boolean,
+    ): DownloadedArtwork? = mutex.withLock {
+        if (bytes.isEmpty() || _state.value[subject.key] != null || !canSave()) return null
+        val name = artworkFileName(subject.key)
+        val written = runCatching { files.write(name, bytes) }.getOrDefault(false)
+        if (!written || !canSave()) {
+            // A cancelled IO dispatcher may report cancellation after the file was written.
+            // This entry did not exist before this lock; cleanup cannot remove a manual choice.
+            withContext(NonCancellable) { runCatching { files.delete(name) } }
+            return null
+        }
+        val record = DownloadedArtwork(subject, name, bytes.size.toLong(), now(), automatic = true)
+        val explicit = _state.value.values.filterNot { it.automatic }
+        if (explicit.size + 1 > maxEntries || explicit.sumOf { it.sizeBytes } + bytes.size > maxBytes) {
+            withContext(NonCancellable) { runCatching { files.delete(name) } }
+            return null
+        }
+        // Complete index bookkeeping even if this owner is cancelled during pruning. The fresh
+        // guard still prevents publishing an automatic choice after its source/network changed.
+        withContext(NonCancellable) {
+            val next = trim(_state.value + (subject.key to record), keep = subject.key, automaticOnly = true)
+            if (!canSave()) {
+                runCatching { files.delete(name) }
+                val retained = next - subject.key
+                publish(retained)
+                writeIndex(retained)
+                return@withContext null
+            }
+            publish(next)
+            writeIndex(next)
+            record
+        }
     }
 
     /** Removes the cover of [key]; true when something was stored and deleted. */
@@ -150,10 +207,10 @@ class DownloadedArtworks(
     }
 
     /** Drops the oldest covers until both limits hold; [keep] is never evicted in this pass. */
-    private suspend fun trim(covers: Map<String, DownloadedArtwork>, keep: String): Map<String, DownloadedArtwork> {
+    private suspend fun trim(covers: Map<String, DownloadedArtwork>, keep: String, automaticOnly: Boolean = false): Map<String, DownloadedArtwork> {
         if (covers.size <= maxEntries && covers.values.sumOf { it.sizeBytes } <= maxBytes) return covers
         val removable = covers.values
-            .filter { it.key != keep }
+            .filter { it.key != keep && (!automaticOnly || it.automatic) }
             .sortedWith(compareBy<DownloadedArtwork> { it.savedAtMs }.thenBy { it.key })
         var result = covers
         for (candidate in removable) {
@@ -176,7 +233,10 @@ class DownloadedArtworks(
             val artist = entry.stringOrNull("artist") ?: ""
             val album = entry.stringOrNull("album") ?: return@mapNotNull null
             val file = entry.stringOrNull("file") ?: return@mapNotNull null
-            val subject = ArtworkSubject.of(artist, album) ?: return@mapNotNull null
+            val trackId = entry.stringOrNull("trackId")
+            val subject = if (trackId == null) ArtworkSubject.of(artist, album)
+                else if (trackId.isNotBlank() && album.isNotBlank()) ArtworkSubject(artist, album, trackId) else null
+            subject ?: return@mapNotNull null
             // A name that does not belong to this subject is not trusted for a write or a delete.
             if (file != artworkFileName(subject.key)) return@mapNotNull null
             DownloadedArtwork(
@@ -184,6 +244,7 @@ class DownloadedArtworks(
                 fileName = file,
                 sizeBytes = entry.longOrNull("size")?.takeIf { it >= 0 } ?: 0,
                 savedAtMs = entry.longOrNull("saved")?.takeIf { it >= 0 } ?: 0,
+                automatic = entry.booleanOrNull("automatic") ?: false,
             )
         }
     }
@@ -200,9 +261,11 @@ class DownloadedArtworks(
                             buildJsonObject {
                                 put("artist", JsonPrimitive(cover.subject.artist))
                                 put("album", JsonPrimitive(cover.subject.album))
+                                cover.subject.trackId?.let { put("trackId", JsonPrimitive(it)) }
                                 put("file", JsonPrimitive(cover.fileName))
                                 put("size", JsonPrimitive(cover.sizeBytes))
                                 put("saved", JsonPrimitive(cover.savedAtMs))
+                                if (cover.automatic) put("automatic", JsonPrimitive(true))
                             }
                         },
                 ),

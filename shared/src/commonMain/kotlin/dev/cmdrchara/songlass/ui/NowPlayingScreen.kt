@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.core.player.presentationPositionAt
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -11,10 +12,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -39,6 +47,11 @@ import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityAction
 import dev.cmdrchara.songlass.designsystem.PlayerUtilityBar
+import dev.cmdrchara.songlass.designsystem.LocalWindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowPanePlan
+import dev.cmdrchara.songlass.designsystem.WindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowPoint
+import dev.cmdrchara.songlass.designsystem.WindowRect
 import dev.cmdrchara.songlass.designsystem.ScreenTransition
 import dev.cmdrchara.songlass.designsystem.SeekBar
 import dev.cmdrchara.songlass.designsystem.TransportControls
@@ -58,7 +71,8 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState, favoriteIds: List<String>, labels: PlaybackLabels, onArtworkTap: () -> Unit) {
     val track = queue.current?.track ?: return
-    val trackArtwork = remember(track, state.library) { track.artwork(state.library) }
+    val trackArtwork = rememberTrackCoverView(track, state.library).artwork
+    val needsCover = rememberTrackNeedsCover(track)
     val controller = state.controller
     val preferences by state.settings.state.collectAsState()
     val durationForControls = player.durationMs.takeIf { it > 0 } ?: track.durationMs
@@ -70,18 +84,56 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
     val quality = remember(player.audioFormat) { audioQualityLabel(player.audioFormat) }
     val artworkLabel = stringResource(Res.string.playback_artwork)
     val expandArtworkLabel = stringResource(Res.string.playback_expand_artwork)
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+    val windowLayout = LocalWindowLayout.current
+    val density = LocalDensity.current
+    val adaptiveWindow = windowLayout.requiresAdaptivePlayer
+    var localWindowLayout by remember { mutableStateOf<WindowLayout?>(null) }
+    val coordinatesHolder = remember { arrayOfNulls<LayoutCoordinates>(1) }
+    val geometrySource = remember { arrayOfNulls<WindowLayout>(1) }
+    fun updateWindowCoordinates(coordinates: LayoutCoordinates) {
+        localWindowLayout = windowLayout.inLocalCoordinates(coordinates.size.width / density.density,
+            coordinates.size.height / density.density) { x, y ->
+            val local = coordinates.windowToLocal(Offset(x * density.density, y * density.density))
+            WindowPoint(local.x / density.density, local.y / density.density)
+        }
+    }
+    if (adaptiveWindow) SideEffect {
+        // Camera/trait changes can occur without a placement change.
+        if (geometrySource[0] != windowLayout) {
+            geometrySource[0] = windowLayout
+            coordinatesHolder[0]?.takeIf { it.isAttached }?.let(::updateWindowCoordinates)
+        }
+    }
+    val windowCoordinates = if (!adaptiveWindow) Modifier else Modifier.onGloballyPositioned { coordinates ->
+        coordinatesHolder[0] = coordinates
+        updateWindowCoordinates(coordinates)
+    }
+    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 24.dp).then(windowCoordinates),
+        contentAlignment = if (adaptiveWindow) AbsoluteAlignment.TopLeft else Alignment.TopStart) {
         val viewportHeight = maxHeight
         val minimumPageHeight = 240.dp * LocalDensity.current.fontScale.coerceAtLeast(1f)
-        val controlGap = if (maxHeight > 600.dp) 12.dp else 8.dp
         val scroll = rememberScrollState()
-        val needsScroll = scroll.maxValue > 0
-        Box(Modifier.fillMaxSize().verticalScroll(scroll)) {
-            PlayerContentLayout(viewportHeight, minimumPageHeight) {
+        val controlsScroll = rememberScrollState()
+        val geometry = if (adaptiveWindow) localWindowLayout else null
+        val nativePlan = geometry?.panes(WindowRect(0f, 0f, maxWidth.value, maxHeight.value), paired = true, allowWidePair = true)
+        if (adaptiveWindow && (geometry == null || nativePlan == null)) return@BoxWithConstraints
+        val paired = nativePlan?.takeIf { it.paired && it.first.height.dp >= minimumPageHeight && it.second!!.height >= 96f }
+        val needsScroll = paired == null && scroll.maxValue > 0
+        val singlePane = if (paired == null) geometry?.panes(WindowRect(0f, 0f, maxWidth.value, maxHeight.value), paired = false)?.first else null
+        val frame = singlePane ?: WindowRect(0f, 0f, maxWidth.value, maxHeight.value)
+        val controlsHeight = paired?.second?.height?.dp ?: frame.height.dp
+        val relaxedControlSpacing = controlsHeight > 600.dp && density.fontScale <= 1.3f
+        val controlGap = if (relaxedControlSpacing) 24.dp else 16.dp
+        val utilityGap = if (relaxedControlSpacing) 20.dp else 12.dp
+        val frameModifier = if (!adaptiveWindow) Modifier.fillMaxSize() else
+            Modifier.absoluteOffset(frame.left.dp, frame.top.dp).width(frame.width.dp).height(frame.height.dp)
+        Box(frameModifier.then(if (paired == null) Modifier.verticalScroll(scroll) else Modifier)) {
+            PlayerContentLayout(if (adaptiveWindow && paired == null) frame.height.dp else viewportHeight, minimumPageHeight, paired) {
                 ScreenTransition(state.playerPage, Modifier.fillMaxWidth()) { page ->
                     Column(Modifier.fillMaxSize()) {
                         when (page) {
-                            PlayerPage.Lyrics -> LyricsPane(track, player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, player.isPlaying, state.lyrics, controller::seekTo, Modifier.fillMaxSize())
+                            PlayerPage.Lyrics -> LyricsPane(track, player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, player.isPlaying, state.lyrics, controller::seekTo, Modifier.fillMaxSize(),
+                                playbackPosition = { player.presentationPositionAt(controller.monotonicTimeMs) })
                             PlayerPage.Queue -> {
                                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                     AlbumArt(trackArtwork, Modifier.size(48.dp), cornerRadius = 8.dp)
@@ -167,7 +219,13 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                             color = secondary,
                                             maxLines = 2,
                                         )
-                                        RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
+                                        if (preferences.showPlayerRating) {
+                                            RatingIndicator(rating = rating, onClick = { state.openMenu(track, page = TrackMenuPage.Rating) })
+                                        }
+                                    }
+                                    if (needsCover && LocalOnlineArtwork.current != null) {
+                                        ActionButton(stringResource(Res.string.feedback_find_cover),
+                                            { state.openArtworkSearch(track) }, Modifier.fillMaxWidth(), icon = AppIcons.Search)
                                     }
                                 }
                             }
@@ -179,6 +237,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                 // Controls take their natural height: the artwork and title get the rest.
                 Column(
                     Modifier.fillMaxWidth()
+                        .then(if (paired != null) Modifier.verticalScroll(controlsScroll) else Modifier)
+                        .padding(top = if (relaxedControlSpacing) 8.dp else 4.dp)
                         .then(if (AppTheme.accessibility.reduceMotion) Modifier else Modifier.animateContentSize()),
                 ) {
                     val shuffleState = stringResource(if (queue.isShuffled) Res.string.playback_shuffle_state_on else Res.string.playback_shuffle_state_off)
@@ -239,7 +299,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                     repeat()
                                 }
                             } else {
-                                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     TransportControls(player.isPlaying, labels, controller::skipToPrevious,
                                         controller::togglePlayPause, controller::skipToNext, Modifier.fillMaxWidth())
                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -250,7 +310,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             }
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(utilityGap))
                     val minutesLeft = sleepMinutesLeft(sleepTimer)
                     val timerLabel = when {
                         minutesLeft != null -> stringResource(Res.string.player_timer_minutes, minutesLeft)
@@ -268,7 +328,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                             PlayerUtilityAction(stringResource(Res.string.audio_tools_title), AppIcons.Equalizer, false, state::showSongInfo),
                             PlayerUtilityAction(stringResource(Res.string.action_more), AppIcons.More, false, onClick = { state.openMenu(track) }),
                         ),
-                        modifier = Modifier.padding(bottom = 8.dp),
+                        modifier = Modifier.padding(bottom = if (relaxedControlSpacing) 16.dp else 12.dp),
                     )
                 }
             }
@@ -300,10 +360,21 @@ fun SongInformation(state: AppState, track: Track, player: PlayerState) {
  * after an onSizeChanged/recomposition round trip. Lazy queue/lyrics always receive a finite height.
  */
 @Composable
-private fun PlayerContentLayout(viewportHeight: Dp, minimumPageHeight: Dp, content: @Composable () -> Unit) {
+private fun PlayerContentLayout(viewportHeight: Dp, minimumPageHeight: Dp, panePlan: WindowPanePlan? = null, content: @Composable () -> Unit) {
     Layout(content = content, modifier = Modifier.fillMaxWidth()) { children, constraints ->
+        val other = panePlan?.second
+        if (panePlan != null && other != null) {
+            val first = panePlan.first
+            val page = children[0].measure(Constraints.fixed(first.width.dp.roundToPx().coerceAtLeast(1), first.height.dp.roundToPx().coerceAtLeast(1)))
+            val controls = children[1].measure(Constraints.fixed(other.width.dp.roundToPx().coerceAtLeast(1), other.height.dp.roundToPx().coerceAtLeast(1)))
+            return@Layout layout(constraints.maxWidth, viewportHeight.roundToPx()) {
+                page.place(first.left.dp.roundToPx(), first.top.dp.roundToPx())
+                controls.place(other.left.dp.roundToPx(), other.top.dp.roundToPx())
+            }
+        }
         val controls = children[1].measure(constraints.copy(minHeight = 0, maxHeight = Constraints.Infinity))
-        val height = maxOf(viewportHeight.roundToPx(), 540.dp.roundToPx(), controls.height + minimumPageHeight.roundToPx())
+        // Grow beyond the safe viewport only when the page and measured controls need it.
+        val height = maxOf(viewportHeight.roundToPx(), controls.height + minimumPageHeight.roundToPx())
         val page = children[0].measure(Constraints.fixed(constraints.maxWidth, height - controls.height))
         layout(constraints.maxWidth, height) {
             page.placeRelative(0, 0)

@@ -115,7 +115,8 @@ internal fun MaterialListRow(
     highlighted: Boolean,
     onClick: (() -> Unit)?,
     modifier: Modifier,
-) = MaterialContentRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, LocalInsideGroup.current)
+    fullText: Boolean = false,
+) = MaterialContentRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, LocalInsideGroup.current, fullText)
 
 /** True inside a grouped surface, where rows must not become cards. */
 private val LocalInsideGroup = staticCompositionLocalOf { false }
@@ -183,6 +184,7 @@ private fun MaterialContentRow(
     onClick: (() -> Unit)?,
     modifier: Modifier,
     grouped: Boolean,
+    fullText: Boolean,
 ) {
     val palette = currentPalette()
     val content = if (highlighted) palette.onPrimaryContainer else LocalContentColor.current
@@ -202,9 +204,10 @@ private fun MaterialContentRow(
             Spacer(Modifier.width(12.dp))
         }
         Column(Modifier.weight(1f)) {
-            AppText(title, AppTheme.typography.body, color = content, maxLines = 2)
+            AppText(title, AppTheme.typography.body, color = content, maxLines = if (fullText) Int.MAX_VALUE else 2)
             if (subtitle != null) AppText(subtitle, AppTheme.typography.subheadline,
-                color = if (highlighted) palette.onPrimaryContainer else palette.secondaryLabel, maxLines = 2)
+                color = if (highlighted) palette.onPrimaryContainer else palette.secondaryLabel,
+                maxLines = if (fullText) Int.MAX_VALUE else 2)
         }
         if (trailing != null) {
             Spacer(Modifier.width(8.dp))

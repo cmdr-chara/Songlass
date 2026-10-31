@@ -9,3 +9,6 @@ import androidx.compose.runtime.Composable
  */
 @Composable
 actual fun rememberPlatformOnlineArtwork(): OnlineArtworkPlatform? = null
+
+@Composable
+actual fun rememberArtworkFolderPicker(): ArtworkFolderPicker? = null

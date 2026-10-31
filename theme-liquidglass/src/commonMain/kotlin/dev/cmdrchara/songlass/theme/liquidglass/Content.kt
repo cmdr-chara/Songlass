@@ -84,6 +84,7 @@ internal fun LiquidGlassListRow(
     onClick: (() -> Unit)?,
     modifier: Modifier,
     titleMaxLines: Int = 2,
+    fullText: Boolean = false,
 ) {
     val colors = AppTheme.colors
     val inset = LocalGlassRowHorizontalInset.current ?: LocalGlassLook.current.contentHorizontalInset
@@ -120,10 +121,11 @@ internal fun LiquidGlassListRow(
         ) {
             Column(Modifier.weight(1f)) {
                 val content = LocalContentColor.current
-                AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content, maxLines = titleMaxLines)
+                AppText(title, AppTheme.typography.body, color = if (highlighted) colors.accent else content,
+                    maxLines = if (fullText) Int.MAX_VALUE else titleMaxLines)
                 if (subtitle != null) {
                     AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel,
-                        modifier = Modifier.padding(top = 2.dp), maxLines = 1)
+                        modifier = Modifier.padding(top = 2.dp), maxLines = if (fullText) Int.MAX_VALUE else 1)
                 }
             }
             if (trailing != null) {
@@ -234,31 +236,32 @@ internal fun LiquidGlassSegmentedControl(options: List<String>, selectedIndex: I
 }
 
 @Composable
-internal fun LiquidGlassActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) {
+internal fun LiquidGlassActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) {
     val colors = AppTheme.colors
+    val foreground = if (enabled) colors.accent else colors.tertiaryLabel
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val pressedAlpha by animateFloatAsState(
-        targetValue = if (pressed) 0.6f else 1f,
+        targetValue = if (enabled && pressed) 0.6f else 1f,
         animationSpec = if (AppTheme.accessibility.reduceMotion) snap() else tween(LiquidGlassMotion.FeedbackMillis),
         label = "actionButtonPress",
     )
     Row(
         modifier = modifier
             .heightIn(min = 48.dp)
-            .liquidFocusIndicator(interaction, RoundedCornerShape(percent = 50))
+            .liquidFocusIndicator(interaction, RoundedCornerShape(percent = 50), enabled = enabled)
             .graphicsLayer { alpha = pressedAlpha }
             .let { LocalGlassLook.current.controlSurface(it, RoundedCornerShape(percent = 50), colors.fill, prominent = false) }
-            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+            .clickable(interaction, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            AppIcon(icon, contentDescription = null, size = 18.dp, tint = colors.accent)
+            AppIcon(icon, contentDescription = null, size = 18.dp, tint = foreground)
             Spacer(Modifier.width(8.dp))
         }
-        AppText(text, AppTheme.typography.headline, color = colors.accent, maxLines = 1)
+        AppText(text, AppTheme.typography.headline, color = foreground, maxLines = 1)
     }
 }
 

@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -29,6 +30,7 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import kotlin.math.roundToInt
 
 /** Inset content form. Opaque surfaces keep the glass exclusively in the app's navigation. */
 @Composable
@@ -81,27 +83,38 @@ private fun Modifier.formSeparator(): Modifier {
     }
 }
 
-/** Long paths and larger text reflow below the label instead of colliding with it. */
+/** Long labels, paths and larger text reflow instead of colliding or breaking a title word. */
 @Composable
 fun GlassPlaylistFormRow(title: String, value: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = AppTheme.colors
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val reflow = LocalDensity.current.fontScale > 1.3f || value.length > 24
-    Row(modifier.fillMaxWidth().heightIn(min = 50.dp)
-        .background(if (pressed) colors.fill else Color.Transparent).formSeparator()
-        .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
-        .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (reflow) Column(Modifier.weight(1f)) {
-            AppText(title, AppTheme.typography.body)
-            AppText(value, AppTheme.typography.callout, color = colors.label.copy(alpha = .62f), modifier = Modifier.padding(top = 3.dp))
-        } else {
-            AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f))
-            Spacer(Modifier.width(12.dp))
-            AppText(value, AppTheme.typography.callout, color = colors.label.copy(alpha = .62f),
-                modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val minimumTitleWidth = measurer.measure(title, AppTheme.typography.body).multiParagraph.minIntrinsicWidth
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val reservedWidth = with(density) {
+            16.dp.roundToPx() * 2 + 12.dp.roundToPx() + 8.dp.roundToPx() + 14.dp.roundToPx()
         }
-        AppIcon(AppIcons.ChevronRight, null, tint = colors.tertiaryLabel, size = 14.dp, modifier = Modifier.padding(start = 8.dp))
+        val titleColumnWidth = if (constraints.hasBoundedWidth) {
+            ((constraints.maxWidth - reservedWidth).coerceAtLeast(0) / 2.2f).roundToInt()
+        } else Int.MAX_VALUE
+        val reflow = density.fontScale > 1.3f || value.length > 24 || minimumTitleWidth > titleColumnWidth
+        Row(Modifier.fillMaxWidth().heightIn(min = 50.dp)
+            .background(if (pressed) colors.fill else Color.Transparent).formSeparator()
+            .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            if (reflow) Column(Modifier.weight(1f)) {
+                AppText(title, AppTheme.typography.body)
+                AppText(value, AppTheme.typography.callout, color = colors.label.copy(alpha = .62f), modifier = Modifier.padding(top = 3.dp))
+            } else {
+                AppText(title, AppTheme.typography.body, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(12.dp))
+                AppText(value, AppTheme.typography.callout, color = colors.label.copy(alpha = .62f),
+                    modifier = Modifier.weight(1.2f), textAlign = TextAlign.End)
+            }
+            AppIcon(AppIcons.ChevronRight, null, tint = colors.tertiaryLabel, size = 14.dp, modifier = Modifier.padding(start = 8.dp))
+        }
     }
 }
 

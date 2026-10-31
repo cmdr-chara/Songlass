@@ -57,6 +57,8 @@ class PlaybackController(
     private val _queue = MutableStateFlow(PlaybackQueue())
     val queue: StateFlow<PlaybackQueue> = _queue.asStateFlow()
     val playerState: StateFlow<PlayerState> = player.state
+    /** Same monotonic clock as the native position samples. */
+    val monotonicTimeMs: Long get() = player.monotonicTimeMs
     private val _timeline = MutableStateFlow(PlaybackTimeline())
     val timeline: StateFlow<PlaybackTimeline> = _timeline.asStateFlow()
     /** Serial owner-thread token for rejecting delayed gestures after a newer manual intent. */

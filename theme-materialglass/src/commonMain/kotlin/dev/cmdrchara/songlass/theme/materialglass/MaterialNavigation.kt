@@ -67,7 +67,8 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
     // Convert a label-sized sp value: Android's nonlinear scaling does not enlarge 168.sp like twelve 14.sp labels.
     val preferredWidth = with(LocalDensity.current) { maxOf(312.dp, 144.dp + 14.sp.toDp() * 12) }
     val inlineLabels = LocalDensity.current.fontScale <= 1.2f
-    val shape = RoundedCornerShape(MaterialShapes.ExtraLarge)
+    val shape = RoundedCornerShape(if (inlineLabels) MaterialShapes.ExtraLarge else 16.dp)
+    val selectionShape = if (inlineLabels) CircleShape else RoundedCornerShape(16.dp)
     val palette = currentPalette()
     // Keep the selected Material primary opaque. Darken/lighten only its outer bands
     // away from the onPrimary ink, so the glint cannot reduce the ink contrast.
@@ -170,16 +171,16 @@ internal fun MaterialNavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabS
                 val at = if (reduced) goal else position.value
                 translationX = (if (rtl) -at else at)*slotWidth
             }.padding(horizontal = 4.dp, vertical = 4.dp).graphicsLayer {
-                val speed = if (reduced) 0f else abs(position.velocity).coerceAtMost(5f)/5f
-                scaleX = 1f + pressure.value*0.06f + speed*0.06f
-                scaleY = 1f + pressure.value*0.08f - speed*0.04f
-                translationY = -1.dp.toPx()*pressure.value
-                this.shape = CircleShape
+                // Selection stays inside its measured tab. Pressure may compress it,
+                // but velocity must not expand the highlight into neighbouring tabs.
+                scaleX = 1f - pressure.value * 0.02f
+                scaleY = 1f - pressure.value * 0.02f
+                this.shape = selectionShape
                 clip = false
                 shadowElevation = 1.dp.toPx()+2.dp.toPx()*pressure.value
                 ambientShadowColor = palette.primary.copy(alpha = 0.10f)
                 spotShadowColor = Color.Black.copy(alpha = if (palette.dark) 0.22f else 0.12f)
-            }.background(bubbleFill, CircleShape).border(0.75.dp, bubbleRim, CircleShape))
+            }.background(bubbleFill, selectionShape).border(0.75.dp, bubbleRim, selectionShape))
             Row(Modifier.fillMaxSize().selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
                 tabs.forEachIndexed { index, tab ->
                     MaterialNavigationItem(tab, index == selectedTab, index == preview, inlineLabels,
@@ -200,7 +201,7 @@ private fun MaterialNavigationItem(tab: TabItem, selected: Boolean, highlighted:
         if (reduced) snap() else MaterialMotion.press(), label = "materialNavPress")
     val tint = animateColorAsState(if (highlighted) palette.onPrimary else palette.secondaryLabel,
         if (reduced) snap() else MaterialMotion.effects(), label = "materialNavTint")
-    val target = modifier.fillMaxHeight().clip(CircleShape)
+    val target = modifier.fillMaxHeight().clip(if (inlineLabel) CircleShape else RoundedCornerShape(16.dp))
         .selectable(selected, interactionSource = interaction, indication = MaterialNavigationIndication, role = Role.Tab, onClick = onClick)
     if (inlineLabel) {
         Row(target.padding(horizontal = 8.dp),

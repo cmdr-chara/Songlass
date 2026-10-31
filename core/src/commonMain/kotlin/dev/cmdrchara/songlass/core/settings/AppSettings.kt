@@ -85,6 +85,7 @@ class AppSettings(
         lrclibEnabled = store.getString(LRCLIB_KEY)?.toBooleanStrictOrNull() ?: true,
         playCountRule = PlayCountRule.fromStorage(store.getString(PLAY_COUNT_RULE_KEY)),
         albumLayout = if (store.getString(ALBUM_LAYOUT_KEY) == "list") AlbumLayout.List else AlbumLayout.Grid,
+        showPlayerRating = store.getString(SHOW_PLAYER_RATING_KEY)?.toBooleanStrictOrNull() ?: true,
         resumePerTrack = store.getString(PER_TRACK_KEY)?.toBooleanStrictOrNull() ?: false,
         longTrackThresholdMs = store.getString(LONG_THRESHOLD_KEY)?.toLongOrNull()?.takeIf { it in LONG_TRACK_CHOICES_MS } ?: 10 * 60_000L,
         trackClickAction = TrackClickAction.fromStorage(store.getString(TRACK_CLICK_KEY)),
@@ -99,7 +100,7 @@ class AppSettings(
         audioFocus = AudioFocusSettings.read(store),
         pauseOnDisconnect = store.getString(PAUSE_DISCONNECT_KEY)?.toBooleanStrictOrNull() ?: true,
         headsetMultiPress = store.getString(MULTI_PRESS_KEY)?.toBooleanStrictOrNull() ?: true,
-        onlineArtworkEnabled = store.getString(ONLINE_ARTWORK_KEY)?.toBooleanStrictOrNull() ?: false,
+        onlineArtworkEnabled = store.getString(ONLINE_ARTWORK_KEY)?.toBooleanStrictOrNull() ?: true,
         onlineArtworkWifiOnly = store.getString(ONLINE_ARTWORK_WIFI_KEY)?.toBooleanStrictOrNull() ?: true,
         lastFmEnabled = store.getString(LASTFM_ENABLED_KEY)?.toBooleanStrictOrNull() ?: false,
         lastFmApiKey = store.getString(LASTFM_API_KEY).orEmpty(),
@@ -190,6 +191,12 @@ class AppSettings(
         }
         store.putString(APPEARANCE_KEY, storedValue)
         _state.update { it.copy(appearance = appearance) }
+    }
+
+    fun setShowPlayerRating(show: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(SHOW_PLAYER_RATING_KEY, show.toString())
+        _state.update { it.copy(showPlayerRating = show) }
     }
 
     fun setReduceMotion(reduceMotion: Boolean) {
@@ -532,7 +539,7 @@ class AppSettings(
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY, EQUALIZER_LOCKED_KEY) + AudioFocusSettings.keys
-            SettingsArea.Player -> setOf(RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY) + HeadphoneSettings.keys
+            SettingsArea.Player -> setOf(SHOW_PLAYER_RATING_KEY, RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY) + HeadphoneSettings.keys
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, MIN_RATING_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
         }
@@ -551,7 +558,7 @@ class AppSettings(
                     equalizerLocked = defaults.equalizerLocked,
                     crossfadeDurationMs = defaults.crossfadeDurationMs, manualCrossfadeDurationMs = defaults.manualCrossfadeDurationMs,
                     handleAudioFocus = defaults.handleAudioFocus, audioFocus = defaults.audioFocus, transportFades = defaults.transportFades)
-                SettingsArea.Player -> current.copy(headphones = defaults.headphones,
+                SettingsArea.Player -> current.copy(showPlayerRating = defaults.showPlayerRating, headphones = defaults.headphones,
                     pauseOnDisconnect = defaults.pauseOnDisconnect, headsetMultiPress = defaults.headsetMultiPress,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs,
                     amllEnabled = defaults.amllEnabled, lrclibEnabled = defaults.lrclibEnabled)
@@ -588,6 +595,7 @@ class AppSettings(
         private fun readEffect(store: KeyValueStore, effect: dev.cmdrchara.songlass.core.player.AudioEffect): Int =
             store.getString(effectKey(effect))?.toIntOrNull()?.takeIf { it in effect.minimum..effect.maximum } ?: effect.default
         val LONG_TRACK_CHOICES_MS = listOf(60_000L, 300_000L, 600_000L, 1_200_000L, 1_800_000L, 3_600_000L)
+        const val SHOW_PLAYER_RATING_KEY = "settings.show_player_rating"
         private const val PER_TRACK_KEY = "settings.resume_per_track"
         private const val LONG_THRESHOLD_KEY = "settings.long_track_threshold_ms"
         const val EXCLUDED_FOLDERS_KEY = "library.excluded_folders"

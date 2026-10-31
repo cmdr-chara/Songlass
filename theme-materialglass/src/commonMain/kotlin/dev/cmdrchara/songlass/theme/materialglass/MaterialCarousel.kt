@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
@@ -83,9 +84,27 @@ internal fun MaterialArtworkShelf(items: List<ShelfItem>, style: ShelfStyle, ite
     val covers = items.filter { it.icon == null }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
         if (actions.isNotEmpty()) {
-            FlowRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                actions.forEach { TonalButton(it, Modifier.weight(1f)) }
+            BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                val measurer = rememberTextMeasurer()
+                val density = LocalDensity.current
+                val labelStyle = AppTheme.typography.footnote.copy(fontWeight = FontWeight.SemiBold)
+                val widestLabelPx = actions.maxOf { item ->
+                    measurer.measure(item.compactTitle ?: item.title, labelStyle,
+                        softWrap = false, maxLines = 1).size.width
+                }
+                // Reserve TonalButton's padding, icon and gap before dividing the row equally.
+                val buttonOverheadPx = with(density) {
+                    2 * 12.dp.roundToPx() + 18.dp.roundToPx() + 8.dp.roundToPx()
+                }
+                val gapPx = with(density) { 8.dp.roundToPx() }
+                val columns = if (constraints.hasBoundedWidth) {
+                    ((constraints.maxWidth + gapPx) / (widestLabelPx + buttonOverheadPx + gapPx))
+                        .coerceIn(1, actions.size)
+                } else actions.size
+                FlowRow(Modifier.fillMaxWidth(), maxItemsInEachRow = columns,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    actions.forEach { TonalButton(it, Modifier.weight(1f)) }
+                }
             }
         }
         if (covers.isNotEmpty()) MultiBrowseCarousel(covers, itemSize * 1.2f, Modifier)

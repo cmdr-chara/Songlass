@@ -1,18 +1,27 @@
 package dev.cmdrchara.songlass.core.artwork
 
+import dev.cmdrchara.songlass.core.model.Track
+
 /**
  * The logical album a downloaded cover belongs to: the artist and album tags, never a file ID, a
  * MediaStore row or a path.
  *
  * A download stays attached to this identity, so a rescanned or re-indexed library keeps showing
- * the cover the user chose until they remove it. A track whose album tag is missing has no
- * identity: there is nothing to search for and nothing to attach a cover to.
+ * the cover the user chose until they remove it. Explicit track searches use the canonical track identity, so a chosen
+ * single cover cannot leak into album siblings or an untagged collection.
  */
-data class ArtworkSubject(val artist: String, val album: String) {
+data class ArtworkSubject(val artist: String, val album: String, val trackId: String? = null) {
     /** Stable key of this album in the private download cache. */
-    val key: String = artworkSubjectKey(artist, album)
+    val key: String = if (trackId == null) artworkSubjectKey(artist, album) else "track|$trackId"
 
     companion object {
+        /** A track search is always scoped to one canonical file, never a folder-derived album. */
+        fun forTrack(track: Track): ArtworkSubject? = track.title.trim()
+            .takeIf { it.isNotEmpty() && track.id.isNotBlank() }
+            ?.let { title -> ArtworkSubject(track.artist?.trim()?.takeUnless {
+                it.equals("<unknown>", ignoreCase = true)
+            }.orEmpty(), title, track.id) }
+
         /** The subject for an album's tags, or null when the album tag is blank. */
         fun of(artist: String?, album: String?): ArtworkSubject? {
             val albumTag = album?.trim().orEmpty()
@@ -51,6 +60,23 @@ enum class ArtworkSource {
  * [applied] covers a cached result that was never confirmed, which must not displace anything.
  */
 object ArtworkCovers {
+    /** Resolve embedded/folder art first, then the album's local stand-in if distinct. */
+    suspend fun <T : Any> resolveLocalImage(
+        primaryKey: String?,
+        fallbackKey: String?,
+        load: suspend (String) -> T?,
+    ): T? {
+        primaryKey?.let { key -> load(key)?.let { return it } }
+        return fallbackKey?.takeIf { it != primaryKey }?.let { load(it) }
+    }
+
+    /** A per-track choice wins; an existing album choice still supplies untouched siblings. */
+    fun downloadedForTrack(track: Track, covers: Map<String, DownloadedArtwork>): DownloadedArtwork? {
+        val single = ArtworkSubject.forTrack(track)?.let { covers[it.key] }
+        val album = ArtworkSubject.of(track.groupingArtist, track.album)?.let { covers[it.key] }
+        return single?.takeUnless { it.automatic } ?: album?.takeUnless { it.automatic } ?: single ?: album
+    }
+
     fun source(hasLocalCover: Boolean, hasDownloadedCover: Boolean, applied: Boolean): ArtworkSource = when {
         applied && hasDownloadedCover -> ArtworkSource.Downloaded
         hasLocalCover -> ArtworkSource.Local

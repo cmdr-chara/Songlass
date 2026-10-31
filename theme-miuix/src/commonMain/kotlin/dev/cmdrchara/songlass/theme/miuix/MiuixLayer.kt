@@ -7,6 +7,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
 import dev.cmdrchara.songlass.designsystem.theme.*
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
@@ -28,8 +29,14 @@ fun MiuixLayer(enabled: Boolean, darkTheme: Boolean, content: @Composable () -> 
     val accent = if (artwork == null) if (darkTheme) Color(0xFFB49AFF) else Color(0xFF7146D8) else tint.activeFill
     val onAccent = if (artwork == null) if (darkTheme) Color(0xFF20152E) else Color.White else tint.onActiveFill
     val scheme = remember(darkTheme, accent, onAccent) {
-        if (darkTheme) darkColorScheme(primary = accent, primaryVariant = accent, onPrimary = onAccent, background = Color(0xFF101011), surface = Color(0xFF202023), surfaceContainer = Color(0xFF27272B))
+        val base = if (darkTheme) darkColorScheme(primary = accent, primaryVariant = accent, onPrimary = onAccent, background = Color(0xFF101011), surface = Color(0xFF202023), surfaceContainer = Color(0xFF27272B))
         else lightColorScheme(primary = accent, primaryVariant = accent, onPrimary = onAccent, background = Color(0xFFF6F6F8), surface = Color.White, surfaceContainer = Color.White)
+        // Follow Miuix's custom-palette mapping instead of retaining its fixed blue disabled roles.
+        val disabledFill = base.primary.copy(alpha = 0.38f).compositeOver(base.surface)
+        base.copy(
+            disabledPrimary = disabledFill,
+            disabledOnPrimary = base.onPrimary.copy(alpha = 0.38f).compositeOver(disabledFill),
+        )
     }
     val colors = remember(scheme) {
         AppColors(darkTheme, scheme.background, scheme.surface, scheme.onBackground, scheme.onSurfaceVariantSummary,

@@ -25,7 +25,7 @@
     <string name="lastfm_api_state">API account</string>
     <string name="lastfm_api_configured">Key and secret configured</string>
     <string name="lastfm_api_hint">Create credentials at last.fm/api. The key and secret stay on this device and are excluded from backups.</string>
-    <string name="lastfm_api_missing">No API key configured, so scrobbling cannot run. Enter the key and secret of a Last.fm API account.</string>
+    <string name="lastfm_api_missing">Enter an API key and secret to connect Last.fm.</string>
 
     <string name="lastfm_section_pending">Pending listens</string>
     <string name="lastfm_pending_none">Nothing waiting to be sent.</string>

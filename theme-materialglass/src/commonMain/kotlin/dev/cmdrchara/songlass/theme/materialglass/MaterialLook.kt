@@ -243,7 +243,8 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         highlighted: Boolean,
         onClick: (() -> Unit)?,
         modifier: Modifier,
-    ) = MaterialListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+        fullText: Boolean,
+    ) = MaterialListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, fullText)
 
     override val usesInsetSettingsForm = false
 
@@ -316,8 +317,8 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
         MaterialSettingsVisualChoices(kind, title, choices, closeLabel, description, modifier)
 
     @Composable
-    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) =
-        MaterialActionButton(text, icon, onClick, modifier)
+    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) =
+        MaterialActionButton(text, icon, onClick, modifier, enabled)
 
     @Composable
     override fun SortOptions(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier) =
@@ -428,9 +429,9 @@ internal class MaterialLook(private val base: SeaPalette) : GlassLook {
     @Composable
     override fun SettingsAdjustment(title: String, value: String, hint: String?, enabled: Boolean,
         lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
-        onReset: (() -> Unit)?, modifier: Modifier, slider: @Composable (Modifier) -> Unit) =
+        onReset: (() -> Unit)?, modifier: Modifier, resetEnabled: Boolean, slider: @Composable (Modifier) -> Unit) =
         SettingsAdjustmentContent(title, value, hint, enabled, lessLabel, moreLabel, resetLabel,
-            onLess, onMore, onReset, modifier, AppTheme.typography.headline, slider)
+            onLess, onMore, onReset, modifier, AppTheme.typography.headline, resetEnabled, slider)
 
     @Composable
     override fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) =

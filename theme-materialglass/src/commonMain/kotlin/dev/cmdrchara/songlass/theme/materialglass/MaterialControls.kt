@@ -232,9 +232,13 @@ private class RippleNode(
             else -> 0f
         }
         val a = alpha.value
-        drawRect(color.copy(alpha = max(stateAlpha, 0.08f * a)))
-        if (a <= 0f) return
-        val center = if (!centered && origin.isSpecified) origin else Offset(size.width / 2f, size.height / 2f)
+        // Focus/hover may cover the state layer. A press starts at its actual
+        // contact point, rather than lighting the whole rectangular row first.
+        if (stateAlpha > 0f) drawRect(color.copy(alpha = stateAlpha))
+        if (a <= 0f || size.width <= 0f || size.height <= 0f) return
+        val center = if (!centered && origin.isSpecified && origin.x.isFinite() && origin.y.isFinite())
+            Offset(origin.x.coerceIn(0f, size.width), origin.y.coerceIn(0f, size.height))
+        else Offset(size.width / 2f, size.height / 2f)
         val farthest = max(
             max(hypot(center.x, center.y), hypot(size.width - center.x, center.y)),
             max(hypot(center.x, size.height - center.y), hypot(size.width - center.x, size.height - center.y)),

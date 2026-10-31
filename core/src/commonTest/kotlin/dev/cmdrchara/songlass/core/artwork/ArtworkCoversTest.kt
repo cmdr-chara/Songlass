@@ -1,5 +1,6 @@
 package dev.cmdrchara.songlass.core.artwork
 
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -7,6 +8,35 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ArtworkCoversTest {
+    @Test
+    fun aRecoveredLocalAlbumFallbackResolvesWithoutAPrimaryCover() = runTest {
+        val images = mutableMapOf<String, String>()
+        val requested = mutableListOf<String>()
+        suspend fun resolve() = ArtworkCovers.resolveLocalImage("track", "album") { key ->
+            requested += key
+            images[key]
+        }
+        assertNull(resolve())
+        // A scan or permission recovery can make the same album key available later. It must
+        // replace an automatic download even though this track still has no embedded cover.
+        images["album"] = "local album cover"
+        assertEquals("local album cover", resolve())
+        assertEquals(listOf("track", "album", "track", "album"), requested)
+        images["track"] = "embedded cover"
+        requested.clear()
+        assertEquals("embedded cover", resolve())
+        assertEquals(listOf("track"), requested)
+    }
+
+    @Test
+    fun localCoverResolutionHandlesAFallbackOnlyAndAvoidsDuplicateLoads() = runTest {
+        val requested = mutableListOf<String>()
+        suspend fun load(key: String): String? { requested += key; return null }
+        assertNull(ArtworkCovers.resolveLocalImage("same", "same", ::load))
+        assertEquals(listOf("same"), requested)
+        assertEquals("album cover", ArtworkCovers.resolveLocalImage(null, "album") { "album cover" })
+    }
+
     @Test
     fun precedenceIsLocalThenDownloadedThenGenerated() {
         // No local cover and nothing downloaded: the app draws its generated placeholder.

@@ -51,8 +51,7 @@ val LocalMusicLibrary = compositionLocalOf<MusicLibrary?> { null }
 /** [track]'s cover for rows: its album's cover stands in until the file's own is in memory. */
 @Composable
 fun rememberTrackArtwork(track: Track): Artwork {
-    val library = LocalMusicLibrary.current
-    return remember(track, library) { if (library == null) track.artwork() else track.artwork(library) }
+    return rememberTrackCoverView(track).artwork
 }
 
 /** Loads the covers of the song rows (lazy keys = track ids) just beyond the visible ones, album stand-ins first. */

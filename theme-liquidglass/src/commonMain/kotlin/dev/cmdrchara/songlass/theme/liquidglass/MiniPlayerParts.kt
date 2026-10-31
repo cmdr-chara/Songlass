@@ -5,6 +5,10 @@ import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -12,6 +16,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.boundsInWindow
@@ -27,6 +35,25 @@ import kotlin.math.abs
 
 // Pieces every style's mini player shares: the anchor of the Now Playing transition and the
 // sideways swipe that changes track (as on the iOS 26 mini player; Material players do the same).
+
+/** A long title remains readable without shrinking the app's typography or its hit targets. */
+@Composable
+fun Modifier.miniPlayerTitleMotion(): Modifier =
+    if (AppTheme.accessibility.reduceMotion || !LocalWindowInfo.current.isWindowFocused) this
+    else basicMarquee(iterations = 3, initialDelayMillis = 2_000, repeatDelayMillis = 3_000, velocity = 24.dp)
+
+/** Quiet progress inside the metadata column; it never adds another layer to the glass body. */
+@Composable
+fun MiniPlayerProgress(progress: Float, modifier: Modifier = Modifier) {
+    val track = AppTheme.colors.secondaryLabel.copy(alpha = 0.16f)
+    val played = AppTheme.colors.accent
+    val fraction = if (progress.isFinite()) progress.coerceIn(0f, 1f) else 0f
+    Canvas(modifier.fillMaxWidth().height(2.dp).clearAndSetSemantics {}) {
+        val y = size.height / 2f
+        drawLine(track, Offset(0f, y), Offset(size.width, y), size.height, StrokeCap.Round)
+        if (fraction > 0f) drawLine(played, Offset(0f, y), Offset(size.width * fraction, y), size.height, StrokeCap.Round)
+    }
+}
 
 /** Marks the mini player's bounds, the shape Now Playing grows out of and returns into. */
 @Composable

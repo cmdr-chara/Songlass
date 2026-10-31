@@ -5,6 +5,12 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.provider.DocumentsContract
+import dev.cmdrchara.songlass.artwork.FolderArtwork
 import androidx.compose.ui.platform.LocalContext
 import dev.cmdrchara.songlass.core.artwork.ArtworkDownloader
 import dev.cmdrchara.songlass.core.artwork.ArtworkFileStore
@@ -41,6 +47,19 @@ actual fun rememberPlatformOnlineArtwork(): OnlineArtworkPlatform? {
             isMeteredNetwork = { meteredConnection(context) },
         )
     }
+}
+
+@Composable
+actual fun rememberArtworkFolderPicker(): ArtworkFolderPicker? {
+    val context = LocalContext.current.applicationContext
+    val revision by FolderArtwork.revision.collectAsState()
+    val selected = remember(context, revision) { FolderArtwork.selected(context) }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri != null) FolderArtwork.select(context, uri)
+    }
+    // Do not synchronously query a remote document provider from composition.
+    val name = selected?.let { runCatching { DocumentsContract.getTreeDocumentId(it).substringAfterLast('/').substringAfter(':') }.getOrNull() }
+    return ArtworkFolderPicker(name, { launcher.launch(selected) }, { FolderArtwork.select(context, null) })
 }
 
 private const val ARTWORK_DIRECTORY = "online-covers"

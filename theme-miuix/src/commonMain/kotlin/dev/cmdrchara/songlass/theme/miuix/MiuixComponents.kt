@@ -32,6 +32,8 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
+import dev.cmdrchara.songlass.theme.liquidglass.miniPlayerTitleMotion
+import dev.cmdrchara.songlass.theme.liquidglass.MiniPlayerProgress
 import dev.cmdrchara.songlass.theme.liquidglass.miniPlayerFrame
 import dev.cmdrchara.songlass.theme.liquidglass.miniPlayerCover
 import dev.cmdrchara.songlass.theme.liquidglass.trackSwipe
@@ -52,7 +54,7 @@ import top.yukonga.miuix.kmp.basic.TextFieldDefaults as NativeFieldDefaults
 import top.yukonga.miuix.kmp.theme.MiuixTheme as NativeMiuixTheme
 
 @Composable
-internal fun MiuixAction(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = false, enabled: Boolean = true, maxLines: Int = 1, accessibilityLabel: String? = null) {
+internal fun MiuixAction(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier = Modifier, primary: Boolean = false, enabled: Boolean = true, maxLines: Int = Int.MAX_VALUE, accessibilityLabel: String? = null) {
     val palette = AppTheme.colors
     val background = if (primary) palette.accent else palette.fill
     val foreground = if (!enabled) palette.tertiaryLabel else if (primary) if (background.luminance() > 0.179f) Color.Black else Color.White else palette.label
@@ -85,33 +87,37 @@ internal fun MiuixSortOptions(options: List<String>, selectedIndex: Int, onSelec
 }
 
 @Composable
-internal fun MiuixRow(title: String, subtitle: String?, leading: (@Composable () -> Unit)?, trailing: (@Composable () -> Unit)?, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier, titleMaxLines: Int = 2) {
+internal fun MiuixRow(title: String, subtitle: String?, leading: (@Composable () -> Unit)?, trailing: (@Composable () -> Unit)?, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier, titleMaxLines: Int = 2, fullText: Boolean = false) {
     BasicComponent(
         modifier = modifier.fillMaxWidth().then(if (highlighted) Modifier.background(AppTheme.colors.accent.copy(alpha = 0.10f)) else Modifier),
         startAction = leading?.let { { Box(Modifier.padding(end = 14.dp)) { it() } } },
         endActions = trailing?.let { { Box(Modifier.padding(start = 12.dp)) { it() } } },
         insideMargin = PaddingValues(horizontal = 18.dp, vertical = 14.dp), onClick = onClick,
     ) {
-        AppText(title, AppTheme.typography.body, color = if (highlighted) AppTheme.colors.accent else AppTheme.colors.label, maxLines = titleMaxLines)
-        subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 2) }
+        AppText(title, AppTheme.typography.body, color = if (highlighted) AppTheme.colors.accent else AppTheme.colors.label,
+            maxLines = if (fullText) Int.MAX_VALUE else titleMaxLines)
+        subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel,
+            maxLines = if (fullText) Int.MAX_VALUE else 2) }
     }
 }
 
 @Composable
 internal fun MiuixChoice(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
     MiuixRow(title, null, null, { NativeRadioButton(selected = selected, onClick = null) }, false, onClick,
-        modifier.semantics { this.selected = selected; role = Role.RadioButton })
+        modifier.semantics { this.selected = selected; role = Role.RadioButton }, titleMaxLines = Int.MAX_VALUE)
 }
 
 @Composable
 internal fun MiuixToggle(title: String, subtitle: String?, checked: Boolean, onCheckedChange: (Boolean) -> Unit, enabled: Boolean, modifier: Modifier) {
     BasicComponent(modifier = modifier.fillMaxWidth().semantics { role = Role.Switch; toggleableState = if (checked) androidx.compose.ui.state.ToggleableState.On else androidx.compose.ui.state.ToggleableState.Off },
         enabled = enabled, onClick = if (enabled) ({ onCheckedChange(!checked) }) else null,
-        endActions = { NativeSwitch(checked, if (enabled) onCheckedChange else null, enabled = enabled) },
+        // The labeled row owns the switch action; the native thumb only renders its state.
+        endActions = { NativeSwitch(checked, onCheckedChange = null,
+            modifier = Modifier.clearAndSetSemantics {}, enabled = enabled) },
         insideMargin = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
     ) {
-        AppText(title, AppTheme.typography.body, color = AppTheme.colors.label.copy(alpha = if (enabled) 1f else 0.45f), maxLines = 2)
-        subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel, maxLines = 3) }
+        AppText(title, AppTheme.typography.body, color = AppTheme.colors.label.copy(alpha = if (enabled) 1f else 0.45f))
+        subtitle?.let { AppText(it, AppTheme.typography.subheadline, color = AppTheme.colors.secondaryLabel) }
     }
 }
 
@@ -239,9 +245,12 @@ internal fun MiuixMini(state: MiniPlayerState, labels: PlaybackLabels, onClick: 
     Row(surface.trackSwipe(swipe, next, previous).trackSwipeActions(labels, next, previous).clickable(onClick = onClick).padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).followTrackSwipe(swipe), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(52.dp).clip(RoundedCornerShape(16.dp)).miniPlayerCover()) { AlbumArt(state.artwork, Modifier.fillMaxSize(), cornerRadius = 16.dp) }
-            Column(Modifier.padding(horizontal = 12.dp).weight(1f)) {
-                AppText(state.title, AppTheme.typography.headline, maxLines = 1)
-                AppText(state.subtitle, AppTheme.typography.caption1, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+            Column(Modifier.padding(start = 10.dp, end = 6.dp).weight(1f)) {
+                AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold),
+                    modifier = Modifier.miniPlayerTitleMotion(), maxLines = 1)
+                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
+                Spacer(Modifier.height(3.dp))
+                MiniPlayerProgress(state.progress)
             }
         }
         MiuixIconAction(if (state.isPlaying) AppIcons.Pause else AppIcons.Play, if (state.isPlaying) labels.pause else labels.play, playPause, false, true, Modifier)
@@ -284,7 +293,7 @@ internal fun MiuixFolder(choice: FolderChoice, onExpand: () -> Unit, onExcludedC
 /** A single row for title and navigation; no empty expanded-title band. */
 @Composable
 internal fun MiuixHeading(text: String, backLabel: String? = null, onBack: (() -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = null, modifier: Modifier = Modifier) {
+    trailing: (@Composable () -> Unit)? = null, modifier: Modifier = Modifier, maxTitleLines: Int = 2) {
     Row(modifier.fillMaxWidth().background(AppTheme.colors.background)
         .windowInsetsPadding(WindowInsets.statusBars).heightIn(min = 64.dp)
         .padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -293,7 +302,7 @@ internal fun MiuixHeading(text: String, backLabel: String? = null, onBack: (() -
             selected = false, filled = true, modifier = Modifier.size(48.dp))
         AppText(text, if (onBack == null) AppTheme.typography.largeTitle
             else AppTheme.typography.largeTitle.copy(fontSize = 26.sp, lineHeight = 32.sp),
-            modifier = Modifier.weight(1f).semantics { heading() }, maxLines = 2)
+            modifier = Modifier.weight(1f).semantics { heading() }, maxLines = maxTitleLines)
         trailing?.invoke()
     }
 }

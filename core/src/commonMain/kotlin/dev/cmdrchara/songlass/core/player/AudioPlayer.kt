@@ -35,6 +35,10 @@ data class PlayerState(
     val playbackSpeed: Float = 1f,
     /** Null on platforms without route reporting; an empty route means reporting is inconclusive. */
     val outputRoute: AudioOutputRoute? = null,
+    /** Sample time in [AudioPlayer.monotonicTimeMs]'s clock; null for static/legacy players. */
+    val positionSampledAtMs: Long? = null,
+    /** Native playback really advances; buffering and pending seeks must not move lyrics. */
+    val positionAdvancing: Boolean = playWhenReady && status == PlayerStatus.Ready,
 ) {
     val isPlaying: Boolean
         get() = playWhenReady && (status == PlayerStatus.Ready || status == PlayerStatus.Buffering)

@@ -1,6 +1,10 @@
 package dev.cmdrchara.songlass.designsystem
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.staticCompositionLocalOf
+
+/** Read by the active word mask during drawing, shared with active-line selection. */
+val LocalLyricsPlaybackPosition = staticCompositionLocalOf<(() -> Long)?> { null }
 
 /** Display-only copy of the source word ranges; no source text or persistence lives here. */
 @Immutable

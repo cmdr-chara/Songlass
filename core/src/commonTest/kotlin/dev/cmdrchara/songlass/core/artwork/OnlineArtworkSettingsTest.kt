@@ -14,17 +14,26 @@ import kotlin.test.assertTrue
 
 /**
  * The two online-cover preferences, their storage keys, the Appearance reset and the settings
- * search entries. Payments for the feature never happen without the switch, so the defaults matter
- * as much as the setters.
+ * search entries. Absent preferences use automatic lookup; an explicit disabled choice survives.
  */
 class OnlineArtworkSettingsTest {
     private val documents = SettingsTarget.entries.map { SettingsSearchDocument(it, "", "") }
 
     @Test
-    fun theFeatureIsOffByDefaultAndWifiOnlyIsOn() {
+    fun automaticCoversAreOnByDefaultAndWifiOnlyIsOn() {
         val preferences: AppPreferences = AppSettings(InMemoryKeyValueStore()).state.value
-        assertFalse(preferences.onlineArtworkEnabled, "cover lookup must be opt-in")
+        assertTrue(preferences.onlineArtworkEnabled, "missing covers are fetched automatically")
         assertTrue(preferences.onlineArtworkWifiOnly, "downloads wait for Wi-Fi unless allowed")
+    }
+
+    @Test
+    fun explicitlyDisabledOnlineCoversRemainDisabledAfterTheDefaultChanges() {
+        val store = InMemoryKeyValueStore()
+        store.putString(AppSettings.ONLINE_ARTWORK_KEY, "false")
+        val settings = AppSettings(store)
+        assertFalse(settings.state.value.onlineArtworkEnabled)
+        assertTrue(settings.state.value.onlineArtworkWifiOnly)
+        assertEquals("false", store.getString(AppSettings.ONLINE_ARTWORK_KEY))
     }
 
     @Test
@@ -47,7 +56,7 @@ class OnlineArtworkSettingsTest {
         settings.setOnlineArtworkEnabled(true)
         settings.setOnlineArtworkWifiOnly(false)
         settings.resetToDefaults(SettingsArea.Appearance)
-        assertFalse(settings.state.value.onlineArtworkEnabled)
+        assertTrue(settings.state.value.onlineArtworkEnabled)
         assertTrue(settings.state.value.onlineArtworkWifiOnly)
     }
 

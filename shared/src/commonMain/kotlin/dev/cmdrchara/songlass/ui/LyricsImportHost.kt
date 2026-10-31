@@ -201,7 +201,7 @@ fun LyricsImportHost(
     }
     CompositionLocalProvider(LocalLyricsImportAction provides importAction) { content() }
 
-    if (requestState != null || rejectedTitle != null) {
+    if (rejectedTitle != null || (requestState != null && !waitingForPicker && !launchRequested)) {
         val reviewed = preview
         val title = (if (completed) completedTitle else null) ?: reviewed?.track?.title ?: request?.title ?: rejectedTitle.orEmpty()
         val unavailable = rejectedTitle != null || request == null || notice == LyricsImportResult.Unavailable

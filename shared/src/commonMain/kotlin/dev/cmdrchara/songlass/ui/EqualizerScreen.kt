@@ -40,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -181,20 +183,23 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
                 }
                 state.output?.let { output ->
                     val name = if (output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else output.name
-                    ListRow(title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
+                    ListRow(fullText = true, title = name, subtitle = stringResource(if (state.usesOutputProfile) Res.string.eq_outputs_bound else Res.string.eq_outputs_manual), onClick = null)
                     ListRow(
+                        fullText = true,
                         title = stringResource(if (state.outputProfile == null) Res.string.eq_outputs_save else Res.string.audio_eq_update_binding),
                         subtitle = if (state.automaticOutputs) null else stringResource(Res.string.audio_eq_saved_auto_off),
                         onClick = { saveChange(equalizer::saveForCurrentOutput) },
                     )
-                } ?: ListRow(title = stringResource(Res.string.audio_eq_unknown_route), onClick = null)
+                } ?: ListRow(fullText = true, title = stringResource(Res.string.audio_eq_unknown_route), onClick = null)
                 ListRow(
+                    fullText = true,
                     title = stringResource(Res.string.audio_eq_configured),
                     subtitle = equalizerCurveLabel(state.enabled, state.preset, state.profile?.name),
                     onClick = null,
                 )
                 if (state.usesOutputProfile) state.manualCurve.let { manual ->
                     ListRow(
+                        fullText = true,
                         title = stringResource(Res.string.audio_eq_manual_fallback),
                         subtitle = equalizerCurveLabel(manual.enabled, EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == manual.gainsFor(state.tuning.layout) }, state.profiles.firstOrNull { it.id == manual.profileId }?.name),
                         onClick = null,
@@ -207,7 +212,7 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
                     val status = stringResource(if (active) Res.string.audio_eq_saved_active else Res.string.audio_eq_saved_inactive)
                     val preset = EqPreset.entries.firstOrNull { it.gainsFor(state.tuning.layout) == binding.gainsFor(state.tuning.layout) }
                     val description = equalizerCurveLabel(binding.enabled, preset, state.profiles.firstOrNull { it.id == binding.profileId }?.name)
-                    ListRow(title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
+                    ListRow(fullText = true, title = if (binding.output.id.startsWith("builtin:")) stringResource(Res.string.output_this_phone) else binding.output.name,
                         subtitle = "$status · $description", trailing = {
                         dev.cmdrchara.songlass.designsystem.IconButton(AppIcons.Close, stringResource(Res.string.eq_outputs_remove), { saveChange { equalizer.removeOutputProfile(binding.output.id) } })
                     }, onClick = null)
@@ -298,6 +303,7 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
             item {
                 SettingsGroup(Modifier.padding(start = pageInset, end = pageInset, top = 12.dp)) {
                     ListRow(
+                        fullText = true,
                         title = stringResource(Res.string.autoeq_browse),
                         leading = { AppIcon(AppIcons.Search, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
                         trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp, tint = AppTheme.colors.tertiaryLabel) },
@@ -305,6 +311,7 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
                     )
                     if (importer != null) {
                         ListRow(
+                            fullText = true,
                             title = stringResource(Res.string.eq_headphones_import),
                             leading = { AppIcon(AppIcons.ImportFile, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
                             onClick = if (importing) null else ({
@@ -315,6 +322,7 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
                     }
                     state.profile?.let { profile ->
                         ListRow(
+                            fullText = true,
                             title = stringResource(Res.string.eq_headphones_delete, profile.name),
                             leading = { AppIcon(AppIcons.Close, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent) },
                             onClick = { saveChange { equalizer.deleteProfile(profile.id) } },
@@ -412,6 +420,16 @@ private fun ToneControl(title: String, db: Double, separator: String, enabled: B
     val value = formatGain(db.toFloat(), separator)
     val lessLabel = stringResource(Res.string.eq_tone_less)
     val moreLabel = stringResource(Res.string.eq_tone_more)
+    val lessText = stringResource(Res.string.eq_tone_less_short)
+    val moreText = stringResource(Res.string.eq_tone_more_short)
+    val resetText = stringResource(Res.string.settings_effect_reset)
+    val density = LocalDensity.current
+    val measurer = rememberTextMeasurer()
+    val actionStyle = AppTheme.typography.headline
+    val actionPadding = with(density) { 40.dp.roundToPx() }
+    val lessWidth = measurer.measure(lessText, actionStyle, maxLines = 1).size.width + actionPadding
+    val moreWidth = measurer.measure(moreText, actionStyle, maxLines = 1).size.width + actionPadding
+    val resetWidth = measurer.measure(resetText, actionStyle, maxLines = 1).size.width + actionPadding
     LocalGlassLook.current.SettingsPageGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
         Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             AppText(title, AppTheme.typography.body)
@@ -419,10 +437,25 @@ private fun ToneControl(title: String, db: Double, separator: String, enabled: B
             if (enabled) {
                 LocalGlassLook.current.ValueSlider(((db + 12) / 24).toFloat(), { change(EqualizerTuning.gainFromSlider(it)) }, title,
                     Modifier.fillMaxWidth().semantics { stateDescription = value })
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ActionButton(stringResource(Res.string.eq_tone_less_short), { change((db - .5).coerceAtLeast(-12.0)) }, Modifier.weight(1f).semantics { contentDescription = lessLabel })
-                    ActionButton(stringResource(Res.string.settings_effect_reset), { change(0.0) }, Modifier.weight(1.5f))
-                    ActionButton(stringResource(Res.string.eq_tone_more_short), { change((db + .5).coerceAtMost(12.0)) }, Modifier.weight(1f).semantics { contentDescription = moreLabel })
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val available = (constraints.maxWidth - with(density) { 16.dp.roundToPx() }).coerceAtLeast(0)
+                    val unitWidth = available / 3.5f
+                    val reflow = density.fontScale > 1.3f || lessWidth > unitWidth || moreWidth > unitWidth || resetWidth > unitWidth * 1.5f
+                    if (reflow) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                ActionButton(lessText, { change((db - .5).coerceAtLeast(-12.0)) }, Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = lessLabel })
+                                ActionButton(moreText, { change((db + .5).coerceAtMost(12.0)) }, Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = moreLabel })
+                            }
+                            ActionButton(resetText, { change(0.0) }, Modifier.fillMaxWidth().heightIn(min = 48.dp))
+                        }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            ActionButton(lessText, { change((db - .5).coerceAtLeast(-12.0)) }, Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = lessLabel })
+                            ActionButton(resetText, { change(0.0) }, Modifier.weight(1.5f).heightIn(min = 48.dp))
+                            ActionButton(moreText, { change((db + .5).coerceAtMost(12.0)) }, Modifier.weight(1f).heightIn(min = 48.dp).semantics { contentDescription = moreLabel })
+                        }
+                    }
                 }
             }
         }

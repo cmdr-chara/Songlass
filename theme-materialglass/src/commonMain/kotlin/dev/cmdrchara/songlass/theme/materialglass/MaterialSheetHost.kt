@@ -72,6 +72,7 @@ internal fun MaterialSheetHost(
         LocalSheetTint provides null,
     ) {
         if (!visibility.isIdle || visibility.currentState || visibility.targetState) SheetWindowHost(
+            navigationLightIcons = palette.dark,
             onDismiss = { if (visible) (onBack ?: onDismiss)() },
         ) {
             Box(Modifier.fillMaxSize()) {

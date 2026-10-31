@@ -1,0 +1,6 @@
+<resources>
+    <string name="artwork_folder_title">Cover folder</string>
+    <string name="artwork_folder_hint">Choose a folder containing album covers. Images named after the album or song are matched automatically.</string>
+    <string name="artwork_folder_remove">Stop using this folder</string>
+    <string name="artwork_online_single_privacy">Searches send only the artist and song title.</string>
+</resources>

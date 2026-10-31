@@ -1,6 +1,17 @@
 package dev.cmdrchara.songlass.ui
 
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.graphics.compositeOver
+import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
+import dev.cmdrchara.songlass.designsystem.foundation.rememberArtworkTint
+import dev.cmdrchara.songlass.designsystem.theme.ArtworkTint
+import dev.cmdrchara.songlass.theme.liquidglass.collectionArtworkFadeAlpha
 import dev.cmdrchara.songlass.designsystem.foundation.prefetchArtworkOnPress
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -170,6 +181,7 @@ fun LibraryScreen(
             val saved by state.trackMarkers.state.collectAsState()
             ListRow(stringResource(Res.string.bookmark_open),
                 subtitle = stringResource(Res.string.bookmark_library_hint),
+                fullText = true,
                 leading = { AppIcon(AppIcons.Bookmark, null, size = 24.dp, tint = AppTheme.colors.accent) },
                 trailing = { AppText(saved.bookmarks.size.toString(), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel) },
                 onClick = { state.openBookmarks() })
@@ -833,8 +845,37 @@ internal fun ArtworkCollectionPage(
 ) {
     val minutes = (durationMs / 60_000).toInt()
     val listState = rememberLazyListState()
+    val destination = remember(context) { state.destination }
+    val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
+    val headerCoversStatusBar = fullBleed && LocalGlassLook.current.artworkHeaderCoversStatusBar
+    val headerTint = rememberArtworkTint(artwork, AppTheme.colors.isDark, followArtwork = fullBleed)
     if (rowArtwork) PrefetchTrackRowArtwork(listState, rows)
+    DisposableEffect(state, destination) {
+        onDispose {
+            if (state.collectionStatusBarAppearance?.destination == destination) state.collectionStatusBarAppearance = null
+        }
+    }
     ArtworkTintedPage(artwork, Modifier.fillMaxSize()) {
+        val canvas = AppTheme.colors.background
+        val headerStatus by remember(listState, canvas, headerTint, headerCoversStatusBar) {
+            derivedStateOf {
+                val header = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }
+                val fadeAlpha = when {
+                    !headerCoversStatusBar -> 1f
+                    header != null -> collectionArtworkFadeAlpha(-header.offset.toFloat() / (header.size - 1).coerceAtLeast(1))
+                    listState.firstVisibleItemIndex > 0 -> 1f
+                    else -> 0f
+                }
+                val background = canvas.copy(alpha = fadeAlpha).compositeOver(headerTint.background)
+                CollectionHeaderStatus(ArtworkTint.prefersLightContent(background), fadeAlpha >= 1f)
+            }
+        }
+        SideEffect {
+            if (state.destination == destination) {
+                state.collectionStatusBarAppearance = if (headerCoversStatusBar)
+                    CollectionStatusBarAppearance(destination, headerStatus.lightIcons) else null
+            }
+        }
         LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = contentPadding) {
             item { ArtworkHeader(artwork) }
             item {
@@ -855,10 +896,15 @@ internal fun ArtworkCollectionPage(
             extra?.invoke(this)
             itemsIndexed(rows, key = { _, t -> t.id }) { index, track -> row(index, track) }
         }
+        if (headerCoversStatusBar && headerStatus.fullyFaded) {
+            Spacer(Modifier.fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(canvas))
+        }
         // Back stays reachable over the cover and while scrolling.
         FloatingBackButton(backLabel, onClick = state::goBack, modifier = Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(start = 8.dp, top = 4.dp))
     }
 }
+
+private data class CollectionHeaderStatus(val lightIcons: Boolean, val fullyFaded: Boolean)
 
 /** Pins or unpins [context] at the top of the Library. */
 @Composable

@@ -139,7 +139,7 @@ object MiuixLook : GlassLook {
     @Composable
     override fun NavigationBar(tabs: List<TabItem>, selectedTab: Int, onTabSelected: (Int) -> Unit, modifier: Modifier) = MiuixNavigation(tabs, selectedTab, onTabSelected, modifier)
     @Composable
-    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) = MiuixAction(text, icon, onClick, modifier)
+    override fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) = MiuixAction(text, icon, onClick, modifier, enabled = enabled)
     override val usesInsetSettingsForm = false
     override val settingsRootHorizontalInset = 12.dp
 
@@ -156,7 +156,7 @@ object MiuixLook : GlassLook {
 
     @Composable
     override fun SettingsPageTitle(title: String, backLabel: String, onBack: () -> Unit, modifier: Modifier) =
-        BackPageTitle(title, backLabel, onBack, modifier)
+        MiuixHeading(title, backLabel, onBack, modifier = modifier, maxTitleLines = Int.MAX_VALUE)
 
     @Composable
     override fun SettingsPageGroup(modifier: Modifier, content: @Composable () -> Unit) = SettingsGroup(content, modifier)
@@ -215,7 +215,8 @@ object MiuixLook : GlassLook {
     @Composable
     override fun SettingsGroup(content: @Composable () -> Unit, modifier: Modifier) = MiuixGroup(content, modifier)
     @Composable
-    override fun ListRow(title: String, subtitle: String?, leading: (@Composable () -> Unit)?, trailing: (@Composable () -> Unit)?, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier) = MiuixRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+    override fun ListRow(title: String, subtitle: String?, leading: (@Composable () -> Unit)?, trailing: (@Composable () -> Unit)?, highlighted: Boolean, onClick: (() -> Unit)?, modifier: Modifier, fullText: Boolean) =
+        MiuixRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, fullText = fullText)
     @Composable
     override fun SettingsChoiceRow(title: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier) = MiuixChoice(title, selected, onClick, modifier)
     @Composable
@@ -238,9 +239,9 @@ object MiuixLook : GlassLook {
     @Composable
     override fun SettingsAdjustment(title: String, value: String, hint: String?, enabled: Boolean,
         lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
-        onReset: (() -> Unit)?, modifier: Modifier, slider: @Composable (Modifier) -> Unit) =
+        onReset: (() -> Unit)?, modifier: Modifier, resetEnabled: Boolean, slider: @Composable (Modifier) -> Unit) =
         SettingsAdjustmentContent(title, value, hint, enabled, lessLabel, moreLabel, resetLabel,
-            onLess, onMore, onReset, modifier, AppTheme.typography.body, slider)
+            onLess, onMore, onReset, modifier, AppTheme.typography.body, resetEnabled, slider)
 
     @Composable
     override fun ValueSlider(value: Float, onValueChange: (Float) -> Unit, label: String, modifier: Modifier) = MiuixVolume(value, onValueChange, label, modifier)

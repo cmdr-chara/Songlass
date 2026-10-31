@@ -111,7 +111,9 @@ fun BackupScreen(
         preview = null; source = null; confirming = false
         requestImport()
     }
-    val compact = background != null && !working && libraryReady && importer != null && exporter != null &&
+    // Presentation is stable while the first scan/Activity-result registration completes.
+    // Loading disables actions inside the sheet instead of flashing a different page.
+    val compact = background != null &&
         notice == BackupNotice.None && !omittedLyrics && preview == null && source == null && !confirming
     if (compact) {
         Box(Modifier.fillMaxSize()) {
@@ -119,12 +121,17 @@ fun BackupScreen(
             PlaybackToolsSheet(
                 visible = isActive,
                 title = stringResource(Res.string.backup_title),
-                subtitle = null,
+                subtitle = when {
+                    working -> stringResource(Res.string.backup_busy)
+                    !libraryReady -> stringResource(if (scanning) Res.string.backup_library_loading else Res.string.backup_library_unavailable)
+                    importer == null || exporter == null -> stringResource(Res.string.backup_unavailable)
+                    else -> null
+                },
                 groups = listOf(PlaybackToolGroup(null, listOf(
                     PlaybackToolRow(stringResource(Res.string.backup_export),
-                        stringResource(Res.string.backup_export_summary), AppIcons.Folder, ::startExport),
+                        stringResource(Res.string.backup_export_summary), AppIcons.Folder, if (!working && libraryReady && exporter != null) ::startExport else null),
                     PlaybackToolRow(stringResource(Res.string.backup_import),
-                        stringResource(Res.string.backup_import_summary), AppIcons.ImportFile, ::startImport),
+                        stringResource(Res.string.backup_import_summary), AppIcons.ImportFile, if (!working && libraryReady && importer != null) ::startImport else null),
                 ))),
                 closeLabel = stringResource(Res.string.action_cancel),
                 backLabel = null,

@@ -200,6 +200,7 @@ private fun LazyListScope.statisticsSection(state: AppState) {
         ListRow(
             title = stringResource(Res.string.stats_title),
             subtitle = stringResource(Res.string.stats_home_hint),
+            fullText = true,
             leading = { AppIcon(AppIcons.ChartBars, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
             trailing = { AppIcon(AppIcons.ChevronRight, contentDescription = null, size = 16.dp) },
             onClick = { state.open(Route.ListeningStatistics) },

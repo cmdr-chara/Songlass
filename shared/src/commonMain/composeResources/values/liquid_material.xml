@@ -1,5 +1,5 @@
 <resources>
-    <string name="settings_liquid_finish">Liquid Glass finish</string>
+    <string name="settings_liquid_finish">Finish</string>
     <string name="settings_liquid_metal">Liquid Metal</string>
     <string name="settings_liquid_finish_hint">Navigation bars and floating controls.</string>
     <string name="settings_liquid_glass_detail">Translucent glass</string>

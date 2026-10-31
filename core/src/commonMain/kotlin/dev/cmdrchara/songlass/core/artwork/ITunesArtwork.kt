@@ -23,6 +23,8 @@ data class ArtworkCandidate(
     val imageUrl: String,
     /** HTTPS URL of a small preview, or null when the provider sent only one size. */
     val previewUrl: String?,
+    /** Present for song results, used by conservative automatic matching. */
+    val trackTitle: String? = null,
 )
 
 /**
@@ -96,6 +98,41 @@ object ITunesArtwork {
             .take(limit.coerceIn(1, MAX_LIMIT))
             .toList()
     }
+
+    /** A cover search for a single sends only its artist and title tags. */
+    fun trackSearchUrl(artist: String?, title: String, country: String = DEFAULT_COUNTRY): String =
+        searchUrl(knownTrackArtist(artist), title, country).replace("entity=album", "entity=song")
+
+    fun parseTrackCandidates(json: String, artist: String?, title: String): List<ArtworkCandidate> {
+        if (normalizeArtworkText(title).isBlank()) return emptyList()
+        val root = parseJsonOrNull(json).asJsonObjectOrNull() ?: return emptyList()
+        val entries = root.arrayOrNull("results") ?: return emptyList()
+        return entries.mapNotNull { element ->
+            val entry = element.asJsonObjectOrNull() ?: return@mapNotNull null
+            if (entry.stringOrNull("wrapperType") != "track" || entry.stringOrNull("kind") != "song") return@mapNotNull null
+            val trackTitle = entry.stringOrNull("trackName") ?: return@mapNotNull null
+            val offeredArtist = entry.stringOrNull("artistName").orEmpty()
+            val knownArtist = knownTrackArtist(artist)
+            val wantedTitle = normalizeArtworkText(title)
+            val directTitle = wantedTitle == normalizeArtworkText(trackTitle)
+            // Some indexers use the filename as title. Accept a complete title/artist pair,
+            // not arbitrary subsets or a guessed artist parsed from punctuation.
+            val filenameCredit = knownArtist == null && offeredArtist.isNotBlank() &&
+                (wantedTitle == normalizeArtworkText("$trackTitle $offeredArtist") ||
+                    wantedTitle == normalizeArtworkText("$offeredArtist $trackTitle"))
+            if (!directTitle && !filenameCredit) return@mapNotNull null
+            if (artistScore(knownArtist, offeredArtist) == null) return@mapNotNull null
+            val image = listOfNotNull(entry.stringOrNull("artworkUrl100"), entry.stringOrNull("artworkUrl60"))
+                .firstOrNull(::isSecureHttpUrl) ?: return@mapNotNull null
+            val id = entry.longOrNull("trackId")?.toString() ?: return@mapNotNull null
+            ArtworkCandidate("track:$id", offeredArtist, entry.stringOrNull("collectionName") ?: trackTitle,
+                urlForResolution(image, DOWNLOAD_PX) ?: image, urlForResolution(image, PREVIEW_PX) ?: image,
+                trackTitle = trackTitle)
+        }.distinctBy { it.providerId }.take(DEFAULT_LIMIT)
+    }
+
+    private fun knownTrackArtist(artist: String?): String? = artist?.trim()
+        ?.takeIf { it.isNotEmpty() && !it.equals("<unknown>", ignoreCase = true) }
 
     /**
      * [url] rewritten to a [sizePx] square, or null when the URL does not carry a size token.

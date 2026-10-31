@@ -58,7 +58,10 @@ fun TagRecoveryPanel(
         revision++
     }
     val exporting = operation == RecoveryOperation.Exporting || exporter?.inProgress == true
-    if (pending == null && !checking && notice == RecoveryNotice.None) return
+    // An initial check is not evidence of an interrupted edit. Keep the page quiet
+    // until recovery copies or an actual failure are known; rechecks of an existing
+    // recovery and all export/archive progress remain visible.
+    if (pending == null && operation == null && !exporting && notice == RecoveryNotice.None) return
     SettingsGroup(modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppText(stringResource(Res.string.tags_recovery_title), AppTheme.typography.headline,

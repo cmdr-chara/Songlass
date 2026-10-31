@@ -101,6 +101,7 @@ sealed interface Route {
     data class AlbumDetail(val album: Album) : Route
     /** Cover picker for one album; the album snapshot is the one the page was opened from. */
     data class OnlineArtwork(val album: Album) : Route
+    data class OnlineTrackArtwork(val track: Track) : Route
     data class ArtistDetail(val artist: Artist) : Route
     data class FacetList(val kind: LibraryFacetKind) : Route
     data class FacetDetail(val context: PlayContext.Facet) : Route
@@ -187,6 +188,7 @@ class AppState(graph: AppGraph) {
     var searchFilter by mutableStateOf(SearchFilter.All)
     var isNowPlayingOpen by mutableStateOf(false)
         private set
+    internal var collectionStatusBarAppearance by mutableStateOf<CollectionStatusBarAppearance?>(null)
     var playerPage by mutableStateOf(PlayerPage.Artwork)
         private set
     var isArtworkExpanded by mutableStateOf(false)
@@ -622,6 +624,12 @@ class AppState(graph: AppGraph) {
 
     fun openRatings() {
         open(Route.Ratings)
+    }
+
+    fun openArtworkSearch(track: Track) {
+        closeMenu()
+        closeNowPlaying()
+        open(Route.OnlineTrackArtwork(track))
     }
 
     fun openTagEditor(track: Track) {

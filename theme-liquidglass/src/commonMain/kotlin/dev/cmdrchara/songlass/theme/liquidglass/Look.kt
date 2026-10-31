@@ -236,18 +236,19 @@ interface GlassLook {
         highlighted: Boolean,
         onClick: (() -> Unit)?,
         modifier: Modifier,
-    ) = LiquidGlassListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier)
+        fullText: Boolean = false,
+    ) = LiquidGlassListRow(title, subtitle, leading, trailing, highlighted, onClick, modifier, fullText = fullText)
 
     @Composable
-    fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) = LiquidGlassActionButton(text, icon, onClick, modifier)
+    fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean = true) = LiquidGlassActionButton(text, icon, onClick, modifier, enabled)
 
     /** Compact continuous adjustments retain the same actions and slider semantics. */
     @Composable
     fun SettingsAdjustment(title: String, value: String, hint: String?, enabled: Boolean,
         lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
-        onReset: (() -> Unit)?, modifier: Modifier, slider: @Composable (Modifier) -> Unit) =
+        onReset: (() -> Unit)?, modifier: Modifier, resetEnabled: Boolean = true, slider: @Composable (Modifier) -> Unit) =
         SettingsAdjustmentContent(title, value, hint, enabled, lessLabel, moreLabel, resetLabel,
-            onLess, onMore, onReset, modifier, AppTheme.typography.body, slider)
+            onLess, onMore, onReset, modifier, AppTheme.typography.body, resetEnabled, slider)
 
     /** The grouped preferences page has a different content plane from media browsing. */
     val usesInsetSettingsForm: Boolean get() = true

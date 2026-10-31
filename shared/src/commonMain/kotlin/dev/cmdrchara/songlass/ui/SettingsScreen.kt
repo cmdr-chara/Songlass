@@ -132,8 +132,9 @@ fun SettingsScreen(
     PlatformBackHandler(isActive && (pane != SettingsPane.Overview || search.query.isNotEmpty())) { backFrom(pane) }
     val documents = settingsSearchDocuments()
     val index = remember(documents) { SettingsSearchIndex(documents) }
-    val results = remember(index, search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings, supportsOnlineArtwork, supportsScrobbling) {
+    val results = remember(index, search.query, preferences.interfaceStyle, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings, supportsOnlineArtwork, supportsScrobbling) {
         index.search(search.query, supportsAmllLyrics, supportsCrossfade, supportsOnlineLyrics, supportsTransportFades, supportsReplayGainProcessing, supportsAudioEffects, supportsAudioFocusSettings, supportsHeadphoneSettings, supportsOnlineArtwork, supportsScrobbling)
+            .filterNot { it == SettingsTarget.LiquidMaterial && preferences.interfaceStyle != InterfaceStyle.LiquidGlass }
     }
     val eqState by equalizer.state.collectAsState()
     LocalGlassLook.current.SettingsPage {
@@ -316,6 +317,20 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
             }
         }
     }
+    if (preferences.interfaceStyle == InterfaceStyle.LiquidGlass) {
+        mark(SettingsTarget.LiquidMaterial)
+        item {
+            SettingsSearchAnchor(SettingsTarget.LiquidMaterial, request) {
+                val finishes = LiquidMaterial.entries
+                LocalGlassLook.current.SettingsLiquidFinish(stringResource(Res.string.settings_liquid_finish),
+                    finishes.map { liquidMaterialLabel(it) },
+                    listOf(stringResource(Res.string.settings_liquid_glass_detail), stringResource(Res.string.settings_liquid_metal_detail)),
+                    finishes.indexOf(preferences.liquidMaterial),
+                    { index -> finishes.getOrNull(index)?.let(settings::setLiquidMaterial) },
+                    stringResource(Res.string.action_cancel), Modifier.padding(horizontal = pageInset))
+            }
+        }
+    }
     item { LocalGlassLook.current.SettingsAppearanceSectionTitle(stringResource(Res.string.settings_artwork)) }
     mark(SettingsTarget.ArtworkStyle)
     item {
@@ -355,20 +370,6 @@ private fun SettingsItems.appearanceSettings(settings: AppSettings, preferences:
         item {
             val hint = launcherIconHint()
             LocalGlassLook.current.SettingsAppearanceHint(hint) { SettingsHint(hint) }
-        }
-    }
-    mark(SettingsTarget.LiquidMaterial)
-    item {
-        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
-            SettingsSearchAnchor(SettingsTarget.LiquidMaterial, request) {
-                val finishes = LiquidMaterial.entries
-                LocalGlassLook.current.SettingsLiquidFinish(stringResource(Res.string.settings_liquid_finish),
-                    finishes.map { liquidMaterialLabel(it) },
-                    listOf(stringResource(Res.string.settings_liquid_glass_detail), stringResource(Res.string.settings_liquid_metal_detail)),
-                    finishes.indexOf(preferences.liquidMaterial),
-                    { index -> finishes.getOrNull(index)?.let(settings::setLiquidMaterial) },
-                    stringResource(Res.string.action_cancel), Modifier)
-            }
         }
     }
     item { SettingsSection(stringResource(Res.string.settings_text_and_background)) }
@@ -822,6 +823,15 @@ private fun SettingsItems.playerSettings(
     supportsOnline: Boolean,
     supportsHeadphones: Boolean,
 ) {
+    mark(SettingsTarget.ShowPlayerRating)
+    item(key = "show-player-rating") {
+        SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+            SettingsSearchAnchor(SettingsTarget.ShowPlayerRating, request) {
+                SettingsToggleRow(stringResource(Res.string.settings_show_player_rating), preferences.showPlayerRating,
+                    settings::setShowPlayerRating)
+            }
+        }
+    }
     item { SettingsSection(stringResource(Res.string.settings_headset)) }
     mark(SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress)
     item {
@@ -917,6 +927,7 @@ private fun AudioEffectControl(target: SettingsTarget, effect: AudioEffect, valu
             stringResource(Res.string.settings_effect_reset),
             { onChange((value - 5).coerceAtLeast(effect.minimum)) },
             { onChange((value + 5).coerceAtMost(effect.maximum)) }, { onChange(effect.default) }, Modifier,
+            resetEnabled = value != effect.default,
         ) { modifier ->
             LocalGlassLook.current.ValueSlider(effect.sliderPosition(value), { onChange(effect.fromSlider(it)) }, title,
                 modifier.semantics { stateDescription = readout })
@@ -934,7 +945,7 @@ internal fun audioEffectValue(effect: AudioEffect, value: Int): String = when {
 
 @Composable
 private fun ReplayGainPreampControl(title: String, db: Int, enabled: Boolean, onChange: (Int) -> Unit) {
-    val value = stringResource(Res.string.settings_rg_db, db)
+    val value = formatGain(db.toFloat(), stringResource(Res.string.eq_decimal_separator))
     SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
         LocalGlassLook.current.SettingsAdjustment(
             title, value, null, enabled,

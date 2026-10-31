@@ -24,7 +24,7 @@ import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 @Composable
 fun SettingsAdjustmentContent(title: String, value: String, hint: String?, enabled: Boolean,
     lessLabel: String, moreLabel: String, resetLabel: String?, onLess: () -> Unit, onMore: () -> Unit,
-    onReset: (() -> Unit)?, modifier: Modifier, titleStyle: TextStyle,
+    onReset: (() -> Unit)?, modifier: Modifier, titleStyle: TextStyle, resetEnabled: Boolean = true,
     slider: @Composable (Modifier) -> Unit,
 ) {
     val density = LocalDensity.current
@@ -42,7 +42,8 @@ fun SettingsAdjustmentContent(title: String, value: String, hint: String?, enabl
         val stackValue = largeText || titleWidth + valueWidth + with(density) { 12.dp.roundToPx() } > constraints.maxWidth
         @Composable fun reset(modifier: Modifier) {
             if (enabled && resetLabel != null && onReset != null) {
-                ActionButton(resetLabel, onReset, modifier.semantics { contentDescription = "$title, $resetLabel" })
+                ActionButton(resetLabel, onReset, modifier.semantics { contentDescription = "$title, $resetLabel" },
+                    enabled = enabled && resetEnabled)
             }
         }
         @Composable fun step(text: String, action: () -> Unit, modifier: Modifier) {

@@ -16,19 +16,22 @@ import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.theme.AppTheme
 import dev.cmdrchara.songlass.shared.resources.Res
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork
-import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_hint
+import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_automatic_hint
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_wifi
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_wifi_hint
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_stored
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_clear
 import dev.cmdrchara.songlass.shared.resources.settings_online_artwork_clear_hint
+import dev.cmdrchara.songlass.shared.resources.artwork_folder_title
+import dev.cmdrchara.songlass.shared.resources.artwork_folder_hint
+import dev.cmdrchara.songlass.shared.resources.artwork_folder_remove
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * Appearance page, "Online covers": the opt-in that has to be on before anything leaves the
- * device and the rule that downloads wait for Wi-Fi.
+ * Appearance page, "Online covers": automatic missing-cover lookup and the rule that
+ * requests/downloads wait for Wi-Fi. An explicit disabled preference is always respected.
  *
  * Shown only where the platform can actually reach a provider (the caller decides), so the switch
  * never promises a feature that cannot run. Resetting the Appearance page clears both values.
@@ -38,6 +41,16 @@ internal fun SettingsItems.onlineArtworkSettings(
     preferences: AppPreferences,
     request: SettingsFocusRequest?,
 ) {
+    item {
+        val picker = rememberArtworkFolderPicker() ?: return@item
+        LocalGlassLook.current.SettingsSectionTitle(stringResource(Res.string.artwork_folder_title))
+        LocalGlassLook.current.SettingsPageGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+            ListRow(title = picker.name ?: stringResource(Res.string.artwork_folder_title),
+                subtitle = stringResource(Res.string.artwork_folder_hint), fullText = true, onClick = picker.open)
+            if (picker.name != null) ListRow(title = stringResource(Res.string.artwork_folder_remove),
+                fullText = true, onClick = picker.clear)
+        }
+    }
     item { LocalGlassLook.current.SettingsSectionTitle(stringResource(Res.string.settings_online_artwork)) }
     mark(SettingsTarget.OnlineArtworkEnabled, SettingsTarget.OnlineArtworkWifiOnly)
     item {
@@ -47,7 +60,7 @@ internal fun SettingsItems.onlineArtworkSettings(
                     stringResource(Res.string.settings_online_artwork),
                     preferences.onlineArtworkEnabled,
                     settings::setOnlineArtworkEnabled,
-                    subtitle = stringResource(Res.string.settings_online_artwork_hint),
+                    subtitle = stringResource(Res.string.settings_online_artwork_automatic_hint),
                 )
             }
             SettingsSearchAnchor(SettingsTarget.OnlineArtworkWifiOnly, request) {
@@ -71,6 +84,7 @@ internal fun SettingsItems.onlineArtworkSettings(
             ListRow(
                 title = stringResource(Res.string.settings_online_artwork_stored, covers.size.toString()),
                 subtitle = stringResource(Res.string.settings_online_artwork_clear_hint),
+                fullText = true,
                 trailing = {
                     AppText(stringResource(Res.string.settings_online_artwork_clear),
                         AppTheme.typography.footnote, color = AppTheme.colors.accent)

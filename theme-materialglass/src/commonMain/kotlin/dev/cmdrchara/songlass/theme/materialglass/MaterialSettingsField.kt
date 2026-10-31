@@ -78,22 +78,24 @@ internal fun MaterialSettingsDurationField(
 
 /** A tonal Material action shared by settings and other existing ActionButton consumers. */
 @Composable
-internal fun MaterialActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier) {
+internal fun MaterialActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean) {
     val palette = currentPalette()
+    val background = if (enabled) palette.secondaryContainer else palette.label.copy(alpha = 0.12f)
+    val foreground = if (enabled) palette.onSecondaryContainer else palette.label.copy(alpha = 0.38f)
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val reduceMotion = AppTheme.accessibility.reduceMotion
-    val scale by animateFloatAsState(if (pressed && !reduceMotion) 0.98f else 1f,
+    val scale by animateFloatAsState(if (enabled && pressed && !reduceMotion) 0.98f else 1f,
         if (reduceMotion) snap() else MaterialMotion.press(), label = "materialActionPress")
     Row(modifier.heightIn(min = 48.dp)
         .graphicsLayer { scaleX = scale.coerceAtMost(1f); scaleY = scale.coerceAtMost(1f) }
-        .clip(RoundedCornerShape(20.dp)).background(palette.secondaryContainer)
-        .clickable(interaction, MaterialRipple, role = Role.Button, onClick = onClick)
+        .clip(RoundedCornerShape(20.dp)).background(background)
+        .clickable(interaction, MaterialRipple, enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(horizontal = 14.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalAlignment = Alignment.CenterVertically) {
-        icon?.let { AppIcon(it, null, size = 20.dp, tint = palette.onSecondaryContainer) }
-        AppText(text, AppTheme.typography.body.copy(fontWeight = FontWeight.Medium), color = palette.onSecondaryContainer,
+        icon?.let { AppIcon(it, null, size = 20.dp, tint = foreground) }
+        AppText(text, AppTheme.typography.body.copy(fontWeight = FontWeight.Medium), color = foreground,
             textAlign = TextAlign.Center)
     }
 }

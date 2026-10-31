@@ -3,7 +3,12 @@
 package dev.cmdrchara.songlass
 
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.ComposeUIViewController
+import dev.cmdrchara.songlass.designsystem.WindowBarEdge
+import dev.cmdrchara.songlass.designsystem.WindowLayout
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkImageLoader
 import kotlinx.coroutines.MainScope
 import platform.UIKit.supportsAlternateIcons
@@ -34,13 +39,32 @@ private val graph by lazy {
 }
 private val artworkImages by lazy { IosArtworkImages(musicSource, graph.artworkAvailability) }
 
-fun MainViewController(): UIViewController = SonglassViewController()
+/** Per-host bridge: no geometry is stored in the process-wide playback graph. */
+class IosWindowLayout {
+    internal var layout by mutableStateOf(WindowLayout())
+        private set
+
+    fun update(width: Double, height: Double, safeLeft: Double, safeTop: Double, safeRight: Double,
+        safeBottom: Double, barEdge: String, reservedRegions: String) {
+        val next = WindowLayout(width.toFloat(), height.toFloat(), safeLeft.toFloat(), safeTop.toFloat(),
+            safeRight.toFloat(), safeBottom.toFloat(), when (barEdge) {
+                "leading" -> WindowBarEdge.Leading
+                "trailing" -> WindowBarEdge.Trailing
+                else -> WindowBarEdge.Bottom
+            }, WindowLayout.decodeRegions(reservedRegions))
+        layout = next.takeIf { it.specified } ?: WindowLayout()
+    }
+}
+
+fun MainViewController(): UIViewController = SonglassViewController(IosWindowLayout())
+
+fun MainViewController(windowLayout: IosWindowLayout): UIViewController = SonglassViewController(windowLayout)
 
 /** Owns status-bar appearance without changing the system appearance observed by Compose. */
-internal class SonglassViewController : UIViewController(nibName = null, bundle = null) {
+internal class SonglassViewController(private val windowLayout: IosWindowLayout) : UIViewController(nibName = null, bundle = null) {
     private val composeController = ComposeUIViewController {
         CompositionLocalProvider(LocalArtworkImageLoader provides artworkImages) {
-            App(graph, onRequestLibraryAccess = musicSource::requestAccess)
+            App(graph, onRequestLibraryAccess = musicSource::requestAccess, windowLayout = windowLayout.layout)
         }
     }
     private var lightStatusBarIcons = false

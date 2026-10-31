@@ -128,6 +128,8 @@ data class AppPreferences(
     val transportFades: dev.cmdrchara.songlass.core.player.TransportFadeSettings = dev.cmdrchara.songlass.core.player.TransportFadeSettings(),
     /** Per-track progress is distinct from Android session resumption; opt in explicitly. */
     val resumePerTrack: Boolean = false,
+    /** Show the optional rating action beside the open player metadata. */
+    val showPlayerRating: Boolean = true,
     /** Long tracks offer ±10 s and (when enabled) independent resume points. */
     val longTrackThresholdMs: Long = 10 * 60_000L,
     val folderSort: FolderSort = FolderSort.Name,
@@ -159,8 +161,8 @@ data class AppPreferences(
     val pauseOnDisconnect: Boolean = true,
     /** Two headset presses skip forward and three go back; off makes every press play/pause at once. */
     val headsetMultiPress: Boolean = true,
-    /** Album cover lookup over the network; off by default, so nothing leaves the device unasked. */
-    val onlineArtworkEnabled: Boolean = false,
+    /** Automatic missing-cover lookup; explicit stored opt-out is preserved on load. */
+    val onlineArtworkEnabled: Boolean = true,
     /** With online covers on, downloads wait for an unmetered connection unless turned off. */
     val onlineArtworkWifiOnly: Boolean = true,
     /** Last.fm scrobbling is opt-in; without an API key pair the feature stays inactive. */

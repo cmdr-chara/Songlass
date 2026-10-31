@@ -157,27 +157,27 @@ fun LastFmSettingsPage(
                                 settings.setLastFmEnabled(enabled)
                                 scrobbler.refresh()
                             },
-                            subtitle = stringResource(
-                                if (status.configured) Res.string.lastfm_enable_hint else Res.string.lastfm_api_missing,
-                            ),
+                            subtitle = stringResource(Res.string.lastfm_enable_hint),
                             enabled = status.configured && !busy,
                         )
                     }
                 }
             }
             item(key = "account") {
-                SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsGroup(Modifier.padding(horizontal = pageInset).padding(top = 4.dp)) {
                     val pendingAuthorization = authorization
                     when {
                         status.connected -> {
                             ListRow(
                                 title = stringResource(Res.string.lastfm_account),
+                                fullText = true,
                                 subtitle = stringResource(
                                     Res.string.lastfm_connected_as, status.username.orEmpty(),
                                 ),
                             )
                             ListRow(
                                 title = stringResource(Res.string.lastfm_disconnect),
+                                fullText = true,
                                 subtitle = stringResource(Res.string.lastfm_disconnect_hint),
                                 leading = { AppIcon(AppIcons.InfoCircle, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                                 onClick = { if (!busy) scrobbler.disconnect() },
@@ -186,15 +186,18 @@ fun LastFmSettingsPage(
                         pendingAuthorization != null -> {
                             ListRow(
                                 title = stringResource(Res.string.lastfm_account),
+                                fullText = true,
                                 subtitle = stringResource(Res.string.lastfm_authorize),
                             )
                             ListRow(
                                 title = stringResource(Res.string.lastfm_open_authorization),
+                                fullText = true,
                                 leading = { AppIcon(AppIcons.InfoCircle, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                                 onClick = { uriHandler.openUri(pendingAuthorization.url) },
                             )
                             ListRow(
                                 title = stringResource(Res.string.lastfm_complete_connection),
+                                fullText = true,
                                 leading = { AppIcon(AppIcons.Checkmark, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                                 onClick = { completeAuthorization() },
                             )
@@ -202,17 +205,20 @@ fun LastFmSettingsPage(
                         status.configured -> {
                             ListRow(
                                 title = stringResource(Res.string.lastfm_account),
+                                fullText = true,
                                 subtitle = stringResource(Res.string.lastfm_not_connected),
                             )
                             ListRow(
                                 title = stringResource(Res.string.lastfm_connect),
+                                fullText = true,
                                 leading = { AppIcon(AppIcons.InfoCircle, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                                 onClick = { beginAuthorization() },
                             )
                         }
                         else -> ListRow(
                             title = stringResource(Res.string.lastfm_account),
-                            subtitle = stringResource(Res.string.lastfm_api_missing),
+                            fullText = true,
+                            subtitle = stringResource(Res.string.lastfm_not_connected),
                         )
                     }
                 }
@@ -226,6 +232,7 @@ fun LastFmSettingsPage(
                 SettingsGroup(Modifier.padding(horizontal = pageInset)) {
                     ListRow(
                         title = stringResource(Res.string.lastfm_api_state),
+                        fullText = true,
                         subtitle = stringResource(
                             if (status.configured) Res.string.lastfm_api_configured else Res.string.lastfm_api_missing,
                         ),
@@ -234,6 +241,7 @@ fun LastFmSettingsPage(
                     FormField(secretDraft, { secretDraft = it }, stringResource(Res.string.lastfm_api_secret), Modifier)
                     ListRow(
                         title = stringResource(Res.string.lastfm_api_save),
+                        fullText = true,
                         leading = { AppIcon(AppIcons.Checkmark, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                         onClick = { saveCredentials() },
                     )
@@ -253,6 +261,7 @@ fun LastFmSettingsPage(
                     SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
                         ListRow(
                             title = stringResource(Res.string.lastfm_retry),
+                            fullText = true,
                             leading = { AppIcon(AppIcons.AudioOutput, contentDescription = null, size = 24.dp, tint = AppTheme.colors.accent) },
                             onClick = { if (!busy) scrobbler.refresh() },
                         )
@@ -271,6 +280,7 @@ fun LastFmSettingsPage(
                 SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
                     ListRow(
                         title = stringResource(Res.string.lastfm_forget),
+                        fullText = true,
                         subtitle = stringResource(Res.string.lastfm_forget_hint),
                         onClick = { confirmingForget = true },
                     )

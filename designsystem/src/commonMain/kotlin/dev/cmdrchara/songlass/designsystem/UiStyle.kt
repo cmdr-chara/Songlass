@@ -216,6 +216,7 @@ interface UiStyle {
         highlighted: Boolean,
         onClick: (() -> Unit)?,
         modifier: Modifier,
+        fullText: Boolean = false,
     )
 
     /** Opaque grouped settings surface. Screens supply section headings separately. */
@@ -245,7 +246,7 @@ interface UiStyle {
 
     /** Prominent action such as "Play" or "Shuffle" on an album. */
     @Composable
-    fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier)
+    fun ActionButton(text: String, icon: ImageVector?, onClick: () -> Unit, modifier: Modifier, enabled: Boolean = true)
 
     /** Feedback on the same bounds as the tile's click target; content remains unclipped. */
     @Composable

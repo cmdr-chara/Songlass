@@ -93,6 +93,19 @@ internal fun LiquidAppearanceModeOptions(
         Color(0xFF727883), firstInGroup = false, lastInGroup = false, accentValue = false, modifier = modifier)
 }
 
+/** Finish is a connected middle row of the same appearance group as Theme and Artwork. */
+@Composable
+internal fun LiquidAppearanceFinishOptions(
+    title: String,
+    labels: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    closeLabel: String,
+    modifier: Modifier,
+) = LiquidAppearanceOptionRow(title, labels, selectedIndex, onSelect, closeLabel, null,
+    AppIcons.Palette, Color(0xFF527B8D), firstInGroup = false, lastInGroup = false,
+    accentValue = false, modifier = modifier)
+
 @Composable
 private fun LiquidAppearanceOptionRow(
     title: String, labels: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit,

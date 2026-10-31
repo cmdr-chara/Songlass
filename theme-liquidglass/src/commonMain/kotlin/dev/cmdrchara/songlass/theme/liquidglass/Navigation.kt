@@ -14,6 +14,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.absoluteOffset
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -71,10 +75,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -108,6 +114,10 @@ import dev.chrisbanes.haze.rememberHazeState
 import dev.cmdrchara.songlass.designsystem.MiniPlayerState
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
 import dev.cmdrchara.songlass.designsystem.TabItem
+import dev.cmdrchara.songlass.designsystem.LocalWindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowBarEdge
+import dev.cmdrchara.songlass.designsystem.WindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowRect
 import dev.cmdrchara.songlass.designsystem.foundation.AppIcon
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.icons.AppIcons
@@ -138,6 +148,13 @@ internal fun LiquidGlassScaffold(
     accessory: (@Composable () -> Unit)?,
     content: @Composable (PaddingValues) -> Unit,
 ) {
+    // Moving between bottom chrome and a system-requested side rail must not dispose forms,
+    // lazy-list state, or mini-player state held by the content's existing composition.
+    val latestContent by rememberUpdatedState(content)
+    val retainedContent = remember { movableContentOf<PaddingValues> { padding -> latestContent(padding) } }
+    val latestAccessory by rememberUpdatedState(accessory)
+    val retainedAccessory = remember { movableContentOf { latestAccessory?.invoke() } }
+    val visibleAccessory: (@Composable () -> Unit)? = if (accessory == null) null else retainedAccessory
     val morph = LocalPlayerMorph.current
     val accessibility = AppTheme.accessibility
     val look = LocalGlassLook.current
@@ -147,6 +164,14 @@ internal fun LiquidGlassScaffold(
         null
     } else rememberHazeState()
     val density = LocalDensity.current
+    val windowLayout = LocalWindowLayout.current
+    val hasReservedContent = windowLayout.specified && windowLayout.regions.any {
+        it.bounds.intersection(windowLayout.safeBounds) != null
+    }
+    if (windowLayout.specified && (windowLayout.barEdge != WindowBarEdge.Bottom || hasReservedContent)) {
+        ReservedWindowScaffold(windowLayout, tabs, selectedTab, onTabSelected, visibleAccessory, hazeState, retainedContent)
+        return
+    }
     val navigationBarInset = with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
     var expandedBarsHeightPx by remember { mutableIntStateOf(0) }
     var navigationHeightPx by remember { mutableIntStateOf(0) }
@@ -235,7 +260,7 @@ internal fun LiquidGlassScaffold(
             ) {
                 // Keep the content inset at the expanded height while the floating bars animate.
                 // Measuring the animated container would make the list jump during expansion.
-                content(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
+                retainedContent(PaddingValues(bottom = with(density) { expandedBarsHeightPx.toDp() } + navigationBarInset + BarSpacing * 2))
             }
         }
         val navigationTint = if (look.tintsNavigation) LocalNavigationTint.current else null
@@ -266,7 +291,7 @@ internal fun LiquidGlassScaffold(
                         onTabSelected(index)
                     },
                     onExpand = { minimizeRequested = false },
-                    accessory = accessory,
+                    accessory = visibleAccessory,
                     minimized = minimized,
                     onExpandedHeightChanged = { expandedBarsHeightPx = it },
                 )
@@ -274,6 +299,96 @@ internal fun LiquidGlassScaffold(
             }
         }
     }
+    }
+}
+
+/**
+ * The same three looks, placed inside the current window's unobstructed pane. Standard phones
+ * never take this branch. A system-requested vertical bar stays on its semantic leading/trailing
+ * edge; a partial fold never runs through a list row, mini-player, or navigation target.
+ */
+@Composable
+private fun ReservedWindowScaffold(
+    window: WindowLayout,
+    tabs: List<TabItem>,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit,
+    accessory: (@Composable () -> Unit)?,
+    hazeState: dev.chrisbanes.haze.HazeState?,
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    val density = LocalDensity.current
+    val look = LocalGlassLook.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val morph = LocalPlayerMorph.current
+    val metalVisible by remember(morph) { derivedStateOf { morph.recede < 0.999f } }
+    var barsHeight by remember { mutableIntStateOf(0) }
+    val side = window.barEdge != WindowBarEdge.Bottom
+    BoxWithConstraints(Modifier.fillMaxSize().background(AppTheme.colors.background), contentAlignment = AbsoluteAlignment.TopLeft) {
+        val viewport = WindowRect(0f, 0f, maxWidth.value, maxHeight.value)
+        val chrome = window.chrome(viewport, rtl = rtl) ?: return@BoxWithConstraints
+        val pane = chrome.pane
+        val rail = chrome.rail
+        val mainLeft = chrome.content.left.dp
+        val mainWidth = chrome.content.width.dp
+        val safe = window.safeBounds
+        val leftInset = safe.left.dp
+        val rightInset = (window.width - safe.right).dp
+        val consumed = PaddingValues(start = if (rtl) rightInset else leftInset,
+            top = safe.top.dp, end = if (rtl) leftInset else rightInset,
+            bottom = (window.height - safe.bottom).dp)
+        Box(Modifier.fillMaxSize()
+            .then(if (hazeState != null) Modifier.hazeSource(hazeState) else Modifier)
+            .background(AppTheme.colors.background), contentAlignment = AbsoluteAlignment.TopLeft) {
+            Box(Modifier.absoluteOffset(mainLeft, pane.top.dp).width(mainWidth).height(pane.height.dp)
+                .consumeWindowInsets(consumed)) {
+                content(PaddingValues(bottom = with(density) { barsHeight.toDp() } + BarSpacing * 2))
+            }
+        }
+        CompositionLocalProvider(LocalGlassSource provides hazeState, LocalMetalMotionVisible provides metalVisible) {
+            NavigationTintScope(if (look.tintsNavigation) LocalNavigationTint.current else null) {
+                if (side && rail != null) {
+                    Column(Modifier.absoluteOffset(rail.left.dp, rail.top.dp)
+                        .width(rail.width.dp).height(rail.height.dp)
+                        .verticalScroll(rememberScrollState())
+                        .selectableGroup()
+                        .then(navigationContainerSurface(Capsule))
+                        .padding(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        tabs.forEachIndexed { index, tab ->
+                            val selected = selectedTab == index
+                            Column(Modifier.fillMaxWidth()
+                                .then(if (selected) fallbackNavigationSelectionSurface() else Modifier)
+                                .clip(RoundedCornerShape(24.dp))
+                                .selectable(selected, role = Role.Tab, onClick = { onTabSelected(index) })
+                                .padding(horizontal = 2.dp, vertical = 12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                AppIcon(tab.icon, null, size = 26.dp, tint = tabTint(selected))
+                                AppText(tab.label, AppTheme.typography.footnote, color = tabTint(selected), maxLines = 2)
+                            }
+                        }
+                    }
+                    if (accessory != null) Box(Modifier.absoluteOffset(mainLeft + 8.dp, pane.top.dp)
+                        .width((mainWidth - 16.dp).coerceAtLeast(1.dp)).height(pane.height.dp)
+                        .consumeWindowInsets(consumed), contentAlignment = Alignment.BottomCenter) {
+                        Box(Modifier.padding(bottom = 8.dp).onSizeChanged { barsHeight = it.height }) { accessory() }
+                    }
+                } else {
+                    Box(Modifier.absoluteOffset(pane.left.dp + BarHorizontalMargin, pane.top.dp)
+                        .width((pane.width.dp - BarHorizontalMargin * 2).coerceAtLeast(1.dp)).height(pane.height.dp)
+                        .consumeWindowInsets(consumed), contentAlignment = Alignment.BottomCenter) {
+                        Column(Modifier.padding(bottom = BarSpacing).onSizeChanged { barsHeight = it.height },
+                            verticalArrangement = Arrangement.spacedBy(BarSpacing)) {
+                            accessory?.invoke()
+                            look.NavigationBar(tabs, selectedTab, onTabSelected, Modifier)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -916,10 +1031,13 @@ internal fun LiquidGlassMiniPlayer(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 @Composable fun metadata() {
-                    AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
+                    AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.miniPlayerTitleMotion(), maxLines = 1)
                     AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
                 }
                 metadata()
+                Spacer(Modifier.height(3.dp))
+                MiniPlayerProgress(state.progress)
             }
         }
         LiquidGlassIconButton(
@@ -928,8 +1046,9 @@ internal fun LiquidGlassMiniPlayer(
             onClick = onPlayPause,
             selected = false,
             modifier = Modifier,
+            hitSize = 48.dp,
         )
-        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, selected = false, modifier = Modifier)
+        LiquidGlassIconButton(AppIcons.Next, labels.next, onNext, selected = false, modifier = Modifier, hitSize = 48.dp)
     }
     }
 }

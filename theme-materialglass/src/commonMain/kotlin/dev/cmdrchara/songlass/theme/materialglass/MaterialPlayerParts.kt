@@ -63,6 +63,7 @@ import dev.cmdrchara.songlass.designsystem.theme.LocalContentColor
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import dev.cmdrchara.songlass.theme.liquidglass.followTrackSwipe
 import dev.cmdrchara.songlass.theme.liquidglass.miniPlayerCover
+import dev.cmdrchara.songlass.theme.liquidglass.miniPlayerTitleMotion
 import dev.cmdrchara.songlass.theme.liquidglass.miniPlayerFrame
 import dev.cmdrchara.songlass.theme.liquidglass.rememberTrackSwipe
 import dev.cmdrchara.songlass.theme.liquidglass.trackSwipe
@@ -101,12 +102,14 @@ internal fun MaterialMiniPlayer(
             Box(Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)).miniPlayerCover()) {
                 AlbumArt(state.artwork, cornerRadius = 0.dp, modifier = Modifier.fillMaxSize())
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Bold), maxLines = 1)
-                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.label.copy(alpha = 0.8f), maxLines = 1)
+                AppText(state.title, AppTheme.typography.subheadline.copy(fontWeight = FontWeight.Bold),
+                    modifier = Modifier.miniPlayerTitleMotion(), maxLines = 1)
+                AppText(state.subtitle, AppTheme.typography.footnote, color = AppTheme.colors.secondaryLabel, maxLines = 1)
             }
         }
+        Spacer(Modifier.width(6.dp))
         Box(
             Modifier
                 .size(48.dp)

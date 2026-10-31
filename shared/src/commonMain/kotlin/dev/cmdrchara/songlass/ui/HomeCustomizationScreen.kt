@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
@@ -78,17 +79,24 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
     LocalGlassLook.current.SettingsToolPage {
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).padding(contentPadding).consumeWindowInsets(contentPadding).imePadding()) {
             if (pane == "picker") {
-                SettingsPageHeader(stringResource(Res.string.homecfg_add_title), stringResource(Res.string.homecfg_title), { pane = "overview" })
-                SearchField(query, { query = it }, stringResource(Res.string.homecfg_search_placeholder), stringResource(Res.string.search_clear),
-                    Modifier.padding(horizontal = pageInset, vertical = 8.dp))
-                if (LocalGlassLook.current.homeShortcutKindMenu) {
-                    SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
-                        ListRow(kindLabels[kindIndex],
-                            trailing = { AppIcon(AppIcons.ChevronDown, null, tint = AppTheme.colors.tertiaryLabel) },
-                            onClick = { kindsVisible = true })
+                LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 8.dp)) {
+                    item(key = "picker-header") {
+                        SettingsPageHeader(stringResource(Res.string.homecfg_add_title), stringResource(Res.string.homecfg_title), { pane = "overview" })
                     }
-                } else FilterChips(kindLabels, kindIndex, { kindIndex = it }, Modifier.padding(vertical = 4.dp))
-                LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(vertical = 8.dp)) {
+                    item(key = "picker-search") {
+                        SearchField(query, { query = it }, stringResource(Res.string.homecfg_search_placeholder), stringResource(Res.string.search_clear),
+                            Modifier.padding(horizontal = pageInset, vertical = 8.dp))
+                    }
+                    item(key = "picker-kinds") {
+                        if (LocalGlassLook.current.homeShortcutKindMenu) {
+                            SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+                                ListRow(kindLabels[kindIndex],
+                                    trailing = { AppIcon(AppIcons.ChevronDown, null, tint = AppTheme.colors.tertiaryLabel) },
+                                    onClick = { kindsVisible = true })
+                            }
+                        } else FilterChips(kindLabels, kindIndex, { kindIndex = it }, Modifier.padding(vertical = 4.dp))
+                        Spacer(Modifier.height(8.dp))
+                    }
                     if (showFavorites) item(key = "favorites") {
                         PickerRow(ShortcutOption(PlayContext.Favorites, ShortcutKind.Favorites, null), null, PlayContext.Favorites in chosen, full) { toggle(PlayContext.Favorites) }
                     }
@@ -97,11 +105,25 @@ fun HomeCustomizationScreen(state: AppState, backLabel: String, onBack: () -> Un
                         PickerRow(option, resolveShortcut(option.context), option.context in chosen, full) { toggle(option.context) }
                     }
                 }
-                SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 8.dp)) {
-                    ListRow(stringResource(Res.string.homecfg_builder_count, chosen.size, HomeShortcuts.MAX),
-                        subtitle = if (full) stringResource(Res.string.homecfg_builder_full) else null,
-                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                        trailing = { ActionButton(stringResource(Res.string.homecfg_builder_done), { pane = "overview" }) })
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = pageInset, vertical = 8.dp)) {
+                    val count = stringResource(Res.string.homecfg_builder_count, chosen.size, HomeShortcuts.MAX)
+                    val subtitle = if (full) stringResource(Res.string.homecfg_builder_full) else null
+                    val done = stringResource(Res.string.homecfg_builder_done)
+                    if (LocalDensity.current.fontScale > 1.3f || maxWidth < 280.dp) {
+                        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SettingsGroup {
+                                ListRow(count, subtitle = subtitle, fullText = true,
+                                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+                            }
+                            ActionButton(done, { pane = "overview" }, Modifier.fillMaxWidth().heightIn(min = 48.dp))
+                        }
+                    } else {
+                        SettingsGroup {
+                            ListRow(count, subtitle = subtitle, fullText = true,
+                                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                                trailing = { ActionButton(done, { pane = "overview" }) })
+                        }
+                    }
                 }
             } else if (pane == "sections") {
                 LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = 12.dp)) {

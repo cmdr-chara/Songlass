@@ -24,6 +24,7 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 internal fun settingsTargetTitle(target: SettingsTarget): String = stringResource(when (target) {
+    SettingsTarget.ShowPlayerRating -> Res.string.settings_show_player_rating
     SettingsTarget.InterfaceStyle -> Res.string.settings_ui_style
     SettingsTarget.LiquidMaterial -> Res.string.settings_liquid_finish
     SettingsTarget.Appearance -> Res.string.settings_appearance
@@ -116,7 +117,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.Equalizer -> sound
             SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
-            SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics -> playback
+            SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics, SettingsTarget.ShowPlayerRating -> playback
             SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
             SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> queue
             SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> "$sound › ${stringResource(Res.string.settings_transport_fades)}"
@@ -140,6 +141,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
 private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPreferences, eq: EqualizerState, system: UiAccessibility): String? {
     @Composable fun enabled(value: Boolean) = stringResource(if (value) Res.string.eq_on else Res.string.eq_off)
     return when (target) {
+        SettingsTarget.ShowPlayerRating -> enabled(preferences.showPlayerRating)
         SettingsTarget.InterfaceStyle -> stringResource(when (preferences.interfaceStyle) {
             InterfaceStyle.LiquidGlass -> Res.string.settings_liquid_glass
             InterfaceStyle.MaterialGlass -> Res.string.settings_material_glass
@@ -176,8 +178,8 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
             ReplayGainMode.Album -> Res.string.settings_replay_gain_album_short
         })
         SettingsTarget.ReplayGainProcessing -> enabled(preferences.replayGainSettings.enabled)
-        SettingsTarget.ReplayGainPreamp -> stringResource(Res.string.settings_rg_db, preferences.replayGainSettings.preampDb)
-        SettingsTarget.ReplayGainMissingPreamp -> stringResource(Res.string.settings_rg_db, preferences.replayGainSettings.missingPreampDb)
+        SettingsTarget.ReplayGainPreamp -> formatGain(preferences.replayGainSettings.preampDb.toFloat(), stringResource(Res.string.eq_decimal_separator))
+        SettingsTarget.ReplayGainMissingPreamp -> formatGain(preferences.replayGainSettings.missingPreampDb.toFloat(), stringResource(Res.string.eq_decimal_separator))
         SettingsTarget.ReplayGainLimiter -> enabled(preferences.replayGainSettings.limiter)
         SettingsTarget.Crossfade, SettingsTarget.CrossfadeDuration -> if (preferences.crossfadeDurationMs == 0L) stringResource(Res.string.settings_crossfade_off_ms, 0L)
             else stringResource(Res.string.settings_search_duration_value, preferences.crossfadeDurationMs)

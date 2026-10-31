@@ -9,6 +9,15 @@ fi
 for command in xcodebuild xcrun ditto shasum python3; do
   command -v "$command" >/dev/null || { echo "Missing tool: $command" >&2; exit 1; }
 done
+xcode_identity="$(xcodebuild -version)"
+ios_sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+python3 - "$xcode_identity" "$ios_sdk_version" <<'PY'
+import re, sys
+match = re.search(r'Xcode\s+(\d+)\.(\d+)', sys.argv[1])
+sdk = re.match(r'(\d+)\.(\d+)', sys.argv[2])
+if match is None or sdk is None or tuple(map(int, match.groups())) < (27, 1) or tuple(map(int, sdk.groups())) < (27, 1):
+    raise SystemExit('iPhone Duo support requires Xcode 27.1+ and the iOS 27.1+ SDK. Select that Xcode with DEVELOPER_DIR; the minimum supported iOS version stays unchanged.')
+PY
 if [[ "${OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED:-}" == YES ]]; then
   echo "Refusing to skip the Kotlin framework build phase." >&2
   exit 1
@@ -72,6 +81,8 @@ info = {
     'bundle_identifier': 'dev.cmdrchara.songlass',
     'configuration': 'Release',
     'sdk': 'iphoneos',
+    'sdk_version': subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], text=True).strip(),
+    'minimum_build_sdk': '27.1',
     'signing': 'unsigned; requires later sideload signing',
     'xcode': subprocess.check_output(['xcodebuild', '-version'], text=True).strip(),
     'commit': os.environ.get('GITHUB_SHA') or subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip(),

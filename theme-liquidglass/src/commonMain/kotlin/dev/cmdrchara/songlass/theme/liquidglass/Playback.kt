@@ -18,6 +18,7 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.width
@@ -48,6 +49,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -57,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
@@ -96,6 +99,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.cmdrchara.songlass.designsystem.Artwork
 import dev.cmdrchara.songlass.designsystem.PlaybackLabels
+import dev.cmdrchara.songlass.designsystem.LocalWindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowPoint
+import dev.cmdrchara.songlass.designsystem.WindowRect
 import dev.cmdrchara.songlass.designsystem.foundation.AppText
 import dev.cmdrchara.songlass.designsystem.foundation.ArtworkPresentation
 import dev.cmdrchara.songlass.designsystem.foundation.LocalArtworkPresentation
@@ -402,15 +409,35 @@ internal fun LiquidGlassNowPlayingSheet(
     val fullBleed = LocalArtworkPresentation.current == ArtworkPresentation.FullBleed
     val density = LocalDensity.current
     val layoutDirection = LocalLayoutDirection.current
+    val windowLayout = LocalWindowLayout.current
+    val adaptiveWindow = windowLayout.requiresAdaptivePlayer
     var sourceAnchor by remember { mutableStateOf<Rect?>(null) }
     var thumbAnchor by remember { mutableStateOf<Rect?>(null) }
     var origin by remember { mutableStateOf(Offset.Zero) }
     var headerCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    var headerPane by remember { mutableStateOf<WindowRect?>(null) }
+    val headerGeometrySource = remember { arrayOfNulls<WindowLayout>(1) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var settling by remember { mutableStateOf(false) }
     var settleJob by remember { mutableStateOf<Job?>(null) }
     val dismissThreshold = with(LocalDensity.current) { 140.dp.toPx() }
     val dismissVelocity = with(LocalDensity.current) { 1000.dp.toPx() }
+
+    fun updateHeaderPane(coordinates: LayoutCoordinates) {
+        if (!adaptiveWindow) return
+        val local = windowLayout.inLocalCoordinates(coordinates.size.width / density.density,
+            coordinates.size.height / density.density) { x, y ->
+            val point = coordinates.windowToLocal(Offset(x * density.density, y * density.density))
+            WindowPoint(point.x / density.density, point.y / density.density)
+        }
+        headerPane = local.panes(local.bounds, paired = false)?.first
+    }
+    if (adaptiveWindow) SideEffect {
+        if (headerGeometrySource[0] != windowLayout) {
+            headerGeometrySource[0] = windowLayout
+            headerCoordinates?.takeIf { it.isAttached }?.let(::updateHeaderPane)
+        }
+    }
 
     fun dragWindowScale(): Float {
         val coordinates = headerCoordinates?.takeIf { it.isAttached } ?: return 1f
@@ -541,7 +568,9 @@ internal fun LiquidGlassNowPlayingSheet(
                     val p = fraction()
                     // Both layers read the same derived ownership in the drawing phase:
                     // no coroutine completion or recomposition gap at the thumbnail hand-off.
-                    alpha = if (artwork != null && !reduceMotion && !morph.artworkInFlight) 0f else 1f
+                    // Lyrics/Queue can open before an Artwork page has supplied a Square
+                    // target. Only that page waits for the single-cover hand-off.
+                    alpha = if (artworkVisible && artwork != null && !reduceMotion && !morph.artworkInFlight) 0f else 1f
                     if (reduceMotion) {
                         alpha = p.coerceIn(0f, 1f)
                         return@graphicsLayer
@@ -641,7 +670,7 @@ internal fun LiquidGlassNowPlayingSheet(
                     modifier = Modifier.fillMaxSize().clearAndSetSemantics {},
                     content = {
                         PlayerSquareArtwork(artwork, Modifier.fillMaxSize().graphicsLayer {
-                            alpha = if (squareImageInFlight.value) {
+                            alpha = if (squareImageInFlight.value && squareTransition.target() != null) {
                                 if (artworkVisible) 1f else 1f - smoothstep(0.55f, 0.95f, fraction())
                             } else 0f
                             val t = fraction()
@@ -680,6 +709,15 @@ internal fun LiquidGlassNowPlayingSheet(
                             if (!reduceMotion) {
                                 val t = fraction()
                                 alpha = smoothstep(0.6f, 0.95f, t)
+                                if (adaptiveWindow) {
+                                    // Hardware regions are fixed in window space. Fade controls
+                                    // at their final geometry instead of scaling their fold gap.
+                                    scaleX = 1f
+                                    scaleY = 1f
+                                    translationX = 0f
+                                    translationY = 0f
+                                    return@graphicsLayer
+                                }
                                 val artworkFrame = artworkFrame(size, t)
                                 val frame = artworkFrame.surface
                                 // Let controls travel with the surface instead of being revealed
@@ -708,7 +746,10 @@ internal fun LiquidGlassNowPlayingSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
-                            .onGloballyPositioned { headerCoordinates = it }
+                            .onGloballyPositioned {
+                                headerCoordinates = it
+                                updateHeaderPane(it)
+                            }
                             .draggable(
                                 orientation = Orientation.Vertical,
                                 enabled = visible && !artworkExpanded,
@@ -734,6 +775,14 @@ internal fun LiquidGlassNowPlayingSheet(
                             ),
                         contentAlignment = if (hero) Alignment.CenterStart else Alignment.Center,
                     ) {
+                        val safeHeader = if (adaptiveWindow) headerPane else null
+                        if (!adaptiveWindow || safeHeader != null) Box(
+                            modifier = if (safeHeader == null) Modifier else Modifier
+                                .align(AbsoluteAlignment.TopLeft)
+                                .absoluteOffset { androidx.compose.ui.unit.IntOffset(safeHeader.left.dp.roundToPx(), safeHeader.top.dp.roundToPx()) }
+                                .size(safeHeader.width.dp, safeHeader.height.dp),
+                            contentAlignment = if (hero) Alignment.CenterStart else Alignment.Center,
+                        ) {
                         if (hero) ProvideArtworkTint(headerTint) {
                             FloatingCircleButton(AppIcons.ChevronDown, dismissLabel, currentOnDismiss, Modifier.padding(start = 12.dp))
                         } else Box(
@@ -749,6 +798,7 @@ internal fun LiquidGlassNowPlayingSheet(
                             contentAlignment = Alignment.Center,
                         ) {
                             Box(Modifier.size(width = 36.dp, height = 5.dp).clip(CircleShape).background(LocalContentColor.current.copy(alpha = 0.5f)))
+                        }
                         }
                     }
                     CompositionLocalProvider(LocalPlayerArtworkTransition provides squareTransition) {

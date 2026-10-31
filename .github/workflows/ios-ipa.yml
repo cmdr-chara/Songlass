@@ -34,6 +34,30 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
+      - name: Select installed Xcode with iPhone Duo SDK support
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, re, subprocess
+          candidates = []
+          for developer in pathlib.Path('/Applications').glob('Xcode*.app/Contents/Developer'):
+              env = dict(os.environ, DEVELOPER_DIR=str(developer))
+              try:
+                  xcode = subprocess.check_output(['xcodebuild', '-version'], env=env, text=True)
+                  sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], env=env, text=True).strip()
+                  version = re.search(r'Xcode\s+(\d+)\.(\d+)', xcode)
+                  sdk_version = re.match(r'(\d+)\.(\d+)', sdk)
+                  if version and sdk_version and tuple(map(int, version.groups())) >= (27, 1) and tuple(map(int, sdk_version.groups())) >= (27, 1):
+                      candidates.append((tuple(map(int, version.groups())), developer, sdk))
+              except subprocess.CalledProcessError:
+                  continue
+          if not candidates:
+              raise SystemExit('This runner has no Xcode 27.1+ with iOS 27.1+ SDK. Use an updated macOS runner; do not silently build the Duo UI with an older SDK.')
+          _, developer, sdk = max(candidates, key=lambda item: item[0])
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'DEVELOPER_DIR={developer}\n')
+          print(f'Selected {developer}; iPhoneOS SDK {sdk}')
+          PY
       - name: Set up JDK 21
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:

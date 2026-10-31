@@ -3,6 +3,8 @@ package dev.cmdrchara.songlass
 import dev.cmdrchara.songlass.shared.resources.player_return
 
 import dev.cmdrchara.songlass.designsystem.Artwork
+import dev.cmdrchara.songlass.designsystem.LocalWindowLayout
+import dev.cmdrchara.songlass.designsystem.WindowLayout
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -60,9 +62,11 @@ import dev.cmdrchara.songlass.shared.resources.tab_search
 import dev.cmdrchara.songlass.theme.liquidglass.LiquidGlassTheme
 import dev.cmdrchara.songlass.theme.liquidglass.LocalGlassLook
 import dev.cmdrchara.songlass.ui.AlbumScreen
+import dev.cmdrchara.songlass.ui.AutomaticTrackArtwork
 import dev.cmdrchara.songlass.ui.LocalOnlineArtwork
 import dev.cmdrchara.songlass.ui.OnlineArtworkScreen
 import dev.cmdrchara.songlass.ui.rememberAlbumCoverView
+import dev.cmdrchara.songlass.ui.rememberTrackCoverView
 import dev.cmdrchara.songlass.ui.rememberOnlineArtworkController
 import dev.cmdrchara.songlass.ui.rememberOnlineArtworkImageLoader
 import dev.cmdrchara.songlass.ui.AppState
@@ -112,6 +116,7 @@ fun App(
     onRequestLibraryAccess: (() -> Unit)? = null,
     artworkLoader: ArtworkImageLoader? = null,
     navigationState: AppState? = null,
+    windowLayout: WindowLayout = WindowLayout(),
 ) {
     val state = remember(graph, navigationState) { navigationState ?: AppState(graph) }
     val preferences by graph.settings.state.collectAsState()
@@ -130,6 +135,7 @@ fun App(
     val resolvedArtworkLoader = rememberOnlineArtworkImageLoader(onlineArtwork, artworkLoader)
     CompositionLocalProvider(
         LocalDensity provides Density(density.density, fontScale),
+        LocalWindowLayout provides windowLayout,
         LocalArtworkImageLoader provides resolvedArtworkLoader,
         LocalOnlineArtwork provides onlineArtwork,
         LocalArtworkPresentation provides presentation,
@@ -165,10 +171,16 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
     val playingQueue by graph.controller.queue.collectAsState()
     val visibleLibrary by graph.library.collectAsState()
     val playingTrack = playingQueue.current?.track
-    val ambientArtwork = remember(playingTrack, visibleLibrary) { playingTrack?.artwork(visibleLibrary) }
+    val ambientArtwork = playingTrack?.let { rememberTrackCoverView(it, visibleLibrary).artwork }
     // The player opens on the full-size cover: decode it while only the mini player shows.
     PrefetchArtwork(ambientArtwork, LARGE_ARTWORK_PX)
     CompositionLocalProvider(LocalAmbientArtwork provides ambientArtwork, LocalMusicLibrary provides visibleLibrary) {
+    AutomaticTrackArtwork(playingTrack, preferences, isAvailable = { track ->
+        val permit = graph.artworkAvailability.permitForId(track.id)
+        graph.source.hasAccess.value && graph.hasCompleteLibraryScan.value &&
+            !graph.isLibraryLoading.value && permit != null && graph.artworkAvailability.isCurrent(permit) &&
+            permit.track == track
+    }, active = !restoration.restoring)
     InterfaceTheme(preferences.interfaceStyle, darkTheme, accessibility) {
     val welcome by graph.onboarding.visible.collectAsState()
     if (welcome) {
@@ -191,7 +203,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         val labels = playbackLabels()
         val current = queue.current?.track
         val currentId = current?.id
-        val currentArtwork = remember(current, library) { current?.artwork(library) }
+        val currentArtwork = current?.let { rememberTrackCoverView(it, library).artwork }
         LaunchedEffect(currentId) { state.updateArtworkExpansion(false); state.closeSongInfo() }
         val nowPlayingVisible = state.isNowPlayingOpen && current != null
         // Page tints may follow artwork; playback controls always keep the selected appearance.
@@ -207,9 +219,11 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
         var playerStatusBarLightIcons by remember { mutableStateOf<Boolean?>(null) }
         // Keep the composition-local read outside the changing player-override branch.
         val artworkHeaderCoversStatusBar = LocalGlassLook.current.artworkHeaderCoversStatusBar
+        val collectionStatusBarLightIcons = state.collectionStatusBarAppearance
+            ?.takeIf { it.destination == state.destination }?.lightIcons
         SystemBarAppearance(
             // Inset collection headers leave the theme canvas, rather than cover art, behind the status bar.
-            lightIcons = playerStatusBarLightIcons ?: if (routeArtwork != null && artworkHeaderCoversStatusBar)
+            lightIcons = playerStatusBarLightIcons ?: collectionStatusBarLightIcons ?: if (routeArtwork != null && artworkHeaderCoversStatusBar)
                 routeTint.isDark else darkTheme,
             navigationLightIcons = if (tintedArtwork != null) tintIsDark else darkTheme,
         )
@@ -260,6 +274,9 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                         modifier = Modifier.fillMaxSize(),
                         direction = { from, to ->
                             when {
+                                // Backup is presented by its themed sheet, over the same Settings
+                                // canvas. A second page slide invents an intermediate destination.
+                                from.route == Route.Backup || to.route == Route.Backup -> NavigationDirection.Crossfade
                                 from.tab != to.tab -> NavigationDirection.Crossfade
                                 to.depth > from.depth -> NavigationDirection.Forward
                                 to.depth < from.depth -> NavigationDirection.Backward
@@ -364,7 +381,10 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             is Route.AutoEqDetail -> dev.cmdrchara.songlass.ui.AutoEqDetailScreen(route.entry, graph.autoEq, graph.equalizer,
                                 state::goBack, { state.goBack(); state.goBack() }, padding)
                             is Route.AlbumDetail -> AlbumScreen(route.album, state, currentId, backLabel, padding)
-                            is Route.OnlineArtwork -> OnlineArtworkScreen(route.album, state, backLabel, padding)
+                            is Route.OnlineArtwork -> OnlineArtworkScreen(route.album, state, backLabel, padding,
+                                isActive = { state.destination == destination })
+                            is Route.OnlineTrackArtwork -> OnlineArtworkScreen(route.track, state, backLabel, padding,
+                                isActive = { state.destination == destination })
                             is Route.ArtistDetail -> ArtistScreen(route.artist, state, currentId, backLabel, padding)
                             is Route.FacetList -> dev.cmdrchara.songlass.ui.LibraryFacetListScreen(route.kind, state, backLabel, padding)
                             is Route.FacetDetail -> dev.cmdrchara.songlass.ui.LibraryFacetScreen(route.context, state, currentId, backLabel, padding)

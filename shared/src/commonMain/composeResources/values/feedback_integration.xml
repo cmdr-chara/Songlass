@@ -1,0 +1,4 @@
+<resources>
+    <string name="feedback_find_cover">Find cover online</string>
+    <string name="feedback_cover_privacy">Missing covers are searched online using artist and title, following the network settings. Your audio files stay on the device.</string>
+</resources>

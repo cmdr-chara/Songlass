@@ -51,7 +51,7 @@ internal fun LiquidSettingsPageTitle(title: String, backLabel: String, onBack: (
     val colors = AppTheme.colors
     Box(modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 20.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
         AppText(title, AppTheme.typography.headline, modifier = Modifier.padding(horizontal = 52.dp).semantics { heading() },
-            color = colors.label, maxLines = 2, textAlign = TextAlign.Center)
+            color = colors.label, textAlign = TextAlign.Center)
         Box(Modifier.align(Alignment.CenterStart).size(44.dp).clip(CircleShape)
             .background(colors.secondaryBackground).border(.5.dp, colors.separator.copy(alpha = .35f), CircleShape)
             .clickable(role = Role.Button, onClick = onBack), contentAlignment = Alignment.Center) {

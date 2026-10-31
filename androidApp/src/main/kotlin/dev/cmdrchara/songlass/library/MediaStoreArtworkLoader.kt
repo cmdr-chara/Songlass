@@ -21,6 +21,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -40,6 +43,7 @@ class MediaStoreArtworkLoader(
     private val availability: ArtworkAvailability = (context.applicationContext as SonglassApplication).graph.artworkAvailability,
     canReadLibrary: (() -> Boolean)? = null,
 ) : ArtworkImageLoader {
+    private val appContext = context.applicationContext
     private val resolver = context.contentResolver
     private val canReadLibrary: () -> Boolean = canReadLibrary ?: run {
         val app = context.applicationContext as SonglassApplication
@@ -51,7 +55,8 @@ class MediaStoreArtworkLoader(
         check
     }
 
-    override val revision: StateFlow<Long> get() = availability.revision
+    private val loadRevision = MutableStateFlow(availability.revision.value)
+    override val revision: StateFlow<Long> get() = loadRevision
 
     /** Current permission for new track IO; a positive memory hit needs no such permission. */
     fun canRead(key: String): Boolean = canReadLibrary() && availability.permitForKey(key) != null
@@ -77,6 +82,17 @@ class MediaStoreArtworkLoader(
 
     // Prefetches outlive the composables that start them; the loader lives as long as the app.
     private val prefetchScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    init {
+        prefetchScope.launch { availability.revision.drop(1).collect { loadRevision.value += 1 } }
+        prefetchScope.launch {
+            dev.cmdrchara.songlass.artwork.FolderArtwork.revision.drop(1).collect {
+                smallCache.evictAll()
+                largeCache.evictAll()
+                loadRevision.value += 1
+            }
+        }
+    }
 
     override fun prefetch(key: String, sizePx: Int): Job = prefetchScope.launch { load(key, sizePx) }
 
@@ -104,15 +120,22 @@ class MediaStoreArtworkLoader(
             else -> CachedArtwork(
                 Bitmap.createScaledBitmap(source, maxOf(1, (source.width * scale).toInt()), maxOf(1, (source.height * scale).toInt()), true),
                 larger.checkedRevision,
+                larger.folderRevision,
             )
         }
         cacheFor(sizePx).put(cacheKey, entry)
-        return entry
+        return freshEntry(cacheKey, sizePx)
     }
 
     private fun freshEntry(cacheKey: String, sizePx: Int): CachedArtwork? {
         val cache = cacheFor(sizePx)
         val entry = cache.get(cacheKey) ?: return null
+        // Folder choice is a separate generation: even a successful decode may have finished
+        // after that folder was replaced and its caches cleared. Never reuse that positive hit.
+        if (entry.folderRevision != dev.cmdrchara.songlass.artwork.FolderArtwork.revision.value) {
+            cache.remove(cacheKey)
+            return null
+        }
         if (entry.bitmap != null || entry.checkedRevision == revision.value) return entry
         // A failed/no-cover read is never a permanent verdict across permission/scan recovery.
         cache.remove(cacheKey)
@@ -139,7 +162,7 @@ class MediaStoreArtworkLoader(
                     // A decode that has started is finished and cached even if its row left
                     // the screen meanwhile, instead of throwing the work away.
                     withContext(NonCancellable + Dispatchers.IO) {
-                        cachedEntry(key, sizePx) ?: decodeAuthorized(key, sizePx)?.also {
+                        cachedEntry(key, sizePx) ?: decodeAuthorized(key, sizePx)?.let {
                             cacheFor(sizePx).put(cacheKey, it)
                             // Keep a small stand-in in the independent thumbnail cache. A large
                             // carousel can evict its own covers when another tab is visited; on
@@ -149,6 +172,8 @@ class MediaStoreArtworkLoader(
                             if (sizePx > SMALL_ARTWORK_PX && it.bitmap != null &&
                                 freshEntry("$key@$SMALL_ARTWORK_PX", SMALL_ARTWORK_PX) == null
                             ) cachedEntry(key, SMALL_ARTWORK_PX)
+                            // Inspect the stamp after publication as well as before decoding.
+                            freshEntry(cacheKey, sizePx)
                         }
                     }
                 }
@@ -164,11 +189,13 @@ class MediaStoreArtworkLoader(
     private suspend fun decodeAuthorized(key: String, sizePx: Int): CachedArtwork? {
         val permit = availability.permitForKey(key)
         if (permit != null) {
+            val folderRevision = dev.cmdrchara.songlass.artwork.FolderArtwork.revision.value
             return availability.readIfCurrent(permit, canReadLibrary) { track ->
-                decodeAudio(Uri.parse(track.uri), sizePx, revision.value) {
-                    availability.isCurrent(permit) && canReadLibrary()
+                decodeAudio(track, sizePx, revision.value, folderRevision) {
+                    availability.isCurrent(permit) && canReadLibrary() &&
+                        folderRevision == dev.cmdrchara.songlass.artwork.FolderArtwork.revision.value
                 }
-            }
+            }?.takeIf { folderRevision == dev.cmdrchara.songlass.artwork.FolderArtwork.revision.value }
         }
         val uri = Uri.parse(key).buildUpon().fragment(null).build()
         val isAudio = uri.authority == MediaStore.AUTHORITY && uri.pathSegments.getOrNull(1) == "audio"
@@ -176,6 +203,7 @@ class MediaStoreArtworkLoader(
         // The tag editor can preview an explicitly picked image URI under its separate picker
         // grant. It is not an alternative route for unverified audio files or invented track keys.
         if (runCatching { resolver.getType(uri) }.getOrNull()?.startsWith("image/") != true) return null
+        val folderRevision = dev.cmdrchara.songlass.artwork.FolderArtwork.revision.value
         val bitmap = runCatching {
             val source = android.graphics.ImageDecoder.createSource(resolver, uri)
             android.graphics.ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
@@ -184,20 +212,23 @@ class MediaStoreArtworkLoader(
                 decoder.allocator = android.graphics.ImageDecoder.ALLOCATOR_SOFTWARE
             }
         }.getOrNull() ?: return null
-        return CachedArtwork(bitmap, revision.value)
+        return CachedArtwork(bitmap, revision.value, folderRevision)
     }
 
     /** Identical embedded picture bytes at the same size share the existing decoded bitmap. */
-    private fun decodeAudio(uri: Uri, sizePx: Int, checkedRevision: Long, stillAllowed: () -> Boolean): CachedArtwork? {
+    private fun decodeAudio(track: dev.cmdrchara.songlass.core.model.Track, sizePx: Int, checkedRevision: Long, folderRevision: Long, stillAllowed: () -> Boolean): CachedArtwork? {
+        val uri = Uri.parse(track.uri)
         if (!stillAllowed()) return null
         val picture = dev.cmdrchara.songlass.artwork.EmbeddedCover.frontCover(resolver, uri)
         if (!stillAllowed()) return null
         if (picture != null) {
             val identity = "${digest(picture)}@$sizePx"
-            synchronized(sharedCovers) { sharedCovers[identity]?.get() }?.let { return it }
+            synchronized(sharedCovers) { sharedCovers[identity]?.get() }?.let {
+                return CachedArtwork(it.bitmap, checkedRevision, folderRevision)
+            }
             val bitmap = dev.cmdrchara.songlass.artwork.EmbeddedCover.decode(picture, sizePx)
             if (bitmap != null) {
-                val entry = CachedArtwork(bitmap, checkedRevision)
+                val entry = CachedArtwork(bitmap, checkedRevision, folderRevision)
                 synchronized(sharedCovers) {
                     if (sharedCovers.size >= SHARED_COVERS_PRUNE_AT) sharedCovers.values.removeAll { it.get() == null }
                     sharedCovers[identity] = WeakReference(entry)
@@ -205,15 +236,22 @@ class MediaStoreArtworkLoader(
                 return entry
             }
         }
+        if (!stillAllowed()) return null
+        val folderPicture = dev.cmdrchara.songlass.artwork.FolderArtwork.bytes(appContext, track)
+        if (!stillAllowed()) return null
+        if (folderPicture != null) {
+            val bitmap = dev.cmdrchara.songlass.artwork.EmbeddedCover.decode(folderPicture, sizePx)
+            if (bitmap != null) return CachedArtwork(bitmap, checkedRevision, folderRevision)
+        }
         // Thumbnail fallback is another source read, so recheck after the embedded-cover read.
         if (!stillAllowed()) return null
-        return CachedArtwork(runCatching { resolver.loadThumbnail(uri, Size(sizePx, sizePx), null) }.getOrNull(), checkedRevision)
+        return CachedArtwork(runCatching { resolver.loadThumbnail(uri, Size(sizePx, sizePx), null) }.getOrNull(), checkedRevision, folderRevision)
     }
 
     private fun digest(bytes: ByteArray): String =
         MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { (it.toInt() and 0xff).toString(16).padStart(2, '0') }
 
-    class CachedArtwork(val bitmap: Bitmap?, val checkedRevision: Long) {
+    class CachedArtwork(val bitmap: Bitmap?, val checkedRevision: Long, val folderRevision: Long) {
         val cachedImage = CachedArtworkImage(bitmap?.asImageBitmap())
         val image: ImageBitmap? get() = cachedImage.image
     }

@@ -3,7 +3,7 @@ package dev.cmdrchara.songlass.theme.liquidglass
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 
-/** Use the same compact value picker as the other appearance preferences. */
+/** Connected appearance row; the options still use the compact value picker. */
 @Composable
 internal fun LiquidMaterialOptions(
     title: String,
@@ -12,4 +12,4 @@ internal fun LiquidMaterialOptions(
     onSelect: (Int) -> Unit,
     closeLabel: String,
     modifier: Modifier,
-) = LiquidSettingsValueChoice(title, labels, selectedIndex, onSelect, closeLabel, modifier)
+) = LiquidAppearanceFinishOptions(title, labels, selectedIndex, onSelect, closeLabel, modifier)

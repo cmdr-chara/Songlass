@@ -28,9 +28,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.setValue
@@ -199,6 +201,7 @@ private fun ActionSheetContent(
     val fadeDuration = if (reduceMotion) LiquidGlassMotion.ReducedMillis else LiquidGlassMotion.FadeMillis
 
     if (!visibility.isIdle || visibility.currentState || visibility.targetState) SheetWindowHost(
+        navigationLightIcons = colors.isDark,
         onDismiss = {
             if (visible) {
                 val back = onBackPress ?: actions.firstOrNull { it.isBackAction }?.onClick
@@ -219,7 +222,13 @@ private fun ActionSheetContent(
                         .background(Color.Black.copy(alpha = 0.35f))
                         .clickable(remember { MutableInteractionSource() }, indication = null, enabled = visible, onClick = onDismiss)
                         .semantics { onClick(label = cancelLabel) { if (visible) { onDismiss(); true } else false } },
-                )
+                ) {
+                    if (!bottomSheet) {
+                        Spacer(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                            .windowInsetsBottomHeight(WindowInsets.navigationBars)
+                            .background(surface.copy(alpha = 1f)))
+                    }
+                }
             }
             transition.AnimatedVisibility(
                 visible = { it },
@@ -245,19 +254,22 @@ private fun ActionSheetContent(
                     Column(
                         Modifier
                             .fillMaxWidth()
-                            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+                            .windowInsetsPadding(WindowInsets.safeDrawing.union(WindowInsets.ime))
                             .padding(horizontal = 8.dp, vertical = 8.dp),
                     ) {
-                        Column(Modifier.fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(scroll)) {
+                        // Reserve the separate cancel action before bounding the scrollable card.
+                        Column(Modifier.weight(1f, fill = false).fillMaxWidth().heightIn(max = cardMaxHeight).shadow(16.dp, SheetShape).clip(SheetShape).background(surface).verticalScroll(scroll)) {
                             Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                 if (artwork != null) {
                                     LiquidGlassAlbumArt(artwork, cornerRadius = 8.dp, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.width(12.dp))
                                 }
                                 Column {
-                                    AppText(title, AppTheme.typography.headline, maxLines = 1)
+                                    AppText(title, AppTheme.typography.headline,
+                                        maxLines = if (artwork == null) Int.MAX_VALUE else 1)
                                     if (subtitle != null) {
-                                        AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel, maxLines = 1)
+                                        AppText(subtitle, AppTheme.typography.subheadline, color = colors.secondaryLabel,
+                                            maxLines = if (artwork == null) Int.MAX_VALUE else 1)
                                     }
                                 }
                             }
@@ -311,11 +323,11 @@ private fun SheetRow(label: String, icon: ImageVector?, bold: Boolean = false, c
             .heightIn(min = 54.dp)
             .background(background)
             .clickable(interaction, indication = null, role = Role.Button, onClick = onClick)
-            .padding(horizontal = 18.dp),
+            .padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val style = AppTheme.typography.body.let { if (bold) it.copy(fontWeight = FontWeight.SemiBold) else it }
-        AppText(label, style, color = AppTheme.colors.accent, modifier = Modifier.weight(1f), maxLines = 1,
+        AppText(label, style, color = AppTheme.colors.accent, modifier = Modifier.weight(1f),
             textAlign = if (centered) TextAlign.Center else null)
         if (icon != null) AppIcon(icon, contentDescription = null, size = 22.dp, tint = AppTheme.colors.accent)
     }

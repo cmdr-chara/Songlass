@@ -1,0 +1,4 @@
+<resources>
+    <string name="feedback_find_cover">Cerca copertina online</string>
+    <string name="feedback_cover_privacy">Le copertine mancanti vengono cercate online con artista e titolo, rispettando le impostazioni di rete. I file audio restano sul dispositivo.</string>
+</resources>

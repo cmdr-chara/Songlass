@@ -5,7 +5,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
 @Composable
-actual fun SheetWindowHost(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+actual fun SheetWindowHost(onDismiss: () -> Unit, navigationLightIcons: Boolean?, content: @Composable () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(dismissOnClickOutside = false, usePlatformDefaultWidth = false)) {
         content()
     }

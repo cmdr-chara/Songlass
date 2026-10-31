@@ -13,7 +13,7 @@ enum class SettingsTarget {
     FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
     OnlineArtworkEnabled, OnlineArtworkWifiOnly, LastFm,
-    ResumeOverrides,
+    ResumeOverrides, ShowPlayerRating,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -137,6 +137,8 @@ private fun terms(vararg labels: String, aliases: String) = SearchTerms(labels.t
 
 /** Both languages remain searchable regardless of the language currently displayed. */
 private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
+    SettingsTarget.ShowPlayerRating -> terms("Show rating", "Player rating", "Mostra valutazione", "Valutazione nel player",
+        aliases = "rating visibility|nascondi valutazione|hide rating|voto player|valutazione brano")
     SettingsTarget.InterfaceStyle -> terms("Interface style", "UI style", "Stile interfaccia",
         aliases = "theme|tema|themes|temi|liquid glass|material glass|miuix|hyperos|skin")
     SettingsTarget.LiquidMaterial -> terms("Liquid Glass finish", "Finitura Liquid Glass", "Liquid Metal",
