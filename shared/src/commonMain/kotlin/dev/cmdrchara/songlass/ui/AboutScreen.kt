@@ -3,6 +3,7 @@ package dev.cmdrchara.songlass.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.LocalTextSelectionColors
@@ -39,6 +40,19 @@ import org.jetbrains.compose.resources.stringResource
 @Composable
 fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, contentPadding: PaddingValues, searchFocus: SettingsFocusRequest? = null) {
     val information = rememberAppInformation()
+    val mainScroll = rememberLazyListState()
+    val licensesScroll = rememberLazyListState()
+    // Subpages share this owner: returning must not reread the installed version
+    // or temporarily show an unrelated loading/recovery presentation.
+    var version by remember(information) { mutableStateOf<VersionRead>(VersionRead.Loading) }
+    var versionAttempt by remember { mutableIntStateOf(0) }
+    LaunchedEffect(information, versionAttempt) {
+        version = try {
+            val installed = information.readVersion()
+            if (installed.name == null && installed.build == null) VersionRead.Unavailable else VersionRead.Available(installed)
+        } catch (cancelled: CancellationException) { throw cancelled }
+        catch (_: Exception) { VersionRead.Unavailable }
+    }
     var page by rememberSaveable { mutableIntStateOf(AboutPage.Main.ordinal) }
     var selectedLicenseId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedLicense = information.licenses.firstOrNull { it.name == selectedLicenseId }
@@ -50,8 +64,8 @@ fun AboutScreen(graph: dev.cmdrchara.songlass.AppGraph, onBack: () -> Unit, cont
         when {
             selectedLicense != null -> LicenseReader(information, selectedLicense, contentPadding, onBack = { selectedLicenseId = null })
             current == AboutPage.Privacy -> AboutPrivacy(graph, contentPadding) { page = AboutPage.Main.ordinal }
-            current == AboutPage.Licenses -> AboutLicenses(information, contentPadding, { selectedLicenseId = it.name }) { page = AboutPage.Main.ordinal }
-            else -> AboutMain(graph, information, contentPadding, searchFocus, onBack, { page = it.ordinal })
+            current == AboutPage.Licenses -> AboutLicenses(information, contentPadding, licensesScroll, { selectedLicenseId = it.name }) { page = AboutPage.Main.ordinal }
+            else -> AboutMain(graph, contentPadding, searchFocus, mainScroll, version, { versionAttempt++ }, onBack, { page = it.ordinal })
         }
     }
 }
@@ -60,23 +74,10 @@ private enum class AboutPage { Main, Privacy, Licenses }
 
 @Composable
 private fun AboutMain(
-    graph: dev.cmdrchara.songlass.AppGraph, information: AppInformation, contentPadding: PaddingValues,
-    searchFocus: SettingsFocusRequest?, onBack: () -> Unit, open: (AboutPage) -> Unit,
+    graph: dev.cmdrchara.songlass.AppGraph, contentPadding: PaddingValues,
+    searchFocus: SettingsFocusRequest?, listState: LazyListState, version: VersionRead,
+    onRetryVersion: () -> Unit, onBack: () -> Unit, open: (AboutPage) -> Unit,
 ) {
-    val listState = rememberLazyListState()
-    var version by remember(information) { mutableStateOf<VersionRead>(VersionRead.Loading) }
-    var versionAttempt by remember { mutableIntStateOf(0) }
-    LaunchedEffect(information, versionAttempt) {
-        version = VersionRead.Loading
-        version = try {
-            val installed = information.readVersion()
-            if (installed.name == null && installed.build == null) VersionRead.Unavailable else VersionRead.Available(installed)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            VersionRead.Unavailable
-        }
-    }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, if (searchFocus?.target == SettingsTarget.About) 1 else null)
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars).then(searchReveal),
@@ -100,7 +101,7 @@ private fun AboutMain(
                 }
                 AppText(stringResource(Res.string.about_tagline), AppTheme.typography.body, color = AppTheme.colors.secondaryLabel, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(8.dp))
-                AboutVersion(version, onRetry = { versionAttempt++ })
+                AboutVersion(version, onRetry = onRetryVersion)
             }
         }
         // Only shown when an interrupted tag edit left recovery copies behind.
@@ -140,15 +141,17 @@ private fun AboutPrivacy(graph: dev.cmdrchara.songlass.AppGraph, contentPadding:
                 if (linkFailed) AboutStatus(stringResource(Res.string.about_link_unavailable))
             }
         }
+        item { AboutSection(stringResource(Res.string.artwork_online_title), stringResource(Res.string.feedback_cover_privacy)) }
         item { AboutSection(stringResource(Res.string.about_autoeq_title), stringResource(Res.string.about_autoeq_body)) }
         if (graph.tagEditor != null) item { AboutSection(stringResource(Res.string.about_tags_title), stringResource(Res.string.about_tags_body)) }
     }
 }
 
 @Composable
-private fun AboutLicenses(information: AppInformation, contentPadding: PaddingValues, onOpen: (BundledLicense) -> Unit, onBack: () -> Unit) {
+private fun AboutLicenses(information: AppInformation, contentPadding: PaddingValues, listState: LazyListState, onOpen: (BundledLicense) -> Unit, onBack: () -> Unit) {
     LazyColumn(
         Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.statusBars),
+        state = listState,
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -160,6 +163,7 @@ private fun AboutLicenses(information: AppInformation, contentPadding: PaddingVa
                         ListRow(
                             title = licenseTitle(license),
                             subtitle = licenseSummary(license),
+                            fullText = true,
                             trailing = { AppIcon(AppIcons.ChevronRight, null, tint = AppTheme.colors.tertiaryLabel) },
                             onClick = { onOpen(license) },
                         )
@@ -261,6 +265,7 @@ private fun AboutStatus(text: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun licenseTitle(license: BundledLicense): String = stringResource(when (license) {
+    BundledLicense.Songlass -> Res.string.about_license_songlass
     BundledLicense.AutoEq -> Res.string.about_license_autoeq
     BundledLicense.Miuix -> Res.string.about_license_miuix
     BundledLicense.TagLib -> Res.string.about_license_taglib
@@ -269,6 +274,7 @@ private fun licenseTitle(license: BundledLicense): String = stringResource(when 
 
 @Composable
 private fun licenseSummary(license: BundledLicense): String = when (license) {
+    BundledLicense.Songlass -> licenseTextTitle(LicenseTextKind.PolyFormPerimeter)
     BundledLicense.AutoEq -> licenseTextTitle(LicenseTextKind.Mit)
     BundledLicense.Miuix -> licenseTextTitle(LicenseTextKind.Apache2)
     BundledLicense.TagLib -> stringResource(Res.string.about_license_taglib_summary)
@@ -278,6 +284,7 @@ private fun licenseSummary(license: BundledLicense): String = when (license) {
 @Composable
 private fun licenseTextTitle(kind: LicenseTextKind): String = stringResource(when (kind) {
     LicenseTextKind.Notice -> Res.string.about_license_notice
+    LicenseTextKind.PolyFormPerimeter -> Res.string.about_license_polyform_perimeter
     LicenseTextKind.Mit -> Res.string.about_license_mit
     LicenseTextKind.Apache2 -> Res.string.about_license_apache
     LicenseTextKind.Lgpl21 -> Res.string.about_license_lgpl

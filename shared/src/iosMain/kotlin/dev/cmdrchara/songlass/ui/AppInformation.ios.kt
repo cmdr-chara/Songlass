@@ -11,7 +11,7 @@ internal actual fun rememberAppInformation(): AppInformation = remember { IosApp
 
 private object IosAppInformation : AppInformation {
     // The other notices currently live in Android-only assets. Do not offer missing files.
-    override val licenses = listOf(BundledLicense.AutoEq)
+    override val licenses = listOf(BundledLicense.Songlass, BundledLicense.AutoEq)
 
     override suspend fun readVersion(): InstalledAppVersion = withContext(Dispatchers.Default) {
         val bundle = NSBundle.mainBundle
@@ -21,8 +21,9 @@ private object IosAppInformation : AppInformation {
         )
     }
 
-    override suspend fun readLicense(license: BundledLicense): List<LicenseDocument> {
-        require(license == BundledLicense.AutoEq) { "This notice is not bundled on iOS" }
-        return readAutoEqLicense()
+    override suspend fun readLicense(license: BundledLicense): List<LicenseDocument> = when (license) {
+        BundledLicense.Songlass -> readSonglassLicense()
+        BundledLicense.AutoEq -> readAutoEqLicense()
+        else -> throw IllegalArgumentException("This notice is not bundled on iOS")
     }
 }

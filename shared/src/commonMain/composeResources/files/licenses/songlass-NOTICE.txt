@@ -1,0 +1,13 @@
+Songlass licensing notice
+
+Required Notice: Copyright (c) 2026 Commander Chara and Songlass contributors.
+
+Original Songlass code and project-authored documentation and artwork are provided under the PolyForm Perimeter License 1.0.0, together with the separate Songlass contribution permission. The unmodified standard license is in LICENSE. The project licensing scope and contribution permission are recorded in LICENSING.md; contributor instructions are in CONTRIBUTING.md.
+
+This is source-available licensing, not an OSI-approved open-source license. The standard license restricts providing a competing product, including one offered free of charge. It does not prohibit every commercial use or every redistribution, and it is not a guarantee against infringement or an independently implemented similar application.
+
+Third-party code, fonts, libraries, data and assets retain their own licenses and notices. Existing upstream copyright and license notices take precedence for their respective material. The PolyForm license text itself is reproduced under the permission provided by its authors; it is not relicensed as Songlass code.
+
+Personal media and third-party assets are not covered by the Songlass license grant. Do not distribute them without the appropriate permission.
+
+No general trademark license or right to represent a derivative as an official Songlass release is granted. Referential identification and the limited contribution/test use described in the additional permission remain permitted. Nothing in these notices limits rights that applicable law gives independently of this license.

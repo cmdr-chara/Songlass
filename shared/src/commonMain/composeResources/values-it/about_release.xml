@@ -5,6 +5,8 @@
     <string name="about_version_loading">Lettura della versione dell’app…</string>
     <string name="about_version_unavailable">Non è stato possibile leggere la versione dell’app installata.</string>
     <string name="about_release_retry">Riprova</string>
+    <string name="about_license_songlass">Songlass</string>
+    <string name="about_license_polyform_perimeter">PolyForm Perimeter 1.0.0</string>
     <string name="about_license_autoeq">AutoEQ</string>
     <string name="about_license_miuix">Miuix</string>
     <string name="about_license_taglib">TagLib Android e TagLib</string>
@@ -24,6 +26,6 @@
     <string name="about_page_title">Informazioni</string>
     <string name="about_data_title">Privacy e dati</string>
     <string name="about_data_summary">Cosa resta sul dispositivo e cosa viene inviato</string>
-    <string name="about_open_source">Licenze open source</string>
-    <string name="about_open_source_summary">AutoEQ, Miuix, TagLib e altre</string>
+    <string name="about_open_source">Licenze</string>
+    <string name="about_open_source_summary">Songlass e componenti di terze parti</string>
 </resources>

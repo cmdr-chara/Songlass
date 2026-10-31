@@ -1,0 +1,11 @@
+Songlass contribution permission
+
+This is an additional permission for the original Songlass material covered by the PolyForm Perimeter License 1.0.0. It is separate from, and does not change the text of, that license. Each rights holder offering their Songlass contributions under these terms grants this permission for the material they have the right to license.
+
+You may copy and fork the covered source, modify it, compile and run it, and share proposed changes, patches, review materials, CI artifacts and clearly identified development or test builds solely for good-faith participation in the Songlass contribution, review and testing workflow. Public working forks for that purpose are permitted. These activities are permitted even if the work-in-progress build would otherwise be considered a competing product under the license. Receiving payment for contribution or review work does not by itself disqualify that work.
+
+This permission includes copying original Songlass artwork and using the Songlass name and project identifiers as necessary to identify and test those contributions, provided the build or fork is clearly identified as unofficial development or review material. It does not grant permission to claim endorsement or official-release status.
+
+This additional permission does not authorize offering, marketing or selling a separate competing application or service, including a renamed or repackaged Songlass release. It is not a general exception to the license's Noncompete section. The license's other conditions, including its notices, remain applicable.
+
+This permission covers only rights the granting rights holder can license. It does not change the terms of third-party code or assets, grant rights in excluded third-party material, or restrict rights and exceptions provided by applicable law.

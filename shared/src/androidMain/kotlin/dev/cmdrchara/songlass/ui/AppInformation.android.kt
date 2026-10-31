@@ -16,7 +16,7 @@ internal actual fun rememberAppInformation(): AppInformation {
 
 private class AndroidAppInformation(private val context: Context) : AppInformation {
     override val licenses = listOf(
-        BundledLicense.AutoEq, BundledLicense.Miuix, BundledLicense.TagLib, BundledLicense.OtherOpenSource,
+        BundledLicense.Songlass, BundledLicense.AutoEq, BundledLicense.Miuix, BundledLicense.TagLib, BundledLicense.OtherOpenSource,
     )
 
     override suspend fun readVersion(): InstalledAppVersion = withContext(Dispatchers.IO) {
@@ -25,6 +25,7 @@ private class AndroidAppInformation(private val context: Context) : AppInformati
     }
 
     override suspend fun readLicense(license: BundledLicense): List<LicenseDocument> = when (license) {
+        BundledLicense.Songlass -> readSonglassLicense()
         BundledLicense.AutoEq -> readAutoEqLicense()
         else -> withContext(Dispatchers.IO) {
             val files = when (license) {
@@ -46,7 +47,7 @@ private class AndroidAppInformation(private val context: Context) : AppInformati
                     LicenseTextKind.Boost10 to "kotlin-boost-LICENSE.txt",
                     LicenseTextKind.Apache2 to "material-color-utilities-APACHE-2.0.txt",
                 )
-                BundledLicense.AutoEq -> error("AutoEQ uses shared resources")
+                BundledLicense.Songlass, BundledLicense.AutoEq -> error("This license uses shared resources")
             }
             files.map { (kind, fileName) ->
                 context.assets.open("licenses/$fileName").bufferedReader(Charsets.UTF_8).use {
