@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="lyrics_options">Opzioni testi</string>
+    <string name="lyrics_timing">Sincronizzazione testi</string>
+    <string name="lyrics_timing_hint">Positivo: testi più tardi. Negativo: prima. Vale per tutti i brani.</string>
+    <string name="lyrics_offset_value">%1$s ms</string>
+    <string name="lyrics_text_size">Dimensione testi</string>
+    <string name="lyrics_keep_screen_on">Schermo acceso nei testi</string>
+    <string name="lyrics_keep_screen_hint">Solo mentre la pagina Testi è in primo piano.</string>
+    <string name="lyrics_earlier">-50</string>
+    <string name="lyrics_later">+50</string>
+    <string name="lyrics_smaller">-5%</string>
+    <string name="lyrics_larger">+5%</string>
+</resources>

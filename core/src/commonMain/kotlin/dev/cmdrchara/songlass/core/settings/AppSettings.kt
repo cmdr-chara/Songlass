@@ -83,6 +83,13 @@ class AppSettings(
         ),
         amllEnabled = store.getString(AMLL_KEY)?.toBooleanStrictOrNull() ?: true,
         lrclibEnabled = store.getString(LRCLIB_KEY)?.toBooleanStrictOrNull() ?: true,
+        lyricsPresentation = dev.cmdrchara.songlass.core.lyrics.LyricsPresentation(
+            offsetMs = store.getString(LYRICS_OFFSET_KEY)?.toIntOrNull()
+                ?.takeIf { it in -5_000..5_000 && it % 50 == 0 } ?: 0,
+            textSizePercent = store.getString(LYRICS_TEXT_SIZE_KEY)?.toIntOrNull()
+                ?.takeIf { it in 80..160 && it % 5 == 0 } ?: 100,
+            keepScreenOn = store.getString(LYRICS_KEEP_SCREEN_ON_KEY)?.toBooleanStrictOrNull() ?: false,
+        ),
         playCountRule = PlayCountRule.fromStorage(store.getString(PLAY_COUNT_RULE_KEY)),
         albumLayout = if (store.getString(ALBUM_LAYOUT_KEY) == "list") AlbumLayout.List else AlbumLayout.Grid,
         showPlayerRating = store.getString(SHOW_PLAYER_RATING_KEY)?.toBooleanStrictOrNull() ?: true,
@@ -344,6 +351,26 @@ class AppSettings(
         _state.update { it.copy(headphones = next) }
     }
 
+    fun setLyricsOffset(offsetMs: Int) {
+        if (!mutations.canMutate) return
+        val value = dev.cmdrchara.songlass.core.lyrics.LyricsPresentation.normalizeOffset(offsetMs)
+        store.putString(LYRICS_OFFSET_KEY, value.toString())
+        _state.update { it.copy(lyricsPresentation = it.lyricsPresentation.copy(offsetMs = value)) }
+    }
+
+    fun setLyricsTextSize(percent: Int) {
+        if (!mutations.canMutate) return
+        val value = dev.cmdrchara.songlass.core.lyrics.LyricsPresentation.normalizeTextSize(percent)
+        store.putString(LYRICS_TEXT_SIZE_KEY, value.toString())
+        _state.update { it.copy(lyricsPresentation = it.lyricsPresentation.copy(textSizePercent = value)) }
+    }
+
+    fun setLyricsKeepScreenOn(enabled: Boolean) {
+        if (!mutations.canMutate) return
+        store.putString(LYRICS_KEEP_SCREEN_ON_KEY, enabled.toString())
+        _state.update { it.copy(lyricsPresentation = it.lyricsPresentation.copy(keepScreenOn = enabled)) }
+    }
+
     fun setLrclibEnabled(enabled: Boolean) {
         if (!mutations.canMutate) return
         store.putString(LRCLIB_KEY, enabled.toString())
@@ -539,7 +566,7 @@ class AppSettings(
             SettingsArea.Sound -> setOf(REPLAY_GAIN_KEY, CROSSFADE_KEY, MANUAL_CROSSFADE_KEY, AUDIO_FOCUS_KEY, PAUSE_FADE_KEY, STOP_FADE_KEY, SEEK_FADE_KEY, RG_PROCESSING_KEY, RG_PREAMP_KEY, RG_MISSING_PREAMP_KEY, RG_LIMITER_KEY, BALANCE_KEY, STEREO_EXPAND_KEY, TEMPO_KEY, REVERB_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.BASS_KEY, dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.TREBLE_KEY,
                 dev.cmdrchara.songlass.core.equalizer.EqualizerTuning.LAYOUT_KEY, EQUALIZER_LOCKED_KEY) + AudioFocusSettings.keys
-            SettingsArea.Player -> setOf(SHOW_PLAYER_RATING_KEY, RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY) + HeadphoneSettings.keys
+            SettingsArea.Player -> setOf(SHOW_PLAYER_RATING_KEY, RESUME_KEY, PAUSE_DISCONNECT_KEY, MULTI_PRESS_KEY, PER_TRACK_KEY, LONG_THRESHOLD_KEY, AMLL_KEY, LRCLIB_KEY, LYRICS_OFFSET_KEY, LYRICS_TEXT_SIZE_KEY, LYRICS_KEEP_SCREEN_ON_KEY) + HeadphoneSettings.keys
             SettingsArea.Queue -> setOf(TRACK_CLICK_KEY, QUEUE_START_KEY, QUEUE_END_KEY, QUEUE_ORDER_KEY, QUEUE_REPLACES_KEY, SHUFFLE_BIAS_KEY, KEEP_SHUFFLE_KEY)
             SettingsArea.Library -> setOf(EXCLUDED_FOLDERS_KEY, MIN_DURATION_KEY, MIN_RATING_KEY, PLAY_COUNT_RULE_KEY, ALBUM_LAYOUT_KEY)
         }
@@ -561,7 +588,8 @@ class AppSettings(
                 SettingsArea.Player -> current.copy(showPlayerRating = defaults.showPlayerRating, headphones = defaults.headphones,
                     pauseOnDisconnect = defaults.pauseOnDisconnect, headsetMultiPress = defaults.headsetMultiPress,
                     resumePerTrack = defaults.resumePerTrack, longTrackThresholdMs = defaults.longTrackThresholdMs,
-                    amllEnabled = defaults.amllEnabled, lrclibEnabled = defaults.lrclibEnabled)
+                    amllEnabled = defaults.amllEnabled, lrclibEnabled = defaults.lrclibEnabled,
+                    lyricsPresentation = defaults.lyricsPresentation)
                 SettingsArea.Queue -> current.copy(trackClickAction = defaults.trackClickAction, queueStart = defaults.queueStart,
                     queueEnd = defaults.queueEnd, queueAddOrder = defaults.queueAddOrder, queueReplaces = defaults.queueReplaces,
                     shuffleBias = defaults.shuffleBias, keepShuffleOnSelection = defaults.keepShuffleOnSelection)
@@ -622,6 +650,9 @@ class AppSettings(
         const val MANUAL_CROSSFADE_KEY = "settings.manual_crossfade_duration_ms"
         const val AMLL_KEY = "settings.amll_enabled"
         const val LRCLIB_KEY = "settings.lrclib_enabled"
+        const val LYRICS_OFFSET_KEY = "settings.lyrics_offset_ms"
+        const val LYRICS_TEXT_SIZE_KEY = "settings.lyrics_text_size_percent"
+        const val LYRICS_KEEP_SCREEN_ON_KEY = "settings.lyrics_keep_screen_on"
         const val PLAY_COUNT_RULE_KEY = "settings.play_count_rule"
         const val ALBUM_LAYOUT_KEY = "library.album_layout"
         const val TRACK_CLICK_KEY = "settings.track_click_action"

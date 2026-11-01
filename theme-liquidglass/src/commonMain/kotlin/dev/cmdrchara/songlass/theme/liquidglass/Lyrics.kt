@@ -57,6 +57,7 @@ internal fun LiquidGlassLyricLine(
 ) {
     val reduceMotion = AppTheme.accessibility.reduceMotion
     val presentation = LocalGlassLook.current.lyricsPresentation
+    val textScale = dev.cmdrchara.songlass.designsystem.LocalLyricsTextScale.current
     val tint = if (AppTheme.colors.isDark) Color.White else Color(0xFF19191D)
     val wordTimed = words.isNotEmpty()
     // Only real word/syllable intervals may drive a karaoke sweep. A line-only LRC
@@ -87,8 +88,8 @@ internal fun LiquidGlassLyricLine(
         BasicText(
             text = text,
             style = AppTheme.typography.title1.copy(
-                fontSize = presentation.fontSize.sp,
-                lineHeight = presentation.lineHeight.sp,
+                fontSize = (presentation.fontSize * textScale).sp,
+                lineHeight = (presentation.lineHeight * textScale).sp,
                 fontWeight = FontWeight(presentation.weight),
                 color = baseColor,
             ),

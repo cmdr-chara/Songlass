@@ -13,7 +13,7 @@ enum class SettingsTarget {
     FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
     OnlineArtworkEnabled, OnlineArtworkWifiOnly, LastFm,
-    ResumeOverrides, ShowPlayerRating,
+    ResumeOverrides, ShowPlayerRating, LyricsOffset, LyricsSize, LyricsKeepScreenOn,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -220,6 +220,12 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "resume|ripresa|riprendi|progress|progresso|posizione|podcast|audiolibri|audiobooks|long tracks|brani lunghi")
     SettingsTarget.LongTrackThreshold -> terms("Long track threshold", "Soglia brani lunghi", "Track duration",
         aliases = "minutes|minuti|durata|durazione|soglia|10 seconds|10 secondi|salto|podcast|audiobooks")
+    SettingsTarget.LyricsOffset -> terms("Lyrics timing", "Sincronizzazione testi",
+        aliases = "lyrics offset|ritardo testi|anticipo testi|sincronizzazione|latency|latenza|bluetooth lyrics|correzione testi")
+    SettingsTarget.LyricsSize -> terms("Lyrics size", "Dimensione testi",
+        aliases = "lyrics font|lyrics zoom|ingrandisci testi|dimensione lyrics|testi grandi|karaoke size")
+    SettingsTarget.LyricsKeepScreenOn -> terms("Keep lyrics screen on", "Schermo acceso nei testi",
+        aliases = "lyrics awake|lyrics screen timeout|schermo acceso testi|non spegnere|keep screen on|display sleep")
     SettingsTarget.AmllLyrics -> terms("Lyrics", "Testi", "AMLL lyrics", "Testi parola per parola",
         aliases = "amll|karaoke|word timed|synchronized|sincronizzati|sincronizzazione|testo|lyrics provider")
     SettingsTarget.ReduceMotion -> terms("Reduce motion", "Riduci movimento",

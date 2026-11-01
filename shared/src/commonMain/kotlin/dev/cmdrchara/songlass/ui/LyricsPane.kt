@@ -40,6 +40,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import dev.cmdrchara.songlass.core.settings.AppSettings
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -62,6 +66,7 @@ import dev.cmdrchara.songlass.designsystem.IconButton
 import dev.cmdrchara.songlass.designsystem.ListRow
 import dev.cmdrchara.songlass.designsystem.LyricLine
 import dev.cmdrchara.songlass.designsystem.LocalLyricsPlaybackPosition
+import dev.cmdrchara.songlass.designsystem.LocalLyricsTextScale
 import dev.cmdrchara.songlass.designsystem.LyricWordTiming
 import dev.cmdrchara.songlass.designsystem.LyricsViewport
 import dev.cmdrchara.songlass.designsystem.SettingsGroup
@@ -88,7 +93,13 @@ internal fun LyricsPane(
     onSeek: (Long) -> Unit,
     modifier: Modifier = Modifier,
     playbackPosition: (() -> Long)? = null,
+    settings: AppSettings,
+    visible: Boolean,
 ) {
+    val preferences by settings.state.collectAsState()
+    val presentation = preferences.lyricsPresentation
+    val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    var options by remember { mutableStateOf(false) }
     val repositoryRevision by repository.changes.collectAsState()
     var result by remember(track, repositoryRevision) { mutableStateOf<LyricsResult?>(null) }
     var sharing by remember(track, repositoryRevision) { mutableStateOf(false) }
@@ -104,9 +115,16 @@ internal fun LyricsPane(
         onClose = { recovering = false }, onLinked = { recovering = false; importResult = LyricsImportResult.Saved })
     val lyrics = (result as? LyricsResult.Found)?.lyrics
     val secondary = LocalContentColor.current.copy(alpha = 0.65f)
+    KeepLyricsScreenAwake(visible && presentation.keepScreenOn && lifecycleState.isAtLeast(Lifecycle.State.RESUMED) &&
+        lyrics != null && !lyrics.instrumental && lyrics.lines.any { it.text.isNotBlank() })
+    if (options) LyricsOptionsDialog(settings, presentation) { options = false }
+    val adjustedPosition = presentation.displayPosition(positionMs)
+    val adjustedClock = remember(playbackPosition, presentation.offsetMs) {
+        playbackPosition?.let { clock -> { presentation.displayPosition(clock()) } }
+    }
     if (sharing && lyrics != null && !lyrics.instrumental) {
         androidx.compose.runtime.key(track, lyrics) {
-            LyricsShareDialog(track, lyrics, lyrics.activeLineAt(positionMs), { sharing = false })
+            LyricsShareDialog(track, lyrics, lyrics.activeLineAt(adjustedPosition), { sharing = false })
         }
     }
     Column(modifier.padding(top = 16.dp)) {
@@ -117,13 +135,16 @@ internal fun LyricsPane(
                 AppText(track.title, AppTheme.typography.headline, maxLines = 1)
                 AppText(artistName(track.artist), AppTheme.typography.subheadline, color = secondary, maxLines = 1)
             }
+            IconButton(AppIcons.Settings, stringResource(Res.string.lyrics_options), { options = true })
             if (lyrics != null && !lyrics.instrumental && lyrics.lines.any { it.text.isNotBlank() }) {
                 IconButton(AppIcons.Share, stringResource(Res.string.lyrics_share), { sharing = true })
             }
         }
         if (lyrics != null && !lyrics.instrumental) {
             androidx.compose.runtime.key(track, lyrics) {
-                LyricsLines(lyrics, positionMs, durationMs, isPlaying, onSeek, Modifier.weight(1f).fillMaxWidth(), playbackPosition)
+                LyricsLines(lyrics, adjustedPosition, presentation.displayPosition(durationMs).coerceAtLeast(0L), isPlaying,
+                    { onSeek(presentation.seekPosition(it, durationMs)) }, Modifier.weight(1f).fillMaxWidth(), adjustedClock,
+                    presentation.textSizePercent)
             }
         } else {
             Column(
@@ -185,7 +206,7 @@ internal fun LyricsPane(
 }
 
 @Composable
-private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier, playbackPosition: (() -> Long)?) {
+private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPlaying: Boolean, onSeek: (Long) -> Unit, modifier: Modifier, playbackPosition: (() -> Long)?, textSizePercent: Int) {
     val latestPosition by rememberUpdatedState(positionMs)
     val latestClock by rememberUpdatedState(playbackPosition)
     var framePosition by remember(lyrics) { mutableLongStateOf(positionMs) }
@@ -209,7 +230,9 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
             if (interaction is DragInteraction.Start) following = false
         }
     }
-    LaunchedEffect(scrollTarget, following, reduceMotion) {
+    val textScale = textSizePercent / 100f
+    val fontScale = LocalDensity.current.fontScale * textScale
+    LaunchedEffect(scrollTarget, following, reduceMotion, fontScale) {
         if (following && lyrics.isSynced) {
             if (scrollTarget < 0) {
                 listState.scrollToItem(0)
@@ -232,6 +255,7 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
                 contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
             ) {
                 itemsIndexed(lyrics.lines) { index, line ->
+                    CompositionLocalProvider(LocalLyricsTextScale provides textScale) {
                     LyricLine(
                         text = if (lyrics.isSynced && line.text.isBlank()) "···" else line.text,
                         active = lyrics.isSynced && index == active,
@@ -244,6 +268,7 @@ private fun LyricsLines(lyrics: Lyrics, positionMs: Long, durationMs: Long, isPl
                         onSeek = line.timeMs?.let { timestamp -> { following = true; onSeek(timestamp) } },
                         modifier = if (lyrics.isSynced && line.text.isBlank()) Modifier.semantics { contentDescription = breakLabel } else Modifier,
                     )
+                    }
                 }
             }
         }

@@ -87,7 +87,8 @@ internal val SettingsTarget.settingsPane: SettingsPane?
         SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> SettingsPane.Sound
         SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
         SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
-        SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics, SettingsTarget.ShowPlayerRating -> SettingsPane.Player
+        SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics, SettingsTarget.ShowPlayerRating,
+        SettingsTarget.LyricsOffset, SettingsTarget.LyricsSize, SettingsTarget.LyricsKeepScreenOn -> SettingsPane.Player
         SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
         SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> SettingsPane.Queue
         else -> null

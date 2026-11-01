@@ -73,6 +73,9 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.LongTrackThreshold -> Res.string.settings_long_threshold
     SettingsTarget.AmllLyrics -> Res.string.settings_amll
     SettingsTarget.LrclibLyrics -> Res.string.settings_lrclib
+    SettingsTarget.LyricsOffset -> Res.string.lyrics_timing
+    SettingsTarget.LyricsSize -> Res.string.lyrics_text_size
+    SettingsTarget.LyricsKeepScreenOn -> Res.string.lyrics_keep_screen_on
     SettingsTarget.ReduceMotion -> Res.string.settings_reduce_motion
     SettingsTarget.ReduceTransparency -> Res.string.settings_reduce_transparency
     SettingsTarget.Equalizer -> Res.string.eq_title
@@ -117,7 +120,8 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.Equalizer -> sound
             SettingsTarget.ResumeOnReconnect, SettingsTarget.ResumeBluetooth, SettingsTarget.BluetoothCommandDelay, SettingsTarget.PauseOnDisconnect, SettingsTarget.HeadsetMultiPress,
             SettingsTarget.ResumePerTrack, SettingsTarget.LongTrackThreshold,
-            SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics, SettingsTarget.ShowPlayerRating -> playback
+            SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics, SettingsTarget.ShowPlayerRating,
+            SettingsTarget.LyricsOffset, SettingsTarget.LyricsSize, SettingsTarget.LyricsKeepScreenOn -> playback
             SettingsTarget.TrackClickAction, SettingsTarget.QueueStart, SettingsTarget.QueueAddOrder, SettingsTarget.QueueReplaces,
             SettingsTarget.QueueEnd, SettingsTarget.ShuffleBias, SettingsTarget.KeepShuffle -> queue
             SettingsTarget.PauseFadeDuration, SettingsTarget.StopFadeDuration, SettingsTarget.SeekFadeDuration -> "$sound › ${stringResource(Res.string.settings_transport_fades)}"
@@ -195,6 +199,9 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         }
         SettingsTarget.AmllLyrics -> enabled(preferences.amllEnabled)
         SettingsTarget.LrclibLyrics -> enabled(preferences.lrclibEnabled)
+        SettingsTarget.LyricsOffset -> lyricsOffsetLabel(preferences.lyricsPresentation.offsetMs)
+        SettingsTarget.LyricsSize -> "${preferences.lyricsPresentation.textSizePercent}%"
+        SettingsTarget.LyricsKeepScreenOn -> enabled(preferences.lyricsPresentation.keepScreenOn)
         SettingsTarget.ReduceMotion -> if (system.reduceMotion) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceMotion)
         SettingsTarget.ReduceTransparency -> if (system.reduceTransparency) stringResource(Res.string.settings_device_enabled) else enabled(preferences.reduceTransparency)
         SettingsTarget.EqualizerBass -> formatGain(preferences.equalizerTuning.bassDb.toFloat(), stringResource(Res.string.eq_decimal_separator))

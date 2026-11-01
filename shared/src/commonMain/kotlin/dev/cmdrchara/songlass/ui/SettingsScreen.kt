@@ -893,6 +893,26 @@ private fun SettingsItems.playerSettings(
         }
     }
     item(key = "long-tracks-hint") { SettingsHint(stringResource(Res.string.settings_long_hint)) }
+    item(key = "lyrics-presentation-title") { SettingsSection(stringResource(Res.string.lyrics_options)) }
+    for (target in listOf(SettingsTarget.LyricsOffset, SettingsTarget.LyricsSize)) {
+        mark(target)
+        item(key = target.name) {
+            SettingsSearchAnchor(target, request) {
+                SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                    LyricsAdjustment(target, settings, preferences.lyricsPresentation)
+                }
+            }
+        }
+    }
+    mark(SettingsTarget.LyricsKeepScreenOn)
+    item(key = "lyrics-keep-screen-on") {
+        SettingsSearchAnchor(SettingsTarget.LyricsKeepScreenOn, request) {
+            SettingsFormGroup(Modifier.padding(horizontal = pageInset)) {
+                SettingsToggleRow(stringResource(Res.string.lyrics_keep_screen_on), preferences.lyricsPresentation.keepScreenOn,
+                    settings::setLyricsKeepScreenOn, subtitle = stringResource(Res.string.lyrics_keep_screen_hint))
+            }
+        }
+    }
     if (supportsAmll || supportsOnline) {
         item { SettingsSection(stringResource(Res.string.settings_online_lyrics)) }
         mark(SettingsTarget.AmllLyrics, SettingsTarget.LrclibLyrics)

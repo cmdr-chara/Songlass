@@ -114,12 +114,14 @@ class VisualAuditActivity : ComponentActivity() {
                             if (now - lastLogged >= 32L) {
                                 lastLogged = now
                                 val sample = graph.player.state.value
-                                val shown = sample.presentationPositionAt(now)
+                                val mediaShown = sample.presentationPositionAt(now)
+                                val display = graph.settings.state.value.lyricsPresentation
+                                val shown = display.displayPosition(mediaShown)
                                 val lineIndex = lyrics?.activeLineAt(shown) ?: -1
                                 val line = lyrics?.lines?.getOrNull(lineIndex)
                                 val wordIndex = line?.words?.indexOfLast { word -> word.startMs <= shown } ?: -1
                                 val progress = line?.words?.getOrNull(wordIndex)?.progressAt(shown) ?: 0f
-                                Log.i("LyricsClock", "t=$now native=${sample.positionMs} stamp=${sample.positionSampledAtMs ?: -1} shown=$shown speed=${sample.playbackSpeed} status=${sample.status} advancing=${sample.positionAdvancing} playing=${sample.isPlaying} line=$lineIndex word=$wordIndex progress=$progress")
+                                Log.i("LyricsClock", "t=$now native=${sample.positionMs} mediaShown=$mediaShown offset=${display.offsetMs} stamp=${sample.positionSampledAtMs ?: -1} shown=$shown speed=${sample.playbackSpeed} status=${sample.status} advancing=${sample.positionAdvancing} playing=${sample.isPlaying} line=$lineIndex word=$wordIndex progress=$progress")
                             }
                         }
                         Log.i("LyricsClock", "END")

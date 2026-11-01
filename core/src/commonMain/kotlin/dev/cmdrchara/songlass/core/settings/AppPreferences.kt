@@ -139,6 +139,7 @@ data class AppPreferences(
     val amllEnabled: Boolean = true,
     /** The fallback online provider; off keeps lyrics to the file's own tags and imported files. */
     val lrclibEnabled: Boolean = true,
+    val lyricsPresentation: dev.cmdrchara.songlass.core.lyrics.LyricsPresentation = dev.cmdrchara.songlass.core.lyrics.LyricsPresentation(),
     /** Snapshotted for each new playback occurrence; existing statistics are unchanged. */
     val playCountRule: PlayCountRule = PlayCountRule.ThirtySecondsOrHalf,
     /** A comfortable single-column alternative to the cover grid, useful with large text. */

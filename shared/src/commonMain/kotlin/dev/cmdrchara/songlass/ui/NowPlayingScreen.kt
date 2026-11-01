@@ -132,7 +132,8 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                 ScreenTransition(state.playerPage, Modifier.fillMaxWidth()) { page ->
                     Column(Modifier.fillMaxSize()) {
                         when (page) {
-                            PlayerPage.Lyrics -> LyricsPane(track, player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, player.isPlaying, state.lyrics, controller::seekTo, Modifier.fillMaxSize(),
+                            PlayerPage.Lyrics -> LyricsPane(track, player.positionMs, player.durationMs.takeIf { it > 0 } ?: track.durationMs, player.isPlaying, state.lyrics, controller::seekTo, Modifier.fillMaxSize(), settings = state.settings,
+                                visible = state.isNowPlayingOpen && state.playerPage == PlayerPage.Lyrics && !state.hasOverlay,
                                 playbackPosition = { player.presentationPositionAt(controller.monotonicTimeMs) })
                             PlayerPage.Queue -> {
                                 Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -6,6 +6,9 @@ import androidx.compose.runtime.staticCompositionLocalOf
 /** Read by the active word mask during drawing, shared with active-line selection. */
 val LocalLyricsPlaybackPosition = staticCompositionLocalOf<(() -> Long)?> { null }
 
+/** Independent reading zoom in font units; system accessibility scaling still applies normally. */
+val LocalLyricsTextScale = staticCompositionLocalOf { 1f }
+
 /** Display-only copy of the source word ranges; no source text or persistence lives here. */
 @Immutable
 data class LyricWordTiming(val start: Int, val end: Int, val startMs: Long, val endMs: Long?) {
