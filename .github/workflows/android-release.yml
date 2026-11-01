@@ -21,9 +21,6 @@ jobs:
     timeout-minutes: 45
     outputs:
       tag: ${{ steps.version.outputs.tag }}
-    env:
-      GRADLE_USER_HOME: ${{ runner.temp }}/songlass-release-gradle
-      RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/songlass-release.p12
     steps:
       - name: Check out complete history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -45,6 +42,7 @@ jobs:
         id: signing
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/songlass-release.p12
         run: |
           python3 - <<'PY'
           import base64, os, pathlib
@@ -80,6 +78,8 @@ jobs:
           retention-days: 14
       - name: Remove temporary signing key
         if: always() && steps.signing.outputs.created == 'true'
+        env:
+          RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/songlass-release.p12
         run: |
           python3 - <<'PY'
           import os, pathlib

@@ -7,6 +7,9 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Isolate Gradle home
+      shell: bash
+      run: echo "GRADLE_USER_HOME=$RUNNER_TEMP/songlass-gradle" >> "$GITHUB_ENV"
     - name: Set up JDK 21
       uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
       with:
