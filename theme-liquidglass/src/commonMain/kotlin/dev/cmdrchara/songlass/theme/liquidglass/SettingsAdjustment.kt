@@ -30,9 +30,12 @@ fun SettingsAdjustmentContent(title: String, value: String, hint: String?, enabl
     val density = LocalDensity.current
     val measurer = rememberTextMeasurer()
     BoxWithConstraints(modifier.fillMaxWidth().padding(12.dp)) {
+        val widestLabel = maxOf(measurer.measure(lessLabel, AppTheme.typography.headline).size.width,
+            measurer.measure(moreLabel, AppTheme.typography.headline).size.width)
+        // ActionButton rounds each 20 dp inset separately. Reserve the rounded pixels and a
+        // glyph margin so the widest label does not ellipsize at fractional display densities.
         val buttonWidth = with(density) {
-            maxOf(64.dp, maxOf(measurer.measure(lessLabel, AppTheme.typography.headline).size.width,
-                measurer.measure(moreLabel, AppTheme.typography.headline).size.width).toDp() + 40.dp)
+            maxOf(64.dp, (widestLabel + 20.dp.roundToPx() * 2 + 2).toDp())
         }
         val largeText = density.fontScale > 1.3f
         val inline = !largeText && maxWidth >= buttonWidth * 2 + 16.dp + 140.dp
