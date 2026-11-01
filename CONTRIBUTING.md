@@ -4,15 +4,15 @@ Bug reports, translations, accessibility improvements, tests, documentation and 
 
 ## Permission to work on contributions
 
-Songlass uses **PolyForm Perimeter 1.0.0 with the Songlass contribution permission**. Read [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md) before contributing. This is source-available software, not open-source software under the OSI definition.
+Songlass uses **Songlass Source-Available License 1.0**. Read [LICENSE](LICENSE) and [LICENSING.md](LICENSING.md) before contributing. This is source-available software, not open-source software under the OSI definition.
 
-The additional permission explicitly allows working forks, local changes, compilation, debugging, proposed patches, pull requests, CI artifacts and clearly identified review/test builds for the Songlass contribution workflow. These permissions do not authorize publishing a separate competing app, whether renamed, free or paid. Paid development or review work on contributions is welcome.
+Section 3 of the license explicitly allows working forks, local changes, compilation, debugging, proposed patches, pull requests, CI artifacts and clearly identified review/test builds for the Songlass contribution workflow. Outside this contribution workflow, redistribution or publishing a separate app, whether renamed, free or paid, requires prior written permission. Paid development or review work on contributions is welcome.
 
 Do not present a test build or fork as an official release. Preserve notices and respect the separate licenses of dependencies and assets. Do not publish private music, screenshots or credentials from a private checkout.
 
 ## Terms for submitted contributions
 
-By intentionally submitting a contribution for inclusion in Songlass, you offer the original material you have the right to license under **PolyForm Perimeter 1.0.0 and the Songlass contribution permission in LICENSING.md**, unless the maintainers accept a separate written agreement. Confirm that you have the right to make that offer. Keep any third-party code under its original license and identify its source and notices so compatibility can be reviewed before inclusion.
+By intentionally submitting a contribution for inclusion in Songlass, you offer the original material you have the right to license under **Songlass Source-Available License 1.0 in LICENSE**, unless the maintainers accept a separate written agreement. Confirm that you have the right to make that offer. Keep any third-party code under its original license and identify its source and notices so compatibility can be reviewed before inclusion.
 
 You retain copyright in your contribution. Submission does not assign ownership to the maintainer or grant an unrestricted right to relicense your work. Any broader license or assignment requires a separate explicit agreement. No contributor license agreement or DCO sign-off is required by this project at this time.
 

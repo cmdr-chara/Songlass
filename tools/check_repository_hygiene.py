@@ -45,8 +45,8 @@ LINK_DOCUMENTS = (
     ".github/PULL_REQUEST_TEMPLATE.md",
 )
 LICENSE_RESOURCES = "shared/src/commonMain/composeResources/files/licenses"
-# Official tagged PolyForm Perimeter 1.0.0 text; changing versions is deliberate.
-PERIMETER_SHA256 = "8ead8ddb75d93c22b1281901ae09fad975c8c2302480393480d116f8cbb990b1"
+# Approved Songlass license text; changing the terms requires an explicit update.
+SONGLASS_LICENSE_SHA256 = "8fa575afca9832880645234e9a278061a57f59997d6e3a902ce00328e26b817d"
 INLINE_LINK = re.compile(
     r"!?\[[^\]\n]*\]\(\s*(<[^>\n]+>|[^\s)]+)(?:\s+['\"][^\n]*?['\"])?\s*\)"
 )
@@ -133,7 +133,7 @@ def heading_ids(text: str) -> set[str]:
 def licensing_sections(text: str) -> tuple[str, str]:
     """Read the two authoritative bodies without their enclosing headings."""
     _, body = text.split("\n\n", 1)
-    notice, body = body.split("\n## Additional contribution permission\n", 1)
+    notice, body = body.split("\n## Contribution permission\n", 1)
     permission, _ = body.split("\n## Authoritative texts and source\n", 1)
     return notice.strip(), permission.strip()
 
@@ -170,10 +170,10 @@ def check_repository(
         texts[relative] = text
 
     license_bytes = read("LICENSE") if "LICENSE" in texts else None
-    bundled_license = read(f"{LICENSE_RESOURCES}/songlass-POLYFORM-PERIMETER-1.0.0.txt")
+    bundled_license = read(f"{LICENSE_RESOURCES}/songlass-SOURCE-AVAILABLE-1.0.txt")
     if license_bytes is not None:
-        if hashlib.sha256(license_bytes).hexdigest() != PERIMETER_SHA256:
-            errors.append("LICENSE: differs from the pinned canonical PolyForm Perimeter 1.0.0 text")
+        if hashlib.sha256(license_bytes).hexdigest() != SONGLASS_LICENSE_SHA256:
+            errors.append("LICENSE: differs from the pinned Songlass Source-Available License 1.0 text")
         if bundled_license is not None and license_bytes != bundled_license:
             errors.append("Songlass bundled license differs from LICENSE")
 

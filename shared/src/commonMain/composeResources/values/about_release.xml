@@ -6,7 +6,7 @@
     <string name="about_version_unavailable">The installed app version could not be read.</string>
     <string name="about_release_retry">Try again</string>
     <string name="about_license_songlass">Songlass</string>
-    <string name="about_license_polyform_perimeter">PolyForm Perimeter 1.0.0</string>
+    <string name="about_license_songlass_source_available">Songlass Source-Available 1.0</string>
     <string name="about_license_autoeq">AutoEQ</string>
     <string name="about_license_miuix">Miuix</string>
     <string name="about_license_taglib">TagLib Android and TagLib</string>

@@ -23,11 +23,11 @@ class RepositoryHygieneTest(unittest.TestCase):
         self.files[self.root / "CONTRIBUTING.md"] = b"# Contributing\n\n## Terms\n\nSubmit work.\n"
         self.files[self.root / "LICENSING.md"] = (
             b"# Songlass licensing\n\nRequired Notice: Fixture.\n\n"
-            b"## Additional contribution permission\n\nContribution permission.\n\n"
+            b"## Contribution permission\n\nContribution permission.\n\n"
             b"## Authoritative texts and source\n\nSources.\n"
         )
         resources = self.root / hygiene.LICENSE_RESOURCES
-        self.files[resources / "songlass-POLYFORM-PERIMETER-1.0.0.txt"] = CANONICAL
+        self.files[resources / "songlass-SOURCE-AVAILABLE-1.0.txt"] = CANONICAL
         self.files[resources / "songlass-NOTICE.txt"] = b"Required Notice: Fixture.\n"
         self.files[resources / "songlass-CONTRIBUTING-PERMISSION.txt"] = b"Contribution permission.\n"
 
@@ -51,15 +51,15 @@ class RepositoryHygieneTest(unittest.TestCase):
         errors, _ = self.check()
         self.assertTrue(any("CODE_OF_CONDUCT.md: cannot read" in error for error in errors))
 
-    def test_canonical_pin_detects_both_copies_changed_together(self):
+    def test_license_pin_detects_both_copies_changed_together(self):
         changed = CANONICAL + b"Altered terms.\n"
         self.files[self.root / "LICENSE"] = changed
-        self.files[self.root / hygiene.LICENSE_RESOURCES / "songlass-POLYFORM-PERIMETER-1.0.0.txt"] = changed
+        self.files[self.root / hygiene.LICENSE_RESOURCES / "songlass-SOURCE-AVAILABLE-1.0.txt"] = changed
         errors, _ = self.check()
-        self.assertTrue(any("pinned canonical" in error for error in errors))
+        self.assertTrue(any("pinned Songlass" in error for error in errors))
 
     def test_bundled_license_drift_fails(self):
-        self.files[self.root / hygiene.LICENSE_RESOURCES / "songlass-POLYFORM-PERIMETER-1.0.0.txt"] = b"Wrong license\n"
+        self.files[self.root / hygiene.LICENSE_RESOURCES / "songlass-SOURCE-AVAILABLE-1.0.txt"] = b"Wrong license\n"
         errors, _ = self.check()
         self.assertIn("Songlass bundled license differs from LICENSE", errors)
 

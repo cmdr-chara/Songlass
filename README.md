@@ -3,7 +3,7 @@
 A local music player for Android and iOS, built with Kotlin and Compose Multiplatform.
 Choose Liquid Glass, Material Glass or Miuix without changing your library or playback session.
 
-**Source-available:** PolyForm Perimeter 1.0.0 with the Songlass contribution permission.
+**Source-available:** Songlass Source-Available License 1.0.
 [License](LICENSE) · [Licensing scope](LICENSING.md) · [Contributing](CONTRIBUTING.md)
 
 ## Project status
@@ -74,12 +74,13 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or pull request.
 
 ## License
 
-Original Songlass material uses **PolyForm Perimeter 1.0.0 with the Songlass contribution permission**.
+Original Songlass material uses **Songlass Source-Available License 1.0**.
 It is source-available software, not open-source software under the OSI definition.
 
-The standard license restricts providing competing products, including competing free or renamed copies.
-The additional permission allows working forks, proposed changes, pull requests and review/test builds for the contribution workflow.
-The license is not a blanket ban on every commercial use or redistribution.
+Personal noncommercial use and changes are permitted. Public working forks, pull requests and clearly
+identified development/review builds are allowed for contributing to Songlass, including paid contribution work.
+Redistribution, sale and publishing a separate player, including free or renamed copies, require prior written
+permission outside that contribution workflow. Approved stores need authorization to share unchanged official builds.
 
 Read [LICENSE](LICENSE), [LICENSING.md](LICENSING.md) and the [contribution terms](CONTRIBUTING.md#terms-for-submitted-contributions).
 Contributors retain their copyright; third-party components retain their own licenses and notices.
