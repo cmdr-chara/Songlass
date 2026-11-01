@@ -1,0 +1,83 @@
+name: Bug report
+description: Report a reproducible problem in Songlass.
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For vulnerabilities, follow [SECURITY.md](https://github.com/cmdr-chara/Songlass/blob/main/SECURITY.md). Do not post credentials, personal media, private references or unredacted account details.
+  - type: input
+    id: version
+    attributes:
+      label: App version/build or commit
+      description: Find the installed version in Settings → About. Say unknown if unavailable.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Android
+        - iOS
+        - Both
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Device/emulator and OS version
+      description: Include relevant display or text-size settings for a UI problem.
+    validations:
+      required: true
+  - type: dropdown
+    id: style
+    attributes:
+      label: Interface style
+      options:
+        - Liquid Glass
+        - Material Glass
+        - Miuix
+        - Multiple styles
+        - Not applicable or unknown
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Give a small repeatable sequence and note how often it happens.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-actual
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Screenshots, recording or relevant logs
+      description: Attach only material you may share. Redact private information and identify mockups separately.
+  - type: dropdown
+    id: ai-assistance
+    attributes:
+      label: AI assistance
+      description: Was AI used to prepare this report, including its text?
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: ai-details
+    attributes:
+      label: AI scope and review
+      description: If yes, describe the parts AI helped with and how you checked them. Tool names are optional; do not include private prompts.
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Community policy
+      options:
+        - label: I agree to follow the [Code of Conduct](https://github.com/cmdr-chara/Songlass/blob/main/CODE_OF_CONDUCT.md).
+          required: true

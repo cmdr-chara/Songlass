@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Support and development questions
+    url: https://github.com/cmdr-chara/Songlass/blob/main/SUPPORT.md
+    about: Check build guidance, reporting details and privacy precautions.
+  - name: Security reports
+    url: https://github.com/cmdr-chara/Songlass/blob/main/SECURITY.md
+    about: Request a private reporting route instead of posting vulnerability details.
+  - name: Community conduct concerns
+    url: https://github.com/cmdr-chara/Songlass/blob/main/CODE_OF_CONDUCT.md#reporting-a-concern
+    about: Use the private reporting guidance without exposing personal details.

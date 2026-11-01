@@ -1,0 +1,55 @@
+name: Feature request
+description: Explain a user need and a proposed improvement.
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: User need
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the result and any alternatives you considered. Label design mockups as mockups.
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Affected platform
+      options:
+        - Android
+        - iOS
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Affected styles and context
+      description: If this changes UI, describe how it should fit Liquid Glass, Material Glass and Miuix. Use only shareable, redacted examples.
+  - type: dropdown
+    id: ai-assistance
+    attributes:
+      label: AI assistance
+      description: Was AI used to prepare this request, including its text or mockups?
+      options:
+        - "No"
+        - "Yes"
+    validations:
+      required: true
+  - type: textarea
+    id: ai-details
+    attributes:
+      label: AI scope and review
+      description: If yes, describe the parts AI helped with and how you checked them. Tool names are optional; do not include private prompts.
+  - type: checkboxes
+    id: conduct
+    attributes:
+      label: Community policy
+      options:
+        - label: I agree to follow the [Code of Conduct](https://github.com/cmdr-chara/Songlass/blob/main/CODE_OF_CONDUCT.md).
+          required: true
