@@ -2,36 +2,27 @@
 
 Songlass licensing notice
 
-Required Notice: Copyright (c) 2026 Commander Chara and Songlass contributors.
+Copyright (c) 2026 Commander Chara and Songlass contributors.
 
-Original Songlass code and project-authored documentation and artwork are provided under the PolyForm Perimeter License 1.0.0, together with the separate Songlass contribution permission. The unmodified standard license is in LICENSE. The project licensing scope and contribution permission are recorded in LICENSING.md; contributor instructions are in CONTRIBUTING.md.
+Original Songlass material is offered under the Songlass Source-Available License 1.0. The authoritative terms are in LICENSE. You may study, compile, run and modify it for personal noncommercial use, and participate in the contribution workflow described in section 3 of that license.
 
-This is source-available licensing, not an OSI-approved open-source license. The standard license restricts providing a competing product, including one offered free of charge. It does not prohibit every commercial use or every redistribution, and it is not a guarantee against infringement or an independently implemented similar application.
+Redistribution, sale and publishing a separate player, including a free or renamed copy, require prior written permission except for the expressly permitted contribution and review activities. Approved stores may share unchanged official builds only with the owner's written authorization. This is source-available software, not OSI-approved open-source software.
 
-Third-party code, fonts, libraries, data and assets retain their own licenses and notices. Existing upstream copyright and license notices take precedence for their respective material. The PolyForm license text itself is reproduced under the permission provided by its authors; it is not relicensed as Songlass code.
+Each copyright holder retains ownership. Dependencies, fonts, data, assets and separately licensed contributions keep their own licenses and notices. This license grants only rights the relevant holder is authorized to grant; it does not relicense third-party material or revoke permissions granted for earlier copies under another license.
 
-Personal media and third-party assets are not covered by the Songlass license grant. Do not distribute them without the appropriate permission.
+Personal media and third-party assets are not covered by the Songlass license grant. Do not distribute them without the appropriate permission. No general trademark permission or right to present an unofficial build as an official Songlass release is granted.
 
-No general trademark license or right to represent a derivative as an official Songlass release is granted. Referential identification and the limited contribution/test use described in the additional permission remain permitted. Nothing in these notices limits rights that applicable law gives independently of this license.
-
-## Additional contribution permission
+## Contribution permission
 
 Songlass contribution permission
 
-This is an additional permission for the original Songlass material covered by the PolyForm Perimeter License 1.0.0. It is separate from, and does not change the text of, that license. Each rights holder offering their Songlass contributions under these terms grants this permission for the material they have the right to license.
+Section 3 of the Songlass Source-Available License 1.0 explicitly permits public working source forks, proposed patches, pull requests, continuous-integration work and clearly identified development or review builds solely for contributing to Songlass. Paid development and review work are permitted within that workflow. These permissions do not authorize an independently marketed player or general redistribution of the app.
 
-You may copy and fork the covered source, modify it, compile and run it, and share proposed changes, patches, review materials, CI artifacts and clearly identified development or test builds solely for good-faith participation in the Songlass contribution, review and testing workflow. Public working forks for that purpose are permitted. These activities are permitted even if the work-in-progress build would otherwise be considered a competing product under the license. Receiving payment for contribution or review work does not by itself disqualify that work.
-
-This permission includes copying original Songlass artwork and using the Songlass name and project identifiers as necessary to identify and test those contributions, provided the build or fork is clearly identified as unofficial development or review material. It does not grant permission to claim endorsement or official-release status.
-
-This additional permission does not authorize offering, marketing or selling a separate competing application or service, including a renamed or repackaged Songlass release. It is not a general exception to the license's Noncompete section. The license's other conditions, including its notices, remain applicable.
-
-This permission covers only rights the granting rights holder can license. It does not change the terms of third-party code or assets, grant rights in excluded third-party material, or restrict rights and exceptions provided by applicable law.
+Contributors retain copyright. Intentionally submitted original material is offered under the same license unless the maintainers accept separate written terms. There is no copyright assignment or unrestricted relicensing permission. Third-party contributions must retain their applicable terms and notices. Read LICENSE for the complete conditions and CONTRIBUTING.md for the submission workflow.
 
 ## Authoritative texts and source
 
-- [LICENSE](LICENSE): unmodified PolyForm Perimeter License 1.0.0.
-- [Upstream canonical text](https://github.com/polyformproject/polyform-licenses/blob/1.0.0/PolyForm-Perimeter-1.0.0.md).
+- [LICENSE](LICENSE): Songlass Source-Available License 1.0, effective 1 November 2026.
 - [Contribution workflow and inbound terms](CONTRIBUTING.md).
 
-The application bundles the same standard license, this licensing notice and the contribution permission for offline access under About / Licenses on Android and iOS. Dependency notices keep their own platform-specific packaging; adding the Songlass entry is not a completed audit of every third-party notice in an IPA.
+The application bundles the same license, notice and contribution-permission summary for offline access under About / Licenses on Android and iOS. Dependency notices retain their own platform-specific packaging.

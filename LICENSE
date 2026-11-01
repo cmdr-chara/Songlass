@@ -1,71 +1,102 @@
-# PolyForm Perimeter License 1.0.0
+# Songlass Source-Available License 1.0
 
-<https://polyformproject.org/licenses/perimeter/1.0.0>
+Effective date: 1 November 2026.
+Copyright (c) 2026 Commander Chara and Songlass contributors.
 
-## Acceptance
+## 1. Scope
 
-In order to get any license under these terms, you must agree to them as both strict obligations and conditions to all your licenses.
+This license covers original Songlass source code, documentation and artwork
+that a copyright holder offers under these terms (the "Software"). Each holder
+grants permissions only for material they have the right to license. Ownership
+remains with the respective copyright holders.
 
-## Copyright License
+Separately licensed dependencies, fonts, data and other third-party material
+remain governed by their own terms. This license does not replace their notices
+or restrict rights you receive under those terms or applicable mandatory law.
+It does not revoke permissions already granted for earlier copies under another
+license.
 
-The licensor grants you a copyright license for the software to do everything you might do with the software that would otherwise infringe the licensor's copyright in it for any permitted purpose.  However, you may only distribute the software according to [Distribution License](#distribution-license) and make changes or new works based on the software according to [Changes and New Works License](#changes-and-new-works-license).
+## 2. Personal use
 
-## Distribution License
+You may obtain, inspect, study, compile, run and modify the Software for your own
+personal, noncommercial use. You may keep personal backups and install your
+personal builds on your own devices. Private changes do not have to be submitted
+to the project.
 
-The licensor grants you an additional copyright license to distribute copies of the software.  Your license to distribute covers distributing the software with changes and new works permitted by [Changes and New Works License](#changes-and-new-works-license).
+These permissions do not authorize sharing copies with others except as allowed
+by section 3 or by written permission under section 4.
 
-## Notices
+## 3. Contributions and review
 
-You must ensure that anyone who gets a copy of any part of the software from you also gets a copy of these terms or the URL for them above, as well as copies of any plain-text lines beginning with `Required Notice:` that the licensor provided with the software.  For example:
+You may create and share working source forks, patches and pull requests solely
+to prepare, discuss, evaluate or contribute changes to Songlass. You may compile
+and run the Software in development and continuous-integration environments and
+share development or review builds for that contribution workflow.
 
-> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+Public working forks are permitted. Clearly identify a fork or build as
+unofficial development or review material, retain this license and applicable
+copyright notices, and make its source available to its reviewers. Do not
+present it as an official release or market it as a separate player. Receiving
+payment for development or review work does not remove these permissions.
 
-## Changes and New Works License
+You may use the Songlass name, project identifiers and original artwork as
+needed to identify and test that contribution, including changes needed to
+install a development build alongside the official app. This is not permission
+to imply endorsement or use the branding for a separate product.
 
-The licensor grants you an additional copyright license to make changes and new works based on the software for any permitted purpose.
+By intentionally submitting original material for inclusion in Songlass, you
+offer the material you have the right to license under this license, unless the
+maintainers accept separate written terms. You retain copyright. Submission
+does not assign ownership or grant an unrestricted right to relicense your work.
+Identify third-party material and its separate terms when submitting it.
 
-## Patent License
+## 4. Distribution and commercial restrictions
 
-The licensor grants you a patent license for the software that covers patent claims the licensor can license, or becomes able to license, that you would infringe by using the software.
+Except for the contribution and review activities allowed by section 3, you
+need prior written permission from the relevant copyright holders to:
 
-## Noncompete
+- Distribute, publish, sublicense or sell the Software, in source or binary
+  form, whether unchanged or modified.
+- Offer an app, service or other product incorporating the Software, including
+  a free or paid clone, a renamed player or a repackaged build.
+- Rebrand or advertise a distributed version as a different product.
+- Use the Software commercially beyond the paid contribution work allowed by
+  section 3.
 
-Any purpose is a permitted purpose, except for providing to others any product that competes with the software.
+A store or repository may redistribute unchanged official builds free of charge
+only when authorized in writing by the project owner. It must retain the
+official branding, this license and all applicable notices. That authorization
+does not permit modified builds or imply a right to sublicense the Software.
+Separate written permission may specify other authorized uses.
 
-## Competition
+## 5. Notices and branding
 
-If you use this software to market a product as a substitute for the functionality or value of the software, it competes with the software. A product may compete regardless how it is designed or deployed. For example, a product may compete even if it provides its functionality via any kind of interface (including services, libraries or plug-ins), even if it is ported to a different platforms or programming languages, and even if it is provided free of charge.
+Retain copyright, license and third-party attribution notices in copies you are
+permitted to make or share. Do not misrepresent authorship, provenance or
+official status. No general trademark permission or endorsement is granted;
+the limited identification and testing permission in section 3 remains valid.
 
-## Fair Use
+## 6. Compliance
 
-You may have "fair use" rights for the software under the law. These terms do not limit them.
+Permissions under this license depend on compliance with its terms. If you
+violate them, stop the unauthorized activity. Your permissions terminate if you
+do not correct the violation within 30 days after receiving written notice from
+an affected copyright holder. Further permission may be granted in writing.
+This section does not terminate independently granted third-party rights or
+rights that mandatory law protects.
 
-## No Other Rights
+## 7. Warranty and liability
 
-These terms do not allow you to sublicense or transfer any of your licenses to anyone else, or prevent the licensor from granting licenses to anyone else.  These terms do not imply any other licenses.
+To the extent permitted by law, the Software is supplied without warranties,
+including warranties of quality, fitness for a particular purpose or
+noninfringement. To that same extent, its copyright holders and contributors
+are not liable for losses or damages arising from use of the Software.
+Nothing in these terms excludes liability or consumer rights that applicable
+law does not allow to be excluded.
 
-## Patent Defense
+## 8. License version
 
-If you make any written claim that the software infringes or contributes to infringement of any patent, your patent license for the software granted under these terms ends immediately. If your company makes such a claim, your patent license ends immediately for work on behalf of your company.
-
-## Violations
-
-The first time you are notified in writing that you have violated any of these terms, or done anything with the software not covered by your licenses, your licenses can nonetheless continue if you come into full compliance with these terms, and take practical steps to correct past violations, within 32 days of receiving notice.  Otherwise, all your licenses end immediately.
-
-## No Liability
-
-***As far as the law allows, the software comes as is, without any warranty or condition, and the licensor will not be liable to you for any damages arising out of these terms or the use or nature of the software, under any kind of legal claim.***
-
-## Definitions
-
-The **licensor** is the individual or entity offering these terms, and the **software** is the software the licensor makes available under these terms.
-
-A **product** can be a good or service, or a combination of them.
-
-**You** refers to the individual or entity agreeing to these terms.
-
-**Your company** is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization.  **Control** means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise.  Control can be direct or indirect.
-
-**Your licenses** are all the licenses granted to you for the software under these terms.
-
-**Use** means anything you do with the software requiring one of your licenses.
+This is a custom source-available license, not an OSI-approved open-source
+license. A later license version does not automatically replace the terms for
+a copy you already received. Any additional permission must come from a holder
+authorized to grant the rights concerned.

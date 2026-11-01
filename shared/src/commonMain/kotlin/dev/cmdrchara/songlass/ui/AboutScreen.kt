@@ -274,7 +274,7 @@ private fun licenseTitle(license: BundledLicense): String = stringResource(when 
 
 @Composable
 private fun licenseSummary(license: BundledLicense): String = when (license) {
-    BundledLicense.Songlass -> licenseTextTitle(LicenseTextKind.PolyFormPerimeter)
+    BundledLicense.Songlass -> licenseTextTitle(LicenseTextKind.SonglassSourceAvailable)
     BundledLicense.AutoEq -> licenseTextTitle(LicenseTextKind.Mit)
     BundledLicense.Miuix -> licenseTextTitle(LicenseTextKind.Apache2)
     BundledLicense.TagLib -> stringResource(Res.string.about_license_taglib_summary)
@@ -284,7 +284,7 @@ private fun licenseSummary(license: BundledLicense): String = when (license) {
 @Composable
 private fun licenseTextTitle(kind: LicenseTextKind): String = stringResource(when (kind) {
     LicenseTextKind.Notice -> Res.string.about_license_notice
-    LicenseTextKind.PolyFormPerimeter -> Res.string.about_license_polyform_perimeter
+    LicenseTextKind.SonglassSourceAvailable -> Res.string.about_license_songlass_source_available
     LicenseTextKind.Mit -> Res.string.about_license_mit
     LicenseTextKind.Apache2 -> Res.string.about_license_apache
     LicenseTextKind.Lgpl21 -> Res.string.about_license_lgpl

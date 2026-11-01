@@ -11,7 +11,7 @@ internal data class InstalledAppVersion(val name: String?, val build: String?)
 /** Only notices already packaged with this platform are offered in About. */
 internal enum class BundledLicense { Songlass, AutoEq, Miuix, TagLib, OtherOpenSource }
 
-internal enum class LicenseTextKind { Notice, PolyFormPerimeter, Mit, Apache2, Lgpl21, Mpl11, Bsd3, Boost10 }
+internal enum class LicenseTextKind { Notice, SonglassSourceAvailable, Mit, Apache2, Lgpl21, Mpl11, Bsd3, Boost10 }
 
 internal data class LicenseDocument(val kind: LicenseTextKind, val paragraphs: List<String>)
 
@@ -29,9 +29,9 @@ internal expect fun rememberAppInformation(): AppInformation
 internal fun licenseDocument(kind: LicenseTextKind, text: String): LicenseDocument {
     val normalized = text.replace("\r\n", "\n").trim()
     require(normalized.isNotEmpty()) { "The bundled notice is empty" }
-    // The canonical PolyForm document is Markdown. Remove presentation markers only;
+    // The Songlass license is Markdown. Remove presentation markers only;
     // its bundled bytes and the legal wording remain unchanged.
-    val display = if (kind == LicenseTextKind.PolyFormPerimeter) normalized
+    val display = if (kind == LicenseTextKind.SonglassSourceAvailable) normalized
         .replace(Regex("(?m)^#{1,6}[\\t ]+(.+)$"), "\n\$1\n")
         .replace(Regex("""\[([^\]]+)\]\(#[^)]+\)"""), "\$1")
         .replace(Regex("""<(https?://[^>]+)>"""), "\$1")
@@ -44,7 +44,7 @@ internal fun licenseDocument(kind: LicenseTextKind, text: String): LicenseDocume
 internal suspend fun readSonglassLicense(): List<LicenseDocument> = withContext(Dispatchers.Default) {
     listOf(
         licenseDocument(LicenseTextKind.Notice, Res.readBytes("files/licenses/songlass-NOTICE.txt").decodeToString()),
-        licenseDocument(LicenseTextKind.PolyFormPerimeter, Res.readBytes("files/licenses/songlass-POLYFORM-PERIMETER-1.0.0.txt").decodeToString()),
+        licenseDocument(LicenseTextKind.SonglassSourceAvailable, Res.readBytes("files/licenses/songlass-SOURCE-AVAILABLE-1.0.txt").decodeToString()),
         licenseDocument(LicenseTextKind.Notice, Res.readBytes("files/licenses/songlass-CONTRIBUTING-PERMISSION.txt").decodeToString()),
     )
 }

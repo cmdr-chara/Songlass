@@ -17,7 +17,7 @@ Use [docs/ROADMAP.md](docs/ROADMAP.md) for planned work; do not turn historical 
 - Support Liquid Glass, Material Glass and Miuix through the shared design-system contracts. Preserve each style's identity; do not branch on style in shared screens.
 - Keep user-facing strings in the English and Italian resources. Write code and comments in English.
 - Preserve playback ownership, coroutine lifetimes, navigation state and the player artwork transition contracts.
-- Original Songlass material is source-available under PolyForm Perimeter 1.0.0 with the contribution permission. Keep third-party licenses and excluded private material separate.
+- Original Songlass material is source-available under Songlass Source-Available License 1.0. Keep third-party licenses and excluded private material separate.
 
 ## Verify and report accurately
 
