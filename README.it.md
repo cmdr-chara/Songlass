@@ -16,7 +16,8 @@
   <a href="#funzionalità">Funzionalità</a> ·
   <a href="#stato-del-progetto">Piattaforme</a> ·
   <a href="#compilazione-e-controlli">Compilazione</a> ·
-  <a href="#contribuire-e-community">Contribuire</a>
+  <a href="#contribuire-e-community">Contribuire</a> ·
+  <a href="#sostieni-lo-sviluppo">Sostieni</a>
 </p>
 
 Songlass riproduce la musica sul tuo dispositivo, con una libreria organizzata, controlli audio configurabili e testi sincronizzati.
@@ -150,6 +151,29 @@ esplicitamente fork di lavoro e build di revisione per contribuire a Songlass.
 - Rispetta il [Codice di condotta](CODE_OF_CONDUCT.md). Gli agenti di sviluppo devono leggere anche [AGENTS.md](AGENTS.md).
 
 Per domande e richieste di funzionalità, consulta [SUPPORT.md](SUPPORT.md). Per segnalare vulnerabilità, segui [SECURITY.md](SECURITY.md).
+
+## Sostieni lo sviluppo
+
+Le donazioni sono facoltative. Puoi sostenere Songlass usando gli indirizzi qui sotto.
+Usa la rete indicata per ciascun indirizzo.
+
+**Bitcoin (BTC) · Rete Bitcoin**
+
+```text
+bc1q00duwpvkuc6g6xw590k62pwdha953dxz7rzv0k
+```
+
+**Solana (SOL) · Rete Solana**
+
+```text
+8PKRGoLVwpbL39FmmMV3V6ps71a2iq4YcaoGsRthMZzi
+```
+
+**Litecoin (LTC) · Rete Litecoin**
+
+```text
+LSwuNWoHo3wBxzSBZwead2CBxLGLgxEhvu
+```
 
 ## Licenza
 
