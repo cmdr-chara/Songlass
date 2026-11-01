@@ -16,7 +16,8 @@
   <a href="#features">Features</a> ·
   <a href="#project-status">Platform support</a> ·
   <a href="#build-and-checks">Build</a> ·
-  <a href="#contributing-and-community">Contribute</a>
+  <a href="#contributing-and-community">Contribute</a> ·
+  <a href="#support-development">Support</a>
 </p>
 
 Songlass plays the music on your device, with an organized library, configurable audio and synchronized lyrics.
@@ -149,6 +150,29 @@ permitted for contributing to Songlass under the [license](LICENSE).
 - Follow the [Code of Conduct](CODE_OF_CONDUCT.md). Coding agents also read [AGENTS.md](AGENTS.md).
 
 For questions and feature requests, see [SUPPORT.md](SUPPORT.md). Report vulnerabilities through [SECURITY.md](SECURITY.md).
+
+## Support development
+
+Donations are optional. You can support Songlass using the addresses below.
+Use the network shown for each address.
+
+**Bitcoin (BTC) · Bitcoin network**
+
+```text
+bc1q00duwpvkuc6g6xw590k62pwdha953dxz7rzv0k
+```
+
+**Solana (SOL) · Solana network**
+
+```text
+8PKRGoLVwpbL39FmmMV3V6ps71a2iq4YcaoGsRthMZzi
+```
+
+**Litecoin (LTC) · Litecoin network**
+
+```text
+LSwuNWoHo3wBxzSBZwead2CBxLGLgxEhvu
+```
 
 ## License
 
