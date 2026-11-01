@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - 'build/ios-ipa-*'
     paths:
       - '.github/workflows/ios-ipa.yml'
@@ -26,33 +27,33 @@ permissions:
 
 jobs:
   build:
-    runs-on: macos-26
-    timeout-minutes: 40
+    runs-on: xcode-27
+    timeout-minutes: 75
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 1
-      - name: Select installed Xcode with iPhone Duo SDK support
+      - name: Select Xcode 27.1 and validate the iPhone SDK
         shell: bash
         run: |
           python3 - <<'PY'
           import os, pathlib, re, subprocess
           candidates = []
-          for developer in pathlib.Path('/Applications').glob('Xcode*.app/Contents/Developer'):
+          for developer in [pathlib.Path('/Applications/Xcode_27.1.app/Contents/Developer')]:
               env = dict(os.environ, DEVELOPER_DIR=str(developer))
               try:
                   xcode = subprocess.check_output(['xcodebuild', '-version'], env=env, text=True)
                   sdk = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], env=env, text=True).strip()
                   version = re.search(r'Xcode\s+(\d+)\.(\d+)', xcode)
                   sdk_version = re.match(r'(\d+)\.(\d+)', sdk)
-                  if version and sdk_version and tuple(map(int, version.groups())) >= (27, 1) and tuple(map(int, sdk_version.groups())) >= (27, 1):
+                  if version and sdk_version and tuple(map(int, version.groups())) == (27, 1) and tuple(map(int, sdk_version.groups())) >= (27, 1):
                       candidates.append((tuple(map(int, version.groups())), developer, sdk))
               except subprocess.CalledProcessError:
                   continue
           if not candidates:
-              raise SystemExit('This runner has no Xcode 27.1+ with iOS 27.1+ SDK. Use an updated macOS runner; do not silently build the Duo UI with an older SDK.')
+              raise SystemExit('The runner must provide Xcode 27.1 with the iOS 27.1 SDK.')
           _, developer, sdk = max(candidates, key=lambda item: item[0])
           with open(os.environ['GITHUB_ENV'], 'a') as output:
               output.write(f'DEVELOPER_DIR={developer}\n')
@@ -75,6 +76,11 @@ jobs:
           org.gradle.parallel=false
           kotlin.compiler.execution.strategy=in-process
           PROPERTIES
+      - name: Install SDK required by the shared Gradle project
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37.0' 'build-tools;37.0.0'
       - name: Build actual iPhone app and package unsigned IPA
         shell: bash
         run: bash tools/build-ios-ipa.sh
