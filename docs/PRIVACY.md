@@ -223,7 +223,7 @@ Fonti: [cache testi](../androidApp/src/main/kotlin/dev/cmdrchara/songlass/lyrics
 | Elemento | Stato |
 | --- | --- |
 | Identità del titolare/editore e contatto per richieste sui dati | Da fornire dal proprietario. Il nome dell'autore Git non è stato assunto come recapito legale. |
-| URL pubblico stabile di questa informativa e data di efficacia | Da fornire e pubblicare dopo revisione. Il repository privato non sostituisce una policy pubblica. |
+| URL pubblico stabile di questa informativa e data di efficacia | Da fornire e pubblicare dopo revisione. La pubblicazione del codice non sostituisce una policy privacy completa. |
 | Paesi di distribuzione, pubblico previsto e informazioni richieste dalle norme applicabili | Da definire dal proprietario. |
 | Informative e condizioni effettive di AMLL, LRCLIB e GitHub/AutoEq | Da verificare per la release; nessuna politica di conservazione dei fornitori è stata inventata. |
 | Scheda dati/privacy dello store e corrispondenza con il testo nell'app | Da compilare e verificare sulla release finale, includendo metadati inviati per i testi, download AutoEQ e condivisioni scelte dall'utente. |
