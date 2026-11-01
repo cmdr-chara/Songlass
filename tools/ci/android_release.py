@@ -65,8 +65,11 @@ def verify_apk_reports(signature: str, manifest: str, expected_certificate: str,
     certificate = expected_certificate.strip().lower()
     if not re.fullmatch(r"[0-9a-f]{64}", certificate):
         raise ValueError("Invalid pinned release certificate")
-    signers = re.findall(r"^Signer #\d+ certificate SHA-256 digest: ([0-9a-f]+)$", signature, re.MULTILINE | re.IGNORECASE)
-    if len(signers) != 1 or signers[0].lower() != certificate:
+    signer_counts = re.findall(r"^Number of signers:\s*(\d+)\s*$", signature, re.MULTILINE)
+    # Build Tools 37 names each verified scheme (e.g. "V2 Signer:", "V3 Signer:").
+    # Earlier tools use "Signer #1". The same certificate may appear once per scheme.
+    digests = re.findall(r"^.*\bcertificate SHA-256 digest:\s*([0-9a-f]{64})\s*$", signature, re.MULTILINE | re.IGNORECASE)
+    if signer_counts != ["1"] or {digest.lower() for digest in digests} != {certificate}:
         raise ValueError("APK certificate differs from the pinned release key")
     package = re.search(r"^package: name='([^']+)' versionCode='([^']+)' versionName='([^']*)'", manifest, re.MULTILINE)
     if not package or package.groups() != ("dev.cmdrchara.songlass", str(code), name):

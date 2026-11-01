@@ -19,7 +19,7 @@ SPEC.loader.exec_module(release)
 class AndroidReleaseTest(unittest.TestCase):
     certificate = "ab" * 32
     manifest = "package: name='dev.cmdrchara.songlass' versionCode='2' versionName='0.2.0' platformBuildVersionName='17'\n"
-    signature = "Signer #1 certificate SHA-256 digest: " + certificate + "\n"
+    signature = "Number of signers: 1\nV2 Signer: certificate SHA-256 digest: " + certificate + "\n"
 
     def test_valid_stable_and_prerelease_versions(self):
         for name in ["0.1.0", "1.2.3-beta.2", "2.0.0-rc.1"]:
@@ -50,9 +50,18 @@ class AndroidReleaseTest(unittest.TestCase):
     def test_correct_release_identity_passes(self):
         release.verify_apk_reports(self.signature, self.manifest, self.certificate, "0.2.0", 2)
 
+    def test_build_tools_37_multi_scheme_and_legacy_output(self):
+        # Real SDK 37 output labels verified signature schemes separately.
+        modern = f"Number of signers: 1\nV3.0 Signer: certificate SHA-256 digest: {self.certificate}\n"
+        multi_scheme = self.signature + f"V3.0 Signer: certificate SHA-256 digest: {self.certificate}\n"
+        legacy = self.signature.replace("V2 Signer:", "Signer #1")
+        for output in [modern, multi_scheme, legacy]:
+            release.verify_apk_reports(output, self.manifest, self.certificate, "0.2.0", 2)
+
     def test_wrong_missing_or_multiple_signers_fail(self):
         for signature in ["", self.signature.replace(self.certificate, "cd" * 32),
-                          self.signature + self.signature.replace("#1", "#2")]:
+                          self.signature.replace("Number of signers: 1", "Number of signers: 2"),
+                          self.signature + "V3 Signer: certificate SHA-256 digest: " + "cd" * 32 + "\n"]:
             with self.subTest(signature=signature), self.assertRaises(ValueError):
                 release.verify_apk_reports(signature, self.manifest, self.certificate, "0.2.0", 2)
 
