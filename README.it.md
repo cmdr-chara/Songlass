@@ -80,7 +80,7 @@ Apri un'immagine per vederla a risoluzione completa. Schermate acquisite su AOSP
 | Piattaforma | Stato |
 | --- | --- |
 | **Android 13 e successivi** | Piattaforma principale di sviluppo. Puoi compilare un APK di debug con le istruzioni qui sotto. |
-| **iOS** | Integrazione sperimentale con la libreria Music, AVFoundation e Now Playing. La compilazione dell'app completa e le verifiche su dispositivo restano attività separate. |
+| **iOS** | Sperimentale. Un IPA iPhone non firmato è disponibile nelle [release](https://github.com/cmdr-chara/Songlass/releases). Richiede una firma prima dell'installazione; le verifiche su dispositivo reale restano aperte. |
 
 Le verifiche di Android Auto, hardware audio, accessibilità e rilascio hanno ancora punti aperti nella
 [roadmap](docs/ROADMAP.md). Il comportamento dell'isola multimediale Xiaomi dipende dalle capacità esposte dal dispositivo.

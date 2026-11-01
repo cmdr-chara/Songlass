@@ -1,5 +1,9 @@
 # Build IPA iPhone
 
+An experimental unsigned iPhone IPA is available in [Releases](https://github.com/cmdr-chara/Songlass/releases).
+Its filename includes `ios-unsigned`; the adjacent checksum and iOS build-info file identify the package and its source.
+It requires signing before installation and has not been validated on a physical iPhone.
+
 Use JDK 21 and Xcode 27.1 with the iOS 27.1 SDK, as configured in `.github/workflows/ios-ipa.yml`.
 With the Android SDK and Gradle dependencies available, run:
 

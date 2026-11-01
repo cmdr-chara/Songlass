@@ -80,7 +80,7 @@ Captured on AOSP at 1080×2400, density 420 and default text size.
 | Platform | Status |
 | --- | --- |
 | **Android 13+** | Primary development target. Build a debug APK using the instructions below. |
-| **iOS** | Experimental Music-library, AVFoundation and Now Playing integration. Full app builds and device validation remain separate work. |
+| **iOS** | Experimental. An unsigned iPhone IPA is available in [Releases](https://github.com/cmdr-chara/Songlass/releases). Signing is required before installation; physical-device validation remains open. |
 
 Android Auto, audio hardware, accessibility and release verification still have open checks in the
 [roadmap](docs/ROADMAP.md). Xiaomi media-island behavior depends on the capabilities exposed by the device.
