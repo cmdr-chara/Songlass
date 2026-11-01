@@ -4,6 +4,8 @@
 
 <h1 align="center">Songlass</h1>
 
+<p align="center"><strong>English</strong> · <a href="README.it.md">Italiano</a></p>
+
 <p align="center">
   A local music player with three distinct interfaces.<br>
   Liquid Glass · Material Glass · Miuix

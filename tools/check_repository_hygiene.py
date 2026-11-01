@@ -16,6 +16,7 @@ from urllib.parse import unquote, urlsplit
 
 REQUIRED_FILES = (
     "README.md",
+    "README.it.md",
     "docs/README.md",
     "AGENTS.md",
     "CLAUDE.md",
@@ -35,6 +36,7 @@ REQUIRED_FILES = (
 )
 LINK_DOCUMENTS = (
     "README.md",
+    "README.it.md",
     "docs/README.md",
     "AGENTS.md",
     "LICENSING.md",
