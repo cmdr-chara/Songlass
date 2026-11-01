@@ -3,6 +3,7 @@
 - [Overview, screenshots and build commands](../README.md)
 - [Architecture and development instructions](../CLAUDE.md)
 - [Roadmap](ROADMAP.md)
+- [Android builds and draft releases](android-builds.md)
 - [iOS packaging](build-ios-ipa.md)
 - [Contributing](../CONTRIBUTING.md)
 - [Coding agent instructions](../AGENTS.md)

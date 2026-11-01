@@ -1,0 +1,33 @@
+name: Set up Songlass Android build
+description: Use the pinned project toolchain on a GitHub-hosted Linux runner.
+inputs:
+  cache:
+    description: Cache Gradle downloads for unprivileged CI only.
+    default: ''
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK 21
+      uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      with:
+        distribution: temurin
+        java-version: '21'
+        cache: ${{ inputs.cache }}
+        cache-dependency-path: |
+          **/*.gradle.kts
+          gradle/libs.versions.toml
+          gradle/wrapper/gradle-wrapper.properties
+          gradle.properties
+    - name: Install Android SDK and limit build memory
+      shell: bash
+      run: |
+        set -euo pipefail
+        test -n "$ANDROID_HOME"
+        "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-37.0' 'build-tools;37.0.0'
+        mkdir -p "$GRADLE_USER_HOME"
+        cat > "$GRADLE_USER_HOME/gradle.properties" <<'PROPERTIES'
+        org.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8
+        org.gradle.workers.max=2
+        org.gradle.parallel=false
+        kotlin.compiler.execution.strategy=in-process
+        PROPERTIES

@@ -1,0 +1,133 @@
+name: Android release
+
+on:
+  push:
+    tags: ['v*']
+  # Manual runs validate signing and produce an artifact, without creating a release.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Verify and sign release APK
+    if: github.repository == 'cmdr-chara/Songlass'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/songlass-release-gradle
+      RELEASE_KEYSTORE_FILE: ${{ runner.temp }}/songlass-release.p12
+    steps:
+      - name: Check out complete history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate source, version and tag
+        id: version
+        run: python3 -B tools/ci/android_release.py metadata
+      - name: Set up Android without caches
+        uses: ./.github/actions/setup-android
+      - name: Check repository, host tests and release lint
+        run: |
+          python3 -B tools/check_repository_hygiene.py
+          python3 -B -m unittest discover -s tools/tests -v
+          ./gradlew --no-daemon --no-configuration-cache --stacktrace \
+            :core:testAndroidHostTest :designsystem:testAndroidHostTest :androidApp:lintRelease
+      - name: Restore signing key
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          python3 - <<'PY'
+          import base64, os, pathlib
+          value = os.environ['KEYSTORE_BASE64']
+          if not value:
+              raise SystemExit('Missing ANDROID_KEYSTORE_BASE64 secret; no unsigned fallback is allowed.')
+          data = base64.b64decode(value, validate=True)
+          if not data:
+              raise SystemExit('The signing keystore is empty.')
+          path = pathlib.Path(os.environ['RELEASE_KEYSTORE_FILE'])
+          assert path.parent.resolve() == pathlib.Path(os.environ['RUNNER_TEMP']).resolve()
+          fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+          with os.fdopen(fd, 'wb') as output:
+              output.write(data)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write('created=true\n')
+          PY
+      - name: Build signed and optimized APK
+        env:
+          SONGLASS_SIGNING_STORE_FILE: ${{ runner.temp }}/songlass-release.p12
+          SONGLASS_SIGNING_STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          SONGLASS_SIGNING_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          SONGLASS_SIGNING_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew --no-daemon --no-configuration-cache :androidApp:assembleRelease
+      - name: Verify certificate, package and checksums
+        run: python3 -B tools/ci/android_release.py package
+      - name: Upload verified release files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Songlass-release-${{ github.sha }}
+          path: build/release-assets/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Remove temporary signing key
+        if: always() && steps.signing.outputs.created == 'true'
+        run: |
+          python3 - <<'PY'
+          import os, pathlib
+          path = pathlib.Path(os.environ['RELEASE_KEYSTORE_FILE'])
+          assert path.name == 'songlass-release.p12'
+          assert path.parent.resolve() == pathlib.Path(os.environ['RUNNER_TEMP']).resolve()
+          path.unlink(missing_ok=True)
+          PY
+      - name: Upload release test, lint and R8 reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: Songlass-release-reports-${{ github.sha }}
+          path: |
+            core/build/reports/tests/
+            designsystem/build/reports/tests/
+            androidApp/build/reports/lint-results-release.*
+            androidApp/build/outputs/mapping/release/
+          if-no-files-found: warn
+          retention-days: 14
+
+  draft:
+    name: Create draft release
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.build.outputs.tag }}
+    steps:
+      # No checkout or execution of downloaded build code in this privileged job.
+      - name: Download verified files from this run
+        run: >-
+          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY"
+          --name "Songlass-release-$GITHUB_SHA" --dir release-assets
+      - name: Check integrity and create an unpublished draft
+        working-directory: release-assets
+        run: |
+          set -euo pipefail
+          sha256sum --check SHA256SUMS
+          release_flags=(--draft)
+          if [[ "$RELEASE_TAG" == *-* ]]; then
+            release_flags+=(--prerelease)
+          fi
+          gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" \
+            --verify-tag "${release_flags[@]}" --generate-notes --title "Songlass $RELEASE_TAG" \
+            "Songlass-$RELEASE_TAG.apk" SHA256SUMS build-info.json

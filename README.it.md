@@ -104,6 +104,10 @@ nel file locale `local.properties` o tramite variabili d'ambiente. Le versioni d
 
 L'APK di sviluppo viene generato in `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
 
+GitHub Actions genera anche un APK di debug scaricabile per push e pull request. I tag di versione preparano
+release Android firmate **in bozza**. La [guida a build e release Android](docs/android-builds.md) descrive
+gli artefatti, la firma e la procedura di rilascio.
+
 Per eseguire i test Android sull'host e lint:
 
 ```bash

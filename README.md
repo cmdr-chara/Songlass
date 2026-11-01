@@ -103,6 +103,10 @@ local `local.properties` or environment variables. Dependency versions are in [g
 
 The development APK is written to `androidApp/build/outputs/apk/debug/androidApp-debug.apk`.
 
+GitHub Actions also builds a downloadable debug APK for pushes and pull requests. Version tags prepare
+signed Android releases **as drafts**. See [Android builds and releases](docs/android-builds.md) for artifacts,
+signing and the release process.
+
 Run Android host tests and lint:
 
 ```bash
