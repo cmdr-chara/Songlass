@@ -1,0 +1,102 @@
+# Songlass Source-Available License 1.0
+
+Effective date: 1 November 2026.
+Copyright (c) 2026 Commander Chara and Songlass contributors.
+
+## 1. Scope
+
+This license covers original Songlass source code, documentation and artwork
+that a copyright holder offers under these terms (the "Software"). Each holder
+grants permissions only for material they have the right to license. Ownership
+remains with the respective copyright holders.
+
+Separately licensed dependencies, fonts, data and other third-party material
+remain governed by their own terms. This license does not replace their notices
+or restrict rights you receive under those terms or applicable mandatory law.
+It does not revoke permissions already granted for earlier copies under another
+license.
+
+## 2. Personal use
+
+You may obtain, inspect, study, compile, run and modify the Software for your own
+personal, noncommercial use. You may keep personal backups and install your
+personal builds on your own devices. Private changes do not have to be submitted
+to the project.
+
+These permissions do not authorize sharing copies with others except as allowed
+by section 3 or by written permission under section 4.
+
+## 3. Contributions and review
+
+You may create and share working source forks, patches and pull requests solely
+to prepare, discuss, evaluate or contribute changes to Songlass. You may compile
+and run the Software in development and continuous-integration environments and
+share development or review builds for that contribution workflow.
+
+Public working forks are permitted. Clearly identify a fork or build as
+unofficial development or review material, retain this license and applicable
+copyright notices, and make its source available to its reviewers. Do not
+present it as an official release or market it as a separate player. Receiving
+payment for development or review work does not remove these permissions.
+
+You may use the Songlass name, project identifiers and original artwork as
+needed to identify and test that contribution, including changes needed to
+install a development build alongside the official app. This is not permission
+to imply endorsement or use the branding for a separate product.
+
+By intentionally submitting original material for inclusion in Songlass, you
+offer the material you have the right to license under this license, unless the
+maintainers accept separate written terms. You retain copyright. Submission
+does not assign ownership or grant an unrestricted right to relicense your work.
+Identify third-party material and its separate terms when submitting it.
+
+## 4. Distribution and commercial restrictions
+
+Except for the contribution and review activities allowed by section 3, you
+need prior written permission from the relevant copyright holders to:
+
+- Distribute, publish, sublicense or sell the Software, in source or binary
+  form, whether unchanged or modified.
+- Offer an app, service or other product incorporating the Software, including
+  a free or paid clone, a renamed player or a repackaged build.
+- Rebrand or advertise a distributed version as a different product.
+- Use the Software commercially beyond the paid contribution work allowed by
+  section 3.
+
+A store or repository may redistribute unchanged official builds free of charge
+only when authorized in writing by the project owner. It must retain the
+official branding, this license and all applicable notices. That authorization
+does not permit modified builds or imply a right to sublicense the Software.
+Separate written permission may specify other authorized uses.
+
+## 5. Notices and branding
+
+Retain copyright, license and third-party attribution notices in copies you are
+permitted to make or share. Do not misrepresent authorship, provenance or
+official status. No general trademark permission or endorsement is granted;
+the limited identification and testing permission in section 3 remains valid.
+
+## 6. Compliance
+
+Permissions under this license depend on compliance with its terms. If you
+violate them, stop the unauthorized activity. Your permissions terminate if you
+do not correct the violation within 30 days after receiving written notice from
+an affected copyright holder. Further permission may be granted in writing.
+This section does not terminate independently granted third-party rights or
+rights that mandatory law protects.
+
+## 7. Warranty and liability
+
+To the extent permitted by law, the Software is supplied without warranties,
+including warranties of quality, fitness for a particular purpose or
+noninfringement. To that same extent, its copyright holders and contributors
+are not liable for losses or damages arising from use of the Software.
+Nothing in these terms excludes liability or consumer rights that applicable
+law does not allow to be excluded.
+
+## 8. License version
+
+This is a custom source-available license, not an OSI-approved open-source
+license. A later license version does not automatically replace the terms for
+a copy you already received. Any additional permission must come from a holder
+authorized to grant the rights concerned.
