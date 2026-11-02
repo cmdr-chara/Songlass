@@ -26,6 +26,8 @@ Switch the entire interface style while keeping your library, playback session a
 **In development for Android 13+.** iOS support is experimental.
 [Source-available license](LICENSE) · [Roadmap](docs/ROADMAP.md)
 
+**Website — WIP:** the promotional site lives in [`website/`](website/README.md). It is a development preview, separate from the app.
+
 ## Screenshots
 
 | Liquid Glass | Material Glass | Miuix |

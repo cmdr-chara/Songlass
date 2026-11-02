@@ -26,6 +26,8 @@ Puoi cambiare lo stile dell'intera interfaccia mantenendo la libreria, la sessio
 **In sviluppo per Android 13 e versioni successive.** Il supporto iOS è sperimentale.
 [Licenza source-available](LICENSE) · [Roadmap](docs/ROADMAP.md)
 
+**Sito web — WIP:** il sito di presentazione è in [`website/`](website/README.md). È un’anteprima in sviluppo, separata dall’app.
+
 ## Schermate
 
 | Liquid Glass | Material Glass | Miuix |
