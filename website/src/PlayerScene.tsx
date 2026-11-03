@@ -141,7 +141,7 @@ export default function PlayerScene({edition,onReady}:{edition:VisualStyle;onRea
     const mount=canvas.current?.closest('.scene-mount');
     const updateVisibility=()=>{
       const rect=mount?.getBoundingClientRect();
-      const next=Boolean(rect&&rect.width>0&&rect.height>0&&rect.bottom>0&&rect.top<innerHeight&&!document.hidden&&!document.documentElement.hasAttribute('data-large-text')&&matchMedia('(min-width:1000px) and (min-height:760px) and (prefers-reduced-motion:no-preference)').matches);
+      const next=Boolean(rect&&rect.width>0&&rect.height>0&&rect.bottom>0&&rect.top<innerHeight&&!document.hidden&&!document.documentElement.hasAttribute('data-large-text')&&matchMedia('(min-width:1000px) and (min-height:700px) and (prefers-reduced-motion:no-preference)').matches);
       sceneState.visible=next;setVisible(next);
       if(next){sceneState.invalidate();sceneState.setPointer(sceneState.pointerX,sceneState.pointerY);}
     };

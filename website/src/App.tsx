@@ -123,7 +123,11 @@ function Footer({edition,choose}:{edition:VisualStyle;choose:(style:VisualStyle)
       if(!parent||!word||!parent.offsetWidth)return;
       const size=parseFloat(getComputedStyle(word).fontSize);const range=document.createRange();range.selectNodeContents(word);
       const width=range.getBoundingClientRect().width;
-      const next=(parent.clientWidth-parseFloat(getComputedStyle(parent).paddingLeft)-parseFloat(getComputedStyle(parent).paddingRight))*.94/width*size;
+      const parentStyle=getComputedStyle(parent);
+      const widthFit=(parent.clientWidth-parseFloat(parentStyle.paddingLeft)-parseFloat(parentStyle.paddingRight))*.94/width*size;
+      const lineHeight=parseFloat(getComputedStyle(word).lineHeight)/size;
+      const heightFit=(parent.clientHeight-parseFloat(parentStyle.paddingTop)-parseFloat(parentStyle.paddingBottom))/lineHeight;
+      const next=Math.min(widthFit,heightFit);
       if(width&&Number.isFinite(next)&&Math.abs(next-size)>.25)word.style.setProperty('--wordmark-size',`${next}px`);
     };
     const observer=new ResizeObserver(fit);if(signature.current)observer.observe(signature.current);fit();addEventListener('resize',fit);void document.fonts.ready.then(fit);return()=>{observer.disconnect();removeEventListener('resize',fit);};
