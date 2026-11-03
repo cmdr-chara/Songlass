@@ -45,9 +45,13 @@ SONGLASS_BASE=/Songlass/ npm run preview
 
 The generated root, English and Italian pages work without JavaScript. The WIP preview requests no indexing. Device/WebGL performance, Safari and final publishing polish remain review work.
 
+## Typography
+
+Rovel Sans provides reading text and controls in weights 400, 500 and 700. Liquid Glass also uses it for headings; Material 3 Expressive uses Puffrelle, and Miuix uses Kindredge. The static display faces use their supplied 400 weight without synthesized bold or italic. Usage terms are preserved beside the webfont files.
+
 ## Assets and license
 
-Original Songlass code and assets follow the repository [license](../LICENSE). Local fonts retain the OFL notices next to their files. The six app captures use synthetic demo audio and project-owned artwork. The two footer landscapes are generated illustrations of imaginary places.
+Original Songlass code and assets follow the repository [license](../LICENSE). Bundled fonts retain their supplied usage terms or OFL notices next to their files. The six app captures use synthetic demo audio and project-owned artwork. The two footer landscapes are generated illustrations of imaginary places.
 
 ## Italiano
 

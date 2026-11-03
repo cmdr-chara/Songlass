@@ -23,4 +23,6 @@ for(const [route,language] of [['','en'],['en/','en'],['it/','it']]){
 }
 for(const style of ['liquid-glass','material-glass','miuix'])for(const type of ['player','appearance'])await access(`public/assets/screenshots/${style}-${type}.png`);
 for(const font of ['google-sans-flex','azeret-mono'])await access(`public/assets/fonts/${font}/OFL.txt`);
+
+for(const file of ['rovel-sans/RovelSans-Regular.woff2','rovel-sans/RovelSans-Medium.woff2','rovel-sans/RovelSans-Bold.woff2','character-studies/Puffrelle-Regular.woff2','character-studies/Kindredge-Regular.woff2','rovel-sans/USAGE.txt','character-studies/USAGE.txt'])await access(`public/assets/fonts/${file}`);
 console.log('Website checks passed: EN/IT pages, sections, controls, anchors, deployment paths and local assets.');
