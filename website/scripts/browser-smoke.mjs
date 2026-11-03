@@ -34,6 +34,7 @@ try{
     for(const style of ['liquid_glass','material_design','miuix']){
       await shortPage.evaluate(style=>document.getElementById('style_'+style).click(),style);
       await shortPage.waitForFunction(style=>document.documentElement.dataset.style===style,style);
+      await shortPage.waitForFunction(()=>!document.documentElement.style.overflowAnchor);
       assert(await shortPage.locator('[data-story-enhanced=true]').count(),'short desktop keeps the animated story');
       await shortPage.evaluate(()=>{document.activeElement?.blur();window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'});});
       await shortPage.waitForFunction(()=>document.querySelector('.site-footer').getBoundingClientRect().bottom<=window.innerHeight+1);
