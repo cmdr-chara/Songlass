@@ -1,0 +1,8 @@
+<resources>
+    <string name="cue_import_title">Importa file CUE</string>
+    <string name="cue_import_confirm">Importa %1$d tracce virtuali</string>
+    <string name="cue_import_failed">Impossibile importare il file CUE</string>
+    <string name="cue_import_hint">Usa un file CUE AUDIO con file audio già presenti in libreria, percorsi univoci e indici INDEX 01 validi. Aggiorna la libreria se i file sono cambiati. I file audio originali vengono conservati.</string>
+    <string name="cue_import_choose">Scegli file CUE</string>
+    <string name="cue_import_remove">Rimuovi file CUE importato: %1$s</string>
+</resources>

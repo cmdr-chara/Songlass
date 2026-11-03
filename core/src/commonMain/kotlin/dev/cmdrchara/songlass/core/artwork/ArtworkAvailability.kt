@@ -42,9 +42,16 @@ class ArtworkAvailability {
         companion object {
             fun build(tracks: List<Track>): Index {
                 val idCounts = tracks.groupingBy { it.id }.eachCount()
-                val uriCounts = tracks.groupingBy { it.uri }.eachCount()
+                val allowedUris = tracks.groupBy { it.uri }.filterValues { group ->
+                    val physical = group.filterNot { it.isCueTrack }.singleOrNull()
+                    physical != null && group.all { candidate ->
+                        candidate === physical || candidate.isCueTrack && candidate.cueSourceId == physical.id &&
+                            candidate.path == physical.path && candidate.dateAddedMs == physical.dateAddedMs &&
+                            candidate.artworkRevision == physical.artworkRevision && candidate.clipEndMs!! <= physical.durationMs
+                    }
+                }.keys
                 val unique = tracks.filter {
-                    it.id.isNotBlank() && it.uri.isNotBlank() && idCounts[it.id] == 1 && uriCounts[it.uri] == 1
+                    it.id.isNotBlank() && it.uri.isNotBlank() && idCounts[it.id] == 1 && it.uri in allowedUris
                 }
                 return Index(unique.associateBy { it.artworkKey }, unique.associateBy { it.id })
             }

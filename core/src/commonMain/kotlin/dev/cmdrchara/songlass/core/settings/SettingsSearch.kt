@@ -13,7 +13,7 @@ enum class SettingsTarget {
     FocusDucking, ResumeOnFocusGain, ResumeAfterCall,
     AudioFocus, PauseOnDisconnect, HeadsetMultiPress, LrclibLyrics, PauseFadeDuration, StopFadeDuration, SeekFadeDuration,
     OnlineArtworkEnabled, OnlineArtworkWifiOnly, LastFm,
-    ResumeOverrides, ShowPlayerRating, LyricsOffset, LyricsSize, LyricsKeepScreenOn,
+    ResumeOverrides, ShowPlayerRating, LyricsOffset, LyricsSize, LyricsKeepScreenOn, ParametricEqualizer,
 }
 
 /** Localized text is supplied by the UI; current values are intentionally not cached in the index. */
@@ -244,8 +244,9 @@ private fun SettingsTarget.searchTerms(): SearchTerms = when (this) {
         aliases = "eq|presets|preimpostazioni|flat|piatto|voice|voce|more bass|bassi")
     SettingsTarget.OutputProfiles -> terms("Output profiles", "Profili per uscita",
         aliases = "equalizer|equalizzatore|eq|device|dispositivo|headphones|cuffie|bluetooth|wired|cavo|usb|speaker|altoparlante|automatic|automatico|associazione")
+    SettingsTarget.ParametricEqualizer -> terms("Parametric equalizer", "Equalizzatore parametrico", aliases = "parametric|parametrico|frequency|frequenza|q factor|filters|filtri|manual eq|eq manuale")
     SettingsTarget.HeadphoneCorrection -> terms("Headphone correction", "Correzione cuffie", "AutoEQ", "Cuffie",
-        aliases = "headphones|cuffie|autoeq|profile|profilo|import|importazione|correction|correzione|parametric|parametrico")
+        aliases = "headphones|cuffie|autoeq|profile|profilo|import|importazione|correction|correzione")
     SettingsTarget.MinimumDuration -> terms("Minimum duration", "Durata minima",
         aliases = "library|libreria|track|brano|tracks|brani|filter|filtro|seconds|secondi|short|brevi")
     SettingsTarget.MinimumRating -> terms("Minimum rating", "Valutazione minima", "Minimum stars", "Stelle minime",

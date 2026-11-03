@@ -52,14 +52,17 @@ Captured on AOSP at 1080×2400, density 420 and default text size.
 ### Library and queue
 
 - Browse songs, albums, artists, genres and folders; pin collections and customize Home.
+- Compare possible duplicate files by title, artist and duration, with file locations and playback; no automatic deletion.
 - Create playlists, import and export M3U files, and build smart playlists from rules such as ratings.
+- Import UTF-8 CUE sheets from Library to create virtual tracks from already indexed audio files; original files remain available. [Details and limits](docs/cue-sheets.md).
 - Manage favorites, five-star ratings and listening history, with statistics and listening memories.
 - Reorder the queue, add temporary tracks, and save your upcoming songs as a playlist.
+- Repeat a passage with session-only A–B loop points set directly in the player.
 
 ### Playback and sound
 
 - Gapless playback, crossfade and configurable fades for transport actions.
-- ReplayGain, an equalizer, AutoEQ headphone profiles and settings for different audio outputs.
+- ReplayGain, graphic EQ and editable parametric profiles with frequency, gain and Q, AutoEQ headphone profiles and settings for different audio outputs.
 - Balance, stereo expansion, tempo, bass, treble and reverb controls.
 - Per-track resume, bookmarks and a sleep timer.
 

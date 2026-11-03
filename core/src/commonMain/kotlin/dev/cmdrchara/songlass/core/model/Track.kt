@@ -36,7 +36,14 @@ data class Track(
     val composers: List<String> = emptyList(),
     /** Platform-reported absolute file path for playlist export; never used as a playable URI. */
     val absoluteFilePath: String? = null,
+    /** CUE segment bounds in the physical file; player positions remain segment-relative. */
+    val clipStartMs: Long = 0,
+    val clipEndMs: Long? = null,
+    val cueSourceId: String? = null,
 ) {
+    init { require(clipStartMs >= 0 && (clipEndMs == null || clipEndMs > clipStartMs)) }
+    val isCueTrack: Boolean get() = clipEndMs != null
+
     /** `folder/fileName` relative to the storage root, as written in M3U playlists; null if unknown. */
     val path: String? get() = fileName?.let { name -> folder?.takeIf { it.isNotBlank() }?.let { "${it.trim('/')}/$name" } ?: name }
 

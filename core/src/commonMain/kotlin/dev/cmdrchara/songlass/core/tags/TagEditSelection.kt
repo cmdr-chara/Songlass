@@ -11,6 +11,7 @@ import dev.cmdrchara.songlass.core.model.isSameFileAs
 object TagEditSelection {
     /** Use a complete, successful, unfiltered scan. A stale route must not become a different file. */
     fun isCurrent(selected: Track, library: List<Track>): Boolean {
+        if (selected.isCueTrack) return false
         var current: Track? = null
         for (track in library) if (track.id == selected.id) {
             if (current != null) return false
@@ -27,7 +28,7 @@ object TagEditSelection {
         dateAddedMs: Long?,
         durationMs: Long?,
     ): Boolean {
-        if (selected.uri != uri) return false
+        if (selected.isCueTrack || selected.uri != uri) return false
         if (selected.fileName != null && selected.fileName != fileName) return false
         if (selected.folder != null && selected.folder.trim('/') != folder?.trim('/')) return false
         val added = selected.dateAddedMs?.takeIf { it > 0 }

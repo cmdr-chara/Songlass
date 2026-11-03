@@ -1,0 +1,9 @@
+<resources>
+    <string name="ab_loop_title">Loop A–B</string>
+    <string name="ab_loop_active">Loop %1$s – %2$s</string>
+    <string name="ab_loop_waiting">A: %1$s · Imposta B per ripetere</string>
+    <string name="ab_loop_hint">Imposta A all’inizio, poi B almeno un secondo dopo. Il passaggio si ripete finché lo disattivi. Spostandoti fuori dal passaggio o cambiando brano, il loop si annulla.</string>
+    <string name="ab_loop_set_a">Imposta A qui</string>
+    <string name="ab_loop_set_b">Imposta B qui e ripeti</string>
+    <string name="ab_loop_clear">Disattiva loop A–B</string>
+</resources>

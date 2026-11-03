@@ -67,7 +67,7 @@ actual fun rememberTextFileImporter(kind: TextFileKind, onResult: (fileName: Str
     val types = when (kind) {
         // M3U files have no consistently registered MIME type; the parser ignores anything else.
         TextFileKind.Playlist -> arrayOf("audio/x-mpegurl", "audio/mpegurl", "application/vnd.apple.mpegurl", "application/x-mpegurl", "text/plain", "application/octet-stream")
-        TextFileKind.EqualizerProfile -> arrayOf("text/plain", "application/octet-stream")
+        TextFileKind.EqualizerProfile, TextFileKind.CueSheet -> arrayOf("text/plain", "application/octet-stream")
     }
     return {
         if (!busy) {

@@ -1,0 +1,9 @@
+<resources>
+    <string name="duplicates_title">Possible duplicates</string>
+    <string name="duplicates_hint">Matches by title, artist and duration within 2 seconds. These may be different recordings. Only visible library files are compared; CUE segments are excluded. Nothing is deleted automatically.</string>
+    <string name="duplicates_empty">No possible duplicates found</string>
+    <string name="duplicates_scanning">Comparing your library…</string>
+    <string name="duplicates_open_hint">Compare copies by metadata and listen before deciding</string>
+    <string name="duplicates_copies">%1$d possible copies</string>
+    <string name="duplicates_unknown_path">File location unavailable</string>
+</resources>

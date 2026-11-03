@@ -95,6 +95,7 @@ sealed interface Route {
 
     /** The user's rated tracks grouped by stars; a Library sub-page. */
     data object Ratings : Route
+    data object PossibleDuplicates : Route
 
     /** Last.fm account, credentials and pending scrobbles; a sub-page of Settings. */
     data object LastFm : Route
@@ -137,6 +138,9 @@ class AppState(graph: AppGraph) {
     val restoreMutations = graph.restoreMutations
     val libraryRefreshFailure = graph.libraryRefreshFailure
     val requestLibraryRefresh: () -> Unit = graph::requestLibraryRefresh
+    val importCueSheet = graph::importCueSheet
+    val removeCueSheet = graph::removeCueSheet
+    val cueSheets = graph.cueSheets
     val hasCompleteLibraryScan = graph.hasCompleteLibraryScan
     val allTracks = graph.allTracks
     val libraryAccess = graph.source.hasAccess
@@ -633,6 +637,7 @@ class AppState(graph: AppGraph) {
     }
 
     fun openTagEditor(track: Track) {
+        if (track.isCueTrack) return
         closeNowPlaying()
         open(Route.TagEditor(track))
     }

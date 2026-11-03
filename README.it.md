@@ -52,14 +52,17 @@ Apri un'immagine per vederla a risoluzione completa. Schermate acquisite su AOSP
 ### Libreria e coda
 
 - Esplora brani, album, artisti, generi e cartelle; fissa le raccolte e personalizza la Home.
+- Confronta possibili file duplicati per titolo, artista e durata, con percorsi e ascolto; nessuna eliminazione automatica.
+- Importa file CUE UTF-8 dalla Libreria per ottenere tracce virtuali dai file audio già indicizzati; gli originali restano disponibili. [Dettagli e limiti](docs/cue-sheets.md).
 - Crea playlist, importa ed esporta file M3U e componi playlist intelligenti con regole come la valutazione dei brani.
 - Gestisci preferiti, valutazioni a cinque stelle e cronologia, con statistiche e ricordi di ascolto.
 - Riordina la coda, aggiungi brani temporanei e salva quelli in arrivo come playlist.
+- Ripeti un passaggio con punti A–B temporanei, impostati direttamente nel player.
 
 ### Riproduzione e audio
 
 - Riproduzione senza pause tra i brani (gapless), crossfade e dissolvenze configurabili per i comandi di riproduzione.
-- ReplayGain, equalizzatore, profili AutoEQ per le cuffie e impostazioni per diverse uscite audio.
+- ReplayGain, equalizzatore grafico e profili parametrici modificabili con frequenza, guadagno e Q, profili AutoEQ per le cuffie e impostazioni per diverse uscite audio.
 - Controlli di bilanciamento, espansione stereo, velocità, bassi, alti e riverbero.
 - Ripresa per singolo brano, segnalibri e timer di spegnimento.
 

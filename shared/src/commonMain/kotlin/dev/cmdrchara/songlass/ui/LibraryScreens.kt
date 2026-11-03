@@ -1,5 +1,9 @@
 package dev.cmdrchara.songlass.ui
 
+import dev.cmdrchara.songlass.shared.resources.cue_import_title
+import dev.cmdrchara.songlass.shared.resources.duplicates_title
+import dev.cmdrchara.songlass.shared.resources.duplicates_open_hint
+
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.windowInsetsTopHeight
@@ -159,6 +163,7 @@ fun LibraryScreen(
     val library = state.library
     val refreshFailure by state.libraryRefreshFailure.collectAsState()
     val onImportPlaylist = rememberPlaylistImportAction(state)
+    val onImportCue = rememberCueImportAction(state)
     val favoriteTracks = remember(favoriteIds, library) { state.favorites.tracksIn(library) }
     val pinContexts by state.pins.contexts.collectAsState()
     val pinnedItems = remember(pinContexts, library) { state.pins.resolve(library) }
@@ -194,6 +199,11 @@ fun LibraryScreen(
             // Playlist management remains reachable when filters hide every song or access is absent.
             item { SectionTitle(stringResource(Res.string.library_playlists)) }
             item { UserPlaylistRow(state, onImportPlaylist) }
+        if (onImportCue != null) item {
+            ListRow(stringResource(Res.string.cue_import_title),
+                leading = { AppIcon(AppIcons.ImportFile, null, size = 24.dp, tint = AppTheme.colors.accent) },
+                onClick = onImportCue)
+        }
             if (hasAccess && refreshFailure != null) return@LazyColumn
             item {
                     val loading by state.isLibraryLoading.collectAsState()
@@ -222,10 +232,21 @@ fun LibraryScreen(
                     }
                 }, onClick = { state.openRatings() })
         }
+        item(key = "library.duplicates") {
+            ListRow(stringResource(Res.string.duplicates_title),
+                subtitle = stringResource(Res.string.duplicates_open_hint), fullText = true,
+                leading = { AppIcon(AppIcons.Search, null, size = 24.dp, tint = AppTheme.colors.accent) },
+                onClick = { state.open(Route.PossibleDuplicates) })
+        }
         item { SectionTitle(stringResource(Res.string.library_metadata)) }
         item { LibraryFacetCategories(state) }
         item { SectionTitle(stringResource(Res.string.library_playlists)) }
         item { UserPlaylistRow(state, onImportPlaylist) }
+        if (onImportCue != null) item {
+            ListRow(stringResource(Res.string.cue_import_title),
+                leading = { AppIcon(AppIcons.ImportFile, null, size = 24.dp, tint = AppTheme.colors.accent) },
+                onClick = onImportCue)
+        }
         if (library.folders.isNotEmpty()) {
             item { SectionTitle(stringResource(Res.string.library_folders)) }
             item {

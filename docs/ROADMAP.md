@@ -3,8 +3,11 @@
 ## Implementato
 
 - Libreria locale, cartelle, preferiti, valutazioni, playlist utente e intelligenti.
+- Confronto dei possibili duplicati per metadati e durata, senza eliminazioni automatiche.
 - Riproduzione con coda, gapless, crossfade, ReplayGain e controlli audio.
-- Equalizzatore, profili di uscita, AutoEQ e gestione cuffie.
+- Loop A–B nel player, con punti temporanei e disattivazione al cambio brano.
+- Equalizzatore grafico, editor di profili parametrici, profili di uscita, AutoEQ e gestione cuffie.
+- Importazione CUE UTF-8 con tracce virtuali e confini di riproduzione su Android.
 - Testi sincronizzati, importazione, correzione dei tempi e dimensione di lettura.
 - Copertine locali e recupero online configurabile; Last.fm facoltativo.
 - Tre stili, finitura Liquid Metal, accessibilità e impostazioni ricercabili.

@@ -103,11 +103,12 @@ internal class IosAudioPlayer(private val scope: CoroutineScope) : AudioPlayer {
             return
         }
         val next = AVPlayerItem(uRL = url)
+        track.clipEndMs?.let { next.forwardPlaybackEndTime = CMTimeMakeWithSeconds(it / 1000.0, 1000) }
         item = next
         native.replaceCurrentItemWithPlayerItem(next)
         values.value = PlayerState(PlayerStatus.Buffering, playWhenReady, startPositionMs.coerceAtLeast(0), track.durationMs)
         observeEnd(next)
-        if (startPositionMs > 0) seekNative(startPositionMs) else if (wanted) startNative()
+        if (startPositionMs > 0 || track.clipStartMs > 0) seekNative(startPositionMs) else if (wanted) startNative()
         refresh()
     }
 
@@ -180,7 +181,7 @@ internal class IosAudioPlayer(private val scope: CoroutineScope) : AudioPlayer {
         seeking = generation
         values.value = state.value.copy(positionMs = positionMs, status = PlayerStatus.Buffering)
         val zero = CMTimeMakeWithSeconds(0.0, 1000)
-        native.seekToTime(CMTimeMakeWithSeconds(positionMs / 1000.0, 1000), zero, zero) { finished ->
+        native.seekToTime(CMTimeMakeWithSeconds((positionMs + (track?.clipStartMs ?: 0)) / 1000.0, 1000), zero, zero) { finished ->
             scope.launch {
                 if (!released && item === current && eventGeneration == generation) {
                     seeking = null
@@ -225,8 +226,8 @@ internal class IosAudioPlayer(private val scope: CoroutineScope) : AudioPlayer {
             else -> PlayerStatus.Ready
         }
         values.value = PlayerState(status, wanted,
-            if (seeking == null && seconds.isFinite()) (seconds * 1000).toLong().coerceAtLeast(0) else state.value.positionMs,
-            if (duration.isFinite() && duration > 0) (duration * 1000).toLong() else track?.durationMs ?: 0,
+            if (seeking == null && seconds.isFinite()) ((seconds * 1000).toLong() - (track?.clipStartMs ?: 0)).coerceAtLeast(0) else state.value.positionMs,
+            if (track?.isCueTrack == true) track!!.durationMs else if (duration.isFinite() && duration > 0) (duration * 1000).toLong() else track?.durationMs ?: 0,
             positionSampledAtMs = monotonicTimeMs,
             positionAdvancing = status == PlayerStatus.Ready && native.rate > 0f)
     }

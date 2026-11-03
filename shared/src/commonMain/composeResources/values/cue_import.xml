@@ -1,0 +1,8 @@
+<resources>
+    <string name="cue_import_title">Import CUE sheet</string>
+    <string name="cue_import_confirm">Import %1$d virtual tracks</string>
+    <string name="cue_import_failed">The CUE sheet could not be imported</string>
+    <string name="cue_import_hint">Use an AUDIO CUE sheet whose referenced files are already in the library, with unique paths and valid INDEX 01 boundaries. Refresh the library if files changed. Original audio files are kept.</string>
+    <string name="cue_import_choose">Choose CUE file</string>
+    <string name="cue_import_remove">Remove imported sheet: %1$s</string>
+</resources>

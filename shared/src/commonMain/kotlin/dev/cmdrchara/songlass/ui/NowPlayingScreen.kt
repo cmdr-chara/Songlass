@@ -276,6 +276,7 @@ fun NowPlayingContent(state: AppState, queue: PlaybackQueue, player: PlayerState
                                 Modifier.weight(1f).semantics { contentDescription = forwardLabel })
                         }
                     }
+                    AbLoopControls(controller, track.id, player, durationForControls)
                     Spacer(Modifier.height(controlGap))
                     if (compact) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

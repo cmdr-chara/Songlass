@@ -1,0 +1,15 @@
+<resources>
+    <string name="eq_parametric_title">Parametric equalizer</string>
+    <string name="eq_parametric_name">Manual EQ</string>
+    <string name="eq_parametric_create">Create editable profile</string>
+    <string name="eq_parametric_hint">Start with a copy of the selected correction, or a flat filter. Graphic EQ remains applied.</string>
+    <string name="eq_parametric_filter">Filter %1$d</string>
+    <string name="eq_filter_peak">Peak</string>
+    <string name="eq_filter_low">Low shelf</string>
+    <string name="eq_filter_high">High shelf</string>
+    <string name="eq_parametric_frequency">Frequency: %1$d Hz</string>
+    <string name="eq_parametric_gain">Gain: %1$s dB</string>
+    <string name="eq_parametric_q">Q: %1$s</string>
+    <string name="eq_parametric_remove">Remove filter</string>
+    <string name="eq_parametric_add">Add filter</string>
+</resources>

@@ -9,16 +9,30 @@ import dev.cmdrchara.songlass.ui.Tab
 
 /** In-memory UI scenarios: no platform player, real preferences or file operations. */
 internal object VisualAuditExtraCases {
-    val cases = setOf("access-denied", "welcome-access", "playlist-insert-confirm", "playlist-remove-confirm",
+    val cases = setOf("ab-loop", "duplicates", "duplicates-empty", "parametric-editor", "cue-library", "access-denied", "welcome-access", "playlist-insert-confirm", "playlist-remove-confirm",
         "playlist-remove-missing-confirm", "smart-delete-confirm", "bookmarks-track", "queue-options", "lyrics-recovery-list", "lyrics-recovery-preview")
     val tracks = listOf(
-        Track("qa-visual-a", "QA Synthetic First", "visual-audit://first", artist = "QA Artist", album = "QA Album", durationMs = 60_000),
+        Track("qa-visual-a", "QA Synthetic First", "visual-audit://first", artist = "QA Artist", album = "QA Album", durationMs = 60_000, fileName = "qa.flac", folder = "Music/QA"),
         Track("qa-visual-b", "QA Synthetic Second", "visual-audit://second", artist = "QA Artist", album = "QA Album", durationMs = 90_000),
     )
 
     suspend fun prepare(graph: AppGraph, state: AppState, id: String): Boolean {
         if (id !in cases) return false
         when (id) {
+            "ab-loop" -> {
+                graph.controller.playTracks(tracks)
+                graph.controller.pause()
+                graph.controller.seekTo(10_000)
+                state.openNowPlaying()
+            }
+            "parametric-editor" -> {
+                graph.settings.setEqualizerLocked(false)
+                graph.equalizer.createEditableProfile("QA EQ")
+                state.open(Route.Equalizer)
+                state.openSettingsResult(dev.cmdrchara.songlass.core.settings.SettingsTarget.ParametricEqualizer)
+            }
+            "duplicates", "duplicates-empty" -> { state.selectTab(Tab.Library); state.open(Route.PossibleDuplicates) }
+            "cue-library" -> state.selectTab(Tab.Library)
             "access-denied" -> state.selectTab(Tab.Library)
             "welcome-access" -> graph.onboarding.restart()
             "playlist-insert-confirm" -> {

@@ -48,7 +48,14 @@ class VisualAuditActivity : ComponentActivity() {
         prepareOnboarding(app, selection.first)
         setContent {
             val request = selection
-            val fixture = remember(request) { VisualAuditRecoveryFixtures.create(app.graph, request.first) }
+            val fixture = remember(request) {
+                VisualAuditRecoveryFixtures.create(app.graph, request.first).also { fixture ->
+                    if (fixture != null && request.first in setOf("parametric-editor", "cue-library", "duplicates", "duplicates-empty", "ab-loop")) {
+                        dev.cmdrchara.songlass.core.settings.InterfaceStyle.entries.firstOrNull { it.name == intent.getStringExtra("style") }?.let { fixture.graph.settings.setInterfaceStyle(it) }
+                        fixture.graph.settings.setTextScale(intent.getFloatExtra("textScale", 1f))
+                    }
+                }
+            }
             DisposableEffect(fixture) { onDispose { fixture?.close() } }
             val graph = fixture?.graph ?: app.graph
             val state = remember(graph, request) { AppState(graph) }

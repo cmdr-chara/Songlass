@@ -1,0 +1,15 @@
+<resources>
+    <string name="eq_parametric_title">Equalizzatore parametrico</string>
+    <string name="eq_parametric_name">EQ manuale</string>
+    <string name="eq_parametric_create">Crea profilo modificabile</string>
+    <string name="eq_parametric_hint">Parti da una copia della correzione selezionata o da un filtro piatto. L’EQ grafico resta applicato.</string>
+    <string name="eq_parametric_filter">Filtro %1$d</string>
+    <string name="eq_filter_peak">Picco</string>
+    <string name="eq_filter_low">Bassi shelf</string>
+    <string name="eq_filter_high">Alti shelf</string>
+    <string name="eq_parametric_frequency">Frequenza: %1$d Hz</string>
+    <string name="eq_parametric_gain">Guadagno: %1$s dB</string>
+    <string name="eq_parametric_q">Q: %1$s</string>
+    <string name="eq_parametric_remove">Rimuovi filtro</string>
+    <string name="eq_parametric_add">Aggiungi filtro</string>
+</resources>
