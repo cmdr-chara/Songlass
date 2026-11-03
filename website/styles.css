@@ -1,11 +1,6 @@
-@font-face{font-family:'Rovel Sans';src:url('/assets/fonts/rovel-sans/RovelSans-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:'Rovel Sans';src:url('/assets/fonts/rovel-sans/RovelSans-Medium.woff2') format('woff2');font-weight:500;font-style:normal;font-display:swap}
-@font-face{font-family:'Rovel Sans';src:url('/assets/fonts/rovel-sans/RovelSans-Bold.woff2') format('woff2');font-weight:700;font-style:normal;font-display:swap}
-@font-face{font-family:'Puffrelle';src:url('/assets/fonts/character-studies/Puffrelle-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
-@font-face{font-family:'Kindredge';src:url('/assets/fonts/character-studies/Kindredge-Regular.woff2') format('woff2');font-weight:400;font-style:normal;font-display:swap}
 @font-face{font-family:'Google Sans Flex';src:url('/assets/fonts/google-sans-flex/google-sans-flex.ttf') format('truetype');font-weight:300 800;font-style:normal;font-display:swap}
 @font-face{font-family:'Azeret Mono';src:url('/assets/fonts/azeret-mono/azeret-mono-variable.ttf') format('truetype');font-weight:100 900;font-display:swap}
-:root{font-family:'Rovel Sans',sans-serif;font-synthesis:none;--display-family:'Rovel Sans',sans-serif;color-scheme:light dark;--bg:#f7f7f9;--surface:#fff;--tonal:#e9e6f0;--strong:#ddd5ed;--ink:#18171c;--muted:#58545f;--accent:#6c3bee;--accent-ink:#fff;--line:#d7d2e0;--radius:28px;--space:clamp(22px,4.4vw,80px);--section-space:clamp(64px,7vw,112px);--ease:cubic-bezier(.22,1,.36,1);--nav-h:96px;--display-weight:400}
+:root{font-family:'Google Sans Flex',sans-serif;font-synthesis:none;--display-family:'Google Sans Flex',sans-serif;color-scheme:light dark;--bg:#f7f7f9;--surface:#fff;--tonal:#e9e6f0;--strong:#ddd5ed;--ink:#18171c;--muted:#58545f;--accent:#6c3bee;--accent-ink:#fff;--line:#d7d2e0;--radius:28px;--space:clamp(22px,4.4vw,80px);--section-space:clamp(64px,7vw,112px);--ease:cubic-bezier(.22,1,.36,1);--nav-h:96px;--display-weight:400}
 html[data-style=material_design]{--material-library-bg:#c0cef3;--material-story-bg:#d9e4ff;--material-story-ink:#142447;--material-story-muted:#354666;--material-story-accent:#334e88;--material-story-on-accent:#fff;--material-story-surface:#e4ebff;--material-story-tonal:#c1d0f5;--bg:#f9f9ff;--surface:#eff2fa;--tonal:#dbe4ff;--strong:#c3d1f8;--ink:#18213a;--muted:#4a5369;--accent:#3f538b;--accent-ink:#fff;--line:#c4cddd;--radius:40px;--display-weight:400}
 html[data-style=miuix]{--bg:#f7f7f8;--surface:#fff;--tonal:#ececf0;--strong:#dedbe6;--ink:#19191d;--muted:#57565f;--accent:#7146d8;--accent-ink:#fff;--line:#d6d5db;--radius:20px;--display-weight:400}
 @media(prefers-color-scheme:dark){
@@ -205,16 +200,13 @@ html[data-large-text][data-style] .footer-selector-material .style-choices{grid-
 
 .footer-status{font-size:14px;line-height:1.4;margin-top:12px}
 
-/* Static display faces use their drawn weight; controls remain in the text family. */
-html[data-style=material_design]{--display-family:'Puffrelle',sans-serif}
-html[data-style=miuix]{--display-family:'Kindredge',sans-serif}
-html[data-style=material_design] :is(h1,h2,h3),html[data-style=miuix] :is(h1,h2,h3){font-weight:400;letter-spacing:-.015em}
+/* A shared neutral typeface lets the three interface systems carry the identity. */
+html[data-style=material_design]{--display-weight:550}
+html[data-style=miuix]{--display-weight:600}
 html[data-style=liquid_glass] :is(h1,h2){letter-spacing:-.03em}
-.footer-navs h3,.preview-toolbar h2{font-family:'Rovel Sans',sans-serif;font-weight:500}
-html[data-style] .footer-wordmark{font-family:var(--display-family);font-weight:400;letter-spacing:-.025em}
-html:is([data-style=material_design],[data-style=miuix]) .hero h1{font-weight:400;letter-spacing:-.015em}
-html[data-style] :is(.footer-navs h3,.preview-toolbar h2){font-family:'Rovel Sans',sans-serif;font-weight:500}
-.hero h1{font-weight:400}
+html[data-style] :is(.footer-navs h3,.preview-toolbar h2){font-family:'Google Sans Flex',sans-serif;font-weight:500}
+html[data-style] .footer-wordmark{font-family:var(--display-family);font-weight:var(--display-weight);letter-spacing:-.025em}
+html[data-style] .hero h1{font-weight:var(--display-weight);letter-spacing:-.035em}
 .picker-index .choice-name{font-weight:500}
 @media(min-width:768px){
  html:is([data-style=material_design],[data-style=miuix]) .hero h1{font-size:clamp(60px,8vw,152px)}
