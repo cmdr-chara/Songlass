@@ -37,6 +37,7 @@ internal fun settingsTargetTitle(target: SettingsTarget): String = stringResourc
     SettingsTarget.BluetoothCommandDelay -> Res.string.settings_bluetooth_command_filter
     SettingsTarget.EqualizerBass -> Res.string.eq_tone_bass
     SettingsTarget.EqualizerTreble -> Res.string.eq_tone_treble
+    SettingsTarget.ParametricEqualizer -> Res.string.eq_parametric_title
     SettingsTarget.EqualizerBands -> Res.string.eq_band_count
     SettingsTarget.EqualizerLock -> Res.string.eq_lock_title
     SettingsTarget.Balance -> Res.string.settings_balance
@@ -128,7 +129,7 @@ internal fun settingsSearchDocuments(): List<SettingsSearchDocument> {
             SettingsTarget.CrossfadeDuration, SettingsTarget.ManualCrossfadeDuration -> "$sound › ${stringResource(Res.string.settings_crossfade)}"
             SettingsTarget.EqualizerBass, SettingsTarget.EqualizerTreble, SettingsTarget.EqualizerBands,
             SettingsTarget.EqualizerLock,
-            SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection -> "$sound › $equalizer"
+            SettingsTarget.EqualizerPresets, SettingsTarget.OutputProfiles, SettingsTarget.HeadphoneCorrection, SettingsTarget.ParametricEqualizer -> "$sound › $equalizer"
             SettingsTarget.MinimumDuration, SettingsTarget.MinimumRating, SettingsTarget.ExcludedFolders,
             SettingsTarget.PlayCountRule, SettingsTarget.AlbumLayout, SettingsTarget.ResumeOverrides -> library
             SettingsTarget.ReduceMotion, SettingsTarget.ReduceTransparency -> "$appearance › ${stringResource(Res.string.settings_accessibility)}"
@@ -211,6 +212,7 @@ private fun settingsCurrentValue(target: SettingsTarget, preferences: AppPrefere
         SettingsTarget.Equalizer -> enabled(eq.enabled)
         SettingsTarget.EqualizerPresets -> stringResource(eq.preset?.label ?: Res.string.eq_custom)
         SettingsTarget.OutputProfiles -> enabled(eq.automaticOutputs)
+        SettingsTarget.ParametricEqualizer -> eq.profile?.name
         SettingsTarget.HeadphoneCorrection -> eq.profile?.name ?: stringResource(Res.string.eq_headphones_none)
         SettingsTarget.MinimumDuration -> if (preferences.libraryFilter.minimumDurationMs == 0L) stringResource(Res.string.library_all_durations)
             else stringResource(Res.string.library_duration_seconds, (preferences.libraryFilter.minimumDurationMs / 1_000).toInt())

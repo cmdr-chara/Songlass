@@ -33,6 +33,9 @@ import kotlin.random.Random
 /** Transport boundaries for observers; position ticks alone do not prove listening time. */
 data class PlaybackTimeline(val occurrenceId: Long = 0, val discontinuityId: Long = 0)
 
+/** Session-only points in the current track's own timeline (including CUE-relative time). */
+data class AbLoop(val trackId: String, val startMs: Long, val endMs: Long? = null)
+
 /**
  * The single entry point the UI uses to control playback. Owns the [PlaybackQueue] and
  * tells the [AudioPlayer] which track to play.
@@ -77,6 +80,11 @@ class PlaybackController(
         return transportIntentRevision
     }
 
+    private val _abLoop = MutableStateFlow<AbLoop?>(null)
+    val abLoop: StateFlow<AbLoop?> = _abLoop.asStateFlow()
+    // Native seek fades can finish later. Do not restart the same pending seek on every tick.
+    private var loopSeekPending = false
+
     private val _stopAfterCurrent = MutableStateFlow(false)
     /** The decoder identity, deliberately independent of refreshed queue metadata. */
     private var loadedTrack: Track? = null
@@ -111,6 +119,7 @@ class PlaybackController(
                 synchronizeNativeAdvance()
                 // Reconciliation may explicitly load a different continuation. Never pair the
                 // old emitted position with the newly authoritative decoder identity.
+                if (repeatAbLoop()) return@collect
                 val status = player.state.value
                 val track = loadedTrack
                 val signature = track?.let(TrackSignature::of)
@@ -139,7 +148,7 @@ class PlaybackController(
     private fun reconcilePrefetch(force: Boolean = false) {
         val queue = _queue.value
         val nextIndex = queue.nextIndex(userInitiated = false)
-        val next = if (_stopAfterCurrent.value || stopsAtQueueEnd(queue, nextIndex)) null
+        val next = if (_abLoop.value?.endMs != null || _stopAfterCurrent.value || stopsAtQueueEnd(queue, nextIndex)) null
             else nextIndex?.let { queue.entries[it] }
         if (!force && prefetchInitialized && prefetchedEntry == next) return
         // Publish the command identity before calling a player that can emit synchronously.
@@ -151,7 +160,71 @@ class PlaybackController(
     fun setStopAfterCurrent(enabled: Boolean) {
         synchronizeNativeAdvance()
         _stopAfterCurrent.value = enabled
+        if (enabled) clearAbLoop()
         reconcilePrefetch()
+    }
+
+    /** Capture from authoritative native state, rejecting gestures from an outgoing track. */
+    fun markLoopStart(expectedTrackId: String): Boolean {
+        beginUserTransport()
+        val track = loadedTrack ?: return false
+        val status = player.state.value
+        val duration = status.durationMs.takeIf { it > 0 } ?: track.durationMs
+        if (track.id != expectedTrackId || _queue.value.current?.isAvailable != true ||
+            status.status != PlayerStatus.Ready || duration < MIN_LOOP_MS ||
+            status.positionMs !in 0..(duration - MIN_LOOP_MS)) return false
+        loopSeekPending = false
+        _abLoop.value = AbLoop(track.id, status.positionMs)
+        reconcilePrefetch()
+        return true
+    }
+
+    fun markLoopEnd(expectedTrackId: String): Boolean {
+        beginUserTransport()
+        val loop = _abLoop.value ?: return false
+        val status = player.state.value
+        val duration = status.durationMs.takeIf { it > 0 } ?: loadedTrack?.durationMs ?: 0L
+        if (loop.trackId != expectedTrackId || loadedTrack?.id != expectedTrackId ||
+            _queue.value.current?.isAvailable != true || status.status != PlayerStatus.Ready ||
+            status.positionMs > duration || status.positionMs - loop.startMs < MIN_LOOP_MS) return false
+        _abLoop.value = loop.copy(endMs = status.positionMs)
+        _stopAfterCurrent.value = false
+        reconcilePrefetch()
+        loopSeekPending = true
+        seekCurrent(loop.startMs)
+        return true
+    }
+
+    fun clearAbLoop() = clearAbLoop(reconcile = true)
+
+    private fun clearAbLoop(reconcile: Boolean) {
+        if (_abLoop.value == null) return
+        loopSeekPending = false
+        _abLoop.value = null
+        if (reconcile) reconcilePrefetch()
+    }
+
+    /** Uses the process-owned player ticks, never a UI timer; precision follows native samples. */
+    private fun repeatAbLoop(ended: Boolean = false): Boolean {
+        val loop = _abLoop.value ?: return false
+        val end = loop.endMs ?: return false
+        val status = player.state.value
+        val duration = status.durationMs.takeIf { it > 0 } ?: loadedTrack?.durationMs ?: 0L
+        if (loadedTrack?.id != loop.trackId || status.status == PlayerStatus.Idle ||
+            status.status == PlayerStatus.Error || duration < end) {
+            clearAbLoop()
+            return false
+        }
+        if (loopSeekPending) {
+            if (status.positionMs < end) loopSeekPending = false
+            else return true
+        }
+        if (!status.playWhenReady || (!ended && status.positionMs < end) ||
+            (status.status != PlayerStatus.Ready && status.status != PlayerStatus.Ended)) return false
+        loopSeekPending = true
+        seekCurrent(loop.startMs)
+        if (ended || status.status == PlayerStatus.Ended) player.play()
+        return true
     }
 
     /** Main-thread boundary before a native file writer temporarily releases its decoders. */
@@ -174,6 +247,7 @@ class PlaybackController(
     fun stop() {
         beginUserTransport()
         checkpointCurrent(force = true)
+        clearAbLoop(reconcile = false)
         loadedTrack = null
         player.stop()
     }
@@ -257,6 +331,9 @@ class PlaybackController(
 
     private fun seekCurrent(positionMs: Long, explicit: Boolean = true) {
         if (loadedTrack == null) return
+        _abLoop.value?.let { loop ->
+            if (positionMs < loop.startMs || (loop.endMs != null && positionMs >= loop.endMs)) clearAbLoop()
+        }
         _timeline.update { it.copy(
             occurrenceId = it.occurrenceId + if (positionMs <= 0L) 1 else 0,
             discontinuityId = it.discontinuityId + if (explicit) 1 else 0,
@@ -465,6 +542,7 @@ class PlaybackController(
         val availability = TrackAvailability(tracks, stableIds)
         libraryAvailability = availability
         _queue.update { it.withResolvedTracks(availability::resolve) }
+        if (_queue.value.current?.let { it.isAvailable && loadedTrack?.isSameFileAs(it.track) == true } != true) clearAbLoop()
         // MainScope's collectors are dispatched. Do not leave an invalidated next file armed
         // until that later message, especially after an early tag-source rejection or revoke.
         reconcilePrefetch()
@@ -476,6 +554,7 @@ class PlaybackController(
 
     fun clearQueue() {
         beginUserTransport()
+        clearAbLoop(reconcile = false)
         checkpointCurrent(force = true)
         loadedTrack = null
         _queue.update { PlaybackQueue(repeatMode = it.repeatMode, nextEntryId = it.nextEntryId) }
@@ -512,6 +591,7 @@ class PlaybackController(
         explicitSelection: Boolean = false,
         positionOverrideMs: Long? = null,
     ) {
+        clearAbLoop(reconcile = false)
         checkpointCurrent(force = true)
         val entry = _queue.value.current?.takeIf { it.isAvailable }
             ?: run { loadedTrack = null; return player.stop() }
@@ -531,6 +611,7 @@ class PlaybackController(
         loadedTrack = entry.track
         if (manual) player.transitionToAt(entry.track, playWhenReady, start)
         else player.loadAt(entry.track, playWhenReady, start)
+        reconcilePrefetch()
     }
 
     private inline fun safeMarkers(write: () -> Unit) {
@@ -577,6 +658,7 @@ class PlaybackController(
     }
 
     private fun onTrackEnded() {
+        if (repeatAbLoop(ended = true)) return
         loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
         val queue = _queue.value
         val playing = player.state.value.playWhenReady
@@ -600,6 +682,7 @@ class PlaybackController(
 
     /** The player already started the next track: only the queue position moves. */
     private fun onAdvancedToNext(event: PlayerEvent.AdvancedToNext) {
+        clearAbLoop(reconcile = false)
         loadedTrack?.let { track -> safeMarkers { markers?.completed(track) } }
         val before = _queue.value
         val previousEntryId = before.current?.id
@@ -642,5 +725,6 @@ class PlaybackController(
     companion object {
         /** Same idea as Apple Music: "previous" restarts the track after the first few seconds. */
         const val RESTART_THRESHOLD_MS = 3_000L
+        const val MIN_LOOP_MS = 1_000L
     }
 }

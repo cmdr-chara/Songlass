@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import dev.cmdrchara.songlass.core.playlists.M3u
 
 /** Kinds of text files the app opens; they decide what the system picker offers. */
-enum class TextFileKind { Playlist, EqualizerProfile }
+enum class TextFileKind { Playlist, EqualizerProfile, CueSheet }
 
 /**
  * Opens a small text file of [kind]; [onResult] gets its file name and text, or null text on

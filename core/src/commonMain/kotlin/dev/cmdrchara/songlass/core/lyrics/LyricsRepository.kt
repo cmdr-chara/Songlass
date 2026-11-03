@@ -68,7 +68,7 @@ class LyricsRepository(
                 } catch (cancelled: CancellationException) { throw cancelled }
                 catch (_: Exception) { currentCoroutineContext().ensureActive(); failed = true; null }
             }
-            val localLyrics = read(local)
+            val localLyrics = read(local)?.forSegment(selection.track)
             if (!isCurrent()) return LyricsUnavailable
             // A stale local lookup must not start another file read or send track metadata.
             val lyrics = imported() ?: localLyrics ?: read(remote)

@@ -1474,6 +1474,10 @@ class Media3AudioPlayer(
 internal fun Track.toMediaItem(): MediaItem = MediaItem.Builder()
     .setMediaId(id)
     .setUri(uri)
+    .setClippingConfiguration(MediaItem.ClippingConfiguration.Builder()
+        .setStartPositionMs(clipStartMs)
+        .setEndPositionMs(clipEndMs ?: androidx.media3.common.C.TIME_END_OF_SOURCE)
+        .build())
     // In-process source identity only; LocalConfiguration tags are not metadata or backup data.
     .setTag(this)
     .setMediaMetadata(

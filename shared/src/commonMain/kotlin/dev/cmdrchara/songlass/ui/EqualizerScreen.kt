@@ -106,6 +106,7 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
     val preferences by settings.state.collectAsState()
     val listState = rememberLazyListState()
     val outputProfilesOffset = if (state.outputProfiles.isNotEmpty()) 1 else 0
+    val parametricOffset = 2 + (state.profile?.takeIf { it.id.startsWith("manual:") }?.let { it.filters.size + if (!preferences.equalizerLocked && it.filters.size < dev.cmdrchara.songlass.core.equalizer.AutoEq.MAX_FILTERS) 1 else 0 } ?: 0)
     val targetIndex = when (searchFocus?.target) {
         SettingsTarget.Equalizer -> 1
         SettingsTarget.OutputProfiles -> 3
@@ -114,7 +115,8 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
         SettingsTarget.EqualizerBands -> 9 + outputProfilesOffset
         SettingsTarget.EqualizerLock -> 5 + outputProfilesOffset
         SettingsTarget.EqualizerPresets -> 12 + outputProfilesOffset
-        SettingsTarget.HeadphoneCorrection -> 14 + outputProfilesOffset
+        SettingsTarget.ParametricEqualizer -> 14 + outputProfilesOffset
+        SettingsTarget.HeadphoneCorrection -> 14 + outputProfilesOffset + parametricOffset
         else -> null
     }
     val searchReveal = SettingsSearchScroll(searchFocus, listState, targetIndex)
@@ -286,6 +288,50 @@ fun EqualizerScreen(equalizer: Equalizer, settings: AppSettings, backLabel: Stri
                             })
                         }
                         if (state.preset == null) SettingsChoiceRow(stringResource(Res.string.eq_custom), selected = true, onClick = {})
+                    }
+                }
+            }
+            item { SettingsPageSection(stringResource(Res.string.eq_parametric_title)) }
+            item {
+                val name = stringResource(Res.string.eq_parametric_name)
+                SettingsSearchAnchor(SettingsTarget.ParametricEqualizer, searchFocus) {
+                SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                    ListRow(fullText = true, title = stringResource(Res.string.eq_parametric_create),
+                        subtitle = stringResource(Res.string.eq_parametric_hint),
+                        onClick = if (preferences.equalizerLocked) null else ({ saveChange { equalizer.createEditableProfile(name) } }))
+                }
+                }
+            }
+            state.profile?.takeIf { it.id.startsWith("manual:") }?.let { profile ->
+                items(profile.filters.size, key = { "parametric-${profile.id}-${profile.structureVersion}-$it" }) { index ->
+                    val filter = profile.filters[index]
+                    SettingsGroup(Modifier.padding(horizontal = pageInset, vertical = 4.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            AppText(stringResource(Res.string.eq_parametric_filter, index + 1), AppTheme.typography.headline)
+                            if (!preferences.equalizerLocked) {
+                                FilterChips(listOf(stringResource(Res.string.eq_filter_peak), stringResource(Res.string.eq_filter_low), stringResource(Res.string.eq_filter_high)),
+                                    dev.cmdrchara.songlass.core.equalizer.FilterType.entries.indexOf(filter.type), { type ->
+                                        saveChange { equalizer.editProfileFilter(profile, index) {
+                                            it.copy(type = dev.cmdrchara.songlass.core.equalizer.FilterType.entries[type])
+                                        } }
+                                    })
+                            }
+                            ParametricFilterControls(filter, preferences.equalizerLocked) { change ->
+                                saveChange { equalizer.editProfileFilter(profile, index, change) }
+                            }
+                            if (!preferences.equalizerLocked && profile.filters.size > 1) ListRow(fullText = true,
+                                title = stringResource(Res.string.eq_parametric_remove), onClick = {
+                                    saveChange { equalizer.updateEditableProfile(profile, profile.filters.filterIndexed { n, _ -> n != index }) }
+                                })
+                        }
+                    }
+                }
+                if (!preferences.equalizerLocked && profile.filters.size < dev.cmdrchara.songlass.core.equalizer.AutoEq.MAX_FILTERS) item {
+                    SettingsGroup(Modifier.padding(horizontal = pageInset)) {
+                        ListRow(fullText = true, title = stringResource(Res.string.eq_parametric_add), onClick = {
+                            saveChange { equalizer.updateEditableProfile(profile, profile.filters + dev.cmdrchara.songlass.core.equalizer.EqFilter(
+                                dev.cmdrchara.songlass.core.equalizer.FilterType.Peaking, 1000.0, 0.0, 1.0)) }
+                        })
                     }
                 }
             }
@@ -470,4 +516,25 @@ private fun Hint(text: String, modifier: Modifier = Modifier) {
         color = AppTheme.colors.label.copy(alpha = 0.7f),
         modifier = modifier.padding(horizontal = 24.dp, vertical = 8.dp),
     )
+}
+
+@Composable
+private fun ParametricFilterControls(filter: dev.cmdrchara.songlass.core.equalizer.EqFilter, locked: Boolean,
+    change: ((dev.cmdrchara.songlass.core.equalizer.EqFilter) -> dev.cmdrchara.songlass.core.equalizer.EqFilter) -> Unit) {
+    val frequency = stringResource(Res.string.eq_parametric_frequency, filter.frequencyHz.roundToInt())
+    val gain = stringResource(Res.string.eq_parametric_gain, (filter.gainDb * 10).roundToInt() / 10.0)
+    val quality = stringResource(Res.string.eq_parametric_q, (filter.q * 100).roundToInt() / 100.0)
+    if (locked) {
+        AppText("$frequency · $gain · $quality", AppTheme.typography.body)
+    } else {
+        AppText(frequency, AppTheme.typography.body)
+        LocalGlassLook.current.ValueSlider((kotlin.math.ln(filter.frequencyHz / 10.0) / kotlin.math.ln(2200.0)).toFloat(),
+            { value -> change { it.copy(frequencyHz = (10.0 * kotlin.math.exp(value * kotlin.math.ln(2200.0))).coerceIn(10.0, 22000.0)) } }, frequency, Modifier.fillMaxWidth())
+        AppText(gain, AppTheme.typography.body)
+        LocalGlassLook.current.ValueSlider(((filter.gainDb + 24) / 48).toFloat(),
+            { value -> change { it.copy(gainDb = ((value * 48 - 24) * 10).roundToInt() / 10.0) } }, gain, Modifier.fillMaxWidth())
+        AppText(quality, AppTheme.typography.body)
+        LocalGlassLook.current.ValueSlider(((filter.q - .1) / 9.9).toFloat(),
+            { value -> change { it.copy(q = ((.1 + value * 9.9) * 100).roundToInt().div(100.0).coerceIn(.1, 10.0)) } }, quality, Modifier.fillMaxWidth())
+    }
 }

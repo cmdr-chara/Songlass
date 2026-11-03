@@ -45,7 +45,7 @@ enum class EqPreset(val gains: List<Double>) {
 }
 
 /** A correction for one pair of headphones, usually imported from AutoEQ. */
-data class HeadphoneProfile(val id: String, val name: String, val filters: List<EqFilter>)
+data class HeadphoneProfile(val id: String, val name: String, val filters: List<EqFilter>, val structureVersion: Long = 0)
 
 /** Parsed on a worker; its immutable state snapshot is the revision reviewed by the user. */
 class EqualizerProfileImport internal constructor(
@@ -120,7 +120,12 @@ class Equalizer(
 ) {
     constructor(store: KeyValueStore, clock: () -> Long) : this(store, RestoreMutationGate(), clock)
 
-    private val _state = MutableStateFlow(load())
+    private var editorRevision = 0L
+    private fun nextEditorRevision(): Long = ++editorRevision
+    private fun editorVersions(state: EqualizerState): EqualizerState = state.copy(profiles = state.profiles.map {
+        if (it.id.startsWith("manual:")) it.copy(structureVersion = nextEditorRevision()) else it
+    })
+    private val _state = MutableStateFlow(editorVersions(load()))
     val state: StateFlow<EqualizerState> = _state.asStateFlow()
 
     /**
@@ -133,7 +138,7 @@ class Equalizer(
     /** Decode off Main; the live device route is sampled only when publishing after commit. */
     fun prepareReload(store: KeyValueStore = this.store): () -> Unit {
         val loaded = load(store)
-        return { selectOutputCurve(loaded.copy(output = _state.value.output), manual = loaded) }
+        return { selectOutputCurve(editorVersions(loaded).copy(output = _state.value.output), manual = loaded) }
     }
 
     /** Settings owns persistence; this applies an already accepted global configuration. */
@@ -257,6 +262,45 @@ class Equalizer(
             changed.copy(automaticOutputs = true, outputProfiles = outputs)
         }
         saveState(values, next)
+        return true
+    }
+
+    /** Manual filters are independent copies: editing never changes an AutoEQ catalog entry. */
+    fun createEditableProfile(name: String): Boolean {
+        if (!mutations.canMutate || name.isBlank() || name.length > AutoEq.MAX_FILE_NAME_CHARS) return false
+        val state = _state.value
+        val filters = state.profile?.filters?.toList() ?: listOf(EqFilter(FilterType.Peaking, 1000.0, 0.0, 1.0))
+        var suffix = nextEditorRevision()
+        while (state.profiles.any { it.id == "manual:$suffix" }) suffix = nextEditorRevision()
+        val profile = HeadphoneProfile("manual:$suffix", "$name $suffix", filters, suffix)
+        val values = mutableMapOf<String, String?>(
+            "$PROFILE_PREFIX${profile.id}.name" to profile.name,
+            "$PROFILE_PREFIX${profile.id}.filters" to encode(filters),
+            PROFILES_KEY to (state.profiles + profile).joinToString("\u001F") { it.id },
+        )
+        val next = prepareCurve(state.copy(profiles = state.profiles + profile, profileId = profile.id, enabled = true), values)
+        saveState(values, next)
+        return true
+    }
+
+    /** A drag edits the latest filter values; structural changes invalidate its captured row. */
+    fun editProfileFilter(profile: HeadphoneProfile, index: Int, change: (EqFilter) -> EqFilter): Boolean {
+        val current = _state.value.profile ?: return false
+        if (current.id != profile.id || current.structureVersion != profile.structureVersion ||
+            current.filters.size != profile.filters.size || index !in current.filters.indices) return false
+        return updateEditableProfile(current, current.filters.toMutableList().also { it[index] = change(it[index]) })
+    }
+
+    /** Exact profile identity prevents a delayed editor callback from changing a new selection. */
+    fun updateEditableProfile(profile: HeadphoneProfile, filters: List<EqFilter>): Boolean {
+        val id = profile.id
+        if (!mutations.canMutate || !id.startsWith("manual:") || filters.isEmpty() ||
+            filters.size > AutoEq.MAX_FILTERS || filters.any { !it.isSupported }) return false
+        val state = _state.value
+        if (state.profile !== profile) return false
+        val accepted = filters.toList()
+        saveState(mapOf("$PROFILE_PREFIX$id.filters" to encode(accepted)),
+            state.copy(profiles = state.profiles.map { if (it.id == id) it.copy(filters = accepted, structureVersion = if (it.filters.size == accepted.size) it.structureVersion else nextEditorRevision()) else it }))
         return true
     }
 

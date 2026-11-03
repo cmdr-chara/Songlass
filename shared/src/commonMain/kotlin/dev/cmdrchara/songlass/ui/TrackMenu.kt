@@ -84,7 +84,7 @@ fun TrackMenu(state: AppState, favoriteIds: List<String>) {
             SheetAction(stringResource(Res.string.bookmark_open), AppIcons.Bookmark) { state.openBookmarks(track) },
             if (state.library.albumOf(track) != null) SheetAction(stringResource(Res.string.action_go_to_album), AppIcons.Library) { state.showAlbumOf(track) } else null,
             navigate(stringResource(Res.string.track_menu_artists), AppIcons.Person, TrackMenuPage.Artists),
-            if (state.tagEditor != null) SheetAction(stringResource(Res.string.tags_edit), AppIcons.Lyrics) { state.openTagEditor(track) } else null,
+            if (state.tagEditor != null && !track.isCueTrack) SheetAction(stringResource(Res.string.tags_edit), AppIcons.Lyrics) { state.openTagEditor(track) } else null,
             playlistId?.let { id -> SheetAction(stringResource(Res.string.playlist_remove_song), AppIcons.Close) { state.userPlaylists.remove(id, track.id) } },
             if (supportsDefaultSounds) navigate(stringResource(Res.string.track_menu_use_as), AppIcons.MusicNote, TrackMenuPage.UseAs) else null,
         )

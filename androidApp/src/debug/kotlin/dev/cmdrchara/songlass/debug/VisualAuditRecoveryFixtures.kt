@@ -28,12 +28,14 @@ internal object VisualAuditRecoveryFixtures {
     fun create(realGraph: AppGraph, id: String): Fixture? {
         if (id !in cases && id !in VisualAuditExtraCases.cases) return null
         val tracks = if (id in VisualAuditExtraCases.cases) VisualAuditExtraCases.tracks else realGraph.library.value.tracks.toList()
+        val fixtureTracks = if (id == "duplicates") tracks + tracks[0].copy(id = "qa-copy", uri = "visual-audit://copy",
+            album = "QA Compilation", folder = "Music/Copies", fileName = "qa.mp3", durationMs = 61_000) else tracks
         val preferences = realGraph.settings.state.value
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
         val source = object : MusicSource {
             override val hasAccess: StateFlow<Boolean> = MutableStateFlow(id !in setOf("access-denied", "welcome-access"))
             override val hasStableTrackIds = true
-            override suspend fun loadTracks(): List<Track> = tracks
+            override suspend fun loadTracks(): List<Track> = fixtureTracks
         }
         val store = InMemoryKeyValueStore()
         if (id == "lyrics-recovery-list" || id == "lyrics-recovery-preview") {

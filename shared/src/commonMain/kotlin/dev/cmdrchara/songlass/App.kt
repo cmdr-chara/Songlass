@@ -368,6 +368,7 @@ private fun AppContent(graph: AppGraph, onRequestLibraryAccess: (() -> Unit)?, p
                             )
                             Route.ListeningStatistics -> dev.cmdrchara.songlass.ui.ListeningStatsScreen(state, currentId, padding)
                             Route.Ratings -> RatingsScreen(state, currentId, backLabel, padding)
+                            Route.PossibleDuplicates -> dev.cmdrchara.songlass.ui.PossibleDuplicatesScreen(state, currentId, backLabel, padding)
                             Route.LibrarySettings -> dev.cmdrchara.songlass.ui.LibrarySettingsScreen(
                                 graph, state::goBack, state::openLibraryDurationPicker, state::askRestoreDefaults, padding,
                                 backLabel, state.settingsFocusFor(Route.LibrarySettings),

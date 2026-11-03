@@ -73,6 +73,8 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                         "audio" -> audio(context, scope)
                         "audio-focus" -> audio(context, scope, focusOnly = true)
                         "audio-equalizer" -> audio(context, scope, equalizerOnly = true)
+                        "cue-playback" -> audio(context, scope, cueOnly = true)
+                        "ab-loop" -> audio(context, scope, loopOnly = true)
                         "audio-effects" -> audio(context, scope, effectsOnly = true)
                         "audio-replaygain" -> audio(context, scope, replayGainOnly = true)
                         "audio-transport" -> audio(context, scope, transportOnly = true)
@@ -128,7 +130,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
     }
 
     private suspend fun audio(context: Context, scope: CoroutineScope, manualOnly: Boolean = false,
-        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false, equalizerOnly: Boolean = false, focusOnly: Boolean = false) {
+        manualFocusOnly: Boolean = false, manualResumeOnly: Boolean = false, overlapFocusKind: CrossfadeKind? = null, transportOnly: Boolean = false, replayGainOnly: Boolean = false, effectsOnly: Boolean = false, equalizerOnly: Boolean = false, focusOnly: Boolean = false, cueOnly: Boolean = false, loopOnly: Boolean = false) {
         val file = File(context.cacheDir, "songlass-crossfade-probe.wav")
         withContext(Dispatchers.IO) { tone(file) }
         val voices = mutableListOf<PlayerVoice>()
@@ -169,7 +171,7 @@ class FeatureProbeReceiver : BroadcastReceiver() {
         val first = voice(true)
         val audio = Media3AudioPlayer(first.player, scope, first.equalizer, context) { voice(false) }
         val tracks = listOf(Track("tone-1", "Probe one", file.toURI().toString(), durationMs = 6_000),
-            Track("tone-2", "Probe two", file.toURI().toString(), durationMs = 6_000))
+            Track("tone-2", "Probe two", file.toURI().toString(), durationMs = 6_000)).let { items -> if (cueOnly) listOf(items.first().copy(fileName = file.name)) else items }
         val graph = AppGraph(audio, ProbeSource(tracks), InMemoryKeyValueStore(), scope)
         val session = QueueForwardingPlayer(audio.exoPlayer, graph.controller, audio)
         val follow = scope.launch { audio.activePlayer.collect { session.switchPlayer(it) } }
@@ -178,6 +180,77 @@ class FeatureProbeReceiver : BroadcastReceiver() {
                 .collect { session.refreshPlaybackIntent() }
         }
         try {
+            if (loopOnly) {
+                graph.settings.setCrossfadeDuration(2_000)
+                graph.settings.setSeekFadeDuration(200)
+                graph.controller.playTracks(tracks)
+                await { audio.state.value.status == dev.cmdrchara.songlass.core.player.PlayerStatus.Ready }
+                graph.controller.pause()
+                graph.controller.seekTo(1_000)
+                await { audio.state.value.status == dev.cmdrchara.songlass.core.player.PlayerStatus.Ready }
+                check(graph.controller.markLoopStart(tracks[0].id))
+                graph.controller.seekTo(2_500)
+                await { audio.state.value.status == dev.cmdrchara.songlass.core.player.PlayerStatus.Ready }
+                check(graph.controller.markLoopEnd(tracks[0].id))
+                val before = graph.controller.timeline.value.discontinuityId
+                graph.controller.resume()
+                withTimeout(12_000) {
+                    while (graph.controller.timeline.value.discontinuityId < before + 3) delay(30)
+                }
+                check(graph.controller.queue.value.currentIndex == 0)
+                check(audio.diagnostics().overlapsStarted == 0)
+                graph.controller.pause()
+                await { !audio.state.value.playWhenReady }
+                val paused = audio.state.value.positionMs
+                delay(350)
+                check(kotlin.math.abs(audio.state.value.positionMs - paused) < 100)
+                check(graph.controller.abLoop.value?.endMs != null)
+                graph.controller.clearAbLoop()
+                graph.controller.seekTo(4_000)
+                await { audio.state.value.status == dev.cmdrchara.songlass.core.player.PlayerStatus.Ready }
+                check(graph.controller.markLoopStart(tracks[0].id))
+                graph.controller.seekTo(5_900)
+                await { audio.state.value.status == dev.cmdrchara.songlass.core.player.PlayerStatus.Ready }
+                check(graph.controller.markLoopEnd(tracks[0].id))
+                val endBefore = graph.controller.timeline.value.discontinuityId
+                graph.controller.resume()
+                await { graph.controller.timeline.value.discontinuityId > endBefore }
+                check(graph.controller.queue.value.currentIndex == 0)
+                check(audio.state.value.playWhenReady)
+                graph.controller.skipToNext()
+                check(graph.controller.abLoop.value == null)
+                check(graph.controller.queue.value.currentIndex == 1)
+                Log.i("SonglassFeatures", "ab-loop repeated=3 pauseRetains=true endBoundary=true nextClears=true crossfadeSuppressed=true")
+                return
+            }
+            if (cueOnly) {
+                graph.refreshLibrary()
+                val cueText = """
+                    FILE "${file.name}" WAVE
+                    TRACK 01 AUDIO
+                    TITLE "Cue one"
+                    INDEX 01 00:01:00
+                    TRACK 02 AUDIO
+                    TITLE "Cue two"
+                    INDEX 01 00:03:00
+                """.trimIndent()
+                check(graph.importCueSheet("QA CUE", cueText, graph.allTracks.value, graph.restoreMutations.ticket()) == 2)
+                check(graph.allTracks.value.size == 3)
+                val clip = graph.allTracks.value.single { it.title == "Cue one" }
+                check(clip.durationMs == 2000L && clip.clipStartMs == 1000L && clip.clipEndMs == 3000L)
+                audio.load(clip, false)
+                await { audio.exoPlayer.playbackState == Player.STATE_READY }
+                check(audio.exoPlayer.currentMediaItem!!.clippingConfiguration.startPositionMs == 1000L)
+                check(audio.exoPlayer.duration in 1990L..2010L)
+                audio.seekTo(1500)
+                await { kotlin.math.abs(audio.exoPlayer.currentPosition - 1500) < 80 }
+                check(audio.state.value.positionMs in 1400L..1600L)
+                audio.play()
+                await { audio.exoPlayer.playbackState == Player.STATE_ENDED }
+                check(audio.exoPlayer.currentPosition <= 2050)
+                Log.i("SonglassFeatures", "cue clippedDuration=2000 relativeSeek=1500 endedAtBoundary=true")
+                return
+            }
             if (focusOnly) {
                 focusAudio(context, graph, audio, session, voices, tracks)
                 return

@@ -167,6 +167,9 @@ class AppGraph(
 
     private val _allTracks = MutableStateFlow<List<Track>>(emptyList())
     val allTracks: StateFlow<List<Track>> = _allTracks.asStateFlow()
+    private val _cueSheets = MutableStateFlow(dev.cmdrchara.songlass.core.cue.CueCatalog(store).entries())
+    val cueSheets: StateFlow<List<dev.cmdrchara.songlass.core.cue.ImportedCueSheet>> = _cueSheets.asStateFlow()
+
 
     /** Votes the visible library reads when a minimum rating is set; see [LibraryIndex]. */
     private val libraryIndex = LibraryIndex(
@@ -423,6 +426,36 @@ class AppGraph(
         }
 
     /** Retry is process-scoped, so closing the reporting screen does not abandon a scan. */
+    suspend fun removeCueSheet(id: String, ticket: dev.cmdrchara.songlass.core.storage.MutationTicket?): Boolean {
+        val removed = refreshMutex.withLock {
+            if (!restoreMutations.accepts(ticket)) false
+            else dev.cmdrchara.songlass.core.cue.CueCatalog(store).remove(id)
+        }
+        if (removed) refreshLibrary()
+        return removed && hasCompleteLibraryScan.value
+    }
+
+    /** The immutable library snapshot and restore ticket belong to the reviewed import. */
+    suspend fun importCueSheet(name: String, text: String, snapshot: List<Track>,
+        ticket: dev.cmdrchara.songlass.core.storage.MutationTicket?): Int? {
+        val clips = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            dev.cmdrchara.songlass.core.cue.CueSheets.parse(text)?.let {
+                dev.cmdrchara.songlass.core.cue.CueSheets.resolve(it, snapshot)
+            }
+        } ?: return null
+        val saved = refreshMutex.withLock {
+            if (!restoreMutations.accepts(ticket) || !hasCompleteLibraryScan.value ||
+                !source.hasAccess.value || _allTracks.value !== snapshot) return@withLock false
+            // Different sheets cannot silently redefine an already imported segment.
+            val existing = snapshot.filter { it.isCueTrack }.associateBy { it.id }
+            if (clips.any { existing[it.id]?.let { old -> old != it } == true }) return@withLock false
+            dev.cmdrchara.songlass.core.cue.CueCatalog(store).save(name, text)
+        }
+        if (!saved) return null
+        refreshLibrary()
+        return clips.size.takeIf { hasCompleteLibraryScan.value }
+    }
+
     fun requestLibraryRefresh() { scope.launch { refreshLibrary() } }
 
     /**
@@ -474,7 +507,10 @@ class AppGraph(
             invalidateLibraryAvailability()
             _libraryRefreshFailure.value = null
             try {
-                val tracks = source.loadTracks()
+                val physicalTracks = source.loadTracks()
+                val tracks = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    dev.cmdrchara.songlass.core.cue.CueCatalog(store).expand(physicalTracks)
+                }
                 val artworkIndex = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
                     dev.cmdrchara.songlass.core.artwork.ArtworkAvailability.Index.build(tracks)
                 }
@@ -483,6 +519,7 @@ class AppGraph(
                 if (!source.hasAccess.value || accessGeneration != libraryAccessGeneration) return@withLock
                 trackMarkers.reconcileStoredIdentities(tracks, stableIds = source.hasStableTrackIds)
                 _allTracks.value = tracks
+                _cueSheets.value = dev.cmdrchara.songlass.core.cue.CueCatalog(store).entries()
                 libraryIndex.refresh()
                 // Indexing dispatches too: a revoke during its build is not a complete scan.
                 if (source.hasAccess.value && accessGeneration == libraryAccessGeneration) {

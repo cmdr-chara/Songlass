@@ -73,6 +73,8 @@ object M3u {
         val text = buildString {
             append("#EXTM3U\n")
             for (track in tracks) {
+                // M3U has no portable segment bounds: never export a CUE cut as the full file.
+                if (track.isCueTrack) continue
                 val path = when (pathMode) {
                     M3uPathMode.LibraryRelative -> track.path?.takeIf(::exportablePath)
                     // A SAF document URI does not reveal its filesystem parent. Never guess a
@@ -152,7 +154,7 @@ object M3u {
         if (document.entries.size + document.issues.size > MAX_ENTRIES) {
             return M3uImport(emptyList(), emptyList(), failure = M3uFileFailure.TooManyEntries)
         }
-        val index = M3uLibraryIndex(allTracks)
+        val index = M3uLibraryIndex(allTracks.filterNot { it.isCueTrack })
         val tracks = mutableListOf<Track>()
         val seen = mutableSetOf<String>()
         val issues = document.issues.toMutableList()

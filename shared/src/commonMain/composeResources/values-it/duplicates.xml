@@ -1,0 +1,9 @@
+<resources>
+    <string name="duplicates_title">Possibili duplicati</string>
+    <string name="duplicates_hint">Confronto per titolo, artista e durata entro 2 secondi. Potrebbero essere registrazioni diverse. Sono confrontati solo i file visibili in libreria; i segmenti CUE sono esclusi. Nulla viene eliminato automaticamente.</string>
+    <string name="duplicates_empty">Nessun possibile duplicato trovato</string>
+    <string name="duplicates_scanning">Confronto della libreria…</string>
+    <string name="duplicates_open_hint">Confronta le copie dai metadati e ascoltale prima di decidere</string>
+    <string name="duplicates_copies">%1$d possibili copie</string>
+    <string name="duplicates_unknown_path">Posizione del file non disponibile</string>
+</resources>

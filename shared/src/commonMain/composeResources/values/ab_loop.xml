@@ -1,0 +1,9 @@
+<resources>
+    <string name="ab_loop_title">A–B loop</string>
+    <string name="ab_loop_active">Loop %1$s – %2$s</string>
+    <string name="ab_loop_waiting">A: %1$s · Set B to loop</string>
+    <string name="ab_loop_hint">Set A at the start, then B at least one second later. The passage repeats until you turn it off. Seeking outside the passage or changing track clears the loop.</string>
+    <string name="ab_loop_set_a">Set A here</string>
+    <string name="ab_loop_set_b">Set B here and repeat</string>
+    <string name="ab_loop_clear">Clear A–B loop</string>
+</resources>

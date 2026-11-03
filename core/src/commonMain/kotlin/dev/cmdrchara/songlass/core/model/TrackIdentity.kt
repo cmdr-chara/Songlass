@@ -9,7 +9,7 @@ import kotlin.math.abs
  * is available, retaining the old metadata is safer than attaching it to an unrelated recording.
  */
 fun Track.isSameFileAs(other: Track): Boolean {
-    if (id != other.id || uri != other.uri || path != other.path) return false
+    if (id != other.id || uri != other.uri || path != other.path || clipStartMs != other.clipStartMs || clipEndMs != other.clipEndMs) return false
     if (dateAddedMs != null && other.dateAddedMs != null && dateAddedMs != other.dateAddedMs) return false
     if (durationMs > 0 && other.durationMs > 0 && abs(durationMs - other.durationMs) > 1_000) return false
     return path != null || uri.startsWith("file:") ||
