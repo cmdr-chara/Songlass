@@ -1,4 +1,4 @@
-import { jumpTo, scrollEngine } from './use-experience';
+import { jumpTo } from './use-experience';
 
 let pendingRestore: (() => void) | undefined;
 
@@ -33,8 +33,7 @@ export function preserveReadingPosition(update: () => void) {
   };
   const restore = () => {
     const target = atTop ? 0 : atFooterEnd ? root.scrollHeight - innerHeight - bottomGap : anchor?.isConnected ? scrollY + anchor.getBoundingClientRect().top - before : scrollY;
-    scrollEngine?.resize();
-    // An immediate Lenis jump also cancels a wheel interpolation already in flight.
+    // Cancel any native anchor animation before restoring the reading group.
     jumpTo(target);
   };
   pendingRestore = cancel;

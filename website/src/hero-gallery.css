@@ -1,0 +1,221 @@
+.hero-gallery {
+  position: absolute;
+  inset: 0;
+  container-type: size;
+  perspective: 1100px;
+  perspective-origin: 50% 50%;
+  transform-style: preserve-3d;
+  pointer-events: none;
+  --gallery-progress: clamp(0, var(--hero-progress, 0), 1);
+  --gallery-duration: 620ms;
+  --gallery-ease: cubic-bezier(.2, .8, .2, 1);
+  --gallery-radius: 22px;
+}
+
+/* Edition changes move the stable outer bodies. Scroll only moves their inner
+   screens, so a scroll update cannot restart the edition transition. */
+.hero-gallery__device {
+  position: absolute;
+  left: 50%;
+  top: 47%;
+  --gallery-phone-height: min(87cqh, 90cqw);
+  width: calc(var(--gallery-phone-height) * .45);
+  height: var(--gallery-phone-height);
+  aspect-ratio: 9 / 20;
+  transform-origin: center;
+  transform-style: preserve-3d;
+  --pose-x: -50%;
+  --pose-y: -50%;
+  --pose-z: 22px;
+  --pose-rx: 1deg;
+  --pose-ry: -8deg;
+  --pose-rz: -5deg;
+  --pose-scale: 1;
+  --travel-x: 0px;
+  --travel-y: -4px;
+  --travel-z: 0px;
+  --travel-rotate: 3deg;
+  transform:
+    translate3d(var(--pose-x), var(--pose-y), var(--pose-z))
+    rotateX(var(--pose-rx)) rotateY(var(--pose-ry)) rotateZ(var(--pose-rz))
+    scale(var(--pose-scale));
+  transition: transform var(--gallery-duration) var(--gallery-ease), z-index var(--gallery-duration) step-end;
+}
+
+.hero-gallery__device[data-position="center"] { z-index: 3; }
+
+.hero-gallery__device[data-position="left"] {
+  z-index: 1;
+  --pose-x: -113%;
+  --pose-y: -42%;
+  --pose-z: -18px;
+  --pose-ry: -11deg;
+  --pose-rz: -13deg;
+  --pose-scale: .8;
+  --travel-x: -10px;
+  --travel-y: -4px;
+  --travel-z: 0px;
+  --travel-rotate: -2deg;
+}
+
+.hero-gallery__device[data-position="right"] {
+  z-index: 2;
+  --pose-x: 13%;
+  --pose-y: -40%;
+  --pose-z: -38px;
+  --pose-ry: 9deg;
+  --pose-rz: 11deg;
+  --pose-scale: .76;
+  --travel-x: 10px;
+  --travel-y: 4px;
+  --travel-z: 0px;
+  --travel-rotate: 2deg;
+}
+
+.hero-gallery__screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--gallery-radius);
+  outline: 1px solid rgb(35 30 43 / 38%);
+  background: #f4f2f7;
+  backface-visibility: hidden;
+  transform-origin: center;
+  transform:
+    translate3d(
+      calc(var(--gallery-progress) * var(--travel-x)),
+      calc(var(--gallery-progress) * var(--travel-y)),
+      calc(var(--gallery-progress) * var(--travel-z))
+    )
+    rotate(calc(var(--gallery-progress) * var(--travel-rotate)));
+}
+
+.hero-gallery__phone {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  object-fit: contain;
+}
+
+/* Material uses a stepped graphic composition and restrained spatial settling.
+   The curve is a web interpretation; the native theme uses physical springs. */
+.hero-gallery[data-edition="material_design"] {
+  --gallery-duration: 650ms;
+  --gallery-ease: cubic-bezier(.2, .8, .2, 1.025);
+  --gallery-radius: 20px;
+}
+
+.hero-gallery[data-edition="material_design"] .hero-gallery__device {
+  --pose-rx: 0deg;
+  --pose-ry: 0deg;
+  --pose-rz: 0deg;
+  --travel-z: 0px;
+}
+
+.hero-gallery[data-edition="material_design"] .hero-gallery__device[data-position="center"] {
+  --pose-y: -52%;
+  --pose-z: 8px;
+  --travel-y: -4px;
+  --travel-rotate: 1deg;
+}
+
+.hero-gallery[data-edition="material_design"] .hero-gallery__device[data-position="left"] {
+  --pose-x: -117%;
+  --pose-y: -61%;
+  --pose-z: -10px;
+  --pose-scale: .74;
+  --travel-x: -12px;
+  --travel-y: -8px;
+  --travel-rotate: -2deg;
+}
+
+.hero-gallery[data-edition="material_design"] .hero-gallery__device[data-position="right"] {
+  --pose-x: 18%;
+  --pose-y: -37%;
+  --pose-z: -10px;
+  --pose-scale: .78;
+  --travel-x: 12px;
+  --travel-y: 10px;
+  --travel-rotate: 2deg;
+}
+
+/* Miuix stays ordered and nearly parallel, with one clear foreground surface. */
+.hero-gallery[data-edition="miuix"] {
+  --gallery-duration: 650ms;
+  --gallery-ease: cubic-bezier(.2, .8, .2, 1);
+  --gallery-radius: 21px;
+}
+
+.hero-gallery[data-edition="miuix"] .hero-gallery__device {
+  --pose-rx: 0deg;
+  --pose-ry: 0deg;
+  --travel-z: 0px;
+}
+
+.hero-gallery[data-edition="miuix"] .hero-gallery__device[data-position="center"] {
+  --pose-y: -52%;
+  --pose-z: 14px;
+  --pose-rz: 0deg;
+  --travel-y: -4px;
+  --travel-rotate: 0deg;
+}
+
+.hero-gallery[data-edition="miuix"] .hero-gallery__device[data-position="left"] {
+  --pose-x: -111%;
+  --pose-y: -50%;
+  --pose-z: -18px;
+  --pose-rz: -1.2deg;
+  --pose-scale: .79;
+  --travel-x: -6px;
+  --travel-y: -2px;
+  --travel-rotate: -.5deg;
+}
+
+.hero-gallery[data-edition="miuix"] .hero-gallery__device[data-position="right"] {
+  --pose-x: 11%;
+  --pose-y: -45%;
+  --pose-z: -24px;
+  --pose-rz: 1deg;
+  --pose-scale: .79;
+  --travel-x: 6px;
+  --travel-y: 2px;
+  --travel-rotate: .5deg;
+}
+
+@media (max-width: 999px) {
+  .hero-gallery { --gallery-radius: 18px; }
+  .hero-gallery[data-edition="liquid_glass"] .hero-gallery__device[data-position="left"] {
+    --pose-x: -106%;
+    --travel-x: -7px;
+  }
+  .hero-gallery[data-edition="liquid_glass"] .hero-gallery__device[data-position="right"] {
+    --pose-x: 6%;
+    --travel-x: 7px;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-gallery__device { top: 45%; }
+  .hero-gallery[data-edition] { --gallery-radius: 16px; }
+  .hero-gallery[data-edition="material_design"] .hero-gallery__device[data-position="right"] {
+    --pose-y: -40%;
+    --travel-y: 0px;
+  }
+}
+
+.hero-gallery[data-reduced-motion="true"],
+html[data-motion="reduced"] .hero-gallery {
+  --gallery-progress: 0;
+}
+
+.hero-gallery[data-reduced-motion="true"] .hero-gallery__device,
+html[data-motion="reduced"] .hero-gallery__device {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-gallery { --gallery-progress: 0; }
+  .hero-gallery__device { transition: none; }
+}

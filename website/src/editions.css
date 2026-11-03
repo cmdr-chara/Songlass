@@ -1,0 +1,149 @@
+/* Interface treatments follow Songlass's native theme contracts.
+   Page typography is shared; native-looking fragments keep their own conventions. */
+:root {
+  --control-surface: #f1edf8;
+  --control-ink: #292033;
+  --control-radius: 999px;
+  --panel-radius: 28px;
+  --hero-bg: #ece6f3;
+  --hero-ink: #292032;
+  --glass-tint: #f7f4fbdc;
+  --glass-highlight: #ffffffb8;
+}
+html[data-style="material_design"] {
+  --motion-duration: 500ms;
+  --motion-ease: cubic-bezier(.2, .9, .25, 1.03);
+  --action-radius: 24px;
+  --control-radius: 20px;
+  --panel-radius: 36px;
+  --hero-bg: #e1e8fa;
+  --hero-ink: #1d304f;
+  --control-surface: #e4eaf5;
+  --control-ink: #1d304f;
+}
+html[data-style="miuix"] {
+  --motion-duration: 260ms;
+  --motion-ease: cubic-bezier(.16, 1, .3, 1);
+  --action-radius: 18px;
+  --control-radius: 16px;
+  --panel-radius: 24px;
+  --hero-bg: #f0f1f3;
+  --hero-ink: #25262b;
+  --chapter: #e8ebef;
+  --chapter-ink: #25262b;
+  --accent: #315eb3;
+  --surface: #eff0f2;
+  --soft: #f5f6f8;
+  --night: #1b1d22;
+  --control-surface: #e7e9ed;
+  --control-ink: #25262b;
+}
+html[data-theme="dark"] {
+  --glass-tint: #25212ce8;
+  --glass-highlight: #ffffff35;
+  --control-surface: #302c37;
+  --control-ink: #f4f0f7;
+}
+html[data-style="miuix"][data-theme="dark"] { --surface: #27282c; --soft: #202125; --control-surface: #303136; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) { --glass-tint: #25212ce8; --glass-highlight: #ffffff35; --control-surface: #302c37; --control-ink: #f4f0f7; }
+  html[data-style="miuix"]:not([data-theme="light"]) { --surface: #27282c; --soft: #202125; --control-surface: #303136; }
+}
+.style-option:not(.picker-index .style-option), .theme-choices label { border-radius: var(--control-radius); }
+.library-preview, .playback-art, .listening-lab { border-radius: var(--panel-radius); }
+html[data-style="material_design"] .hero { border-radius: 44px 44px 76px 44px; }
+html[data-style="material_design"] .hero-art-plane { border-radius: 20% 35% 20% 35%; }
+html[data-style="material_design"] .showcase-landscape { border-radius: 50% 32% 38% 25%; transform: translateY(calc((var(--showcase-progress) - .5) * -40px)) rotate(5deg); }
+html[data-style="material_design"] .style-choices { gap: 4px; }
+html[data-style="material_design"] .hero-selector .style-option { border-radius: 12px; }
+html[data-style="material_design"] .hero-selector .style-option:first-child { border-radius: 28px 12px 12px 28px; }
+html[data-style="material_design"] .hero-selector .style-option:last-child { border-radius: 12px 28px 28px 12px; }
+html[data-style="material_design"] .hero-selector .style-option.is-selected { border-radius: 26px; }
+html[data-style="material_design"] .theme-choices { gap: 3px; }
+html[data-style="material_design"] .theme-choices label { border-radius: 10px; }
+html[data-style="material_design"] .theme-choices label:first-child { border-radius: 24px 10px 10px 24px; }
+html[data-style="material_design"] .theme-choices label:last-child { border-radius: 10px 24px 24px 10px; }
+html[data-style="material_design"] .theme-choices label:has(input:checked) { border-radius: 22px; }
+html[data-style="material_design"] .switch-track { width: 50px; height: 30px; padding: 5px; background: var(--surface); outline: 2px solid var(--muted); outline-offset: -2px; }
+html[data-style="material_design"] .switch-track:after { width: 20px; height: 20px; background: var(--muted); transform: scale(.7); }
+html[data-style="material_design"] .motion-control input:checked + .switch-track { outline-color: var(--ink); }
+html[data-style="material_design"] .motion-control input:checked + .switch-track:after { transform: translateX(20px); background: var(--bg); }
+html[data-style="material_design"] .demo-track img { border-radius: 20px 10px 20px 10px; }
+html[data-style="material_design"] .demo-now-playing { border-radius: 24px; padding: 16px; }
+html[data-style="material_design"] .demo-now-playing a { border-radius: 17px; width: 62px; }
+html[data-style="material_design"] .listening-lab__play { border-radius: 26px; min-width: 156px; }
+html[data-style="material_design"] .listening-lab[data-playing="true"] .listening-lab__play { border-radius: 20px; }
+html[data-style="material_design"] .listening-lab__play:active { border-radius: 16px; }
+html[data-style="material_design"] .listening-lab__presets > div { gap: 3px; }
+html[data-style="material_design"] .listening-lab__presets button { border-radius: 10px; background: color-mix(in srgb, var(--lab-ink) 7%, transparent); }
+html[data-style="material_design"] .listening-lab__presets button:first-child { border-radius: 24px 10px 10px 24px; }
+html[data-style="material_design"] .listening-lab__presets button:last-child { border-radius: 10px 24px 24px 10px; }
+html[data-style="material_design"] .listening-lab__presets button[aria-pressed="true"] { border-radius: 24px; background: var(--lab-ink); }
+html[data-style="miuix"] .hero { border-radius: 22px; }
+html[data-style="miuix"] .hero-art-plane { border-radius: 24%; inset: 10% 2% 13%; }
+html[data-style="miuix"] :is(.hero-art-plane, .showcase-landscape) img { transform: scale(1.85); transform-origin: 50% 100%; opacity: .92; }
+html[data-style="miuix"] .showcase-landscape { border-radius: 28px; transform: translateY(calc((var(--showcase-progress) - .5) * -24px)); }
+html[data-style="miuix"] .hero-selector .style-option { border-radius: 16px; background: #e2e4e8; color: var(--hero-ink); }
+html[data-style="miuix"] .hero-selector .style-option.is-selected { background: #fff; box-shadow: inset 0 0 0 2px #a7abb4; /* taste-skill-ignore: native Miuix selection contour inside the data-ui radio group. */ }
+html[data-style="miuix"] .theme-choices { background: var(--control-surface); padding: 5px; border-radius: 18px; gap: 4px; }
+html[data-style="miuix"] .theme-choices label { border-radius: 14px; min-height: 46px; background: transparent; padding-block: 9px; }
+html[data-style="miuix"] .theme-choices label:has(input:checked) { background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink) 22%, transparent); /* taste-skill-ignore: native Miuix control contour, not an elevation shadow. */ }
+html[data-style="miuix"] .switch-track { background: #b6b9c0; width: 48px; height: 28px; }
+html[data-style="miuix"] .switch-track:after { background: #fff; width: 20px; height: 20px; }
+html[data-style="miuix"] .motion-control input:checked + .switch-track { background: var(--accent); }
+html[data-style="miuix"] .motion-control input:checked + .switch-track:after { transform: translateX(20px); }
+html[data-style="miuix"] .library-preview { padding: 24px; }
+html[data-style="miuix"] .demo-collection { gap: 12px; }
+html[data-style="miuix"] .demo-track img { border-radius: 14px; }
+html[data-style="miuix"] .demo-now-playing { border-radius: 18px; }
+html[data-style="miuix"] .demo-now-playing a { border-radius: 16px; background: var(--accent); color: white; }
+html[data-style="miuix"] .appearance-gallery .screen-figure, html[data-style="miuix"] .appearance-gallery .screen-figure figcaption, html[data-style="miuix"] .appearance-detail { transform: none; }
+html[data-style="miuix"] .appearance-detail { border-radius: 24px; }
+html[data-style="miuix"] .listening-lab__play { border-radius: 20px; }
+html[data-style="miuix"] .listening-lab__presets > div { gap: 8px; }
+html[data-style="miuix"] .listening-lab__presets button { border-radius: 14px; background: color-mix(in srgb, var(--lab-ink) 7%, transparent); }
+html[data-style="miuix"] .listening-lab__presets button[aria-pressed="true"] { background: var(--lab-ink); color: var(--lab-surface); }
+html[data-style="miuix"] .listening-lab__spectrum span { border-radius: 3px; }
+html[data-style="miuix"] .faq-list details { border-radius: 24px; }
+html[data-style="liquid_glass"] .theme-choices { background: var(--surface); padding: 5px; border-radius: 999px; gap: 3px; }
+html[data-style="liquid_glass"] .theme-choices label { min-height: 46px; background: transparent; }
+html[data-style="liquid_glass"] .theme-choices label:has(input:checked) { background: var(--ink); color: var(--bg); }
+html[data-style="liquid_glass"] .demo-now-playing { border-radius: 999px; background: var(--bg); padding: 10px 12px; }
+html[data-style="liquid_glass"] .demo-now-playing a { background: transparent; color: var(--ink); }
+html[data-style="liquid_glass"] .demo-now-playing img { border-radius: 50%; }
+html[data-style="liquid_glass"] .listening-lab__play { background: transparent; color: var(--lab-ink); min-width: 126px; }
+html[data-style="liquid_glass"] .listening-lab__play svg { width: 28px; height: 28px; }
+/* Translucency is functional and bounded. Unsupported blur gets an opaque surface. */
+@supports (backdrop-filter: blur(16px)) {
+  html[data-style="liquid_glass"] .demo-now-playing { background: var(--glass-tint); backdrop-filter: blur(16px); box-shadow: inset 0 1px var(--glass-highlight); /* taste-skill-ignore: functional Liquid Glass capsule highlight required by the requested native material. */ }
+}
+html[data-transparency="reduced"] [data-ui] *, html[data-transparency="reduced"] .demo-now-playing { backdrop-filter: none !important; }
+html[data-transparency="reduced"] .demo-now-playing { background: var(--bg); box-shadow: none; /* taste-skill-ignore: explicitly removes the native highlight in opaque mode. */ }
+@media (prefers-reduced-transparency: reduce) {
+  [data-ui] * { backdrop-filter: none !important; }
+  .demo-now-playing { background: var(--bg) !important; box-shadow: none !important; /* taste-skill-ignore: explicitly removes the native highlight in opaque mode. */ }
+}
+@media (max-width: 640px) {
+  html[data-style="material_design"] .hero { border-radius: 26px 26px 40px 26px; }
+  html[data-style="miuix"] .hero { border-radius: 20px; }
+  html[data-style="miuix"] .library-index button { border-radius: 14px; }
+  html[data-style="material_design"] .library-index button { border-radius: 16px; }
+  html[data-style="material_design"] .library-index button[aria-selected="true"] { border-radius: 24px; }
+  html[data-style="miuix"] .library-preview { padding: 22px 18px; }
+  html[data-style="miuix"] .theme-choices label, html[data-style="liquid_glass"] .theme-choices label { gap: 6px; padding-inline: 7px; }
+}
+@media (max-width: 740px) {
+  html[data-style="material_design"] .picker-index .style-option { border-radius: 8px; }
+  html[data-style="material_design"] .picker-index .style-option:first-child { border-radius: 24px 8px 8px 24px; }
+  html[data-style="material_design"] .picker-index .style-option:last-child { border-radius: 8px 24px 24px 8px; }
+  html[data-style="material_design"] .picker-index .style-option.is-selected { border-radius: 24px; }
+  html[data-style="miuix"] .picker-index .style-option.is-selected { background: var(--bg); color: var(--ink); box-shadow: inset 0 0 0 2px var(--muted); /* taste-skill-ignore: native Miuix selection contour in the mobile data-ui radio group. */ }
+}
+@media (forced-colors: active) {
+  .theme-choices label:has(input:checked), .style-option.is-selected { outline: 2px solid Highlight; }
+  .demo-now-playing, .listening-lab { background: Canvas !important; color: CanvasText; backdrop-filter: none !important; }
+  .motion-control input:checked + .switch-track { background: Highlight; }
+}
+
+html[data-motion="reduced"][data-style] .showcase-landscape { transform: none; }
+@media (prefers-reduced-motion: reduce) { html[data-style] .showcase-landscape { transform: none; } }
