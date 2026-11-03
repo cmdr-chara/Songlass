@@ -1,19 +1,46 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, RoundedBox, useTexture } from '@react-three/drei';
-import { Group, SRGBColorSpace, Vector3, MathUtils } from 'three';
+import { Group, SRGBColorSpace, Vector3, MathUtils, LinearFilter, LinearMipmapLinearFilter, Shape, ExtrudeGeometry } from 'three';
 import { sceneState, styleKeys } from './scene-state';
 import type { VisualStyle } from './scene-state';
 import { storyPose } from './story-pose';
 import { screenshot } from './style-state.js';
 
+function deviceShell(width:number,height:number,depth:number,radius:number) {
+  const bevel=.018;
+  const x=width/2-bevel,y=height/2-bevel,r=radius-bevel;
+  const shape=new Shape();
+  shape.moveTo(-x+r,-y);shape.lineTo(x-r,-y);
+  shape.quadraticCurveTo(x,-y,x,-y+r);shape.lineTo(x,y-r);
+  shape.quadraticCurveTo(x,y,x-r,y);shape.lineTo(-x+r,y);
+  shape.quadraticCurveTo(-x,y,-x,y-r);shape.lineTo(-x,-y+r);
+  shape.quadraticCurveTo(-x,-y,-x+r,-y);
+  const geometry=new ExtrudeGeometry(shape,{depth:depth-bevel*2,bevelEnabled:true,bevelThickness:bevel,bevelSize:bevel,bevelSegments:3,steps:1,curveSegments:8});
+  geometry.center();
+  return geometry;
+}
 function Device({ edition, active, onPresented }: { edition: VisualStyle; active: VisualStyle; onPresented:()=>void }) {
   const ref = useRef<Group>(null);
+  const shell=useMemo(()=>deviceShell(2.34,5,.15,.2),[]);
+  const bezel=useMemo(()=>deviceShell(2.28,4.94,.16,.18),[]);
+  useEffect(()=>()=>{shell.dispose();bezel.dispose();},[shell,bezel]);
   const [texture,appearanceTexture] = useTexture([screenshot(edition, 'player'),screenshot(edition,'appearance')]);
-  texture.colorSpace = SRGBColorSpace;appearanceTexture.colorSpace=SRGBColorSpace;
   const playerMaterial=useRef<import('three').MeshBasicMaterial>(null);
   const appearanceMaterial=useRef<import('three').MeshBasicMaterial>(null);
-  const { invalidate,viewport } = useThree();
+  const { invalidate,viewport,gl } = useThree();
+  useLayoutEffect(()=>{
+    for(const image of [texture,appearanceTexture]){
+      image.colorSpace=SRGBColorSpace;
+      image.anisotropy=Math.min(8,gl.capabilities.getMaxAnisotropy());
+      image.minFilter=LinearMipmapLinearFilter;
+      image.magFilter=LinearFilter;
+      image.needsUpdate=true;
+    }
+    invalidate();
+  },[texture,appearanceTexture,gl,invalidate]);
+  const animateSelection=useRef(false);
+  useLayoutEffect(()=>{animateSelection.current=sceneState.visible&&sceneState.storyEnabled;},[active]);
   const others=styleKeys.filter(key=>key!==active);
   const selected=active===edition;
   const side=others.indexOf(edition)===0?-1:1;
@@ -33,9 +60,12 @@ function Device({ edition, active, onPresented }: { edition: VisualStyle; active
     if(playerMaterial.current)playerMaterial.current.opacity=1-pose.appearance;
     if(appearanceMaterial.current)appearanceMaterial.current.opacity=pose.appearance;
     const now=performance.now();
-    const snap=now-lastDraw.current>250||Math.abs(sceneState.progress-lastProgress.current)>.4;
+    const selectionFrame=animateSelection.current;
+    const snap=(now-lastDraw.current>250&&!selectionFrame)||Math.abs(sceneState.progress-lastProgress.current)>.4;
+    animateSelection.current=false;
     lastDraw.current=now;lastProgress.current=sceneState.progress;
-    const speed=sceneState.reduced||snap?1:1-Math.exp(-Math.min(delta,.08)*8);
+    const elapsed=selectionFrame?1/60:Math.min(delta,.25);
+    const speed=sceneState.reduced||snap?1:1-Math.exp(-elapsed*12);
     const angle=pose.rz;
     const targetY=pose.ry;
     const targetX=.025;
@@ -48,40 +78,40 @@ function Device({ edition, active, onPresented }: { edition: VisualStyle; active
     group.scale.setScalar(MathUtils.lerp(group.scale.x,scale,speed));
     if(diff>.0008) invalidate();
   });
-  const selectedRim=edition==='material_design'?'#8497bd':edition==='miuix'?'#a7a5b2':'#c9c5d5';
+  const rimColor=edition==='material_design'?'#90959e':edition==='miuix'?'#8b8e96':'#96949f';
   return <group ref={ref} position={initialPose.position} rotation={initialPose.rotation} scale={initialPose.scale}>
-    <RoundedBox args={[2.38,5.12,.24]} radius={.21} smoothness={5}>
-      <meshStandardMaterial color={selectedRim} roughness={.28} metalness={.85} envMapIntensity={1.15}/>
-    </RoundedBox>
-    <RoundedBox args={[2.28,5.02,.255]} radius={.18} smoothness={5}>
-      <meshStandardMaterial color="#151519" roughness={.5} metalness={.12}/>
-    </RoundedBox>
-    <mesh position={[0,0,.135]} onAfterRender={onPresented}>
+    <mesh geometry={shell}>
+      <meshStandardMaterial color={rimColor} roughness={.34} metalness={.72} envMapIntensity={.65}/>
+    </mesh>
+    <mesh geometry={bezel}>
+      <meshStandardMaterial color="#080a0f" roughness={.45} metalness={.08}/>
+    </mesh>
+    <mesh position={[0,0,.086]} onAfterRender={onPresented}>
       <planeGeometry args={[2.16,4.8]}/>
       <meshBasicMaterial ref={playerMaterial} map={texture} toneMapped={false} transparent depthWrite={false}/>
     </mesh>
-    <mesh position={[0,0,.136]}>
+    <mesh position={[0,0,.087]}>
       <planeGeometry args={[2.16,4.8]}/>
       <meshBasicMaterial ref={appearanceMaterial} map={appearanceTexture} toneMapped={false} transparent opacity={0} depthWrite={false}/>
     </mesh>
-    <RoundedBox args={[.045,.46,.08]} radius={.02} smoothness={3} position={[1.195,.7,0]}>
-      <meshStandardMaterial color={selectedRim} roughness={.25} metalness={.9}/>
+    <RoundedBox args={[.03,.38,.06]} radius={.014} smoothness={4} position={[1.175,.7,0]}>
+      <meshStandardMaterial color={rimColor} roughness={.3} metalness={.75}/>
     </RoundedBox>
-    <RoundedBox args={[.045,.27,.08]} radius={.02} smoothness={3} position={[-1.195,1,0]}>
-      <meshStandardMaterial color={selectedRim} roughness={.25} metalness={.9}/>
+    <RoundedBox args={[.03,.25,.06]} radius={.014} smoothness={4} position={[-1.175,1,0]}>
+      <meshStandardMaterial color={rimColor} roughness={.3} metalness={.75}/>
     </RoundedBox>
   </group>;
 }
 // Bake static reflections once; changing the edition must not rerender the
 // cubemap's six faces, especially while the demand canvas is paused.
 const SceneLighting=memo(function SceneLighting(){return <>
-    <ambientLight intensity={1.6}/>
-    <directionalLight position={[3,5,6]} intensity={3.2} color="#ffffff"/>
-    <directionalLight position={[-4,-2,4]} intensity={2.4} color="#c5a4ff"/>
+    <ambientLight intensity={1.1}/>
+    <directionalLight position={[3,5,6]} intensity={2.4} color="#ffffff"/>
+    <directionalLight position={[-4,-2,4]} intensity={.9} color="#d6deef"/>
     <Environment resolution={64} frames={1}>
-      <Lightformer intensity={3} color="#ffffff" position={[0,3,3]} scale={[6,1,1]}/>
-      <Lightformer intensity={4} color="#c8bcff" position={[-3,0,2]} rotation={[0,Math.PI/3,0]} scale={[1,8,1]}/>
-      <Lightformer intensity={2} color="#fff2cf" position={[4,-1,2]} rotation={[0,-Math.PI/3,0]} scale={[2,6,1]}/>
+      <Lightformer intensity={3} color="#ffffff" position={[-4,3,4]} rotation={[0,Math.PI/6,0]} scale={[4,8,1]}/>
+      <Lightformer intensity={1.5} color="#d6deef" position={[4,0,2]} rotation={[0,-Math.PI/3,0]} scale={[1,6,1]}/>
+      <Lightformer intensity={1} color="#ffffff" position={[4,-1,2]} rotation={[0,-Math.PI/3,0]} scale={[2,6,1]}/>
     </Environment>
   </>;});
 function World({ edition, onReady }: { edition:VisualStyle; onReady:()=>void }) {

@@ -1,0 +1,19 @@
+ORIGINAL TYPE COLLECTION / 01
+Calaen Display, Rovel Sans, Tesset Mono
+Version 1.000
+
+This collection is delivered for the commissioning user's use, modification,
+embedding and redistribution, including commercial website projects.
+No attribution is requested.
+
+The letter outlines and source geometry were newly generated for this request.
+No existing font binaries, glyph outlines or traced type specimens are included
+as source material. The collection does not require a paid font subscription or
+an external font service.
+
+The family names are working names. No trademark or worldwide exclusivity
+claim is made for those names or for these generated designs.
+
+The build dependencies retain their respective licenses and are not bundled.
+The files are supplied as an initial custom release without a warranty of
+fitness for every application. See README.md for the tested scope and styles.
