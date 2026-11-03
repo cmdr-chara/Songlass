@@ -230,3 +230,13 @@ html[data-style] :is(.footer-navs h3,.preview-toolbar h2){font-family:'Rovel San
 }
 html[data-large-text] .hero h1{overflow-wrap:anywhere}
 html[data-large-text] .choice-name{overflow-wrap:anywhere}
+
+/* Keep the same three-player composition when the canvas is unavailable. */
+.hero-side{display:none}
+@media(min-width:1000px){
+ .hero-product :is(.hero-fallback,.hero-side){box-sizing:content-box;position:absolute;width:auto;object-fit:contain;border:4px solid #15171c;border-radius:20px;background:#15171c;box-shadow:0 0 0 1px #92969d;max-width:52%}
+ .hero-product .hero-fallback{height:78%;left:52%;top:6%;z-index:2;transform:translateX(-50%) rotate(4deg)}
+ .hero-product .hero-side{display:block;height:64%;top:19%;z-index:1}
+ .hero-product .hero-side-left{left:25%;transform:translateX(-50%) rotate(-6deg)}
+ .hero-product .hero-side-right{left:78%;transform:translateX(-50%) rotate(6deg)}
+}

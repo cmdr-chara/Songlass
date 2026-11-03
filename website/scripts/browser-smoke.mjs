@@ -30,6 +30,30 @@ try{
   await staticPage.goto(new URL('it/',url).href);
   assert.equal(await staticPage.locator('html').getAttribute('lang'),'it');
   assert.equal(await staticPage.locator('main>section').count(),8);
+  const fallbackPage=await browser.newPage({viewport:{width:1440,height:900},colorScheme:'dark'});
+  await fallbackPage.addInitScript(()=>{
+    const getContext=window.HTMLCanvasElement.prototype.getContext;
+    window.HTMLCanvasElement.prototype.getContext=function(type,...args){
+      if(type==='webgl'||type==='webgl2'||type==='experimental-webgl')return null;
+      return getContext.call(this,type,...args);
+    };
+  });
+  await fallbackPage.goto(url.href,{waitUntil:'networkidle'});
+  await fallbackPage.waitForFunction(()=>document.documentElement.dataset.webglReady==='false');
+  const visiblePlayers=()=>fallbackPage.locator('.hero-product img').evaluateAll(images=>images.filter(image=>image.checkVisibility()).length);
+  assert.equal(await visiblePlayers(),3,'WebGL failure preserves the three-player desktop composition');
+  await fallbackPage.locator('#style_material_design').click();
+  await fallbackPage.waitForFunction(()=>document.documentElement.dataset.style==='material_design');
+  assert.match(await fallbackPage.locator('.hero-fallback').getAttribute('src'),/material-glass-player/);
+  assert.equal(await visiblePlayers(),3);
+  await fallbackPage.setViewportSize({width:1440,height:700});
+  assert.equal(await visiblePlayers(),3,'short desktop windows retain the complete composition');
+  await fallbackPage.emulateMedia({reducedMotion:'reduce'});
+  assert.equal(await visiblePlayers(),3);
+  await fallbackPage.setViewportSize({width:390,height:844});
+  assert.equal(await visiblePlayers(),1,'compact screens keep one complete readable capture');
+  assert(await fallbackPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await fallbackPage.close();
   assert.deepEqual(errors,[]);
-  console.log('Browser smoke passed: assets/WebGL, styles, prefixed language reload, preview focus, compact/reduced motion and no-JS Italian.');
+  console.log('Browser smoke passed: assets/WebGL, styles, prefixed language reload, preview focus, compact/reduced motion, no-JS Italian and desktop/compact WebGL fallback.');
 }finally{await browser.close();}
