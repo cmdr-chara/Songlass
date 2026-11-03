@@ -1,0 +1,57 @@
+/* Keep native scrollbar geometry stable; change its material with the interface. */
+:root { --scroll-track:var(--bg); --scroll-thumb:#8c74aa; --scroll-thumb-hover:#694b92; --scroll-radius:999px; scrollbar-color:var(--scroll-thumb) var(--scroll-track); scrollbar-width:thin; }
+html[data-style=material_design] { --scroll-thumb:#6e8db8; --scroll-thumb-hover:#436397; --scroll-radius:5px; }
+html[data-style=miuix] { --scroll-thumb:#858b96; --scroll-thumb-hover:#596374; --scroll-radius:8px; }
+@supports selector(::-webkit-scrollbar) {
+  html { scrollbar-color:auto; scrollbar-width:auto; }
+  ::-webkit-scrollbar { width:12px; height:12px; }
+  ::-webkit-scrollbar-track { background:var(--scroll-track); }
+  ::-webkit-scrollbar-thumb { background:var(--scroll-thumb); border:3px solid var(--scroll-track); border-radius:var(--scroll-radius); min-height:50px; }
+  ::-webkit-scrollbar-thumb:hover { background:var(--scroll-thumb-hover); }
+  ::-webkit-scrollbar-corner { background:var(--scroll-track); }
+}
+@media(prefers-reduced-motion:no-preference) { html { scroll-behavior:smooth; } }
+html[data-scroll-engine=lenis],html[data-motion=reduced] { scroll-behavior:auto; }
+.theme-toggle { display:grid;place-items:center;min-width:44px;min-height:44px;border-radius:50%;background:transparent;color:inherit; }
+.theme-toggle:active { transform:scale(.94); }
+@media(hover:hover) { .theme-toggle:hover { background:color-mix(in srgb,currentColor 10%,transparent); } }
+/* Shared scene timing; Miuix controls keep their quick local feedback. */
+.hero-gallery__screen,.hero-gallery__phone { transition:border-radius 650ms cubic-bezier(.2,.8,.2,1); }
+.hero-visual::before { transition:background-color 450ms,opacity 450ms,border-radius 650ms; }
+.hero,.appearance-section,.closing-footer,.site-header { transition:background-color 450ms,color 450ms,border-radius 650ms,transform 240ms; }
+.hero-art-plane { transition:opacity 500ms; }
+.preview-theme-picker { display:flex;align-items:center;justify-content:center;gap:20px;min-height:54px;margin-bottom:10px; }
+.preview-theme-picker legend { float:left; padding:0; font-size:13px; }
+.preview-theme-picker > div { display:flex;gap:4px;background:var(--surface);padding:4px;border-radius:999px; }
+.preview-theme-picker label { position:relative;display:flex;align-items:center;gap:7px;min-height:40px;padding:8px 13px;border-radius:999px;font-size:13px;cursor:pointer; }
+.preview-theme-picker input { position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer; }
+.preview-theme-picker label:has(input:checked) { background:var(--ink);color:var(--bg); }
+.preview-theme-picker label:has(input:focus-visible) { outline:3px solid var(--accent);outline-offset:3px; }
+html .edition-player[data-preview-theme=dark] { --player-bg:var(--player-dark-bg);--player-ink:var(--player-dark-ink);--player-muted:var(--player-dark-muted);--player-fill:var(--player-dark-fill);--player-accent:var(--player-dark-accent);--player-on-accent:var(--player-dark-on-accent);--player-glass:rgb(66 53 73 / .82);--player-glass-edge:rgb(239 222 248 / .18); }
+html .edition-player[data-preview-theme=light] { --player-bg:var(--player-light-bg);--player-ink:var(--player-light-ink);--player-muted:var(--player-light-muted);--player-fill:var(--player-light-fill);--player-accent:var(--player-light-accent);--player-on-accent:var(--player-light-on-accent);--player-glass:rgb(255 255 255 / .62);--player-glass-edge:rgb(255 255 255 / .8); }
+@media(max-width:740px) { .theme-toggle { min-width:38px;min-height:44px; } .preview-theme-picker { gap:12px; } .preview-theme-picker legend { font-size:13px; } }
+@media(prefers-reduced-motion:reduce) { .hero-gallery__screen,.hero-gallery__phone,.hero,.appearance-section,.closing-footer,.site-header,.hero-visual::before { transition:none; } }
+html[data-motion=reduced] :is(.hero-gallery__screen,.hero-gallery__phone,.hero,.appearance-section,.closing-footer,.site-header,.hero-visual::before) { transition:none; }
+
+[data-landscape] > img { position:absolute;inset:0;transition:opacity 500ms; }
+[data-landscape] > [data-landscape-image=liquid] { opacity:1; }
+[data-landscape] > [data-landscape-image=miuix] { opacity:0; }
+[data-landscape=miuix] > [data-landscape-image=liquid] { opacity:0; }
+[data-landscape=miuix] > [data-landscape-image=miuix] { opacity:1; }
+.closing-landscape { opacity:1;transition:opacity 500ms; }
+html[data-style=material_design] .closing-landscape { display:block;opacity:0; }
+html[data-motion=reduced] [data-landscape] > img { transition:none; }
+@media(prefers-reduced-motion:reduce) { [data-landscape] > img { transition:none; } }
+/* Interpolate edition-specific travel vectors, rather than restarting a CSS
+   transform transition on every scroll frame. */
+@property --travel-x { syntax:'<length>'; inherits:true; initial-value:0px; }
+@property --travel-y { syntax:'<length>'; inherits:true; initial-value:0px; }
+@property --travel-z { syntax:'<length>'; inherits:true; initial-value:0px; }
+@property --travel-rotate { syntax:'<angle>'; inherits:true; initial-value:0deg; }
+.hero-gallery__device {
+  transition:transform var(--gallery-duration) var(--gallery-ease),z-index var(--gallery-duration) step-end,
+    --travel-x var(--gallery-duration) var(--gallery-ease),--travel-y var(--gallery-duration) var(--gallery-ease),
+    --travel-z var(--gallery-duration) var(--gallery-ease),--travel-rotate var(--gallery-duration) var(--gallery-ease);
+}
+html[data-motion=reduced] .hero-gallery__device { transition:none; }
+@media(prefers-reduced-motion:reduce) { .hero-gallery__device { transition:none; } }
