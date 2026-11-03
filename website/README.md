@@ -47,7 +47,7 @@ The generated root, English and Italian pages work without JavaScript. The WIP p
 
 ## Typography
 
-Rovel Sans provides reading text and controls in weights 400, 500 and 700. Liquid Glass also uses it for headings; Material 3 Expressive uses Puffrelle, and Miuix uses Kindredge. The static display faces use their supplied 400 weight without synthesized bold or italic. Usage terms are preserved beside the webfont files.
+Google Sans Flex provides headings, reading text and controls. Liquid Glass uses lighter headings, Material 3 Expressive uses medium weight, and Miuix uses stronger headings. The custom font files and their supplied usage terms remain available but are not loaded by the page.
 
 ## Assets and license
 

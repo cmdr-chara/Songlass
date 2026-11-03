@@ -16,7 +16,7 @@ import { useExperience, usePreference, scrollEngine } from './use-experience';
 import { preserveReadingPosition } from './reading-position';
 
 const PlayerScene=lazy(()=>import('./PlayerScene'));
-const materialTheme=createTheme({reference:{palette:{'primary-40':'#495d92','primary-80':'#b8c7fa','primary-90':'#dae2ff','primary-10':'#10204b','primary-20':'#182e60','primary-30':'#314574'},typeface:{brand:['Rovel Sans','sans-serif'],plain:['Rovel Sans','sans-serif']}}});
+const materialTheme=createTheme({reference:{palette:{'primary-40':'#495d92','primary-80':'#b8c7fa','primary-90':'#dae2ff','primary-10':'#10204b','primary-20':'#182e60','primary-30':'#314574'},typeface:{brand:['Google Sans Flex','sans-serif'],plain:['Google Sans Flex','sans-serif']}}});
 const editionCopy={
   liquid_glass:{description:'Luce, profondità. Tutto scorre.',body:'Controlli sospesi e superfici che lasciano respirare la musica.',short:'Luce e profondità'},
   material_design:{description:'Più forma. Più carattere.',body:'Forme morbide, contrasti tonali e azioni che si fanno riconoscere.',short:'Forma e carattere'},
