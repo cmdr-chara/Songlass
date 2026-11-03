@@ -41,7 +41,7 @@ export function useExperience() {
       cleanScroll();
       scrollEngine = undefined;
       sceneState.reduced = reduced.matches;
-      sceneState.storyEnabled=!reduced.matches&&innerWidth>=1000&&innerHeight>=760&&!document.documentElement.hasAttribute('data-large-text');
+      sceneState.storyEnabled=!reduced.matches&&innerWidth>=1000&&innerHeight>=700&&!document.documentElement.hasAttribute('data-large-text');
       cancelAnimationFrame(parallaxFrame);parallaxFrame=0;
       sceneState.pointerX=0;sceneState.pointerY=0;
       mount?.style.removeProperty('transform');
@@ -127,7 +127,7 @@ export function useExperience() {
       stations=[hero.offsetTop,compare.offsetTop,appearance.offsetTop];
       const height=appearance.offsetTop+appearance.offsetHeight;storyEnd=height;
       if(track.style.height!==`${height}px`)track.style.height=`${height}px`;
-      sceneState.storyEnabled=!reduced.matches&&innerWidth>=1000&&innerHeight>=760&&!document.documentElement.hasAttribute('data-large-text');
+      sceneState.storyEnabled=!reduced.matches&&innerWidth>=1000&&innerHeight>=700&&!document.documentElement.hasAttribute('data-large-text');
       updateStory();sceneState.invalidate();ScrollTrigger.refresh();
     };
     const scheduleMeasure=()=>{if(!measureFrame)measureFrame=requestAnimationFrame(measureStory);};

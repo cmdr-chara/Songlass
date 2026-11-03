@@ -26,6 +26,23 @@ try{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.setViewportSize({width:390,height:844});
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth));
+  const shortPage=await browser.newPage({viewport:{width:1488,height:758},colorScheme:'dark'});
+  await shortPage.goto(url.href,{waitUntil:'networkidle'});
+  await shortPage.waitForFunction(()=>document.querySelector('[data-story-enhanced=true]'));
+  for(const height of [758,700]){
+    await shortPage.setViewportSize({width:1488,height});
+    for(const style of ['liquid_glass','material_design','miuix']){
+      await shortPage.evaluate(style=>document.getElementById('style_'+style).click(),style);
+      await shortPage.waitForFunction(style=>document.documentElement.dataset.style===style,style);
+      assert(await shortPage.locator('[data-story-enhanced=true]').count(),'short desktop keeps the animated story');
+      await shortPage.evaluate(()=>{document.activeElement?.blur();window.scrollTo({top:document.documentElement.scrollHeight,behavior:'instant'});});
+      await shortPage.waitForFunction(()=>document.querySelector('.site-footer').getBoundingClientRect().bottom<=window.innerHeight+1);
+      assert(await shortPage.locator('.site-footer .brand-link').evaluate(el=>el.getBoundingClientRect().top>=0),'footer brand remains visible at page bottom');
+      assert(await shortPage.locator('.footer-selector-material').evaluate(el=>el.getBoundingClientRect().bottom<=window.innerHeight),'footer selector remains visible');
+      await shortPage.evaluate(()=>window.scrollTo({top:0,behavior:'instant'}));
+    }
+  }
+  await shortPage.close();
   const staticPage=await browser.newPage({javaScriptEnabled:false});
   await staticPage.goto(new URL('it/',url).href);
   assert.equal(await staticPage.locator('html').getAttribute('lang'),'it');
