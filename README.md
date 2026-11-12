@@ -1,3 +1,5 @@
+MY LAPTOP'S BATTERY DIED, THE MAJOR UPDATE IS DELAYED.
+
 <p align="center">
   <img src="design/icon/styles/violet-squircle.svg" width="96" height="96" alt="Songlass icon">
 </p>
