@@ -11,7 +11,7 @@ html[data-style=miuix] { --scroll-thumb:#858b96; --scroll-thumb-hover:#596374; -
   ::-webkit-scrollbar-corner { background:var(--scroll-track); }
 }
 @media(prefers-reduced-motion:no-preference) { html { scroll-behavior:smooth; } }
-html[data-scroll-engine=lenis],html[data-motion=reduced] { scroll-behavior:auto; }
+html[data-scroll-engine=lenis],html[data-motion-pref=reduced] { scroll-behavior:auto; }
 .theme-toggle { display:grid;place-items:center;min-width:44px;min-height:44px;border-radius:50%;background:transparent;color:inherit; }
 .theme-toggle:active { transform:scale(.94); }
 @media(hover:hover) { .theme-toggle:hover { background:color-mix(in srgb,currentColor 10%,transparent); } }
@@ -24,14 +24,16 @@ html[data-scroll-engine=lenis],html[data-motion=reduced] { scroll-behavior:auto;
 .preview-theme-picker legend { float:left; padding:0; font-size:13px; }
 .preview-theme-picker > div { display:flex;gap:4px;background:var(--surface);padding:4px;border-radius:999px; }
 .preview-theme-picker label { position:relative;display:flex;align-items:center;gap:7px;min-height:40px;padding:8px 13px;border-radius:999px;font-size:13px;cursor:pointer; }
-.preview-theme-picker input { position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer; }
+.preview-theme-picker input { position:absolute;inset:0;width:100%;height:100%;margin:0;appearance:none;cursor:pointer; }
 .preview-theme-picker label:has(input:checked) { background:var(--ink);color:var(--bg); }
-.preview-theme-picker label:has(input:focus-visible) { outline:3px solid var(--accent);outline-offset:3px; }
+.preview-theme-picker input:focus-visible { outline:3px solid var(--ink);outline-offset:-4px; }
+.preview-theme-picker label:has(input:focus-visible) { background:var(--accent);color:var(--accent-ink); }
+.theme-choices label:has(input:focus-visible) { background:var(--accent);color:var(--accent-ink); }
 html .edition-player[data-preview-theme=dark] { --player-bg:var(--player-dark-bg);--player-ink:var(--player-dark-ink);--player-muted:var(--player-dark-muted);--player-fill:var(--player-dark-fill);--player-accent:var(--player-dark-accent);--player-on-accent:var(--player-dark-on-accent);--player-glass:rgb(66 53 73 / .82);--player-glass-edge:rgb(239 222 248 / .18); }
 html .edition-player[data-preview-theme=light] { --player-bg:var(--player-light-bg);--player-ink:var(--player-light-ink);--player-muted:var(--player-light-muted);--player-fill:var(--player-light-fill);--player-accent:var(--player-light-accent);--player-on-accent:var(--player-light-on-accent);--player-glass:rgb(255 255 255 / .62);--player-glass-edge:rgb(255 255 255 / .8); }
 @media(max-width:740px) { .theme-toggle { min-width:38px;min-height:44px; } .preview-theme-picker { gap:12px; } .preview-theme-picker legend { font-size:13px; } }
 @media(prefers-reduced-motion:reduce) { .hero-gallery__screen,.hero-gallery__phone,.hero,.appearance-section,.closing-footer,.site-header,.hero-visual::before { transition:none; } }
-html[data-motion=reduced] :is(.hero-gallery__screen,.hero-gallery__phone,.hero,.appearance-section,.closing-footer,.site-header,.hero-visual::before) { transition:none; }
+html[data-motion-pref=reduced] :is(.hero-gallery__screen,.hero-gallery__phone,.hero,.appearance-section,.closing-footer,.site-header,.hero-visual::before) { transition:none; }
 
 [data-landscape] > img { position:absolute;inset:0;transition:opacity 500ms; }
 [data-landscape] > [data-landscape-image=liquid] { opacity:1; }
@@ -40,7 +42,7 @@ html[data-motion=reduced] :is(.hero-gallery__screen,.hero-gallery__phone,.hero,.
 [data-landscape=miuix] > [data-landscape-image=miuix] { opacity:1; }
 .closing-landscape { opacity:1;transition:opacity 500ms; }
 html[data-style=material_design] .closing-landscape { display:block;opacity:0; }
-html[data-motion=reduced] [data-landscape] > img { transition:none; }
+html[data-motion-pref=reduced] [data-landscape] > img { transition:none; }
 @media(prefers-reduced-motion:reduce) { [data-landscape] > img { transition:none; } }
 /* Interpolate edition-specific travel vectors, rather than restarting a CSS
    transform transition on every scroll frame. */
@@ -53,5 +55,12 @@ html[data-motion=reduced] [data-landscape] > img { transition:none; }
     --travel-x var(--gallery-duration) var(--gallery-ease),--travel-y var(--gallery-duration) var(--gallery-ease),
     --travel-z var(--gallery-duration) var(--gallery-ease),--travel-rotate var(--gallery-duration) var(--gallery-ease);
 }
-html[data-motion=reduced] .hero-gallery__device { transition:none; }
+html[data-motion-pref=reduced] .hero-gallery__device { transition:none; }
 @media(prefers-reduced-motion:reduce) { .hero-gallery__device { transition:none; } }
+
+/* One h3 size inside section copy; UI mocks keep their own scale. */
+:is(.edition-statement,.edition-trait,.appearance-notes,.playback-groups,.sound-tools,.library-notes,.lyrics-copy) h3 { font-size:22px; }
+.faq-cta { margin-top:36px; display:flex; align-items:center; gap:26px; flex-wrap:wrap; }
+.lyrics-section { padding-bottom:calc(var(--section-space)*.4); }
+.faq-section { padding-top:calc(var(--section-space)*.7); }
+.showcase { padding-top:calc(var(--section-space)*1.3); }

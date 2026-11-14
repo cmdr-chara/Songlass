@@ -97,7 +97,7 @@ html[data-style="miuix"] .demo-collection { gap: 12px; }
 html[data-style="miuix"] .demo-track img { border-radius: 14px; }
 html[data-style="miuix"] .demo-now-playing { border-radius: 18px; }
 html[data-style="miuix"] .demo-now-playing a { border-radius: 16px; background: var(--accent); color: white; }
-html[data-style="miuix"] .appearance-gallery .screen-figure, html[data-style="miuix"] .appearance-gallery .screen-figure figcaption, html[data-style="miuix"] .appearance-detail { transform: none; }
+html[data-style="miuix"] .appearance-gallery .screen-figure, html[data-style="miuix"] .appearance-detail { transform: none; }
 html[data-style="miuix"] .appearance-detail { border-radius: 24px; }
 html[data-style="miuix"] .listening-lab__play { border-radius: 20px; }
 html[data-style="miuix"] .listening-lab__presets > div { gap: 8px; }
@@ -145,5 +145,5 @@ html[data-transparency="reduced"] .demo-now-playing { background: var(--bg); box
   .motion-control input:checked + .switch-track { background: Highlight; }
 }
 
-html[data-motion="reduced"][data-style] .showcase-landscape { transform: none; }
+html[data-motion-pref="reduced"][data-style] .showcase-landscape { transform: none; }
 @media (prefers-reduced-motion: reduce) { html[data-style] .showcase-landscape { transform: none; } }

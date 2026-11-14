@@ -1,12 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import gsap from 'gsap';
-import Lenis from 'lenis';
 import { connectScroller } from './scroll-controller';
 export { jumpTo } from './scroll-controller';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { sceneState } from './scene-state';
-
-gsap.registerPlugin(ScrollTrigger);
 
 export function usePreference(query: string) {
   return useSyncExternalStore(
@@ -19,6 +14,14 @@ export function usePreference(query: string) {
 /** Native scrolling; one GSAP clock for spatial progress and pointer response. */
 export function useExperience(reduced = false) {
   useEffect(() => {
+    let disposed = false;
+    let teardown: () => void = () => {};
+    void Promise.all([import('gsap'), import('gsap/ScrollTrigger'), import('lenis')]).then(([gsapModule, triggerModule, lenisModule]) => {
+    if (disposed) return;
+    const gsap = gsapModule.default;
+    const { ScrollTrigger } = triggerModule;
+    const Lenis = lenisModule.default;
+    gsap.registerPlugin(ScrollTrigger);
     const root = document.querySelector<HTMLElement>('.songlass-app');
     if (!root) return;
     const header = root.querySelector<HTMLElement>('.site-header');
@@ -119,7 +122,7 @@ export function useExperience(reduced = false) {
     }); };
     document.addEventListener('visibilitychange', onVisibility);
     void document.fonts.ready.then(() => { if (root.isConnected) ScrollTrigger.refresh(); });
-    return () => {
+    teardown = () => {
       observers.forEach(observer => observer.disconnect());
       dialogs.disconnect();
       gsap.ticker.remove(advanceScroll);
@@ -131,5 +134,7 @@ export function useExperience(reduced = false) {
       if (header) delete header.dataset.footer;
       context.revert();
     };
+    });
+    return () => { disposed = true; teardown(); };
   }, [reduced]);
 }

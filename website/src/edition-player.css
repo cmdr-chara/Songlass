@@ -154,9 +154,9 @@ html[data-theme=dark] .edition-player { --player-bg: var(--player-dark-bg); --pl
 /* Flat, opaque controls remain available when motion or transparency is reduced. */
 .edition-player[data-reduced-motion=true], .edition-player[data-reduced-motion=true] * { transition: none !important; animation: none !important; }
 .edition-player[data-reduced-motion=true] :is(button:hover, button:active) { transform: none; }
-html[data-motion=reduced] .edition-player .edition-player__wave { display: none !important; }
-html[data-motion=reduced] .edition-player .edition-player__flat { display: block !important; }
-html[data-motion=reduced] .edition-player :is(button:hover, button:active) { transform: none; }
+html[data-motion-pref=reduced] .edition-player .edition-player__wave { display: none !important; }
+html[data-motion-pref=reduced] .edition-player .edition-player__flat { display: block !important; }
+html[data-motion-pref=reduced] .edition-player :is(button:hover, button:active) { transform: none; }
 html[data-transparency=reduced] .edition-player[data-edition=liquid_glass] .edition-player__utilities { background: var(--player-fill); backdrop-filter: none; -webkit-backdrop-filter: none; border-color: color-mix(in srgb, var(--player-ink) 22%, transparent); box-shadow: none; /* taste-skill-ignore: removes the native optical rim for the opaque/forced-colors fallback. */ }
 @media (prefers-reduced-motion: reduce) {
   .edition-player, .edition-player * { transition: none !important; animation: none !important; }

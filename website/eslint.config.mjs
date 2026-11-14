@@ -2,7 +2,7 @@ import js from '@eslint/js';
 import ts from 'typescript-eslint';
 import hooks from 'eslint-plugin-react-hooks';
 export default ts.config(
-  { ignores: ['dist/**','node_modules/**'] },
+  { ignores: ['dist/**','node_modules/**','.taste-skill/**'] },
   js.configs.recommended,
   ...ts.configs.recommended,
   { files: ['**/*.{js,mjs,ts,tsx}'], languageOptions: { globals: { performance:'readonly',location:'readonly',navigator:'readonly',localStorage:'readonly',addEventListener:'readonly',removeEventListener:'readonly',scrollY:'readonly',scrollTo:'readonly',innerWidth:'readonly',console:'readonly', process:'readonly', URL:'readonly', setTimeout:'readonly', clearTimeout:'readonly', WebSocket:'readonly', Buffer:'readonly', document:'readonly', requestAnimationFrame:'readonly', window:'readonly', Image:'readonly', globalThis:'readonly' } } },

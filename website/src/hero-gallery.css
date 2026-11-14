@@ -206,12 +206,12 @@
 }
 
 .hero-gallery[data-reduced-motion="true"],
-html[data-motion="reduced"] .hero-gallery {
+html[data-motion-pref="reduced"] .hero-gallery {
   --gallery-progress: 0;
 }
 
 .hero-gallery[data-reduced-motion="true"] .hero-gallery__device,
-html[data-motion="reduced"] .hero-gallery__device {
+html[data-motion-pref="reduced"] .hero-gallery__device {
   transition: none;
 }
 

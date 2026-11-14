@@ -134,7 +134,7 @@ try {
   await reduceMotion.check();
   await opaqueSurfaces.check();
   await page.reload({ waitUntil: 'networkidle' });
-  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark' && document.documentElement.dataset.motion === 'reduced' && document.documentElement.dataset.transparency === 'reduced');
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark' && document.documentElement.dataset.motionPref === 'reduced' && document.documentElement.dataset.transparency === 'reduced');
   assert(await page.locator('input[name="site-theme"][value="dark"]').isChecked());
   assert(await reduceMotion.isChecked());
   assert(await opaqueSurfaces.isChecked());
@@ -149,9 +149,9 @@ try {
   // OS reduced motion still wins when the optional website switch is off.
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await reduceMotion.uncheck();
-  await page.waitForFunction(() => document.documentElement.dataset.motion === 'reduced');
+  await page.waitForFunction(() => document.documentElement.dataset.motionPref === 'reduced');
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.waitForFunction(() => document.documentElement.dataset.motion === 'full');
+  await page.waitForFunction(() => document.documentElement.dataset.motionPref === 'full');
   await reduceMotion.check();
 
   // The native-inspired showcase has real, independent controls. Seeking and

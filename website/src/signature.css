@@ -8,14 +8,15 @@
   isolation: isolate;
   overflow: clip;
   border-radius: 28px;
-  padding-top: clamp(126px, 10vw, 160px);
-  padding-bottom: 30px;
-  min-height: min(920px, calc(100svh - 24px));
+  padding-top: clamp(100px, 9vw, 140px);
+  padding-bottom: 44px;
+  min-height: calc(100vh - 12px);
+  min-height: calc(100svh - 12px);
   grid-template-columns: 1.03fr 1fr;
   gap: 0 2%;
 }
 .hero > .hero-art-plane {
-  inset: 0;
+  inset: 0 0 44px;
   border-radius: inherit;
   z-index: -2;
   transform: none;
@@ -42,10 +43,23 @@ html[data-style=liquid_glass][data-scrolled=true] .header-download { background:
 .hero .release-note { opacity: .84; }
 .hero-visual { grid-column: 2; grid-row: 1; height: clamp(440px, 39vw, 610px); margin-top: 4px; min-width: 0; }
 .hero-stage { transform-style: preserve-3d; }
-.hero-caption { left: 0; right: 0; bottom: -2px; color: var(--stage-ink); font-size: 13px; }
-.hero-caption > span:last-child { display: inline-flex; align-items: center; gap: 10px; }
+.hero-caption {
+  left: 50%; right: auto; bottom: 16px;
+  transform: translateX(-50%);
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 9px 17px; border-radius: 999px; min-height: 40px;
+  background: color-mix(in srgb, var(--stage-bg) 80%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stage-ink) 15%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  color: var(--stage-ink); font-size: 13px; white-space: nowrap; z-index: 3;
+}
+.hero-caption > span:first-child { opacity: .78; }
+.hero-caption > span:first-child::after { content: '·'; margin-left: 12px; opacity: .55; }
+.hero-caption > span:last-child { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
 .hero-caption svg { transition: transform 220ms var(--motion-ease); }
 .hero-caption:focus-visible svg { transform: translate(3px,-3px); }
+html[data-transparency=reduced] .hero-caption { background: var(--stage-bg); backdrop-filter: none; -webkit-backdrop-filter: none; }
+@media (prefers-reduced-transparency: reduce) { .hero-caption { background: var(--stage-bg); backdrop-filter: none; -webkit-backdrop-filter: none; } }
 .hero-selector { grid-row: 2; grid-column: 1 / -1; display: grid; grid-template-columns: .7fr 1.6fr auto; align-items: end; gap: 26px; padding-top: 42px; z-index: 2; }
 .hero-selector-note { max-width: 17ch; font-size: 20px; line-height: 1.25; letter-spacing: -.025em; padding-bottom: 18px; }
 .hero-selector .style-picker { width: 100%; }
@@ -131,7 +145,7 @@ html[data-style=miuix] .hero-gallery__phone { border-radius: 20px; }
 }
 @media(min-width:1800px) { .hero { min-height: 940px; } }
 @media(max-width:1100px) and (min-width:741px) {
-  .hero { padding-top: 115px; min-height: 730px; }
+  .hero { padding-top: 115px; min-height: calc(100svh - 12px); }
   .hero h1 { font-size: 8.2vw; }
   .hero-description { font-size: 16px; }
   .hero-visual { height: 450px; }
@@ -141,19 +155,19 @@ html[data-style=miuix] .hero-gallery__phone { border-radius: 20px; }
   .showcase-player-stage { padding-inline: 12px; min-height: 590px; }
 }
 @media(max-width:740px) {
-  .hero { display: flex; flex-direction: column; align-items: stretch; margin: 8px; padding: 108px 22px 24px; min-height: auto; border-radius: 24px; }
+  .hero { display: flex; flex-direction: column; align-items: stretch; margin: 8px; padding: 108px calc(var(--space) - 8px) 24px; min-height: auto; border-radius: 24px; }
   .hero h1 { font-size: clamp(46px,15.4vw,110px); }
   .hero-description { font-size: 16px; margin-top: 23px; max-width: 34ch; }
   .hero-actions { gap: 14px; margin-top: 24px; }
   .hero .release-note { font-size: 12px; }
-  .hero .action { min-height: 52px; padding: 13px 17px; gap: 12px; font-size: 13px; }
+  .hero .action { min-height: 52px; padding: 13px 17px; gap: 12px; font-size: 16px; }
   .hero-actions .text-link { font-size: 13px; gap: 5px; }
   .hero::after { background: linear-gradient(180deg,#171725ed 0%,#1d1c30b8 50%,#1c1b30b8 100%); } /* taste-skill-ignore: phone landscape legibility scrim. */
   .hero-visual { width: 100%; height: clamp(340px,100vw,480px); margin-top: 28px; order: 3; }
   .hero-gallery__device { --gallery-phone-height: min(85cqh,86cqw); }
   .hero-gallery__screen { padding: 3px; border-radius: 20px; }
   .hero-gallery__phone { border-radius: 17px; }
-  .hero-caption { font-size: 12px; bottom: -5px; }
+  .hero-caption { font-size: 12px; bottom: 12px; padding: 8px 14px; min-height: 36px; }
   .hero-selector { display: block; padding-top: 26px; order: 2; }
   .hero-selector-note { display: none; }
   .hero-selector .style-choices { grid-template-columns: 1fr 1.35fr .65fr; gap: 3px; height: 66px; }
@@ -171,7 +185,7 @@ html[data-style=miuix] .hero-gallery__phone { border-radius: 20px; }
   .site-header { padding-inline: 30px; }
 }
 @media(prefers-reduced-motion:reduce) { .hero-selector .style-option,.desktop-nav a { transition: none; transform: none !important; translate: none !important; } }
-html[data-motion=reduced] .hero-selector .style-option { transform: none !important; }
+html[data-motion-pref=reduced] .hero-selector .style-option { transform: none !important; }
 @media(forced-colors:active) { .hero::after,.hero > .hero-art-plane { display:none; } .hero,.hero-selector .style-option { background:Canvas;color:CanvasText; } }
 
 /* A bounded material sample above the landscape, with an opaque accessibility fallback. */
@@ -193,3 +207,11 @@ html[data-transparency=reduced] .showcase-player-stage .edition-player[data-edit
 .lyric-lines strong { color:#fff; }
 .hero-selector legend,.hero-caption,.hero .release-note,.closing-footer .closing-meta { font-size:13px; }
 .faq-list details:not([open]) { background:transparent; }
+
+/* One quiet entrance for the hero; no motion when the user asked for less. */
+@keyframes heroEnter { from { opacity: 0; translate: 0 26px; } }
+@media (prefers-reduced-motion: no-preference) {
+  html:not([data-motion-pref=reduced]) [data-enter] .hero-copy { animation: heroEnter .8s cubic-bezier(.2,.8,.2,1) both; }
+  html:not([data-motion-pref=reduced]) [data-enter] .hero-visual { animation: heroEnter .8s cubic-bezier(.2,.8,.2,1) .14s both; }
+  html:not([data-motion-pref=reduced]) [data-enter] .hero-selector { animation: heroEnter .8s cubic-bezier(.2,.8,.2,1) .28s both; }
+}

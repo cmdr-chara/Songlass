@@ -78,10 +78,9 @@ html[data-scrolled="true"] .header-download { background: var(--ink); color: var
 .showcase-picker { grid-area: picker; }
 .showcase-sticky { grid-area: player; min-width: 0; }
 .showcase-player-stage { position: relative; padding: 32px 32px 26px; isolation: isolate; }
-.showcase-landscape { position: absolute; inset: 15% -2% 11%; overflow: clip; border-radius: 32% 42% 34% 42%; z-index: -1; background: var(--chapter); transform: translateY(calc((var(--showcase-progress) - .5) * -60px)) rotate(-4deg); }
+.showcase-landscape { position: absolute; inset: 15% -2% 11%; overflow: clip; border-radius: 32% 42% 34% 42%; z-index: -1; background: var(--chapter); transform: translateY(calc((var(--showcase-progress) - .5) * -60px)) rotate(0deg); }
 .showcase-landscape img { width: 100%; height: 100%; object-fit: cover; opacity: .86; transform: scale(1.1); }
 .showcase-player-stage > .edition-player { margin-inline: auto; }
-.demo-caption { font-size: 14px; line-height: 1.5; text-align: center; max-width: 47ch; margin: 20px auto 0; color: var(--muted); }
 .edition-statement { padding-top: 30px; max-width: 42ch; }
 .edition-statement h3 { font-size: 28px; }
 .edition-statement p { font-size: 18px; }
@@ -115,7 +114,6 @@ html[data-scrolled="true"] .header-download { background: var(--ink); color: var
 .lyrics-art > img { opacity: .48; transform: translateY(calc((var(--lyrics-progress) - .5) * -30px)) scale(1.09); }
 .lyric-lines { font-size: clamp(30px, 4.2vw, 66px); max-width: 25ch; }
 .lyric-lines > span { color: #eee6f8; }
-.lyric-credit { margin-top: 45px; }
 .faq-intro { align-self: start; }
 .faq-list details { transition: background-color 200ms; }
 .faq-list details[open] { background: var(--surface); }
@@ -217,7 +215,6 @@ html[data-style=miuix] .landscape-label { color: white; }
   .showcase-layout { gap: 25px; }
   .showcase-player-stage { padding: 22px 0; }
   .showcase-landscape { inset: 16% -5% 8%; }
-  .demo-caption { font-size: 13px; margin-top: 10px; max-width: 38ch; }
   .edition-statement { min-height: 132px; }
   .picker-index .style-option { padding: 12px 10px; }
   .edition-trait h3 { font-size: 22px; }
@@ -231,7 +228,6 @@ html[data-style=miuix] .landscape-label { color: white; }
   .lyrics-copy { grid-template-columns: 1fr; gap: 28px; }
   .lyrics-art { margin-top: 34px; min-height: 470px; border-radius: 24px; padding: 26px; }
   .lyric-lines { font-size: clamp(28px, 7.5vw, 42px); }
-  .lyric-credit { font-size: 13px; margin-top: 40px; }
   .site-footer { margin-inline: 8px; margin-bottom: 8px; border-radius: 24px; padding-inline: calc(var(--space) - 8px); }
   .footer-signature { font-size: 17.9vw; }
   .landscape-label { top: 18px; left: 18px; max-width: calc(100% - 36px); font-size: 18px; }
@@ -251,14 +247,14 @@ html[data-style=miuix] .landscape-label { color: white; }
   .screenshot-reference img { width: 40px; height: 84px; }
   .screenshot-reference > span { font-size: 13px; }
 }
-html[data-motion="reduced"] .hero-art-plane,
-html[data-motion="reduced"] .showcase-landscape,
-html[data-motion="reduced"] .lyrics-art > img,
-html[data-motion="reduced"] .footer-art img { transform: none; }
-html[data-motion="reduced"] .screenshot-reference:hover img,
-html[data-motion="reduced"] .screen-frame:hover img,
-html[data-motion="reduced"] .action:active { transform: none; }
-html[data-motion="reduced"] :is(.showcase-sticky, .faq-intro) { position: static; }
+html[data-motion-pref="reduced"] .hero-art-plane,
+html[data-motion-pref="reduced"] .showcase-landscape,
+html[data-motion-pref="reduced"] .lyrics-art > img,
+html[data-motion-pref="reduced"] .footer-art img { transform: none; }
+html[data-motion-pref="reduced"] .screenshot-reference:hover img,
+html[data-motion-pref="reduced"] .screen-frame:hover img,
+html[data-motion-pref="reduced"] .action:active { transform: none; }
+html[data-motion-pref="reduced"] :is(.showcase-sticky, .faq-intro) { position: static; }
 @media (prefers-reduced-motion: reduce) {
   .hero-art-plane, .showcase-landscape, .lyrics-art > img, .footer-art img, .screenshot-reference:hover img, .screen-frame:hover img, .action:active { transform: none; }
   .showcase-sticky, .faq-intro { position: static; }
@@ -276,5 +272,5 @@ html[data-motion="reduced"] :is(.showcase-sticky, .faq-intro) { position: static
 .hero .style-picker, .site-footer .style-picker { --picker-focus: var(--hero-ink); }
 .style-picker .style-option:has(input:focus-visible) { outline-color: var(--picker-focus, var(--ink)); outline-offset: 5px; }
 
-html[data-motion="reduced"] #screen-preview::backdrop, html[data-motion="reduced"] .faq-list details::details-content { transition: none !important; }
+html[data-motion-pref="reduced"] #screen-preview::backdrop, html[data-motion-pref="reduced"] .faq-list details::details-content { transition: none !important; }
 @media (prefers-reduced-motion: reduce) { #screen-preview::backdrop, .faq-list details::details-content { transition: none !important; } }
