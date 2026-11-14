@@ -45,3 +45,9 @@ signing.properties
 __pycache__/
 *.py[cod]
 .venv/
+
+# Installed agent skills and their working state
+.agents/skills/
+.taste-skill/
+website/shots/
+skills-lock.json

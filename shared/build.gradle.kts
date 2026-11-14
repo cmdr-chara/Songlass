@@ -8,6 +8,8 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(21)
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -34,6 +36,8 @@ kotlin {
     sourceSets {
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
+            implementation(libs.androidx.core)
+            implementation(libs.androidx.lifecycle.common)
         }
         commonMain.dependencies {
             implementation(projects.core)
@@ -41,6 +45,8 @@ kotlin {
             implementation(projects.themeLiquidglass)
             implementation(projects.themeMaterialglass)
             implementation(projects.themeMiuix)
+            implementation(libs.androidx.lifecycle.common)
+            implementation(libs.androidx.lifecycle.runtime.compose)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.ui)

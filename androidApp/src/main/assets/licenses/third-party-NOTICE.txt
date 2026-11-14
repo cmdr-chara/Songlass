@@ -3,7 +3,7 @@ Additional open-source components used by Songlass for Android
 This inventory accompanies the Apache License 2.0 and the additional original
 notices packaged with Songlass. Miuix, TagLib and the AutoEQ catalog have separate
 notices. Component versions below come from the resolved Android release runtime
-dependencies on 2026-10-21. Release optimization can remove unused code.
+dependencies on 2026-11-13. Release optimization can remove unused code.
 
 AndroidX and Jetpack Compose — The Android Open Source Project
 Apache License 2.0
@@ -46,9 +46,22 @@ kotlinx.coroutines core and Android 1.11.0 — JetBrains and contributors
 Apache License 2.0. The original library NOTICE is packaged separately.
 https://github.com/Kotlin/kotlinx.coroutines/tree/1.11.0
 
-kotlinx.serialization core 1.7.3 — JetBrains and contributors
+kotlinx.serialization core 1.8.1 — JetBrains and contributors
 Apache License 2.0. The original library NOTICE is packaged separately.
-https://github.com/Kotlin/kotlinx.serialization/tree/v1.7.3
+https://github.com/Kotlin/kotlinx.serialization/tree/v1.8.1
+
+Ktor client core and OkHttp engine 2.3.2 — JetBrains and contributors
+Apache License 2.0
+https://github.com/ktorio/ktor/tree/2.3.2
+
+OkHttp 4.11.0 and Okio 3.2.0 — Square, Inc.
+Apache License 2.0
+https://github.com/square/okhttp
+https://github.com/square/okio
+
+SLF4J API 1.7.36 — QOS.ch
+MIT License
+https://github.com/qos-ch/slf4j/tree/v_1.7.36
 
 MaterialKolor material-color-utilities 5.0.1
 Kotlin Multiplatform port by Jordon de Hoog and contributors of

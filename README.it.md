@@ -99,7 +99,7 @@ La [bozza dell'informativa sui dati](docs/PRIVACY.md) descrive servizi, dati e i
 
 ## Compilazione e controlli
 
-Servono **JDK 17 o successivo**, **Android SDK 37** e il wrapper Gradle incluso. Configura il percorso dell'SDK
+Servono **JDK 21 o successivo**, **Android SDK 37** e il wrapper Gradle incluso. Configura il percorso dell'SDK
 nel file locale `local.properties` o tramite variabili d'ambiente. Le versioni delle dipendenze sono in
 [gradle/libs.versions.toml](gradle/libs.versions.toml).
 

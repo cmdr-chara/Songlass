@@ -101,7 +101,7 @@ for the services, data and settings involved.
 
 ## Build and checks
 
-Use **JDK 17 or later**, **Android SDK 37** and the included Gradle wrapper. Configure your SDK location in
+Use **JDK 21 or later**, **Android SDK 37** and the included Gradle wrapper. Configure your SDK location in
 local `local.properties` or environment variables. Dependency versions are in [gradle/libs.versions.toml](gradle/libs.versions.toml).
 
 ```bash

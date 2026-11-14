@@ -28,3 +28,9 @@ Use [docs/ROADMAP.md](docs/ROADMAP.md) for planned work; do not turn historical 
 - Disclose AI assistance in submitted work and PR/issue text as described in [CONTRIBUTING.md](CONTRIBUTING.md#ai-assistance). The author remains responsible for review and validation.
 
 Respect the [Code of Conduct](CODE_OF_CONDUCT.md). Do not include credentials, signing material, personal music or unlicensed third-party assets in patches, screenshots or reports.
+
+## Local environment (this machine)
+
+- JDK: `C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot` (Temurin 21). Android SDK: `%LOCALAPPDATA%\Android\Sdk` (`local.properties` has `sdk.dir`).
+- Owner is often gaming while agents work: **always run the emulator headless** — `emulator -avd <name> -no-window -no-audio` — so no windows or sounds interrupt them. Interact via `adb -s <serial>`; use `adb exec-out screencap` for screenshots instead of opening the UI.
+- Commits: the owner does not write "AI assisted" in their own commit messages; the AI-assistance disclosure in CONTRIBUTING applies to external submissions.

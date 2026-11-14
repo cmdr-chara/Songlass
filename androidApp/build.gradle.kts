@@ -10,10 +10,16 @@ dependencies {
     implementation(projects.core)
     implementation(projects.designsystem)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.guava)
+    implementation(libs.media3.common)
+    implementation(libs.media3.datasource)
     implementation(libs.media3.exoplayer)
+    implementation(libs.media3.extractor)
     implementation(libs.media3.session)
     implementation(libs.taglib)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.common)
     implementation(libs.compose.uiToolingPreview)
 }
 
@@ -70,6 +76,7 @@ android {
 }
 
 kotlin {
+    jvmToolchain(21)
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
     }

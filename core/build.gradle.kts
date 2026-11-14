@@ -6,6 +6,8 @@ plugins {
 }
 
 kotlin {
+    jvmToolchain(21)
+
     iosArm64()
     iosSimulatorArm64()
 
